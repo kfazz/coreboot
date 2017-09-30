@@ -1,0 +1,6 @@
+Category: desktop
+ROM protocol: SPI
+Flashrom support: y (With service mode jumper set)
+ROM package: SOIC-16 and SOIC-8
+ROM socketed: n
+Release year: 2011

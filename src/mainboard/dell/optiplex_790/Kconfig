@@ -1,0 +1,72 @@
+##
+## This file is part of the coreboot project.
+##
+## Copyright (C) 2012 Alexandru Gagniuc <mr.nuke.me@gmail.com>
+## Copyright (C) 2009-2010 coresystems GmbH
+##
+## This program is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; version 2 of the License.
+##
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+
+if BOARD_DELL_OPTIPLEX_790
+
+config BOARD_SPECIFIC_OPTIONS # dummy
+	def_bool y
+	select BOARD_ROMSIZE_KB_10240
+	select CPU_INTEL_SOCKET_LGA1155
+	select HAVE_ACPI_RESUME
+	select HAVE_ACPI_TABLES
+	select INTEL_INT15
+	select NORTHBRIDGE_INTEL_SANDYBRIDGE
+	select SERIRQ_CONTINUOUS_MODE
+	select SOUTHBRIDGE_INTEL_BD82X6X
+	select USE_NATIVE_RAMINIT
+
+config HAVE_IFD_BIN
+	bool
+	default n
+
+config HAVE_ME_BIN
+	bool
+	default n
+
+config MAINBOARD_DIR
+	string
+	default dell/optiplex_790
+
+config MAINBOARD_PART_NUMBER
+	string
+	default "OptiPlex 790"
+
+config VGA_BIOS_FILE
+	string
+	default "pci8086,0102.rom" # When this section is removed,
+				   #the nconfig and build process starts behaving weird
+
+config VGA_BIOS_ID
+	string
+	default "8086,0102"
+
+config MAINBOARD_PCI_SUBSYSTEM_DEVICE_ID
+	hex
+	default 0x4ad
+
+config MAINBOARD_PCI_SUBSYSTEM_VENDOR_ID
+	hex
+	default 0x1028
+
+config MAX_CPUS
+	int
+	default 8
+
+config USBDEBUG_HCD_INDEX # FIXME: check this
+	int
+	default 2
+
+endif
