@@ -31,6 +31,8 @@
 #include <cbmem.h>
 #include <device/dram/ddr2.h>
 
+#define FIXED_RAM
+
 /* Debugging macros. */
 #if IS_ENABLED(CONFIG_DEBUG_RAM_SETUP)
 #define PRINTK_DEBUG(x...)	printk(BIOS_DEBUG, x)
@@ -53,6 +55,7 @@
 #define RAM_EMRS_3			(0x2 << 21)
 
 #define DEFAULT_PCI_MMIO_SIZE		768
+#ifndef FIXED_RAM
 static int get_dimm_spd_address(struct sys_info *sysinfo, int device)
 {
 	if (sysinfo->spd_addresses)
@@ -61,6 +64,7 @@ static int get_dimm_spd_address(struct sys_info *sysinfo, int device)
 		return DIMM0 + device;
 
 }
+#endif
 
 static inline int spd_read_byte(unsigned int device, unsigned int address)
 {
@@ -321,6 +325,8 @@ struct timings {
 	u8 cas_mask;
 };
 
+#ifndef FIXED_RAM
+
 /**
  * @brief loop over dimms and save maximal timings
  */
@@ -514,6 +520,94 @@ static void gather_common_timing(struct sys_info *sysinfo,
 	}
 }
 
+#else
+
+/**
+ * @brief loop over dimms and save maximal timings
+ */
+static void gather_common_timing_fixed(struct sys_info *sysinfo,
+				struct timings *saved_timings)
+{
+
+	int j;
+	u8 raw_spd[SPD_SIZE_MAX_DDR2] =
+	{0x80,0x08,0x08,0x0D,0x0a,0x60,0x40,0x00,0x05,0x3D,0x50,0x00,0x82,0x10,0x00,0x00,
+	 0x0c,0x04,0x18,0x01,0x04,0x00,0x01,0x50,0x50,0x00,0x00,0x3c,0x28,0x3c,0x2d,0x20,
+	 0x25,0x37,0x10,0x22,0x3c,0x1e,0x1e,0x00,0x00,0x3c,0x4b,0x80,0x1e,0x28,0x00,0x00,
+	 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x13,0x8C,
+	 0x2C,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+	 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+	 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+	 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
+
+	memset(saved_timings, 0, sizeof(*saved_timings));
+	saved_timings->max_tRR = UINT32_MAX;
+	saved_timings->cas_mask = SPD_CAS_LATENCY_DDR2_3
+		| SPD_CAS_LATENCY_DDR2_4 | SPD_CAS_LATENCY_DDR2_5;
+	
+	/* Although the chipset supports dual channel, it isn't used.*/
+	sysinfo->dual_channel = 0;
+	sysinfo->dimm[0] = SYSINFO_DIMM_NOT_POPULATED;
+	sysinfo->dimm[1] = SYSINFO_DIMM_NOT_POPULATED;
+	sysinfo->dimm[2] = SYSINFO_DIMM_NOT_POPULATED;
+	sysinfo->dimm[3] = SYSINFO_DIMM_NOT_POPULATED;
+
+	struct dimm_attr_ddr2_st dimm_info;
+
+	if (spd_decode_ddr2(&dimm_info, raw_spd) != SPD_STATUS_OK) {
+		die("No memory installed.\n");
+	}
+
+	if (IS_ENABLED(CONFIG_DEBUG_RAM_SETUP))
+		dram_print_spd_ddr2(&dimm_info);
+
+	printk(BIOS_DEBUG, "x16SS\n");
+	sysinfo->dimm[0] = SYSINFO_DIMM_X16SS;
+
+	/* Is the current DIMM a stacked DIMM? */
+	if (dimm_info.flags.stacked)
+		sysinfo->package = SYSINFO_PACKAGE_STACKED;
+
+	if (!dimm_info.flags.bl8)
+		die("Only DDR-II RAM with burst length 8 is supported by this chipset.\n");
+
+	if (dimm_info.ranksize_mb < 128)
+		die("DDR-II rank size smaller than 128MB is not supported.\n");
+
+	sysinfo->banksize[0] = dimm_info.ranksize_mb / 32;
+	printk(BIOS_DEBUG, "DIMM %d side 0 = %d MB\n", 0,
+		sysinfo->banksize[0] * 32);
+
+	sysinfo->rows[0] = dimm_info.row_bits;
+	sysinfo->cols[0] = dimm_info.col_bits;
+	sysinfo->banks[0] = dimm_info.banks;
+
+	/* int min_tRAS, min_tRP, min_tRCD, min_tWR, min_tRFC; */
+	saved_timings->min_tRAS = MAX(saved_timings->min_tRAS,
+				dimm_info.tRAS);
+	saved_timings->min_tRP = MAX(saved_timings->min_tRP,
+				dimm_info.tRP);
+	saved_timings->min_tRCD = MAX(saved_timings->min_tRCD,
+				dimm_info.tRCD);
+	saved_timings->min_tWR = MAX(saved_timings->min_tWR,
+				dimm_info.tWR);
+	saved_timings->min_tRFC = MAX(saved_timings->min_tRFC,
+				dimm_info.tRFC);
+	saved_timings->max_tRR = MIN(saved_timings->max_tRR,
+				dimm_info.tRR);
+	saved_timings->cas_mask &= dimm_info.cas_supported;
+	for (j = 0; j < 8; j++) {
+		if (!(saved_timings->cas_mask & (1 << j)))
+			saved_timings->min_tCLK_cas[j] = 0;
+		else
+			saved_timings->min_tCLK_cas[j] =
+				MAX(dimm_info.cycle_time[j],
+					saved_timings->min_tCLK_cas[j]);
+	}
+}
+
+#endif
+
 static void choose_tclk(struct sys_info *sysinfo,
 			struct timings *saved_timings)
 {
@@ -623,8 +717,11 @@ static void derive_timings(struct sys_info *sysinfo,
 static void sdram_get_dram_configuration(struct sys_info *sysinfo)
 {
 	struct timings saved_timings;
-
+#ifndef FIXED_RAM
 	gather_common_timing(sysinfo, &saved_timings);
+#else
+	gather_common_timing_fixed(sysinfo, &saved_timings);
+#endif
 	choose_tclk(sysinfo, &saved_timings);
 	derive_timings(sysinfo, &saved_timings);
 }

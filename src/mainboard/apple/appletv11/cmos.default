@@ -1,0 +1,7 @@
+boot_option=Fallback
+debug_level=Spew
+nmi=Enable
+boot_devices=''
+boot_default=0x40
+cmos_defaults_loaded=Yes
+

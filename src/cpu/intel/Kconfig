@@ -24,6 +24,7 @@ source src/cpu/intel/haswell/Kconfig
 # Sockets/Slots
 source src/cpu/intel/slot_2/Kconfig
 source src/cpu/intel/slot_1/Kconfig
+source src/cpu/intel/socket_BGA663/Kconfig
 source src/cpu/intel/socket_BGA956/Kconfig
 source src/cpu/intel/socket_BGA1284/Kconfig
 source src/cpu/intel/socket_FC_PGA370/Kconfig

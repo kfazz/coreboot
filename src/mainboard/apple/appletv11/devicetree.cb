@@ -1,0 +1,87 @@
+##
+## This file is part of the coreboot project.
+##
+## Copyright (C) 2007-2009 coresystems GmbH
+## Copyright (C) 2011 Sven Schnelle <svens@stackframe.org>
+##
+## This program is free software; you can redistribute it and/or
+## modify it under the terms of the GNU General Public License as
+## published by the Free Software Foundation; version 2 of
+## the License.
+##
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+
+chip northbridge/intel/i945
+	device cpu_cluster 0 on
+		chip cpu/intel/socket_BGA663
+			device lapic 0 on end
+		end
+		chip cpu/intel/model_6dx
+		end
+	end
+
+	register "pci_mmio_size" = "768"
+
+	device domain 0 on
+		device pci 00.0 on # Host bridge
+			subsystemid 0x8086 0x7270
+		end
+
+		device pci 01.0 on # PCI Bridge
+		end
+		device pci 07.0 on # Performance Counters
+		end
+#southpridge is PC82801GUX which seems to be an ICH7M (not ultra) mobile variant
+		chip southbridge/intel/i82801gx
+			register "pirqa_routing" = "0x0b"
+			register "pirqb_routing" = "0x0b"
+			register "pirqc_routing" = "0x0b"
+			register "pirqd_routing" = "0x0b"
+			register "pirqe_routing" = "0x0b"
+			register "pirqf_routing" = "0x0b"
+			register "pirqg_routing" = "0x0b"
+			register "pirqh_routing" = "0x0b"
+
+			# GPI routing
+			#  0 No effect (default)
+			#  1 SMI# (if corresponding ALT_GPI_SMI_EN bit is also set)
+			#  2 SCI (if corresponding GPIO_EN bit is also set)
+			register "gpi10_routing" = "2"
+
+			register "gpe0_en" = "0x4000804"
+			register "alt_gp_smi_en" = "0x1000"
+
+			register "ide_enable_primary" = "1"
+
+			register "c4onc3_enable" = "1"
+
+			register "c3_latency" = "0x23"
+			register "p_cnt_throttling_supported" = "1"
+
+			device pci 1b.0 on # Audio Controller
+				subsystemid 0x10ec 0x0885
+			end
+			device pci 1c.0 on end # PCI bridge
+
+			device pci 1d.0 on # USB UHCI
+				subsystemid 0x8086 0x7270
+			end
+			device pci 1d.7 on # USB2 EHCI
+				subsystemid 0x8086 0x7270
+			end
+			device pci 1f.0 on # PCI-LPC bridge
+				subsystemid 0x8086 0x7270
+			end
+			device pci 1f.1 on # IDE
+				subsystemid 0x8086 0x7270
+			end
+			device pci 1f.3 on # SMBUS
+				subsystemid 0x8086 0x7270
+			end
+		end
+	end
+end
