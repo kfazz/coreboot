@@ -14,6 +14,7 @@
  */
 
 #define __SIMPLE_DEVICE__
+#define EXAR
 
 #include <stdint.h>
 #include <stddef.h>
@@ -25,7 +26,11 @@
 #include <device/pci_def.h>
 
 static unsigned int oxpcie_present CAR_GLOBAL;
+#ifndef EXAR
 static DEVTREE_CONST u32 uart0_base = CONFIG_EARLY_PCI_MMIO_BASE + 0x1000;
+#else
+static DEVTREE_CONST u32 uart0_base = CONFIG_EARLY_PCI_MMIO_BASE;
+#endif
 
 int pci_early_device_probe(u8 bus, u8 dev, u32 mmio_base)
 {
@@ -46,6 +51,10 @@ int pci_early_device_probe(u8 bus, u8 dev, u32 mmio_base)
 	case 0xc11b1415: /* e.g. Startech PEX1S1PMINI function 3 */
 	case 0xc1581415: /* e.g. Startech MPEX2S952 */
 		break;
+#ifdef EXAR
+	case 0x035213a8: /*Exar Dual Serial mPCie Card */
+		break;
+#endif
 	default:
 		/* No UART here. */
 		return -1;
@@ -74,19 +83,30 @@ static int oxpcie_uart_active(void)
 
 uintptr_t uart_platform_base(int idx)
 {
+#ifndef EXAR
 	if ((idx >= 0) && (idx < 8) && oxpcie_uart_active())
 		return uart0_base + idx * 0x200;
+#else
+	if ((idx >= 0) && (idx < 2) && oxpcie_uart_active())
+		return uart0_base + idx * 0x400;
+#endif
+
+
 	return 0;
 }
 
 #ifndef __PRE_RAM__
 void oxford_remap(u32 new_base)
 {
-	uart0_base = new_base + 0x1000;
+	uart0_base = new_base; // + 0x1000;
 }
 #endif
 
 unsigned int uart_platform_refclk(void)
 {
+#ifndef EXAR
 	return 62500000;
+#else
+	return 62500000 * 2;
+#endif
 }

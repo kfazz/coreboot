@@ -18,7 +18,8 @@
 unsigned int uart_baudrate_divisor(unsigned int baudrate,
 	unsigned int refclk, unsigned int oversample)
 {
-	return (1 + (2 * refclk) / (baudrate * oversample)) / 2;
+	//return (1 + (2 * refclk) / (baudrate * oversample)) / 2;
+	return refclk / baudrate * oversample;
 }
 
 #if !IS_ENABLED(CONFIG_UART_OVERRIDE_INPUT_CLOCK_DIVIDER)

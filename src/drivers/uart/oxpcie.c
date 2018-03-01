@@ -30,13 +30,16 @@ static void oxford_oxpcie_enable(device_t dev)
 		printk(BIOS_WARNING, "OXPCIe952: No UART resource found.\n");
 		return;
 	}
+#if 0
 	void *bar0 = res2mmio(res, 0, 0);
 
 	printk(BIOS_DEBUG, "OXPCIe952: Class=%x Revision ID=%x\n",
 			(read32(bar0) >> 8), (read32(bar0) & 0xff));
 	printk(BIOS_DEBUG, "OXPCIe952: %d UARTs detected.\n",
 			(read32(bar0 + 4) & 3));
+#endif
 	printk(BIOS_DEBUG, "OXPCIe952: UART BAR: 0x%x\n", (u32)res->base);
+
 }
 
 
@@ -67,4 +70,10 @@ static const struct pci_driver oxford_oxpcie_driver_2 __pci_driver = {
 	.ops    = &oxford_oxpcie_ops,
 	.vendor = 0x1415,
 	.device = 0xc11b,
+};
+
+static const struct pci_driver exar_pcie_driver __pci_driver = {
+	.ops    = &oxford_oxpcie_ops,
+	.vendor = 0x13a8,
+	.device = 0x0352,
 };
