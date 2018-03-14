@@ -215,7 +215,7 @@ static void early_ich7_init(void)
 	reg32 |= (0x810000); //(1 << 6);
 	RCBA32(GCS) = reg32;
 
-
+#if 0
 	RCBA32(0x0240) = 0x00e70c7a;
 	RCBA32(0x0244) = 0x00ed0c92;
 	RCBA32(0x0248) = 0x0038041e;
@@ -230,6 +230,8 @@ static void early_ich7_init(void)
 	RCBA32(0x0284) = 0x00a70000;
 	RCBA32(0x0288) = 0x00c30006;
 	RCBA32(0x1d3c) = 0x0000000a;
+#endif
+
 
 
 	reg32 = RCBA32(0x3430);

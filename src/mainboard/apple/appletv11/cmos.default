@@ -4,4 +4,5 @@ nmi=Enable
 boot_devices=''
 boot_default=0x40
 cmos_defaults_loaded=Yes
+power_on_after_fail=Enable
 
