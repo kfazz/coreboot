@@ -75,11 +75,14 @@ static void gen_pstate_entries(const sst_table_t *const pstates,
 	acpigen_write_PSD_package(
 			cpuID, cores_per_package, coordination);
 	acpigen_write_name("_PSS");
-
-	const int fsb3 = get_fsb();
+	int fsb3 = get_fsb();
+	fsb3 = 300; /*Appletv Hack*/
+	printk(BIOS_DEBUG, "FSB: %d MHz.\n", fsb3/3);
 	const int min_ratio2 = SPEEDSTEP_DOUBLE_RATIO(
 		pstates->states[pstates->num_states - 1]);
+	printk(BIOS_DEBUG, "min ratio: %d MHz.\n", min_ratio2/2);
 	const int max_ratio2 = SPEEDSTEP_DOUBLE_RATIO(pstates->states[0]);
+	printk(BIOS_DEBUG, "max ratio: %d MHz.\n", max_ratio2/2);
 	printk(BIOS_DEBUG, "clocks between %d and %d MHz.\n",
 	       (min_ratio2 * fsb3)
 		/ (pstates->states[pstates->num_states - 1].is_slfm ? 12 : 6),
@@ -117,7 +120,8 @@ void generate_cpu_entries(device_t device)
 {
 	int coreID, cpuID, pcontrol_blk = PMB0_BASE, plen = 6;
 	int totalcores = determine_total_number_of_cores();
-	int cores_per_package = (cpuid_ebx(1)>>16) & 0xff;
+	/*Hack for appletv*/
+	int cores_per_package = 1; //(cpuid_ebx(1)>>16) & 0xff;
 	int numcpus = totalcores/cores_per_package; /* This assumes that all
 						       CPUs share the same
 						       layout. */
@@ -128,9 +132,12 @@ void generate_cpu_entries(device_t device)
 
 	printk(BIOS_DEBUG, "Found %d CPU(s) with %d core(s) each.\n",
 	       numcpus, cores_per_package);
-
+		printk(BIOS_DEBUG, "Get cst Entries\n");
 	num_cstates = get_cst_entries(&cstates);
+		printk(BIOS_DEBUG, "Got %d C states\n", num_cstates);
+		printk(BIOS_DEBUG, "Gen P states\n");
 	speedstep_gen_pstates(&pstates);
+		printk(BIOS_DEBUG, "Cpuid model check");
 	if (((cpuid_eax(1) >> 4) & 0xffff) == 0x1067)
 		/* For Penryn use HW_ALL. */
 		coordination = HW_ALL;
@@ -146,16 +153,19 @@ void generate_cpu_entries(device_t device)
 			}
 
 			/* Generate processor \_PR.CPUx. */
+			printk(BIOS_DEBUG, "Generate processor \\_PR.CPUx\n");
 			acpigen_write_processor(
 					cpuID * cores_per_package + coreID - 1,
 					pcontrol_blk, plen);
 
 			/* Generate p-state entries. */
+			printk(BIOS_DEBUG, "Generate p-state entries\n");
 			gen_pstate_entries(&pstates, cpuID,
 					cores_per_package, coordination);
 
 			/* Generate c-state entries. */
 			if (num_cstates > 0)
+				printk(BIOS_DEBUG, "Generate c-state entries\n");
 				acpigen_write_CST_package(
 							cstates, num_cstates);
 

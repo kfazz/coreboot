@@ -32,6 +32,7 @@ static void speedstep_get_limits(sst_params_t *const params)
 	msr_t msr;
 
 	const uint16_t cpu_id = (cpuid_eax(1) >> 4) & 0xffff;
+		printk(BIOS_DEBUG, "cpuid %x \n", cpu_id);
 	const uint32_t state_mask =
 		/* Penryn supports non integer (i.e. half) ratios. */
 		((cpu_id == 0x1067) ? SPEEDSTEP_RATIO_NONINT : 0)
@@ -39,7 +40,7 @@ static void speedstep_get_limits(sst_params_t *const params)
 
 	/* Initialize params to zero. */
 	memset(params, '\0', sizeof(*params));
-
+#if 0
 	/* Read Super-LFM parameters. */
 	if (((rdmsr(MSR_EXTENDED_CONFIG).lo >> 27) & 3) == 3) {/*supported and
 								 enabled bits */
@@ -48,6 +49,7 @@ static void speedstep_get_limits(sst_params_t *const params)
 		params->slfm.dynfsb	= 1;
 		params->slfm.is_slfm	= 1;
 	}
+#endif
 
 	/* Read normal minimum parameters. */
 	msr = rdmsr(MSR_THERM2_CTL);
@@ -59,15 +61,22 @@ static void speedstep_get_limits(sst_params_t *const params)
 	   when using turbo mode. */
 	msr = rdmsr(IA32_PLATFORM_ID);
 	params->max = SPEEDSTEP_STATE_FROM_MSR(msr.lo, state_mask);
-	if (cpu_id == 0x006e) {
+	switch (cpu_id)
+	{
+	case 0x006d:
+		params->max.ratio = 0xA;
+	case 0x006e:
 		/* Looks like Yonah CPUs don't have the frequency ratio in
 		   IA32_PLATFORM_ID. Use IA32_PERF_STATUS instead, the reading
 		   should be reliable as those CPUs don't have turbo mode. */
 		msr = rdmsr(IA32_PERF_STATUS);
 		params->max.ratio = (msr.hi & SPEEDSTEP_RATIO_VALUE_MASK)
 						>> SPEEDSTEP_RATIO_SHIFT;
+		break;
+	default:
+		break;
 	}
-
+#if 0
 	/* Read turbo parameters. */
 	msr = rdmsr(MSR_FSB_CLOCK_VCC);
 	if ((msr.hi & (1 << (63 - 32))) &&
@@ -77,11 +86,16 @@ static void speedstep_get_limits(sst_params_t *const params)
 		params->turbo = SPEEDSTEP_STATE_FROM_MSR(msr.hi, state_mask);
 		params->turbo.is_turbo = 1;
 	}
+#endif
 
 	/* Set power limits by processor type. */
 	/* Defined values match the normal voltage versions only. But
 	   they are only a hint for OSPM, so this should not hurt much. */
 	switch (cpu_id) {
+	case 0x006d:
+		params->min.power	= 3000;
+		params->max.power	= 5000;
+		break;
 	case 0x006e:
 		/* Yonah */
 		params->min.power	= SPEEDSTEP_MIN_POWER_YONAH;
@@ -128,14 +142,18 @@ void speedstep_gen_pstates(sst_table_t *const table)
 	const int max_ratio2	= SPEEDSTEP_DOUBLE_RATIO(params.max);
 	const int min_ratio2	= SPEEDSTEP_DOUBLE_RATIO(params.min);
 	const int ratio_diff2	= max_ratio2 - min_ratio2;
+	printk(BIOS_INFO, "Max rat2: %d, Min rat2 %d, ratio_diff2: %d\n", \
+			max_ratio2, min_ratio2, ratio_diff2);
 	/* Calculate number of normal states (LFM to HFM, min to max). */
 	/* Increase step size, until all states fit into the table.
 	   (Note: First try should always work, if
 	    SPEEDSTEP_MAX_NORMAL_STATES is set correctly.) */
 	int states, step2 = 0;
 	do {
-		step2 += 2 * 2; /* Must be a multiple of 2 (doubled). */
+		//step2 += 2 * 2; /* Must be a multiple of 2 (doubled). */
+		step2 += 2; //AppleTV hack pentium m can do 100Mhz steps*/
 		states = ratio_diff2 / step2 + 1;
+		printk(BIOS_INFO, "step2: %d, states: %d\n", step2, states);
 	} while (states > SPEEDSTEP_MAX_NORMAL_STATES);
 	if (step2 > 4)
 		printk(BIOS_INFO, "Enhanced Speedstep processor with "
@@ -144,6 +162,7 @@ void speedstep_gen_pstates(sst_table_t *const table)
 	if (states < 2) /* Report at least two normal states. */
 		states = 2;
 
+	printk(BIOS_INFO, "final states: %d\n", states);
 
 	/*\ Now, fill the table: \*/
 
