@@ -1092,7 +1092,8 @@ static void sdram_rcomp_buffer_strength_and_slew(struct sys_info *sysinfo)
 
 	printk(BIOS_DEBUG, "Table Index: %d\n", idx);
 
-	MCHBAR8(G1SC) = strength_multiplier[idx * 8 + 0];
+	//MCHBAR8(G1SC) = strength_multiplier[idx * 8 + 0];
+	MCHBAR8(G1SC) = 0x44; /*Hack for Appletv*/
 	MCHBAR8(G2SC) = strength_multiplier[idx * 8 + 1];
 	MCHBAR8(G3SC) = strength_multiplier[idx * 8 + 2];
 	MCHBAR8(G4SC) = strength_multiplier[idx * 8 + 3];
@@ -2086,7 +2087,7 @@ static void sdram_program_clock_crossing(void)
 #endif
 
 	printk(BIOS_DEBUG, "Programming Clock Crossing...");
-
+#if 1
 	printk(BIOS_DEBUG, "MEM=");
 	switch (memclk()) {
 	case 400:
@@ -2114,6 +2115,9 @@ static void sdram_program_clock_crossing(void)
 	default:
 		printk(BIOS_DEBUG, "RSVD %x\n", fsbclk()); return;
 	}
+#endif
+	printk(BIOS_DEBUG, "Appletv: forcing 533 rates.");
+	idx = 8; /*just fix these for now*/
 
 	if (command_clock_crossing[idx] == 0xffffffff)
 		printk(BIOS_DEBUG, "Invalid MEM/FSB combination!\n");
@@ -2289,7 +2293,7 @@ static void sdram_power_management(struct sys_info *sysinfo)
 	u8 reg8;
 	u16 reg16;
 	u32 reg32;
-	int integrated_graphics = 1;
+	int integrated_graphics = 0;
 	int i;
 
 	reg32 = MCHBAR32(C0DRT2);
@@ -2437,6 +2441,7 @@ static void sdram_power_management(struct sys_info *sysinfo)
 	reg8 |= (1 << 2);
 	pci_write_config8(PCI_DEV(0, 0x2, 0), 0xc1, reg8);
 
+#define C2_SELF_REFRESH_DISABLE
 #ifdef C2_SELF_REFRESH_DISABLE
 
 	if (integrated_graphics) {
@@ -2946,6 +2951,9 @@ void sdram_initialize(int boot_path, const u8 *spd_addresses)
 	/* Enable System Memory Clocks */
 	sdram_enable_memory_clocks(&sysinfo);
 
+#if IS_ENABLED(CONFIG_DEBUG_RAM_SETUP)
+	sdram_dump_mchbar_registers();
+#endif
 	if (boot_path == BOOT_PATH_NORMAL) {
 		/* Jedec Initialization sequence */
 		sdram_jedec_enable(&sysinfo);
