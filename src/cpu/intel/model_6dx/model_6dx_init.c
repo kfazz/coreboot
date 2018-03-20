@@ -38,18 +38,12 @@ static void configure_misc(void)
 	msr.lo |= (1 << 16);	/* Enhanced SpeedStep Enable */
 
 	wrmsr(IA32_MISC_ENABLE, msr);
-#if 0
+#if 1
 	// set maximum CPU speed
 	msr = rdmsr(IA32_PERF_STATUS);
-	int busratio_max = (msr.hi >> (40-32)) & 0x1f;
-
-	msr = rdmsr(IA32_PLATFORM_ID);
-	int vid_max = msr.lo & 0x3f;
-
-	msr.lo &= ~0xffff;
-	msr.lo |= busratio_max << 8;
-	msr.lo |= vid_max;
-
+	int max = (msr.hi & 0xffff);
+	msr.hi = 0x0000;
+	msr.lo = max;
 	wrmsr(IA32_PERF_CTL, msr);
 #endif
 }
