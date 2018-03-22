@@ -2364,6 +2364,7 @@ static void sdram_power_management(struct sys_info *sysinfo)
 		case 667:
 			MCHBAR32(HGIPMC2) = 0x0d590d59; break;
 		case 533:
+		case 400:
 			MCHBAR32(HGIPMC2) = 0x155b155b; break;
 		}
 	} else {
@@ -2371,6 +2372,7 @@ static void sdram_power_management(struct sys_info *sysinfo)
 		case 667:
 			MCHBAR32(HGIPMC2) = 0x09c409c4; break;
 		case 533:
+		case 400:
 			MCHBAR32(HGIPMC2) = 0x0fa00fa0; break;
 		}
 	}
@@ -2383,6 +2385,7 @@ static void sdram_power_management(struct sys_info *sysinfo)
 	case 667:
 		reg32 |= 0x0600; break;
 	case 533:
+	case 400:
 		reg32 |= 0x0480; break;
 	}
 	MCHBAR32(C2C3TT) = reg32;
@@ -2393,6 +2396,7 @@ static void sdram_power_management(struct sys_info *sysinfo)
 	case 667:
 		reg32 |= 0x0b80; break;
 	case 533:
+	case 400:
 		reg32 |= 0x0980; break;
 	}
 	MCHBAR32(C3C4TT) = reg32;

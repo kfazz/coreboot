@@ -59,9 +59,11 @@
 #define  DEVEN_D1F0 (1 << 1)
 #define  DEVEN_D2F0 (1 << 3)
 #define  DEVEN_D2F1 (1 << 4)
+#define  DEVEN_D7F0 (1 << 7)			/*Performance Counters*/
 
 #ifndef BOARD_DEVEN
-#define BOARD_DEVEN (DEVEN_D0F0 | DEVEN_D2F0 | DEVEN_D2F1)
+#define BOARD_DEVEN (DEVEN_D7F0 | DEVEN_D0F0 | DEVEN_D1F0)
+//#define BOARD_DEVEN (DEVEN_D0F0 | DEVEN_D2F0 | DEVEN_D2F1)
 #endif /* BOARD_DEVEN */
 
 #define PAM0		0x90

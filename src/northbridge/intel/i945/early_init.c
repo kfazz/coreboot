@@ -184,6 +184,8 @@ static void i945_setup_bars(void)
 	pci_write_config32(PCI_DEV(0, 0x00, 0), DMIBAR, (uintptr_t)DEFAULT_DMIBAR | 1);
 	pci_write_config32(PCI_DEV(0, 0x00, 0), X60BAR, DEFAULT_X60BAR | 1);
 
+	pci_write_config8(PCI_DEV(0, 0x00, 0), DEVEN, BOARD_DEVEN);
+
 	/* vram size from cmos option */
 	if (get_option(&gfxsize, "gfx_uma_size") != CB_SUCCESS)
 		gfxsize = 2;	/* 2 for 8MB */
