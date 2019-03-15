@@ -54,6 +54,21 @@ const u32 cim_verb_data[] = {
 
 	/* NID 0x21.  */
 	AZALIA_PIN_CFG(0x0, 0x21, 0x0221402f),
+	0x80862805, /* Codec Vendor / Device ID: Intel */
+	0x80860101, /* Subsystem ID */
+
+	0x00000004, /* Number of 4 dword sets */
+	/* NID 0x01: Subsystem ID.  */
+	AZALIA_SUBVENDOR(0x3, 0x80860101),
+
+	/* NID 0x05.  */
+	AZALIA_PIN_CFG(0x3, 0x05, 0x58560010),
+
+	/* NID 0x06.  */
+	AZALIA_PIN_CFG(0x3, 0x06, 0x18560020),
+
+	/* NID 0x07.  */
+	AZALIA_PIN_CFG(0x3, 0x07, 0x58560030),
 };
 
 const u32 pc_beep_verbs[0] = {};
