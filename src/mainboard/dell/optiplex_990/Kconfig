@@ -1,0 +1,42 @@
+if BOARD_DELL_OPTIPLEX_990
+
+config BOARD_SPECIFIC_OPTIONS
+	def_bool y
+	select BOARD_ROMSIZE_KB_10240
+	select HAVE_ACPI_RESUME
+	select HAVE_ACPI_TABLES
+	select INTEL_INT15
+	select NORTHBRIDGE_INTEL_SANDYBRIDGE
+	select SANDYBRIDGE_IVYBRIDGE_LVDS
+	select SERIRQ_CONTINUOUS_MODE
+	select SOUTHBRIDGE_INTEL_BD82X6X
+	select USE_NATIVE_RAMINIT
+
+config MAINBOARD_DIR
+	string
+	default dell/optiplex_990
+
+config MAINBOARD_PART_NUMBER
+	string
+	default "OptiPlex 990"
+
+config MAINBOARD_PCI_SUBSYSTEM_DEVICE_ID
+	hex
+	default 0x47e
+
+config MAINBOARD_PCI_SUBSYSTEM_VENDOR_ID
+	hex
+	default 0x1028
+
+config DRAM_RESET_GATE_GPIO # FIXME: check this
+	int
+	default 60
+
+config MAX_CPUS
+	int
+	default 8
+
+config USBDEBUG_HCD_INDEX # FIXME: check this
+	int
+	default 2
+endif
