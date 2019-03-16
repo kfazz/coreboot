@@ -1,0 +1,709 @@
+diff -urbw src/mainboard/dell/optiplex_7010/acpi/platform.asl src/mainboard/dell/optiplex_990/acpi/platform.asl
+--- src/mainboard/dell/optiplex_7010/acpi/platform.asl	2019-03-15 21:34:52.612889976 -0400
++++ src/mainboard/dell/optiplex_990/acpi/platform.asl	2019-03-14 22:09:14.638886936 -0400
+@@ -1,18 +1,3 @@
+-/*
+- * This file is part of the coreboot project.
+- *
+- * Copyright (C) 2018 3mdeb Embedded Systems Consulting
+- *
+- * This program is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License as
+- * published by the Free Software Foundation; version 2 of
+- * the License.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- */
+ Method(_WAK,1)
+ {
+ 	Return(Package(){0,0})
+diff -urbw src/mainboard/dell/optiplex_7010/acpi_tables.c src/mainboard/dell/optiplex_990/acpi_tables.c
+--- src/mainboard/dell/optiplex_7010/acpi_tables.c	2019-03-15 21:34:52.612889976 -0400
++++ src/mainboard/dell/optiplex_990/acpi_tables.c	2019-03-14 22:09:14.638886936 -0400
+@@ -1 +1,36 @@
+-/* dummy */
++/*
++ * This file is part of the coreboot project.
++ *
++ * Copyright (C) 2008-2009 coresystems GmbH
++ * Copyright (C) 2014 Vladimir Serbinenko
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License as
++ * published by the Free Software Foundation; version 2 of
++ * the License.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++#include <southbridge/intel/bd82x6x/nvs.h>
++
++/* FIXME: check this function.  */
++void acpi_create_gnvs(global_nvs_t *gnvs)
++{
++	/* Disable USB ports in S3 by default */
++	gnvs->s3u0 = 0;
++	gnvs->s3u1 = 0;
++
++	/* Disable USB ports in S5 by default */
++	gnvs->s5u0 = 0;
++	gnvs->s5u1 = 0;
++
++	// the lid is open by default.
++	gnvs->lids = 1;
++
++	gnvs->tcrt = 100;
++	gnvs->tpsv = 90;
++}
+diff -urbw src/mainboard/dell/optiplex_7010/devicetree.cb src/mainboard/dell/optiplex_990/devicetree.cb
+--- src/mainboard/dell/optiplex_7010/devicetree.cb	2019-03-15 21:34:52.616890004 -0400
++++ src/mainboard/dell/optiplex_990/devicetree.cb	2019-03-14 22:09:14.642886947 -0400
+@@ -1,24 +1,20 @@
+ chip northbridge/intel/sandybridge # FIXME: check gfx.ndid and gfx.did
+ 	register "gfx.did" = "{ 0x80000100, 0x80000240, 0x80000410, 0x80000410, 0x00000005 }"
+-	register "gfx.link_frequency_270_mhz" = "0"
++	register "gfx.link_frequency_270_mhz" = "1"
+ 	register "gfx.ndid" = "3"
+ 	register "gfx.use_spread_spectrum_clock" = "0"
+ 	register "gpu_cpu_backlight" = "0x00000000"
+-	register "gpu_dp_b_hotplug" = "0"
+-	register "gpu_dp_c_hotplug" = "0"
+-	register "gpu_dp_d_hotplug" = "0"
++	register "gpu_dp_b_hotplug" = "4"
++	register "gpu_dp_c_hotplug" = "4"
++	register "gpu_dp_d_hotplug" = "4"
+ 	register "gpu_panel_port_select" = "0"
+ 	register "gpu_panel_power_backlight_off_delay" = "0"
+ 	register "gpu_panel_power_backlight_on_delay" = "0"
+-	register "gpu_panel_power_cycle_delay" = "0"
++	register "gpu_panel_power_cycle_delay" = "4"
+ 	register "gpu_panel_power_down_delay" = "0"
+ 	register "gpu_panel_power_up_delay" = "0"
+ 	register "gpu_pch_backlight" = "0x00000000"
+ 	device cpu_cluster 0x0 on
+-		chip cpu/intel/socket_LGA1155
+-			device lapic 0x0 on
+-			end
+-		end
+ 		chip cpu/intel/model_206ax # FIXME: check all registers
+ 			register "c1_acpower" = "1"
+ 			register "c1_battery" = "1"
+@@ -26,6 +22,8 @@
+ 			register "c2_battery" = "3"
+ 			register "c3_acpower" = "5"
+ 			register "c3_battery" = "5"
++			device lapic 0x0 on
++			end
+ 			device lapic 0xacac off
+ 			end
+ 		end
+@@ -33,47 +31,44 @@
+ 	device domain 0x0 on
+ 		chip southbridge/intel/bd82x6x # Intel Series 6 Cougar Point PCH
+ 			register "c2_latency" = "0x0065"
+-			register "docking_supported" = "0"
+-			register "gen1_dec" = "0x007c0a01"
+-			register "gen2_dec" = "0x007c0901"
+-			register "gen3_dec" = "0x003c07e1"
+-			register "gen4_dec" = "0x001c0901"
+-			register "p_cnt_throttling_supported" = "0"
+-			register "pcie_hotplug_map" = "{ 0, 0, 0, 0, 0, 0, 0, 0 }"
++			register "docking_supported" = "1"
++			register "gen1_dec" = "0x007c0681"
++			register "gen2_dec" = "0x000c1641"
++			register "gen3_dec" = "0x000400e1"
++			register "gen4_dec" = "0x001c02d1"
++			register "p_cnt_throttling_supported" = "1"
++			register "pcie_hotplug_map" = "{ 0, 0, 1, 0, 0, 0, 0, 0 }"
+ 			register "pcie_port_coalesce" = "1"
+ 			register "sata_interface_speed_support" = "0x3"
+-			register "sata_port_map" = "0x3"
++			register "sata_port_map" = "0x1"
+ 			register "spi_lvscc" = "0x2005"
+ 			register "spi_uvscc" = "0x2005"
+-			register "superspeed_capable_ports" = "0x0000000f"
+-			register "xhci_overcurrent_mapping" = "0x00080403"
+-			register "xhci_switchable_ports" = "0x0000000f"
+-			device pci 14.0 on # USB 3.0 Controller
+-				subsystemid 0x1028 0x0577
+-			end
+ 			device pci 16.0 on # Management Engine Interface 1
+-				subsystemid 0x1028 0x0577
++				subsystemid 0x1028 0x047e
+ 			end
+ 			device pci 16.1 off # Management Engine Interface 2
+ 			end
+ 			device pci 16.2 off # Management Engine IDE-R
+ 			end
+-			device pci 16.3 off # Management Engine KT
++			device pci 16.3 on # Management Engine KT
++				subsystemid 0x1028 0x047e
+ 			end
+ 			device pci 19.0 on # Intel Gigabit Ethernet
+-				subsystemid 0x1028 0x052c
++				subsystemid 0x1028 0x047e
+ 			end
+ 			device pci 1a.0 on # USB2 EHCI #2
+-				subsystemid 0x1028 0x0577
++				subsystemid 0x1028 0x047e
+ 			end
+ 			device pci 1b.0 on # High Definition Audio Audio controller
+-				subsystemid 0x1028 0x0577
++				subsystemid 0x1028 0x047e
+ 			end
+-			device pci 1c.0 off # PCIe Port #1
++			device pci 1c.0 on # PCIe Port #1
++				subsystemid 0x1028 0x047e
+ 			end
+ 			device pci 1c.1 off # PCIe Port #2
+ 			end
+-			device pci 1c.2 off # PCIe Port #3
++			device pci 1c.2 on # PCIe Port #3
++				subsystemid 0x1028 0x047e
+ 			end
+ 			device pci 1c.3 off # PCIe Port #4
+ 			end
+@@ -86,19 +81,19 @@
+ 			device pci 1c.7 off # PCIe Port #8
+ 			end
+ 			device pci 1d.0 on # USB2 EHCI #1
+-				subsystemid 0x1028 0x0577
++				subsystemid 0x1028 0x047e
+ 			end
+ 			device pci 1e.0 on # PCI bridge
+-				subsystemid 0x1028 0x0577
++				subsystemid 0x1028 0x047e
+ 			end
+ 			device pci 1f.0 on # LPC bridge PCI-LPC bridge
+-				subsystemid 0x1028 0x0577
++				subsystemid 0x1028 0x047e
+ 			end
+-			device pci 1f.2 on # SATA Controller 1
+-				subsystemid 0x1028 0x0577
++			device pci 1f.2 on # SATA Controller 1 Unsupported PCI device 8086:2822
++				subsystemid 0x1028 0x047e
+ 			end
+ 			device pci 1f.3 on # SMBus
+-				subsystemid 0x1028 0x0577
++				subsystemid 0x1028 0x047e
+ 			end
+ 			device pci 1f.5 off # SATA Controller 2
+ 			end
+@@ -106,12 +101,13 @@
+ 			end
+ 		end
+ 		device pci 00.0 on # Host bridge Host bridge
+-			subsystemid 0x1028 0x0577
++			subsystemid 0x1028 0x047e
+ 		end
+-		device pci 01.0 on # PCIe Bridge for discrete graphics
+-			subsystemid 0x1028 0x0577
++		device pci 01.0 on # PCIe Bridge for discrete graphics Unsupported PCI device 8086:0101
++			subsystemid 0x1028 0x047e
+ 		end
+-		device pci 02.0 off # Internal graphics
++		device pci 02.0 on # Internal graphics VGA controller
++			subsystemid 0x1028 0x047e
+ 		end
+ 	end
+ end
+diff -urbw src/mainboard/dell/optiplex_7010/dsdt.asl src/mainboard/dell/optiplex_990/dsdt.asl
+--- src/mainboard/dell/optiplex_7010/dsdt.asl	2019-03-15 21:34:52.616890004 -0400
++++ src/mainboard/dell/optiplex_990/dsdt.asl	2019-03-14 22:09:14.642886947 -0400
+@@ -1,32 +1,18 @@
+-/*
+- * This file is part of the coreboot project.
+- *
+- * Copyright (C) 2018 3mdeb Embedded Systems Consulting
+- *
+- * This program is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License as
+- * published by the Free Software Foundation; version 2 of
+- * the License.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- */
+ #define BRIGHTNESS_UP \_SB.PCI0.GFX0.INCB
+ #define BRIGHTNESS_DOWN \_SB.PCI0.GFX0.DECB
+ #define ACPI_VIDEO_DEVICE \_SB.PCI0.GFX0
++
+ #include <arch/acpi.h>
+ DefinitionBlock (
+-	"dsdt.aml",	/* Output filename */
+-	"DSDT",		/* Signature */
+-	0x02,		/* DSDT Revision, needs to be 2 for 64bit */
++	"dsdt.aml",
++	"DSDT",
++	0x02,		// DSDT revision: ACPI 2.0 and up
+ 	OEM_ID,
+ 	ACPI_TABLE_CREATOR,
+ 	0x20141018	// OEM revision
+ )
+ {
+-	// Some generic macros
++	/* Some generic macros */
+ 	#include "acpi/platform.asl"
+ 	#include <cpu/intel/common/acpi/cpu.asl>
+ 	#include <southbridge/intel/bd82x6x/acpi/platform.asl>
+@@ -34,12 +20,10 @@
+ 	#include <southbridge/intel/bd82x6x/acpi/globalnvs.asl>
+ 	#include <southbridge/intel/bd82x6x/acpi/sleepstates.asl>
+ 
+-	Scope (\_SB) {
+-		Device (PCI0)
++	Device (\_SB.PCI0)
+ 		{
+ 		#include <northbridge/intel/sandybridge/acpi/sandybridge.asl>
+ 		#include <drivers/intel/gma/acpi/default_brightness_levels.asl>
+ 		#include <southbridge/intel/bd82x6x/acpi/pch.asl>
+ 		}
+ 	}
+-}
+Only in src/mainboard/dell/optiplex_7010/: early_southbridge.c
+Only in src/mainboard/dell/optiplex_7010/: gnvs.c
+diff -urbw src/mainboard/dell/optiplex_7010/gpio.c src/mainboard/dell/optiplex_990/gpio.c
+--- src/mainboard/dell/optiplex_7010/gpio.c	2019-03-15 21:34:52.616890004 -0400
++++ src/mainboard/dell/optiplex_990/gpio.c	2019-03-14 22:09:14.322885983 -0400
+@@ -28,7 +28,7 @@
+ 	.gpio7 = GPIO_MODE_GPIO,
+ 	.gpio8 = GPIO_MODE_GPIO,
+ 	.gpio9 = GPIO_MODE_NATIVE,
+-	.gpio10 = GPIO_MODE_NATIVE,
++	.gpio10 = GPIO_MODE_GPIO,
+ 	.gpio11 = GPIO_MODE_GPIO,
+ 	.gpio12 = GPIO_MODE_NATIVE,
+ 	.gpio13 = GPIO_MODE_GPIO,
+@@ -36,15 +36,15 @@
+ 	.gpio15 = GPIO_MODE_GPIO,
+ 	.gpio16 = GPIO_MODE_GPIO,
+ 	.gpio17 = GPIO_MODE_GPIO,
+-	.gpio18 = GPIO_MODE_NATIVE,
++	.gpio18 = GPIO_MODE_GPIO,
+ 	.gpio19 = GPIO_MODE_NATIVE,
+ 	.gpio20 = GPIO_MODE_GPIO,
+ 	.gpio21 = GPIO_MODE_GPIO,
+ 	.gpio22 = GPIO_MODE_GPIO,
+ 	.gpio23 = GPIO_MODE_GPIO,
+ 	.gpio24 = GPIO_MODE_GPIO,
+-	.gpio25 = GPIO_MODE_NATIVE,
+-	.gpio26 = GPIO_MODE_NATIVE,
++	.gpio25 = GPIO_MODE_GPIO,
++	.gpio26 = GPIO_MODE_GPIO,
+ 	.gpio27 = GPIO_MODE_GPIO,
+ 	.gpio28 = GPIO_MODE_GPIO,
+ 	.gpio29 = GPIO_MODE_GPIO,
+@@ -60,41 +60,39 @@
+ 	.gpio5 = GPIO_DIR_INPUT,
+ 	.gpio6 = GPIO_DIR_INPUT,
+ 	.gpio7 = GPIO_DIR_INPUT,
+-	.gpio8 = GPIO_DIR_OUTPUT,
+-	.gpio11 = GPIO_DIR_INPUT,
++	.gpio8 = GPIO_DIR_INPUT,
++	.gpio10 = GPIO_DIR_INPUT,
++	.gpio11 = GPIO_DIR_OUTPUT,
+ 	.gpio13 = GPIO_DIR_INPUT,
+ 	.gpio14 = GPIO_DIR_OUTPUT,
+-	.gpio15 = GPIO_DIR_OUTPUT,
++	.gpio15 = GPIO_DIR_INPUT,
+ 	.gpio16 = GPIO_DIR_INPUT,
+ 	.gpio17 = GPIO_DIR_INPUT,
++	.gpio18 = GPIO_DIR_INPUT,
+ 	.gpio20 = GPIO_DIR_INPUT,
+ 	.gpio21 = GPIO_DIR_INPUT,
+ 	.gpio22 = GPIO_DIR_INPUT,
+ 	.gpio23 = GPIO_DIR_INPUT,
+ 	.gpio24 = GPIO_DIR_INPUT,
+-	.gpio27 = GPIO_DIR_OUTPUT,
+-	.gpio28 = GPIO_DIR_OUTPUT,
+-	.gpio29 = GPIO_DIR_OUTPUT,
++	.gpio25 = GPIO_DIR_INPUT,
++	.gpio26 = GPIO_DIR_INPUT,
++	.gpio27 = GPIO_DIR_INPUT,
++	.gpio28 = GPIO_DIR_INPUT,
++	.gpio29 = GPIO_DIR_INPUT,
+ 	.gpio31 = GPIO_DIR_INPUT,
+ };
+ 
+ static const struct pch_gpio_set1 pch_gpio_set1_level = {
+-	.gpio8 = GPIO_LEVEL_HIGH,
+-	.gpio14 = GPIO_LEVEL_HIGH,
+-	.gpio15 = GPIO_LEVEL_LOW,
+-	.gpio27 = GPIO_LEVEL_LOW,
+-	.gpio28 = GPIO_LEVEL_LOW,
+-	.gpio29 = GPIO_LEVEL_HIGH,
++	.gpio11 = GPIO_LEVEL_LOW,
++	.gpio14 = GPIO_LEVEL_LOW,
+ };
+ 
+ static const struct pch_gpio_set1 pch_gpio_set1_reset = {
++	.gpio24 = GPIO_RESET_RSMRST,
+ };
+ 
+ static const struct pch_gpio_set1 pch_gpio_set1_invert = {
+-	.gpio2 = GPIO_INVERT,
+-	.gpio5 = GPIO_INVERT,
+-	.gpio6 = GPIO_INVERT,
+-	.gpio11 = GPIO_INVERT,
++	.gpio10 = GPIO_INVERT,
+ 	.gpio13 = GPIO_INVERT,
+ };
+ 
+@@ -106,8 +104,8 @@
+ 	.gpio33 = GPIO_MODE_GPIO,
+ 	.gpio34 = GPIO_MODE_GPIO,
+ 	.gpio35 = GPIO_MODE_GPIO,
+-	.gpio36 = GPIO_MODE_NATIVE,
+-	.gpio37 = GPIO_MODE_NATIVE,
++	.gpio36 = GPIO_MODE_GPIO,
++	.gpio37 = GPIO_MODE_GPIO,
+ 	.gpio38 = GPIO_MODE_GPIO,
+ 	.gpio39 = GPIO_MODE_GPIO,
+ 	.gpio40 = GPIO_MODE_NATIVE,
+@@ -117,7 +115,7 @@
+ 	.gpio44 = GPIO_MODE_GPIO,
+ 	.gpio45 = GPIO_MODE_GPIO,
+ 	.gpio46 = GPIO_MODE_GPIO,
+-	.gpio47 = GPIO_MODE_NATIVE,
++	.gpio47 = GPIO_MODE_GPIO,
+ 	.gpio48 = GPIO_MODE_GPIO,
+ 	.gpio49 = GPIO_MODE_GPIO,
+ 	.gpio50 = GPIO_MODE_NATIVE,
+@@ -126,40 +124,38 @@
+ 	.gpio53 = GPIO_MODE_NATIVE,
+ 	.gpio54 = GPIO_MODE_NATIVE,
+ 	.gpio55 = GPIO_MODE_NATIVE,
+-	.gpio56 = GPIO_MODE_NATIVE,
++	.gpio56 = GPIO_MODE_GPIO,
+ 	.gpio57 = GPIO_MODE_GPIO,
+ 	.gpio58 = GPIO_MODE_NATIVE,
+ 	.gpio59 = GPIO_MODE_NATIVE,
+ 	.gpio60 = GPIO_MODE_GPIO,
+ 	.gpio61 = GPIO_MODE_NATIVE,
+ 	.gpio62 = GPIO_MODE_NATIVE,
+-	.gpio63 = GPIO_MODE_GPIO,
++	.gpio63 = GPIO_MODE_NATIVE,
+ };
+ 
+ static const struct pch_gpio_set2 pch_gpio_set2_direction = {
+ 	.gpio32 = GPIO_DIR_INPUT,
+-	.gpio33 = GPIO_DIR_OUTPUT,
+-	.gpio34 = GPIO_DIR_OUTPUT,
++	.gpio33 = GPIO_DIR_INPUT,
++	.gpio34 = GPIO_DIR_INPUT,
+ 	.gpio35 = GPIO_DIR_INPUT,
++	.gpio36 = GPIO_DIR_INPUT,
++	.gpio37 = GPIO_DIR_INPUT,
+ 	.gpio38 = GPIO_DIR_INPUT,
+ 	.gpio39 = GPIO_DIR_INPUT,
+ 	.gpio44 = GPIO_DIR_INPUT,
+ 	.gpio45 = GPIO_DIR_INPUT,
+ 	.gpio46 = GPIO_DIR_INPUT,
++	.gpio47 = GPIO_DIR_INPUT,
+ 	.gpio48 = GPIO_DIR_INPUT,
+ 	.gpio49 = GPIO_DIR_OUTPUT,
+-	.gpio57 = GPIO_DIR_OUTPUT,
+-	.gpio60 = GPIO_DIR_OUTPUT,
+-	.gpio63 = GPIO_DIR_OUTPUT,
++	.gpio56 = GPIO_DIR_INPUT,
++	.gpio57 = GPIO_DIR_INPUT,
++	.gpio60 = GPIO_DIR_INPUT,
+ };
+ 
+ static const struct pch_gpio_set2 pch_gpio_set2_level = {
+-	.gpio33 = GPIO_LEVEL_HIGH,
+-	.gpio34 = GPIO_LEVEL_HIGH,
+ 	.gpio49 = GPIO_LEVEL_HIGH,
+-	.gpio57 = GPIO_LEVEL_LOW,
+-	.gpio60 = GPIO_LEVEL_HIGH,
+-	.gpio63 = GPIO_LEVEL_HIGH,
+ };
+ 
+ static const struct pch_gpio_set2 pch_gpio_set2_reset = {
+@@ -173,7 +169,7 @@
+ 	.gpio68 = GPIO_MODE_GPIO,
+ 	.gpio69 = GPIO_MODE_GPIO,
+ 	.gpio70 = GPIO_MODE_GPIO,
+-	.gpio71 = GPIO_MODE_GPIO,
++	.gpio71 = GPIO_MODE_NATIVE,
+ 	.gpio72 = GPIO_MODE_GPIO,
+ 	.gpio73 = GPIO_MODE_GPIO,
+ 	.gpio74 = GPIO_MODE_GPIO,
+@@ -184,15 +180,12 @@
+ 	.gpio68 = GPIO_DIR_INPUT,
+ 	.gpio69 = GPIO_DIR_INPUT,
+ 	.gpio70 = GPIO_DIR_INPUT,
+-	.gpio71 = GPIO_DIR_OUTPUT,
+-	.gpio72 = GPIO_DIR_OUTPUT,
++	.gpio72 = GPIO_DIR_INPUT,
+ 	.gpio73 = GPIO_DIR_INPUT,
+ 	.gpio74 = GPIO_DIR_OUTPUT,
+ };
+ 
+ static const struct pch_gpio_set3 pch_gpio_set3_level = {
+-	.gpio71 = GPIO_LEVEL_HIGH,
+-	.gpio72 = GPIO_LEVEL_HIGH,
+ 	.gpio74 = GPIO_LEVEL_HIGH,
+ };
+ 
+diff -urbw src/mainboard/dell/optiplex_7010/hda_verb.c src/mainboard/dell/optiplex_990/hda_verb.c
+--- src/mainboard/dell/optiplex_7010/hda_verb.c	2019-03-15 21:34:52.616890004 -0400
++++ src/mainboard/dell/optiplex_990/hda_verb.c	2019-03-14 22:09:14.114885356 -0400
+@@ -18,6 +18,57 @@
+ #include <device/azalia_device.h>
+ 
+ const u32 cim_verb_data[] = {
++	0x10ec0269, /* Codec Vendor / Device ID: Realtek */
++	0x1028047e, /* Subsystem ID */
++
++	0x0000000b, /* Number of 4 dword sets */
++	/* NID 0x01: Subsystem ID.  */
++	AZALIA_SUBVENDOR(0x0, 0x1028047e),
++
++	/* NID 0x12.  */
++	AZALIA_PIN_CFG(0x0, 0x12, 0x411111f0),
++
++	/* NID 0x14.  */
++	AZALIA_PIN_CFG(0x0, 0x14, 0x99130110),
++
++	/* NID 0x17.  */
++	AZALIA_PIN_CFG(0x0, 0x17, 0x411111f0),
++
++	/* NID 0x18.  */
++	AZALIA_PIN_CFG(0x0, 0x18, 0x02a19830),
++
++	/* NID 0x19.  */
++	AZALIA_PIN_CFG(0x0, 0x19, 0x01a19840),
++
++	/* NID 0x1a.  */
++	AZALIA_PIN_CFG(0x0, 0x1a, 0x411111f0),
++
++	/* NID 0x1b.  */
++	AZALIA_PIN_CFG(0x0, 0x1b, 0x01014020),
++
++	/* NID 0x1d.  */
++	AZALIA_PIN_CFG(0x0, 0x1d, 0x411111f0),
++
++	/* NID 0x1e.  */
++	AZALIA_PIN_CFG(0x0, 0x1e, 0x411111f0),
++
++	/* NID 0x21.  */
++	AZALIA_PIN_CFG(0x0, 0x21, 0x0221402f),
++	0x80862805, /* Codec Vendor / Device ID: Intel */
++	0x80860101, /* Subsystem ID */
++
++	0x00000004, /* Number of 4 dword sets */
++	/* NID 0x01: Subsystem ID.  */
++	AZALIA_SUBVENDOR(0x3, 0x80860101),
++
++	/* NID 0x05.  */
++	AZALIA_PIN_CFG(0x3, 0x05, 0x58560010),
++
++	/* NID 0x06.  */
++	AZALIA_PIN_CFG(0x3, 0x06, 0x18560020),
++
++	/* NID 0x07.  */
++	AZALIA_PIN_CFG(0x3, 0x07, 0x58560030),
+ };
+ 
+ const u32 pc_beep_verbs[0] = {};
+diff -urbw src/mainboard/dell/optiplex_7010/Kconfig src/mainboard/dell/optiplex_990/Kconfig
+--- src/mainboard/dell/optiplex_7010/Kconfig	2019-03-15 21:34:52.584889770 -0400
++++ src/mainboard/dell/optiplex_990/Kconfig	2019-03-14 22:09:14.642886947 -0400
+@@ -1,37 +1,36 @@
+-if BOARD_DELL_OPTIPLEX_7010
++if BOARD_DELL_OPTIPLEX_990
+ 
+-config BOARD_SPECIFIC_OPTIONS # dummy
++config BOARD_SPECIFIC_OPTIONS
+ 	def_bool y
+-	select BOARD_ROMSIZE_KB_12288
+-	select CPU_INTEL_SOCKET_RPGA989
++	select BOARD_ROMSIZE_KB_10240
+ 	select HAVE_ACPI_RESUME
+ 	select HAVE_ACPI_TABLES
+ 	select INTEL_INT15
+-	select NORTHBRIDGE_INTEL_IVYBRIDGE
++	select NORTHBRIDGE_INTEL_SANDYBRIDGE
+ 	select SANDYBRIDGE_IVYBRIDGE_LVDS
+ 	select SERIRQ_CONTINUOUS_MODE
+-	select SOUTHBRIDGE_INTEL_C216
++	select SOUTHBRIDGE_INTEL_BD82X6X
+ 	select USE_NATIVE_RAMINIT
+ 
+-config HAVE_IFD_BIN
+-	bool
+-	default n
+-
+-config HAVE_ME_BIN
+-	bool
+-	default n
+-
+ config MAINBOARD_DIR
+ 	string
+-	default dell/optiplex_7010
++	default dell/optiplex_990
+ 
+ config MAINBOARD_PART_NUMBER
+ 	string
+-	default "OptiPlex 7010"
++	default "OptiPlex 990"
++
++config VGA_BIOS_FILE
++	string
++	default "pci8086,0102.rom"
++
++config VGA_BIOS_ID
++	string
++	default "8086,0102"
+ 
+ config MAINBOARD_PCI_SUBSYSTEM_DEVICE_ID
+ 	hex
+-	default 0x577
++	default 0x47e
+ 
+ config MAINBOARD_PCI_SUBSYSTEM_VENDOR_ID
+ 	hex
+diff -urbw src/mainboard/dell/optiplex_7010/Kconfig.name src/mainboard/dell/optiplex_990/Kconfig.name
+--- src/mainboard/dell/optiplex_7010/Kconfig.name	2019-03-15 21:34:52.584889770 -0400
++++ src/mainboard/dell/optiplex_990/Kconfig.name	2019-03-14 22:09:14.642886947 -0400
+@@ -1,2 +1,2 @@
+-config BOARD_DELL_OPTIPLEX_7010
+-	bool "OptiPlex 7010"
++config BOARD_DELL_OPTIPLEX_990
++	bool "OptiPlex 990"
+diff -urbw src/mainboard/dell/optiplex_7010/mainboard.c src/mainboard/dell/optiplex_990/mainboard.c
+--- src/mainboard/dell/optiplex_7010/mainboard.c	2019-03-15 21:34:52.616890004 -0400
++++ src/mainboard/dell/optiplex_990/mainboard.c	2019-03-14 22:09:14.642886947 -0400
+@@ -1,18 +1,3 @@
+-/*
+- * This file is part of the coreboot project.
+- *
+- * Copyright (C) 2018 3mdeb Embedded Systems Consulting
+- *
+- * This program is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License as
+- * published by the Free Software Foundation; version 2 of
+- * the License.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- */
+ #include <device/device.h>
+ #include <drivers/intel/gma/int15.h>
+ #include <southbridge/intel/bd82x6x/pch.h>
+@@ -22,7 +7,8 @@
+ 	/* FIXME: fix those values*/
+ 	install_intel_vga_int15_handler(GMA_INT15_ACTIVE_LFP_INT_LVDS,
+ 			GMA_INT15_PANEL_FIT_DEFAULT,
+-			GMA_INT15_BOOT_DISPLAY_DEFAULT, 0); }
++					GMA_INT15_BOOT_DISPLAY_DEFAULT, 0);
++}
+ 
+ struct chip_operations mainboard_ops = {
+ 	.enable_dev = mainboard_enable,
+diff -urbw src/mainboard/dell/optiplex_7010/Makefile.inc src/mainboard/dell/optiplex_990/Makefile.inc
+--- src/mainboard/dell/optiplex_7010/Makefile.inc	2019-03-15 21:34:52.612889976 -0400
++++ src/mainboard/dell/optiplex_990/Makefile.inc	2019-03-14 22:09:14.638886936 -0400
+@@ -1,3 +1 @@
+-romstage-y += early_southbridge.c
+ romstage-y += gpio.c
+-ramstage-y += gnvs.c
+diff -urbw src/mainboard/dell/optiplex_7010/romstage.c src/mainboard/dell/optiplex_990/romstage.c
+--- src/mainboard/dell/optiplex_7010/romstage.c	2019-03-15 21:34:52.616890004 -0400
++++ src/mainboard/dell/optiplex_990/romstage.c	2019-03-15 00:37:21.406245607 -0400
+@@ -1 +1,83 @@
+-/* dummy file */
++/*
++ * This file is part of the coreboot project.
++ *
++ * Copyright (C) 2008-2009 coresystems GmbH
++ * Copyright (C) 2014 Vladimir Serbinenko
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License as
++ * published by the Free Software Foundation; version 2 of
++ * the License.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++#include <stdint.h>
++#include <string.h>
++#include <lib.h>
++#include <timestamp.h>
++#include <arch/byteorder.h>
++#include <arch/io.h>
++#include <device/pci_def.h>
++#include <device/pci_ops.h>
++#include <device/pnp_def.h>
++#include <cpu/x86/lapic.h>
++#include <arch/acpi.h>
++#include <console/console.h>
++#include <northbridge/intel/sandybridge/sandybridge.h>
++#include <northbridge/intel/sandybridge/raminit_native.h>
++#include <southbridge/intel/bd82x6x/pch.h>
++#include <southbridge/intel/common/gpio.h>
++#include <arch/cpu.h>
++#include <cpu/x86/msr.h>
++
++void pch_enable_lpc(void)
++{
++	pci_write_config16(PCI_DEV(0, 0x1f, 0), 0x82, 0x3c0f);
++	pci_write_config32(PCI_DEV(0, 0x1f, 0), 0x84, 0x007c0681);
++	pci_write_config32(PCI_DEV(0, 0x1f, 0), 0x88, 0x000c1641);
++	pci_write_config32(PCI_DEV(0, 0x1f, 0), 0x8c, 0x000400e1);
++	pci_write_config32(PCI_DEV(0, 0x1f, 0), 0x90, 0x001c02d1);
++	pci_write_config16(PCI_DEV(0, 0x1f, 0), 0x80, 0x0000);
++}
++
++void mainboard_rcba_config(void)
++{
++}
++
++const struct southbridge_usb_port mainboard_usb_ports[] = {
++	{ 1, 0, 0 },
++	{ 1, 0, 0 },
++	{ 1, 0, 1 },
++	{ 1, 0, 1 },
++	{ 1, 0, 2 },
++	{ 1, 0, 2 },
++	{ 1, 0, 3 },
++	{ 1, 0, 3 },
++	{ 1, 1, 5 },
++	{ 1, 1, 5 },
++	{ 1, 0, 7 },
++	{ 1, 0, 6 },
++	{ 1, 0, 6 },
++	{ 1, 0, 7 },
++};
++
++void mainboard_early_init(int s3resume)
++{
++}
++
++void mainboard_config_superio(void)
++{
++}
++
++/* FIXME: Put proper SPD map here. */
++void mainboard_get_spd(spd_raw_data *spd, bool id_only)
++{
++	read_spd(&spd[0], 0x50, id_only);
++	read_spd(&spd[1], 0x51, id_only);
++	read_spd(&spd[2], 0x52, id_only);
++	read_spd(&spd[3], 0x53, id_only);
++}

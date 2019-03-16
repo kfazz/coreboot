@@ -1,0 +1,477 @@
+diff -urbw src/mainboard/dell/optiplex_790/acpi/platform.asl src/mainboard/dell/optiplex_990/acpi/platform.asl
+--- src/mainboard/dell/optiplex_790/acpi/platform.asl	2019-03-15 21:33:13.276148062 -0400
++++ src/mainboard/dell/optiplex_990/acpi/platform.asl	2019-03-14 22:09:14.638886936 -0400
+@@ -1,17 +1,3 @@
+-/*
+- * This file is part of the coreboot project.
+- *
+- * Copyright (C) 2011-2012 The Chromium OS Authors. All rights reserved.
+- *
+- * This program is free software; you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License as published by
+- * the Free Software Foundation; version 2 of the License.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- */
+ Method(_WAK,1)
+ {
+ 	Return(Package(){0,0})
+diff -urbw src/mainboard/dell/optiplex_790/acpi_tables.c src/mainboard/dell/optiplex_990/acpi_tables.c
+--- src/mainboard/dell/optiplex_790/acpi_tables.c	2019-03-15 21:33:13.276148062 -0400
++++ src/mainboard/dell/optiplex_990/acpi_tables.c	2019-03-14 22:09:14.638886936 -0400
+@@ -17,10 +17,9 @@
+ 
+ #include <southbridge/intel/bd82x6x/nvs.h>
+ 
++/* FIXME: check this function.  */
+ void acpi_create_gnvs(global_nvs_t *gnvs)
+ {
+-	/* FIXME: USB ports are powered in S3, also wakeup
+-	 * via keyboard press works */
+ 	/* Disable USB ports in S3 by default */
+ 	gnvs->s3u0 = 0;
+ 	gnvs->s3u1 = 0;
+@@ -29,6 +28,9 @@
+ 	gnvs->s5u0 = 0;
+ 	gnvs->s5u1 = 0;
+ 
++	// the lid is open by default.
++	gnvs->lids = 1;
++
+ 	gnvs->tcrt = 100;
+ 	gnvs->tpsv = 90;
+ }
+diff -urbw src/mainboard/dell/optiplex_790/board_info.txt src/mainboard/dell/optiplex_990/board_info.txt
+--- src/mainboard/dell/optiplex_790/board_info.txt	2019-03-15 21:33:13.276148062 -0400
++++ src/mainboard/dell/optiplex_990/board_info.txt	2019-03-14 22:09:14.642886947 -0400
+@@ -1,6 +1,4 @@
+ Category: desktop
+ ROM protocol: SPI
+-Flashrom support: y (With service mode jumper set)
+-ROM package: SOIC-16 and SOIC-8
+-ROM socketed: n
+-Release year: 2011
++Flashrom support: n
++FIXME: check category, , put ROM package, ROM socketed, Release year
+diff -urbw src/mainboard/dell/optiplex_790/devicetree.cb src/mainboard/dell/optiplex_990/devicetree.cb
+--- src/mainboard/dell/optiplex_790/devicetree.cb	2019-03-15 21:33:13.276148062 -0400
++++ src/mainboard/dell/optiplex_990/devicetree.cb	2019-03-14 22:09:14.642886947 -0400
+@@ -1,33 +1,20 @@
+-#
+-#
+-# This file is part of the coreboot project.
+-#
+-# Copyright (C) 2012 Alexandru Gagniuc <mr.nuke.me@gmail.com>
+-# Copyright (C) 2009-2010 coresystems GmbH
+-#
+-# This program is free software; you can redistribute it and/or modify
+-# it under the terms of the GNU General Public License as published by
+-# the Free Software Foundation; version 2 of the License.
+-#
+-# This program is distributed in the hope that it will be useful,
+-# but WITHOUT ANY WARRANTY; without even the implied warranty of
+-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-# GNU General Public License for more details.
+-
+ chip northbridge/intel/sandybridge # FIXME: check gfx.ndid and gfx.did
+ 	register "gfx.did" = "{ 0x80000100, 0x80000240, 0x80000410, 0x80000410, 0x00000005 }"
+-	register "gfx.link_frequency_270_mhz" = "0"
++	register "gfx.link_frequency_270_mhz" = "1"
+ 	register "gfx.ndid" = "3"
+ 	register "gfx.use_spread_spectrum_clock" = "0"
++	register "gpu_cpu_backlight" = "0x00000000"
+ 	register "gpu_dp_b_hotplug" = "4"
+ 	register "gpu_dp_c_hotplug" = "4"
+ 	register "gpu_dp_d_hotplug" = "4"
+-        register "pci_mmio_size" = "2048"
++	register "gpu_panel_port_select" = "0"
++	register "gpu_panel_power_backlight_off_delay" = "0"
++	register "gpu_panel_power_backlight_on_delay" = "0"
++	register "gpu_panel_power_cycle_delay" = "4"
++	register "gpu_panel_power_down_delay" = "0"
++	register "gpu_panel_power_up_delay" = "0"
++	register "gpu_pch_backlight" = "0x00000000"
+ 	device cpu_cluster 0x0 on
+-		chip cpu/intel/socket_rPGA989
+-			device lapic 0x0 on
+-			end
+-		end
+ 		chip cpu/intel/model_206ax # FIXME: check all registers
+ 			register "c1_acpower" = "1"
+ 			register "c1_battery" = "1"
+@@ -35,6 +22,8 @@
+ 			register "c2_battery" = "3"
+ 			register "c3_acpower" = "5"
+ 			register "c3_battery" = "5"
++			device lapic 0x0 on
++			end
+ 			device lapic 0xacac off
+ 			end
+ 		end
+@@ -48,41 +37,42 @@
+ 			register "gen3_dec" = "0x000400e1"
+ 			register "gen4_dec" = "0x001c02d1"
+ 			register "p_cnt_throttling_supported" = "1"
+-			register "pcie_hotplug_map" = "{ 0, 0, 0, 0, 1, 0, 0, 0 }"
++			register "pcie_hotplug_map" = "{ 0, 0, 1, 0, 0, 0, 0, 0 }"
+ 			register "pcie_port_coalesce" = "1"
+ 			register "sata_interface_speed_support" = "0x3"
+-			register "sata_port_map" = "0x7"
+-
+-			register "spi_uvscc" = "0x2005"
++			register "sata_port_map" = "0x1"
+ 			register "spi_lvscc" = "0x2005"
+-			device pci 16.0 off # Management Engine Interface 1
++			register "spi_uvscc" = "0x2005"
++			device pci 16.0 on # Management Engine Interface 1
++				subsystemid 0x1028 0x047e
+ 			end
+ 			device pci 16.1 off # Management Engine Interface 2
+ 			end
+ 			device pci 16.2 off # Management Engine IDE-R
+ 			end
+-			device pci 16.3 off # Management Engine KT
++			device pci 16.3 on # Management Engine KT
++				subsystemid 0x1028 0x047e
+ 			end
+ 			device pci 19.0 on # Intel Gigabit Ethernet
+ 				subsystemid 0x1028 0x047e
+ 			end
+ 			device pci 1a.0 on # USB2 EHCI #2
+-				subsystemid 0x1028 0x04ad
++				subsystemid 0x1028 0x047e
+ 			end
+-			device pci 1b.0 on # High Definition Audio controller
+-				subsystemid 0x1028 0x04ad
++			device pci 1b.0 on # High Definition Audio Audio controller
++				subsystemid 0x1028 0x047e
+ 			end
+ 			device pci 1c.0 on # PCIe Port #1
+-				subsystemid 0x1028 0x04ad
++				subsystemid 0x1028 0x047e
+ 			end
+-			device pci 1c.1 on # PCIe Port #2
++			device pci 1c.1 off # PCIe Port #2
+ 			end
+ 			device pci 1c.2 on # PCIe Port #3
+-				subsystemid 0x1028 0x04ad
++				subsystemid 0x1028 0x047e
+ 			end
+ 			device pci 1c.3 off # PCIe Port #4
+ 			end
+-			device pci 1c.4 on # PCIe Port #5
++			device pci 1c.4 off # PCIe Port #5
+ 			end
+ 			device pci 1c.5 off # PCIe Port #6
+ 			end
+@@ -91,34 +81,33 @@
+ 			device pci 1c.7 off # PCIe Port #8
+ 			end
+ 			device pci 1d.0 on # USB2 EHCI #1
+-				subsystemid 0x1028 0x04ad
++				subsystemid 0x1028 0x047e
+ 			end
+ 			device pci 1e.0 on # PCI bridge
+-				subsystemid 0x1028 0x04ad
++				subsystemid 0x1028 0x047e
+ 			end
+ 			device pci 1f.0 on # LPC bridge PCI-LPC bridge
+-				subsystemid 0x1028 0x04ad
++				subsystemid 0x1028 0x047e
+ 			end
+-			device pci 1f.2 on # SATA Controller 1
+-				subsystemid 0x1028 0x04ad
++			device pci 1f.2 on # SATA Controller 1 Unsupported PCI device 8086:2822
++				subsystemid 0x1028 0x047e
+ 			end
+ 			device pci 1f.3 on # SMBus
+-				subsystemid 0x1028 0x04ad
++				subsystemid 0x1028 0x047e
+ 			end
+ 			device pci 1f.5 off # SATA Controller 2
+ 			end
+ 			device pci 1f.6 off # Thermal
+ 			end
+-
+ 		end
+ 		device pci 00.0 on # Host bridge Host bridge
+-			subsystemid 0x1028 0x04ad
++			subsystemid 0x1028 0x047e
+ 		end
+-		device pci 01.0 on # PCIe Bridge for discrete graphics
+-			subsystemid 0x1028 0x04ad
++		device pci 01.0 on # PCIe Bridge for discrete graphics Unsupported PCI device 8086:0101
++			subsystemid 0x1028 0x047e
+ 		end
+ 		device pci 02.0 on # Internal graphics VGA controller
+-			subsystemid 0x1028 0x04ad
++			subsystemid 0x1028 0x047e
+ 		end
+ 	end
+ end
+diff -urbw src/mainboard/dell/optiplex_790/dsdt.asl src/mainboard/dell/optiplex_990/dsdt.asl
+--- src/mainboard/dell/optiplex_790/dsdt.asl	2019-03-15 21:33:13.276148062 -0400
++++ src/mainboard/dell/optiplex_990/dsdt.asl	2019-03-14 22:09:14.642886947 -0400
+@@ -1,44 +1,29 @@
+-/*
+- * This file is part of the coreboot project.
+- *
+- * Copyright (C) 2011 Advanced Micro Devices, Inc.
+- *
+- * This program is free software; you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License as published by
+- * the Free Software Foundation; version 2 of the License.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- */
+-
+ #define BRIGHTNESS_UP \_SB.PCI0.GFX0.INCB
+ #define BRIGHTNESS_DOWN \_SB.PCI0.GFX0.DECB
+ #define ACPI_VIDEO_DEVICE \_SB.PCI0.GFX0
++
++#include <arch/acpi.h>
+ DefinitionBlock(
+ 	"dsdt.aml",
+ 	"DSDT",
+-	0x03,		// DSDT revision: ACPI v3.0
+-	"COREv4",	// OEM id
+-	"COREBOOT",	// OEM table id
++	0x02,		// DSDT revision: ACPI 2.0 and up
++	OEM_ID,
++	ACPI_TABLE_CREATOR,
+ 	0x20141018	// OEM revision
+ )
+ {
+-	// Some generic macros
++	/* Some generic macros */
+ 	#include "acpi/platform.asl"
+-	#include <cpu/intel/model_206ax/acpi/cpu.asl>
++	#include <cpu/intel/common/acpi/cpu.asl>
+ 	#include <southbridge/intel/bd82x6x/acpi/platform.asl>
+ 	/* global NVS and variables.  */
+ 	#include <southbridge/intel/bd82x6x/acpi/globalnvs.asl>
+ 	#include <southbridge/intel/bd82x6x/acpi/sleepstates.asl>
+ 
+-	Scope (\_SB) {
+-		Device (PCI0)
++	Device (\_SB.PCI0)
+ 		{
+ 		#include <northbridge/intel/sandybridge/acpi/sandybridge.asl>
+ 		#include <drivers/intel/gma/acpi/default_brightness_levels.asl>
+ 		#include <southbridge/intel/bd82x6x/acpi/pch.asl>
+ 		}
+ 	}
+-}
+diff -urbw src/mainboard/dell/optiplex_790/hda_verb.c src/mainboard/dell/optiplex_990/hda_verb.c
+--- src/mainboard/dell/optiplex_790/hda_verb.c	2019-03-15 21:33:13.276148062 -0400
++++ src/mainboard/dell/optiplex_990/hda_verb.c	2019-03-14 22:09:14.114885356 -0400
+@@ -19,11 +19,11 @@
+ 
+ const u32 cim_verb_data[] = {
+ 	0x10ec0269, /* Codec Vendor / Device ID: Realtek */
+-	0x102804ad, /* Subsystem ID */
++	0x1028047e, /* Subsystem ID */
+ 
+ 	0x0000000b, /* Number of 4 dword sets */
+ 	/* NID 0x01: Subsystem ID.  */
+-	AZALIA_SUBVENDOR(0x0, 0x102804ad),
++	AZALIA_SUBVENDOR(0x0, 0x1028047e),
+ 
+ 	/* NID 0x12.  */
+ 	AZALIA_PIN_CFG(0x0, 0x12, 0x411111f0),
+diff -urbw src/mainboard/dell/optiplex_790/Kconfig src/mainboard/dell/optiplex_990/Kconfig
+--- src/mainboard/dell/optiplex_790/Kconfig	2019-03-15 21:33:13.264147970 -0400
++++ src/mainboard/dell/optiplex_990/Kconfig	2019-03-14 22:09:14.642886947 -0400
+@@ -1,53 +1,28 @@
+-##
+-## This file is part of the coreboot project.
+-##
+-## Copyright (C) 2012 Alexandru Gagniuc <mr.nuke.me@gmail.com>
+-## Copyright (C) 2009-2010 coresystems GmbH
+-##
+-## This program is free software; you can redistribute it and/or modify
+-## it under the terms of the GNU General Public License as published by
+-## the Free Software Foundation; version 2 of the License.
+-##
+-## This program is distributed in the hope that it will be useful,
+-## but WITHOUT ANY WARRANTY; without even the implied warranty of
+-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-## GNU General Public License for more details.
+-##
++if BOARD_DELL_OPTIPLEX_990
+ 
+-if BOARD_DELL_OPTIPLEX_790
+-
+-config BOARD_SPECIFIC_OPTIONS # dummy
++config BOARD_SPECIFIC_OPTIONS
+ 	def_bool y
+ 	select BOARD_ROMSIZE_KB_10240
+-	select CPU_INTEL_SOCKET_LGA1155
+ 	select HAVE_ACPI_RESUME
+ 	select HAVE_ACPI_TABLES
+ 	select INTEL_INT15
+ 	select NORTHBRIDGE_INTEL_SANDYBRIDGE
++	select SANDYBRIDGE_IVYBRIDGE_LVDS
+ 	select SERIRQ_CONTINUOUS_MODE
+ 	select SOUTHBRIDGE_INTEL_BD82X6X
+ 	select USE_NATIVE_RAMINIT
+ 
+-config HAVE_IFD_BIN
+-	bool
+-	default n
+-
+-config HAVE_ME_BIN
+-	bool
+-	default n
+-
+ config MAINBOARD_DIR
+ 	string
+-	default dell/optiplex_790
++	default dell/optiplex_990
+ 
+ config MAINBOARD_PART_NUMBER
+ 	string
+-	default "OptiPlex 790"
++	default "OptiPlex 990"
+ 
+ config VGA_BIOS_FILE
+ 	string
+-	default "pci8086,0102.rom" # When this section is removed,
+-				   #the nconfig and build process starts behaving weird
++	default "pci8086,0102.rom"
+ 
+ config VGA_BIOS_ID
+ 	string
+@@ -55,12 +30,16 @@
+ 
+ config MAINBOARD_PCI_SUBSYSTEM_DEVICE_ID
+ 	hex
+-	default 0x4ad
++	default 0x47e
+ 
+ config MAINBOARD_PCI_SUBSYSTEM_VENDOR_ID
+ 	hex
+ 	default 0x1028
+ 
++config DRAM_RESET_GATE_GPIO # FIXME: check this
++	int
++	default 60
++
+ config MAX_CPUS
+ 	int
+ 	default 8
+@@ -68,5 +47,4 @@
+ config USBDEBUG_HCD_INDEX # FIXME: check this
+ 	int
+ 	default 2
+-
+ endif
+diff -urbw src/mainboard/dell/optiplex_790/Kconfig.name src/mainboard/dell/optiplex_990/Kconfig.name
+--- src/mainboard/dell/optiplex_790/Kconfig.name	2019-03-15 21:33:13.264147970 -0400
++++ src/mainboard/dell/optiplex_990/Kconfig.name	2019-03-14 22:09:14.642886947 -0400
+@@ -1,2 +1,2 @@
+-config BOARD_DELL_OPTIPLEX_790
+-	bool "OptiPlex 790"
++config BOARD_DELL_OPTIPLEX_990
++	bool "OptiPlex 990"
+diff -urbw src/mainboard/dell/optiplex_790/mainboard.c src/mainboard/dell/optiplex_990/mainboard.c
+--- src/mainboard/dell/optiplex_790/mainboard.c	2019-03-15 21:33:13.276148062 -0400
++++ src/mainboard/dell/optiplex_990/mainboard.c	2019-03-14 22:09:14.642886947 -0400
+@@ -1,28 +1,12 @@
+-/*
+- * This file is part of the coreboot project.
+- *
+- * Copyright (C) 2007-2009 coresystems GmbH
+- * Copyright (C) 2011-2012 Google Inc.
+- * Copyright (C) 2014 Vladimir Serbinenko
+- *
+- * This program is free software; you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License as published by
+- * the Free Software Foundation; version 2 of the License.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- */
+-
+ #include <device/device.h>
+ #include <drivers/intel/gma/int15.h>
+ #include <southbridge/intel/bd82x6x/pch.h>
+ 
+-static void mainboard_enable(device_t dev)
++static void mainboard_enable(struct device *dev)
+ {
+ 	/* FIXME: fix those values*/
+-	install_intel_vga_int15_handler(0, GMA_INT15_PANEL_FIT_DEFAULT,
++	install_intel_vga_int15_handler(GMA_INT15_ACTIVE_LFP_INT_LVDS,
++					GMA_INT15_PANEL_FIT_DEFAULT,
+ 			GMA_INT15_BOOT_DISPLAY_DEFAULT, 0);
+ }
+ 
+diff -urbw src/mainboard/dell/optiplex_790/Makefile.inc src/mainboard/dell/optiplex_990/Makefile.inc
+--- src/mainboard/dell/optiplex_790/Makefile.inc	2019-03-15 21:33:13.272148031 -0400
++++ src/mainboard/dell/optiplex_990/Makefile.inc	2019-03-14 22:09:14.638886936 -0400
+@@ -1,2 +1 @@
+ romstage-y += gpio.c
+-ramstage-y += acpi_tables.c
+diff -urbw src/mainboard/dell/optiplex_790/romstage.c src/mainboard/dell/optiplex_990/romstage.c
+--- src/mainboard/dell/optiplex_790/romstage.c	2019-03-15 21:33:13.276148062 -0400
++++ src/mainboard/dell/optiplex_990/romstage.c	2019-03-15 00:37:21.406245607 -0400
+@@ -1,4 +1,5 @@
+-/* This file is part of the coreboot project.
++/*
++ * This file is part of the coreboot project.
+  *
+  * Copyright (C) 2008-2009 coresystems GmbH
+  * Copyright (C) 2014 Vladimir Serbinenko
+@@ -14,11 +15,21 @@
+  * GNU General Public License for more details.
+  */
+ 
++#include <stdint.h>
++#include <string.h>
++#include <lib.h>
++#include <timestamp.h>
++#include <arch/byteorder.h>
+ #include <arch/io.h>
+ #include <device/pci_def.h>
+-#include "northbridge/intel/sandybridge/sandybridge.h"
+-#include "northbridge/intel/sandybridge/raminit_native.h"
+-#include "southbridge/intel/bd82x6x/pch.h"
++#include <device/pci_ops.h>
++#include <device/pnp_def.h>
++#include <cpu/x86/lapic.h>
++#include <arch/acpi.h>
++#include <console/console.h>
++#include <northbridge/intel/sandybridge/sandybridge.h>
++#include <northbridge/intel/sandybridge/raminit_native.h>
++#include <southbridge/intel/bd82x6x/pch.h>
+ #include <southbridge/intel/common/gpio.h>
+ #include <arch/cpu.h>
+ #include <cpu/x86/msr.h>
+@@ -35,9 +46,8 @@
+ 
+ void mainboard_rcba_config(void)
+ {
+-	/* Disable devices.  */
+-	RCBA32(0x3414) = 0x00000000;
+ }
++
+ const struct southbridge_usb_port mainboard_usb_ports[] = {
+ 	{ 1, 0, 0 },
+ 	{ 1, 0, 0 },
+@@ -63,6 +73,7 @@
+ {
+ }
+ 
++/* FIXME: Put proper SPD map here. */
+ void mainboard_get_spd(spd_raw_data *spd, bool id_only)
+ {
+ 	read_spd(&spd[0], 0x50, id_only);
