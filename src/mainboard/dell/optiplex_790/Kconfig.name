@@ -1,0 +1,2 @@
+config BOARD_DELL_OPTIPLEX_790
+	bool "OptiPlex 790"
