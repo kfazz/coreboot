@@ -32,9 +32,14 @@
 #define  SCH5545_LED_CODE_FETCH  0x8
 
 /* logical devices */
+#define SCH5545_LDN_EM_IF	0x00
+#define SCH5545_LDN_KBC		0x01
 #define SCH5545_LDN_UART1	0x07
 #define SCH5545_LDN_UART2	0x08
+#define SCH5545_LDN_RT		0x0A	/* Runtime Registers */
+#define SCH5545_LDN_FLOPPY	0x0B
 #define SCH5545_LDN_LPC_IF	0x0c	/* LPC Interface */
+#define SCH5545_LDN_PARPORT	0x11
 
 /* UART config registers */
 #define SCH5545_CONFIG_SELECT		0xf0
@@ -58,7 +63,6 @@
 #define SCH5545_BAR_UART1	0x68
 #define SCH5545_BAR_UART2	0x6c
 #define SCH5545_BAR_RUNTIME_REG	0x70
-/* missing ? */
 #define SCH5545_BAR_FLOPPY	0x78
 #define SCH5545_BAR_PARPORT	0x80
 

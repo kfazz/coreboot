@@ -59,6 +59,7 @@
 #define SCH5027D	0x89
 #define SCH4304		0x90	/* SCH4304, SCH4307 */
 #define SCH5147		0xc1
+#define SCH5544		0xc4	/*Very similar to documented SCH5627 */
 
 /* Register defines */
 #define DEVICE_ID_REG	0x20	/* Device ID register */
@@ -139,6 +140,7 @@ static const struct logical_devices {
 	{SCH5027D, {0, 3, 4,  5, -1,  7, -1,  -1, -1,  -1, -1, -1, 10, -1, 11}},
 	{SCH4304,  {0, 3, 4,  5, -1,  7, -1,  11, -1,  -1, -1, -1, 10, -1, -1}},
 	{SCH5147,  {0, 3, 4,  5, -1,  7, -1,  -1, -1,  -1, -1, -1, 10, -1, -1}},
+	{SCH5544, {11,17, 7,  8, -1,  1, -1,  -1, -1,  -1, -1, -1, 10, -1, -1}},
 };
 
 /**

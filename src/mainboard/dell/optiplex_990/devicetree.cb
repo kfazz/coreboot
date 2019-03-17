@@ -65,20 +65,20 @@ chip northbridge/intel/sandybridge # FIXME: check gfx.ndid and gfx.did
 			device pci 1c.0 on # PCIe Port #1
 				subsystemid 0x1028 0x047e
 			end
-			device pci 1c.1 off # PCIe Port #2
+			device pci 1c.1 on # PCIe Port #2
 			end
 			device pci 1c.2 on # PCIe Port #3
 				subsystemid 0x1028 0x047e
 			end
-			device pci 1c.3 off # PCIe Port #4
+			device pci 1c.3 on # PCIe Port #4
 			end
-			device pci 1c.4 off # PCIe Port #5
+			device pci 1c.4 on # PCIe Port #5
 			end
-			device pci 1c.5 off # PCIe Port #6
+			device pci 1c.5 on # PCIe Port #6
 			end
-			device pci 1c.6 off # PCIe Port #7
+			device pci 1c.6 on # PCIe Port #7
 			end
-			device pci 1c.7 off # PCIe Port #8
+			device pci 1c.7 on # PCIe Port #8
 			end
 			device pci 1d.0 on # USB2 EHCI #1
 				subsystemid 0x1028 0x047e
@@ -88,6 +88,28 @@ chip northbridge/intel/sandybridge # FIXME: check gfx.ndid and gfx.did
 			end
 			device pci 1f.0 on # LPC bridge PCI-LPC bridge
 				subsystemid 0x1028 0x047e
+                                chip superio/smsc/smscsuperio
+                                        device pnp 2e.b off end         # Floppy
+                                        device pnp 2e.11 on              # Parallel Port
+                                                io 0x60 = 0x378
+                                                irq 0x70 = 7
+                                                drq 0x74 = 3
+                                        end
+                                        device pnp 2e.7 on              # COM1
+                                                io 0x60 = 0x3f8
+                                                irq 0x70 = 4
+                                        end
+                                        device pnp 2e.8 off end         # COM2
+                                        device pnp 2e.1 on              # Keyboard
+                                                io 0x60 = 0x60 # Can't read this back
+                                                io 0x62 = 0x64 # Can't read this back
+                                                irq 0x70 = 1
+                                                irq 0x72 = 12
+                                        end
+                                        device pnp 2e.a on              # Runtime Regs
+                                                io 0x60 = 0x0a00
+                                        end
+                                end # smscsuperio
 			end
 			device pci 1f.2 on # SATA Controller 1 Unsupported PCI device 8086:2822
 				subsystemid 0x1028 0x047e
@@ -95,9 +117,9 @@ chip northbridge/intel/sandybridge # FIXME: check gfx.ndid and gfx.did
 			device pci 1f.3 on # SMBus
 				subsystemid 0x1028 0x047e
 			end
-			device pci 1f.5 off # SATA Controller 2
+			device pci 1f.5 on # SATA Controller 2
 			end
-			device pci 1f.6 off # Thermal
+			device pci 1f.6 on # Thermal
 			end
 		end
 		device pci 00.0 on # Host bridge Host bridge

@@ -16,6 +16,7 @@
 
 #include <arch/io.h>
 #include <device/pnp.h>
+#include <device/pnp_ops.h>
 #include <stdint.h>
 
 #include "sch5545.h"
@@ -102,6 +103,11 @@ void sch5545_early_init(unsigned port)
 	sch5545_set_iobase(dev,
 			SCH5545_BAR_RUNTIME_REG,
 			SCH5545_RUNTIME_REG_BASE);
+
+	dev = PNP_DEV(port,SCH5545_LDN_EM_IF);
+	pnp_set_logical_device(dev);
+	pnp_set_enable(dev,1);
+	sch5545_set_iobase(dev, SCH5545_BAR_EM_IF, 0x2d0); //FIXME
 
 	/* configure serial 1 / UART 1 */
 	dev = PNP_DEV(port, SCH5545_LDN_UART1);
