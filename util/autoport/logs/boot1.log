@@ -1,0 +1,729 @@
+USB
+
+
+coreboot-4.9-1033-gbb9318d694-dirty Fri Mar 15 13:04:08 UTC 2019 romstage starting (log level: 7)...
+Setting up static southbridge registers... done.
+Disabling Watchdog reboot... done.
+Setting up static northbridge registers... done.
+Initializing Graphics...
+Back from sandybridge_early_initialization()
+SMBus controller enabled.
+Intel ME early init
+Intel ME firmware is ready
+ME: Requested 32MB UMA
+Starting native Platform init
+FMAP: Found "FLASH" version 1.1 at 810000.
+FMAP: base = ff600000 size = a00000 #areas = 4
+FMAP: area RW_MRC_CACHE found @ 800000 (65536 bytes)
+Trying stored timings.
+Starting SandyBridge RAM training (1).
+Trying CAS 9, tCK 384.
+Found compatible clock, CAS pair.
+Selected DRAM frequency: 666 MHz
+Selected CAS latency   : 9T
+PLL busy... done in 10 us
+MCU frequency is set at : 666 MHz
+Done dimm mapping
+Update PCI-E configuration space:
+PCI(0, 0, 0)[a0] = 80000000
+PCI(0, 0, 0)[a4] = 0
+PCI(0, 0, 0)[bc] = 7da00000
+PCI(0, 0, 0)[a8] = 600000
+PCI(0, 0, 0)[ac] = 1
+PCI(0, 0, 0)[b8] = 7b000000
+PCI(0, 0, 0)[b0] = 7ba00000
+PCI(0, 0, 0)[b4] = 7b800000
+PCI(0, 0, 0)[7c] = 7f
+PCI(0, 0, 0)[70] = 7e000000
+PCI(0, 0, 0)[74] = 0
+PCI(0, 0, 0)[78] = fe000c00
+Done memory map
+Done io registers
+t123: 1912, 9120, 500
+ME: FW Partition Table      : OK
+ME: Bringup Loader Failure  : NO
+ME: Firmware Init Complete  : NO
+ME: Manufacturing Mode      : NO
+ME: Boot Options Present    : NO
+ME: Update In Progress      : NO
+ME: Current Working State   : Normal
+ME: Current Operation State : Bring up
+ME: Current Operation Mode  : Normal
+ME: Error Code              : No Error
+ME: Progress Phase          : BUP Phase
+ME: Power Management Event  : Clean Moff->Mx wake
+ME: Progress Phase State    : 0x4e
+ME: FWS2: 0x104e0006
+ME:  Bist in progress: 0x0
+ME:  ICC Status      : 0x3
+ME:  Invoke MEBx     : 0x0
+ME:  CPU replaced    : 0x0
+ME:  MBP ready       : 0x0
+ME:  MFS failure     : 0x0
+ME:  Warm reset req  : 0x0
+ME:  CPU repl valid  : 0x0
+ME:  (Reserved)      : 0x0
+ME:  FW update req   : 0x0
+ME:  (Reserved)      : 0x0
+ME:  Current state   : 0x4e
+ME:  Current PM event: 0x0
+ME:  Progress code   : 0x1
+Waited long enough, or CPU was not replaced, continue...
+PASSED! Tell ME that DRAM is ready
+ME: FWS2: 0x10500006
+ME:  Bist in progress: 0x0
+ME:  ICC Status      : 0x3
+ME:  Invoke MEBx     : 0x0
+ME:  CPU replaced    : 0x0
+ME:  MBP ready       : 0x0
+ME:  MFS failure     : 0x0
+ME:  Warm reset req  : 0x0
+ME:  CPU repl valid  : 0x0
+ME:  (Reserved)      : 0x0
+ME:  FW update req   : 0x0
+ME:  (Reserved)      : 0x0
+ME:  Current state   : 0x50
+ME:  Current PM event: 0x0
+ME:  Progress code   : 0x1
+ME: Requested BIOS Action: Continue to boot
+ME: FW Partition Table      : OK
+ME: Bringup Loader Failure  : NO
+ME: Firmware Init Complete  : NO
+ME: Manufacturing Mode      : NO
+ME: Boot Options Present    : NO
+ME: Update In Progress      : NO
+ME: Current Working State   : Normal
+ME: Current Operation State : M0 with UMA
+ME: Current Operation Mode  : Normal
+ME: Error Code              : No Error
+ME: Progress Phase          : BUP Phase
+ME: Power Management Event  : Clean Moff->Mx wake
+ME: Progress Phase State    : M0 kernel load
+memcfg DDR3 ref clock 133 MHz
+memcfg DDR3 clock 1330 MHz
+memcfg channel assignment: A: 0, B  1, C  2
+memcfg channel[0] config (00600008):
+   ECC inactive
+   enhanced interleave mode on
+   rank interleave on
+   DIMMA 2048 MB width x8 single rank, selected
+   DIMMB 0 MB width x8 single rank
+memcfg channel[1] config (00000000):
+   ECC inactive
+   enhanced interleave mode off
+   rank interleave off
+   DIMMA 0 MB width x8 single rank, selected
+   DIMMB 0 MB width x8 single rank
+CBMEM:
+IMD: root @ 7afff000 254 entries.
+IMD: root @ 7affec00 62 entries.
+External stage cache:
+IMD: root @ 7b3ff000 254 entries.
+IMD: root @ 7b3fec00 62 entries.
+CBMEM entry for DIMM info: 0x7affe9e0
+MTRR Range: Start=ff000000 End=0 (Size 1000000)
+MTRR Range: Start=0 End=1000000 (Size 1000000)
+MTRR Range: Start=7a800000 End=7b000000 (Size 800000)
+MTRR Range: Start=7b000000 End=7b800000 (Size 800000)
+CBFS: 'Master Header Locator' located CBFS at [810200:a00000)
+CBFS: Locating 'fallback/postcar'
+CBFS: Found @ offset 3f9c0 size 4114
+Decompressing stage fallback/postcar @ 0x7afcefc0 (33328 bytes)
+Loading module at 7afcf000 with entry 7afcf000. filesize: 0x3ed0 memsize: 0x81f0
+Processing 122 relocs. Offset value of 0x78fcf000
+usbdebug: postcar starting...
+CBFS: 'Master Header Locator' located CBFS at [810200:a00000)
+CBFS: Locating 'fallback/ramstage'
+CBFS: Found @ offset 19e00 size 1563a
+Decompressing stage fallback/ramstage @ 0x7af8bfc0 (269944 bytes)
+Loading module at 7af8c000 with entry 7af8c000. filesize: 0x2cb90 memsize: 0x41e38
+Processing 3067 relocs. Offset value of 0x7a18c000
+usbdebug: ramstage starting...
+Normal boot.
+BS: BS_PRE_DEVICE times (us): entry 0 run 2 exit 0
+BS: BS_DEV_INIT_CHIPS times (us): entry 0 run 2 exit 0
+Enumerating buses...
+CPU_CLUSTER: 0 enabled
+DOMAIN: 0000 enabled
+PCI: pci_scan_bus for bus 00
+PCI: 00:00.0 [8086/0100] enabled
+PCI: 00:01.0 [8086/0101] enabled
+PCI: 00:02.0 [8086/0102] enabled
+PCI: 00:16.0 [8086/1c3a] enabled
+PCI: 00:16.1: Disabling device
+PCI: 00:16.1 [8086/1c3b] disabled No operations
+PCI: 00:16.2: Disabling device
+PCI: 00:16.2 [8086/1c3c] disabled No operations
+PCI: 00:16.3 [8086/1c3d] enabled
+PCI: 00:19.0 [8086/1503] enabled
+PCI: 00:1a.0 [8086/1c2d] enabled
+PCI: 00:1b.0 [8086/1c20] enabled
+PCH: PCIe Root Port coalescing is enabled
+PCI: 00:1c.0 [8086/1c10] enabled
+PCI: 00:1c.1: Disabling device
+PCH: Remap PCIe function 2 to 1
+PCI: 00:1c.2 [8086/1c14] enabled
+PCI: 00:1c.3: Disabling device
+PCI: 00:1c.4: Disabling device
+PCI: 00:1c.4: check set enabled
+PCI: 00:1c.5: Disabling device
+PCI: 00:1c.6: Disabling device
+PCI: 00:1c.7: Disabling device
+PCH: PCIe map 1c.1 -> 1c.2
+PCH: PCIe map 1c.2 -> 1c.1
+PCI: 00:1d.0 [8086/1c26] enabled
+PCI: 00:1e.0 [8086/244e] enabled
+PCI: 00:1f.0 [8086/1c4e] enabled
+PCI: 00:1f.2 [8086/1c00] enabled
+PCI: 00:1f.3 [8086/1c22] enabled
+PCI: 00:1f.5: Disabling device
+PCI: 00:1f.5 [8086/1c08] disabled No operations
+PCI: 00:1f.6: Disabling device
+PCI: 00:1f.6 [8086/1c24] disabled No operations
+PCI: Leftover static devices:
+PCI: 00:1c.2
+PCI: 00:1c.3
+PCI: 00:1c.4
+PCI: 00:1c.5
+PCI: 00:1c.6
+PCI: 00:1c.7
+PCI: Check your devicetree.cb.
+PCI: pci_scan_bus for bus 01
+PCI: 01:00.0 [10de/128b] enabled
+PCI: 01:00.1 [10de/0e0f] enabled
+Enabling Common Clock Configuration
+ASPM: Enabled None
+Enabling Common Clock Configuration
+ASPM: Enabled None
+Failed to enable LTR for dev = PCI: 01:00.0
+Failed to enable LTR for dev = PCI: 01:00.1
+scan_bus: scanning of bus PCI: 00:01.0 took 26437 usecs
+PCI: pci_scan_bus for bus 02
+scan_bus: scanning of bus PCI: 00:1c.0 took 2160 usecs
+PCI: pci_scan_bus for bus 03
+scan_bus: scanning of bus PCI: 00:1c.1 took 2782 usecs
+PCI: pci_scan_bus for bus 04
+scan_bus: scanning of bus PCI: 00:1e.0 took 2902 usecs
+scan_bus: scanning of bus PCI: 00:1f.0 took 1 usecs
+scan_bus: scanning of bus PCI: 00:1f.3 took 1 usecs
+scan_bus: scanning of bus DOMAIN: 0000 took 181084 usecs
+scan_bus: scanning of bus Root Device took 190297 usecs
+done
+FMAP: Found "FLASH" version 1.1 at 810000.
+FMAP: base = ff600000 size = a00000 #areas = 4
+FMAP: area RW_MRC_CACHE found @ 800000 (65536 bytes)
+MRC: No data in cbmem for 'RW_MRC_CACHE'.
+BS: BS_DEV_ENUMERATE times (us): entry 0 run 198163 exit 15963
+found VGA at PCI: 00:02.0
+found VGA at PCI: 01:00.0
+Setting up VGA for PCI: 00:02.0
+Setting PCI_BRIDGE_CTL_VGA for bridge DOMAIN: 0000
+Setting PCI_BRIDGE_CTL_VGA for bridge Root Device
+Allocating resources...
+Reading resources...
+Adding PCIe enhanced config space BAR 0xf0000000-0xf4000000.
+PCI: 00:1a.0 EHCI BAR hook registered
+More than one caller of pci_ehci_read_resources from PCI: 00:1d.0
+Done reading resources.
+Setting resources...
+TOUUD 0x100600000 TOLUD 0x7da00000 TOM 0x80000000
+MEBASE 0x7e000000
+IGD decoded, subtracting 32M UMA and 2M GTT
+TSEG base 0x7b000000 size 8M
+Available memory below 4GB: 1968M
+Available memory above 4GB: 6M
+PCI: 00:01.0 1c <- [0x0000002000 - 0x0000002fff] size 0x00001000 gran 0x0c bus 01 io
+PCI: 00:01.0 24 <- [0x00e0000000 - 0x00e9ffffff] size 0x0a000000 gran 0x14 bus 01 prefmem
+PCI: 00:01.0 20 <- [0x00ea000000 - 0x00eb0fffff] size 0x01100000 gran 0x14 bus 01 mem
+PCI: 01:00.0 10 <- [0x00ea000000 - 0x00eaffffff] size 0x01000000 gran 0x18 mem
+PCI: 01:00.0 14 <- [0x00e0000000 - 0x00e7ffffff] size 0x08000000 gran 0x1b prefmem64
+PCI: 01:00.0 1c <- [0x00e8000000 - 0x00e9ffffff] size 0x02000000 gran 0x19 prefmem64
+PCI: 01:00.0 24 <- [0x0000002000 - 0x000000207f] size 0x00000080 gran 0x07 io
+PCI: 01:00.0 30 <- [0x00eb000000 - 0x00eb07ffff] size 0x00080000 gran 0x13 romem
+PCI: 01:00.1 10 <- [0x00eb080000 - 0x00eb083fff] size 0x00004000 gran 0x0e mem
+PCI: 00:02.0 10 <- [0x00ec400000 - 0x00ec7fffff] size 0x00400000 gran 0x16 mem64
+PCI: 00:02.0 18 <- [0x00d0000000 - 0x00dfffffff] size 0x10000000 gran 0x1c prefmem64
+PCI: 00:02.0 20 <- [0x0000004000 - 0x000000403f] size 0x00000040 gran 0x06 io
+PCI: 00:16.0 10 <- [0x00ec82a000 - 0x00ec82a00f] size 0x00000010 gran 0x04 mem64
+PCI: 00:16.3 10 <- [0x0000004080 - 0x0000004087] size 0x00000008 gran 0x03 io
+PCI: 00:16.3 14 <- [0x00ec824000 - 0x00ec824fff] size 0x00001000 gran 0x0c mem
+PCI: 00:19.0 10 <- [0x00ec800000 - 0x00ec81ffff] size 0x00020000 gran 0x11 mem
+PCI: 00:19.0 14 <- [0x00ec825000 - 0x00ec825fff] size 0x00001000 gran 0x0c mem
+PCI: 00:19.0 18 <- [0x0000004040 - 0x000000405f] size 0x00000020 gran 0x05 io
+PCI: 00:1a.0 EHCI Debug Port hook triggered
+PCI: 00:1a.0 10 <- [0x00ec827000 - 0x00ec8273ff] size 0x00000400 gran 0x0a mem
+PCI: 00:1a.0 EHCI Debug Port relocated
+PCI: 00:1b.0 10 <- [0x00ec820000 - 0x00ec823fff] size 0x00004000 gran 0x0e mem64
+PCI: 00:1c.0 1c <- [0x000000ffff - 0x000000fffe] size 0x00000000 gran 0x0c bus 02 io
+PCI: 00:1c.0 24 <- [0x00efffffff - 0x00effffffe] size 0x00000000 gran 0x14 bus 02 prefmem
+PCI: 00:1c.0 20 <- [0x00efffffff - 0x00effffffe] size 0x00000000 gran 0x14 bus 02 mem
+PCI: 00:1c.1 1c <- [0x0000003000 - 0x0000003fff] size 0x00001000 gran 0x0c bus 03 io
+PCI: 00:1c.1 24 <- [0x00eb400000 - 0x00ebbfffff] size 0x00800000 gran 0x14 bus 03 prefmem
+PCI: 00:1c.1 20 <- [0x00ebc00000 - 0x00ec3fffff] size 0x00800000 gran 0x14 bus 03 mem
+NONE missing set_resources
+PCI: 00:1d.0 10 <- [0x00ec828000 - 0x00ec8283ff] size 0x00000400 gran 0x0a mem
+PCI: 00:1e.0 1c <- [0x000000ffff - 0x000000fffe] size 0x00000000 gran 0x0c bus 04 io
+PCI: 00:1e.0 24 <- [0x00efffffff - 0x00effffffe] size 0x00000000 gran 0x14 bus 04 prefmem
+PCI: 00:1e.0 20 <- [0x00efffffff - 0x00effffffe] size 0x00000000 gran 0x14 bus 04 mem
+PCI: 00:1f.2 10 <- [0x0000004088 - 0x000000408f] size 0x00000008 gran 0x03 io
+PCI: 00:1f.2 14 <- [0x0000004098 - 0x000000409b] size 0x00000004 gran 0x02 io
+PCI: 00:1f.2 18 <- [0x0000004090 - 0x0000004097] size 0x00000008 gran 0x03 io
+PCI: 00:1f.2 1c <- [0x000000409c - 0x000000409f] size 0x00000004 gran 0x02 io
+PCI: 00:1f.2 20 <- [0x0000004060 - 0x000000407f] size 0x00000020 gran 0x05 io
+PCI: 00:1f.2 24 <- [0x00ec826000 - 0x00ec8267ff] size 0x00000800 gran 0x0b mem
+PCI: 00:1f.3 10 <- [0x00ec829000 - 0x00ec8290ff] size 0x00000100 gran 0x08 mem64
+Done setting resources.
+Done allocating resources.
+BS: BS_DEV_RESOURCES times (us): entry 0 run 338351 exit 0
+Enabling resources...
+PCI: 00:00.0 subsystem <- 1028/047e
+PCI: 00:00.0 cmd <- 06
+PCI: 00:01.0 bridge ctrl <- 0003
+PCI: 00:01.0 subsystem <- 1028/047e
+PCI: 00:01.0 cmd <- 07
+PCI: 00:02.0 subsystem <- 1028/047e
+PCI: 00:02.0 cmd <- 03
+PCI: 00:16.0 subsystem <- 1028/047e
+PCI: 00:16.0 cmd <- 02
+PCI: 00:16.3 subsystem <- 1028/047e
+PCI: 00:16.3 cmd <- 03
+PCI: 00:19.0 subsystem <- 1028/047e
+PCI: 00:19.0 cmd <- 103
+PCI: 00:1a.0 subsystem <- 1028/047e
+PCI: 00:1a.0 cmd <- 106
+PCI: 00:1b.0 subsystem <- 1028/047e
+PCI: 00:1b.0 cmd <- 102
+PCI: 00:1c.0 bridge ctrl <- 0003
+PCI: 00:1c.0 subsystem <- 1028/047e
+PCI: 00:1c.0 cmd <- 100
+PCI: 00:1c.1 bridge ctrl <- 0003
+PCI: 00:1c.1 subsystem <- 1028/047e
+PCI: 00:1c.1 cmd <- 107
+PCI: 00:1d.0 subsystem <- 1028/047e
+PCI: 00:1d.0 cmd <- 102
+PCI: 00:1e.0 bridge ctrl <- 0003
+PCI: 00:1e.0 cmd <- 100
+pch_decode_init
+PCI: 00:1f.0 subsystem <- 1028/047e
+PCI: 00:1f.0 cmd <- 107
+PCI: 00:1f.2 subsystem <- 1028/047e
+PCI: 00:1f.2 cmd <- 03
+PCI: 00:1f.3 subsystem <- 1028/047e
+PCI: 00:1f.3 cmd <- 103
+PCI: 01:00.0 cmd <- 03
+PCI: 01:00.1 cmd <- 02
+done.
+BS: BS_DEV_ENABLE times (us): entry 0 run 96530 exit 0
+Initializing devices...
+Root Device init ...
+Root Device init finished in 1371 usecs
+CPU_CLUSTER: 0 init ...
+MTRR: Physical address space:
+0x0000000000000000 - 0x00000000000a0000 size 0x000a0000 type 6
+0x00000000000a0000 - 0x00000000000c0000 size 0x00020000 type 0
+0x00000000000c0000 - 0x000000007b000000 size 0x7af40000 type 6
+0x000000007b000000 - 0x00000000d0000000 size 0x55000000 type 0
+0x00000000d0000000 - 0x00000000ea000000 size 0x1a000000 type 1
+0x00000000ea000000 - 0x0000000100000000 size 0x16000000 type 0
+0x0000000100000000 - 0x0000000100600000 size 0x00600000 type 6
+MTRR: Fixed MSR 0x250 0x0606060606060606
+MTRR: Fixed MSR 0x258 0x0606060606060606
+MTRR: Fixed MSR 0x259 0x0000000000000000
+MTRR: Fixed MSR 0x268 0x0606060606060606
+MTRR: Fixed MSR 0x269 0x0606060606060606
+MTRR: Fixed MSR 0x26a 0x0606060606060606
+MTRR: Fixed MSR 0x26b 0x0606060606060606
+MTRR: Fixed MSR 0x26c 0x0606060606060606
+MTRR: Fixed MSR 0x26d 0x0606060606060606
+MTRR: Fixed MSR 0x26e 0x0606060606060606
+MTRR: Fixed MSR 0x26f 0x0606060606060606
+CPU physical address size: 36 bits
+MTRR: default type WB/UC MTRR counts: 10/7.
+MTRR: UC selected as default type.
+MTRR: 0 base 0x0000000000000000 mask 0x0000000f80000000 type 6
+MTRR: 1 base 0x000000007b000000 mask 0x0000000fff000000 type 0
+MTRR: 2 base 0x000000007c000000 mask 0x0000000ffc000000 type 0
+MTRR: 3 base 0x00000000d0000000 mask 0x0000000ff0000000 type 1
+MTRR: 4 base 0x00000000e0000000 mask 0x0000000ff8000000 type 1
+MTRR: 5 base 0x00000000e8000000 mask 0x0000000ffe000000 type 1
+MTRR: 6 base 0x0000000100000000 mask 0x0000000fff800000 type 6
+
+MTRR check
+Fixed MTRRs   : Enabled
+Variable MTRRs: Enabled
+
+CPU has 2 cores, 4 threads enabled.
+Setting up SMI for CPU
+Will perform SMM setup.
+CBFS: 'Master Header Locator' located CBFS at [810200:a00000)
+CBFS: Locating 'cpu_microcode_blob.bin'
+CBFS: Found @ offset 13980 size 6400
+microcode: sig=0x206a7 pf=0x2 revision=0x2e
+CPU: Intel(R) Core(TM) i3-2120 CPU @ 3.30GHz.
+Loading module at 00030000 with entry 00030000. filesize: 0x170 memsize: 0x170
+Processing 16 relocs. Offset value of 0x00030000
+Attempting to start 3 APs
+Waiting for 10ms after sending INIT.
+Waiting for 1st SIPI to complete...AP: slot 3 apic_id 1.
+done.
+Waiting for 2nd SIPI to complete...done.
+AP: slot 2 apic_id 2.
+AP: slot 1 apic_id 3.
+Loading module at 00038000 with entry 00038000. filesize: 0x1a8 memsize: 0x1a8
+Processing 13 relocs. Offset value of 0x00038000
+SMM Module: stub loaded at 00038000. Will call 7afa497b(00000000)
+Installing SMM handler to 0x7b000000
+Loading module at 7b010000 with entry 7b010112. filesize: 0x1048 memsize: 0x5068
+Processing 40 relocs. Offset value of 0x7b010000
+Loading module at 7b008000 with entry 7b008000. filesize: 0x1a8 memsize: 0x1a8
+Processing 13 relocs. Offset value of 0x7b008000
+SMM Module: placing jmp sequence at 7b007c00 rel16 0x03fd
+SMM Module: placing jmp sequence at 7b007800 rel16 0x07fd
+SMM Module: placing jmp sequence at 7b007400 rel16 0x0bfd
+SMM Module: stub loaded at 7b008000. Will call 7b010112(00000000)
+Initializing Southbridge SMI...
+
+New SMBASE 0x7b000000
+In relocation handler: cpu 0
+New SMBASE=0x7b000000 IEDBASE=0x7b400000
+Writing SMRR. base = 0x7b000006, mask=0xff800800
+Relocation complete.
+New SMBASE 0x7afff400
+microcode: Update skipped, already up-to-date
+In relocation handler: cpu 3
+New SMBASE=0x7afff400 IEDBASE=0x7b400000
+Writing SMRR. base = 0x7b000006, mask=0xff800800
+Relocation complete.
+New SMBASE 0x7afff800
+microcode: Update skipped, already up-to-date
+In relocation handler: cpu 2
+New SMBASE=0x7afff800 IEDBASE=0x7b400000
+Writing SMRR. base = 0x7b000006, mask=0xff800800
+Relocation complete.
+New SMBASE 0x7afffc00
+microcode: Update skipped, already up-to-date
+In relocation handler: cpu 1
+New SMBASE=0x7afffc00 IEDBASE=0x7b400000
+Writing SMRR. base = 0x7b000006, mask=0xff800800
+Relocation complete.
+microcode: Update skipped, already up-to-date
+Initializing CPU #0
+CPU: vendor Intel device 206a7
+CPU: family 06, model 2a, stepping 07
+Enabling cache
+CPU: Intel(R) Core(TM) i3-2120 CPU @ 3.30GHz.
+CPU: platform id 1
+CPU: cpuid(1) 0x206a7
+CPU: AES NOT supported
+CPU: TXT NOT supported
+CPU: VT supported
+Setting up local APIC... apic_id: 0x00 done.
+VMX status: enabled
+IA32_FEATURE_CONTROL status: locked
+model_x06ax: energy policy set to 6
+model_x06ax: frequency set to 3300
+Turbo is unavailable
+CPU #0 initialized
+Initializing CPU #2
+Initializing CPU #1
+CPU: vendor Intel device 206a7
+CPU: family 06, model 2a, stepping 07
+CPU: vendor Intel device 206a7
+CPU: family 06, model 2a, stepping 07
+Enabling cache
+Enabling cache
+CPU: Intel(R) Core(TM) i3-2120 CPU @ 3.30GHz.
+CPU: Intel(R) Core(TM) i3-2120 CPU @ 3.30GHz.
+CPU: platform id 1
+CPU: platform id 1
+CPU: cpuid(1) 0x206a7
+CPU: cpuid(1) 0x206a7
+CPU: AES NOT supported
+CPU: TXT NOT supported
+CPU: VT supported
+CPU: AES NOT supported
+CPU: TXT NOT supported
+CPU: VT supported
+Setting up local APIC...Setting up local APIC... apic_id: 0x02 done.
+ apic_id: 0x03 done.
+VMX status: enabled
+VMX status: enabled
+IA32_FEATURE_CONTROL status: locked
+IA32_FEATURE_CONTROL status: locked
+model_x06ax: energy policy set to 6
+model_x06ax: energy policy set to 6
+model_x06ax: frequency set to 3300
+CPU #2 initialized
+model_x06ax: frequency set to 3300
+CPU #1 initialized
+Initializing CPU #3
+CPU: vendor Intel device 206a7
+CPU: family 06, model 2a, stepping 07
+Enabling cache
+CPU: Intel(R) Core(TM) i3-2120 CPU @ 3.30GHz.
+CPU: platform id 1
+CPU: cpuid(1) 0x206a7
+CPU: AES NOT supported
+CPU: TXT NOT supported
+CPU: VT supported
+Setting up local APIC... apic_id: 0x01 done.
+VMX status: enabled
+IA32_FEATURE_CONTROL status: locked
+model_x06ax: energy policy set to 6
+model_x06ax: frequency set to 3300
+CPU #3 initialized
+bsp_do_flight_plan done after 318 msecs.
+Initializing southbridge SMI...
+SMI_STS: 
+GPE0_STS: GPIO15 GPIO9 GPIO5 GPIO4 GPIO2 GPIO0 
+ALT_GP_SMI_STS: GPI15 GPI9 GPI5 GPI4 GPI2 GPI0 
+TCO_STS: 
+Locking SMM.
+CPU_CLUSTER: 0 init finished in 538644 usecs
+PCI: 00:00.0 init ...
+Disabling PEG12.
+Disabling PEG11.
+Disabling Device 4.
+Disabling PEG60.
+Disabling Device 7.
+Set BIOS_RESET_CPL
+CPU TDP: 65 Watts
+PCI: 00:00.0 init finished in 13955 usecs
+PCI: 00:01.0 init ...
+PCI: 00:01.0 init finished in 1619 usecs
+PCI: 00:02.0 init ...
+GT Power Management Init
+SNB GT1 Power Meter Weights
+CBFS: 'Master Header Locator' located CBFS at [810200:a00000)
+CBFS: Locating 'pci8086,0102.rom'
+CBFS: Found @ offset 2f940 size 10000
+In CBFS, ROM address for PCI: 00:02.0 = ffe3fb88
+Copying VGA ROM Image from ffe3fb88 to 0xc0000, 0xd800 bytes
+Calling Option ROM...
+... Option ROM returned.
+VGA Option ROM was run
+GT Power Management Init (post VBIOS)
+PCI: 00:02.0 init finished in 146312 usecs
+PCI: 00:16.0 init ...
+ME: FW Partition Table      : OK
+ME: Bringup Loader Failure  : NO
+ME: Firmware Init Complete  : NO
+ME: Manufacturing Mode      : YES
+ME: Boot Options Present    : NO
+ME: Update In Progress      : NO
+ME: Current Working State   : Normal
+ME: Current Operation State : M0 with UMA
+ME: Current Operation Mode  : Normal
+ME: Error Code              : No Error
+ME: Progress Phase          : Host Communication
+ME: Power Management Event  : Clean Moff->Mx wake
+ME: Progress Phase State    : Host communication established
+ME: BIOS path: Normal
+ME: Extend SHA-256: 138ab51cc9053321be597fba1ff87f550bc94eb5cd2bbe55a568f272c5bff27d
+ME: Firmware Version 7.1.1088.13 (code) 7.1.1088.13 (recovery)
+ME Capability: Full Network manageability     : disabled
+ME Capability: Regular Network manageability  : enabled
+ME Capability: Manageability                  : enabled
+ME Capability: Small business technology      : disabled
+ME Capability: Level III manageability        : disabled
+ME Capability: IntelR Anti-Theft (AT)         : enabled
+ME Capability: IntelR Capability Licensing Service (CLS) : enabled
+ME Capability: IntelR Power Sharing Technology (MPC) : enabled
+ME Capability: ICC Over Clocking              : enabled
+ME Capability: Protected Audio Video Path (PAVP) : enabled
+ME Capability: IPV6                           : enabled
+ME Capability: KVM Remote Control (KVM)       : disabled
+ME Capability: Outbreak Containment Heuristic (OCH) : enabled
+ME Capability: Virtual LAN (VLAN)             : enabled
+ME Capability: TLS                            : enabled
+ME Capability: Wireless LAN (WLAN)            : enabled
+PCI: 00:16.0 init finished in 158386 usecs
+PCI: 00:16.3 init ...
+PCI: 00:16.3 init finished in 1740 usecs
+PCI: 00:19.0 init ...
+PCI: 00:19.0 init finished in 1620 usecs
+PCI: 00:1a.0 init ...
+EHCI: Setting up controller.. done.
+PCI: 00:1a.0 init finished in 4987 usecs
+PCI: 00:1b.0 init ...
+Azalia: base = ec820000
+Azalia: codec_mask = 09
+Azalia: Initializing codec #3
+Azalia: codec viddid: 80862805
+Azalia: verb_size: 16
+Azalia: verb loaded.
+Azalia: Initializing codec #0
+Azalia: codec viddid: 10ec0269
+Azalia: verb_size: 44
+Azalia: verb loaded.
+PCI: 00:1b.0 init finished in 26688 usecs
+PCI: 00:1c.0 init ...
+Initializing PCH PCIe bridge.
+PCI: 00:1c.0 init finished in 4247 usecs
+PCI: 00:1c.1 init ...
+Initializing PCH PCIe bridge.
+PCI: 00:1c.1 init finished in 4249 usecs
+PCI: 00:1d.0 init ...
+EHCI: Setting up controller.. done.
+PCI: 00:1d.0 init finished in 4861 usecs
+PCI: 00:1f.0 init ...
+pch: lpc_init
+PCH: detected Q67, device id: 0x1c4e, rev id 0x5
+IOAPIC: Initializing IOAPIC at 0xfec00000
+IOAPIC: Bootstrap Processor Local APIC = 0x00
+IOAPIC: ID = 0x02
+Set power off after power failure.
+NMI sources disabled.
+CougarPoint PM init
+RTC: failed = 0x0
+RTC Init
+Disabling ACPI via APMC:
+done.
+pch_spi_init
+PCI: 00:1f.0 init finished in 30303 usecs
+PCI: 00:1f.2 init ...
+SATA: Initializing...
+SATA: Controller in AHCI mode.
+ABAR: ec826000
+PCI: 00:1f.2 init finished in 7667 usecs
+PCI: 00:1f.3 init ...
+PCI: 00:1f.3 init finished in 1501 usecs
+PCI: 01:00.0 init ...
+CBFS: 'Master Header Locator' located CBFS at [810200:a00000)
+CBFS: Locating 'pci10de,128b.rom'
+CBFS: 'pci10de,128b.rom' not found.
+Option ROM address for PCI: 01:00.0 = eb000000
+PCI: 01:00.0 init finished in 17321 usecs
+PCI: 01:00.1 init ...
+PCI: 01:00.1 init finished in 1618 usecs
+Devices initialized
+BS: BS_DEV_INIT times (us): entry 6 run 1043093 exit 0
+Finalize devices...
+PCI: 00:1f.0 final
+Devices finalized
+BS: BS_POST_DEVICE times (us): entry 0 run 5610 exit 0
+BS: BS_OS_RESUME_CHECK times (us): entry 0 run 2 exit 0
+CBFS: 'Master Header Locator' located CBFS at [810200:a00000)
+CBFS: Locating 'fallback/dsdt.aml'
+CBFS: Found @ offset 43b40 size 2526
+CBFS: 'Master Header Locator' located CBFS at [810200:a00000)
+CBFS: Locating 'fallback/slic'
+CBFS: 'fallback/slic' not found.
+ACPI: Writing ACPI tables at 7af4f000.
+ACPI:    * FACS
+ACPI:    * DSDT
+ACPI:    * FADT
+ACPI: added table 1/32, length now 40
+ACPI:     * SSDT
+Generating ACPI PIRQ entries
+Found 1 CPU(s) with 4 core(s) each.
+PSS: 3300MHz power 65000 control 0x2100 status 0x2100
+PSS: 2800MHz power 51978 control 0x1c00 status 0x1c00
+PSS: 2400MHz power 42529 control 0x1800 status 0x1800
+PSS: 2000MHz power 33757 control 0x1400 status 0x1400
+PSS: 1600MHz power 25671 control 0x1000 status 0x1000
+PSS: 3300MHz power 65000 control 0x2100 status 0x2100
+PSS: 2800MHz power 51978 control 0x1c00 status 0x1c00
+PSS: 2400MHz power 42529 control 0x1800 status 0x1800
+PSS: 2000MHz power 33757 control 0x1400 status 0x1400
+PSS: 1600MHz power 25671 control 0x1000 status 0x1000
+PSS: 3300MHz power 65000 control 0x2100 status 0x2100
+PSS: 2800MHz power 51978 control 0x1c00 status 0x1c00
+PSS: 2400MHz power 42529 control 0x1800 status 0x1800
+PSS: 2000MHz power 33757 control 0x1400 status 0x1400
+PSS: 1600MHz power 25671 control 0x1000 status 0x1000
+PSS: 3300MHz power 65000 control 0x2100 status 0x2100
+PSS: 2800MHz power 51978 control 0x1c00 status 0x1c00
+PSS: 2400MHz power 42529 control 0x1800 status 0x1800
+PSS: 2000MHz power 33757 control 0x1400 status 0x1400
+PSS: 1600MHz power 25671 control 0x1000 status 0x1000
+CBFS: 'Master Header Locator' located CBFS at [810200:a00000)
+CBFS: Locating 'pci10de,128b.rom'
+CBFS: 'pci10de,128b.rom' not found.
+Option ROM address for PCI: 01:00.0 = eb000001
+Incorrect expansion ROM header signature 7baa
+PCI: 01:00.0: Missing PCI Option ROM
+ACPI: added table 2/32, length now 44
+ACPI:    * MCFG
+ACPI: added table 3/32, length now 48
+ACPI:    * MADT
+ACPI: added table 4/32, length now 52
+current = 7af530f0
+ACPI:    * HPET
+ACPI: added table 5/32, length now 56
+CBFS: 'Master Header Locator' located CBFS at [810200:a00000)
+CBFS: Locating 'vbt.bin'
+CBFS: 'vbt.bin' not found.
+CBFS: 'Master Header Locator' located CBFS at [810200:a00000)
+CBFS: Locating 'pci8086,0102.rom'
+CBFS: Found @ offset 2f940 size 10000
+In CBFS, ROM address for PCI: 00:02.0 = ffe3fb88
+GMA: Found VBIOS in CBFS
+GMA: locate_vbt_vbios: aa55 8086 0 0 3
+GMA: Found valid VBT in VBIOS
+CBFS: 'Master Header Locator' located CBFS at [810200:a00000)
+CBFS: Locating 'pci10de,128b.rom'
+CBFS: 'pci10de,128b.rom' not found.
+Option ROM address for PCI: 01:00.0 = eb000001
+Incorrect expansion ROM header signature 7baa
+ACPI: done.
+ACPI tables: 24880 bytes.
+smbios_write_tables: 7af4d000
+Create SMBIOS type 17
+SMBIOS tables: 478 bytes.
+Writing table forward entry at 0x00000500
+Wrote coreboot table at: 00000500, 0x10 bytes, checksum 54e7
+Writing coreboot table at 0x7af73000
+ 0. 0000000000000000-0000000000000fff: CONFIGURATION TABLES
+ 1. 0000000000001000-000000000009ffff: RAM
+ 2. 00000000000a0000-00000000000fffff: RESERVED
+ 3. 0000000000100000-000000001fffffff: RAM
+ 4. 0000000020000000-00000000201fffff: RESERVED
+ 5. 0000000020200000-000000003fffffff: RAM
+ 6. 0000000040000000-00000000401fffff: RESERVED
+ 7. 0000000040200000-000000007af4cfff: RAM
+ 8. 000000007af4d000-000000007af8bfff: CONFIGURATION TABLES
+ 9. 000000007af8c000-000000007afcdfff: RAMSTAGE
+10. 000000007afce000-000000007affffff: CONFIGURATION TABLES
+11. 000000007b000000-000000007d9fffff: RESERVED
+12. 00000000f0000000-00000000f3ffffff: RESERVED
+13. 0000000100000000-00000001005fffff: RAM
+flash size 0xa00000 bytes
+SF: Detected Opaque HW-sequencing with sector size 0x1000, total 0xa00000
+CBFS: 'Master Header Locator' located CBFS at [810200:a00000)
+Wrote coreboot table at: 7af73000, 0x3a4 bytes, checksum 3fb3
+coreboot table: 956 bytes.
+IMD ROOT    0. 7afff000 00001000
+IMD SMALL   1. 7affe000 00001000
+CONSOLE     2. 7afde000 00020000
+TIME STAMP  3. 7afdd000 00000910
+ROMSTG STCK 4. 7afd8000 00005000
+AFTER CAR   5. 7afce000 0000a000
+RAMSTAGE    6. 7af8b000 00043000
+SMM BACKUP  7. 7af7b000 00010000
+COREBOOT    8. 7af73000 00008000
+ACPI        9. 7af4f000 00024000
+ACPI GNVS  10. 7af4e000 00001000
+SMBIOS     11. 7af4d000 00000800
+IMD small region:
+  IMD ROOT    0. 7affec00 00000400
+  USBDEBUG    1. 7affeba0 00000050
+  MEM INFO    2. 7affe9e0 000001a9
+  ROMSTAGE    3. 7affe9c0 00000004
+  COREBOOTFWD 4. 7affe980 00000028
+BS: BS_WRITE_TABLES times (us): entry 0 run 394351 exit 0
+CBFS: 'Master Header Locator' located CBFS at [810200:a00000)
+CBFS: Locating 'fallback/payload'
+CBFS: Found @ offset 460c0 size aef06
+Checking segment from ROM address 0xffe562f8
+Checking segment from ROM address 0xffe56314
+Loading segment from ROM address 0xffe562f8
+  code (compression=1)
+  New segment dstaddr 0x00800000 memsize 0x410000 srcaddr 0xffe56330 filesize 0xaeece
+Loading Segment: addr: 0x00800000 memsz: 0x0000000000410000 filesz: 0x00000000000aeece
+using LZMA
+Loading segment from ROM address 0xffe56314
+  Entry Point 0x008008f0
+BS: BS_PAYLOAD_LOAD times (us): entry 0 run 275997 exit 0
+PCH: watchdog disabled
+Jumping to boot code at 008008f0(7af73000)
