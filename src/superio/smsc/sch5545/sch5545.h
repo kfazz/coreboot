@@ -17,7 +17,7 @@
 #define SUPERIO_SCH_5545_H
 
 /* LPC i/o space */
-#define SCH5545_RUNTIME_REG_BASE 0x0a00
+#define SCH5545_RUNTIME_REG_BASE 0x0680
 
 /* runtime register */
 #define SCH5545_RR_LED		0x25

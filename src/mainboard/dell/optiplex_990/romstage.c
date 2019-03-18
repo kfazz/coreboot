@@ -73,7 +73,7 @@ void mainboard_early_init(int s3resume)
 {
 	//set BAR addresses of periphs
 	sch5545_early_init(0x2e);
-	smscsuperio_enable_serial(SERIAL_DEV, CONFIG_TTYS0_BASE);
+	//smscsuperio_enable_serial(SERIAL_DEV, CONFIG_TTYS0_BASE);
 }
 
 void mainboard_config_superio(void)

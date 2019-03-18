@@ -88,7 +88,7 @@ chip northbridge/intel/sandybridge # FIXME: check gfx.ndid and gfx.did
 			end
 			device pci 1f.0 on # LPC bridge PCI-LPC bridge
 				subsystemid 0x1028 0x047e
-                                chip superio/smsc/smscsuperio
+                                chip superio/smsc/sch5545
                                         device pnp 2e.b off end         # Floppy
                                         device pnp 2e.11 on              # Parallel Port
                                                 io 0x60 = 0x378
@@ -107,7 +107,7 @@ chip northbridge/intel/sandybridge # FIXME: check gfx.ndid and gfx.did
                                                 irq 0x72 = 12
                                         end
                                         device pnp 2e.a on              # Runtime Regs
-                                                io 0x60 = 0x0a00
+                                                io 0x60 = 0x680 
                                         end
                                 end # smscsuperio
 			end

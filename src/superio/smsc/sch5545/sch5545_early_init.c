@@ -46,6 +46,9 @@ static void sch5545_set_iobase(pnp_devfn_t dev, uint16_t device_addr, uint32_t b
 	pnp_devfn_t lpcif = PNP_DEV(port, SCH5545_LDN_LPC_IF);
 	pnp_set_logical_device(lpcif);
 
+	//BAR Addresses are backwards
+	bar_addr = ((bar_addr & 0x00FF) << 8) | ((bar_addr & 0xFF00) >> 8);
+
 	/* set BAR */
 	pnp_set_iobase(dev, device_addr + 2, bar_addr);
 
@@ -104,6 +107,11 @@ void sch5545_early_init(unsigned port)
 			SCH5545_BAR_RUNTIME_REG,
 			SCH5545_RUNTIME_REG_BASE);
 
+	/*Map KBC BAR */
+	dev = PNP_DEV(port,SCH5545_LDN_KBC);
+	pnp_set_logical_device(dev);
+	sch5545_set_iobase(dev, SCH5545_BAR_EM_IF, 0x60); //FIXME
+
 	dev = PNP_DEV(port,SCH5545_LDN_EM_IF);
 	pnp_set_logical_device(dev);
 	pnp_set_enable(dev,1);
@@ -118,7 +126,8 @@ void sch5545_early_init(unsigned port)
 	sch5545_set_irq(dev, SCH5545_IRQ_UART1, 4);
 
 	/* set SCH5545_LED_CODE_FETCH + blink orange = 1hz */
-	sch5545_set_led(SCH5545_RUNTIME_REG_BASE, SCH5545_LED_COLOR_YELLOW, SCH5545_LED_BLINK_1HZ);
+	//sch5545_set_led(SCH5545_RUNTIME_REG_BASE, SCH5545_LED_COLOR_YELLOW, SCH5545_LED_BLINK_1HZ);
+	sch5545_set_led(SCH5545_RUNTIME_REG_BASE, SCH5545_LED_COLOR_GREEN, 0);
 
 	pnp_exit_conf_state(dev);
 }
