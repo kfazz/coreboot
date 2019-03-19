@@ -85,8 +85,6 @@ static void enable_dev(struct device *dev)
 		pnp_exit_conf_mode_aa(dev);
 	}
 
-	//pnp_enable_devices(dev, &pnp_ops, ARRAY_SIZE(pnp_dev_info), pnp_dev_info);
-        /* Enable the specified devices (if present on the chip). */
         pnp_enable_devices(dev, &ops, ARRAY_SIZE(pnp_dev_info), pnp_dev_info);
 
 }
