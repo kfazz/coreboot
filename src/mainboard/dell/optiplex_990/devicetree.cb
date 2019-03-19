@@ -3,17 +3,9 @@ chip northbridge/intel/sandybridge # FIXME: check gfx.ndid and gfx.did
 	register "gfx.link_frequency_270_mhz" = "1"
 	register "gfx.ndid" = "3"
 	register "gfx.use_spread_spectrum_clock" = "0"
-	register "gpu_cpu_backlight" = "0x00000000"
 	register "gpu_dp_b_hotplug" = "4"
 	register "gpu_dp_c_hotplug" = "4"
 	register "gpu_dp_d_hotplug" = "4"
-	register "gpu_panel_port_select" = "0"
-	register "gpu_panel_power_backlight_off_delay" = "0"
-	register "gpu_panel_power_backlight_on_delay" = "0"
-	register "gpu_panel_power_cycle_delay" = "4"
-	register "gpu_panel_power_down_delay" = "0"
-	register "gpu_panel_power_up_delay" = "0"
-	register "gpu_pch_backlight" = "0x00000000"
 	device cpu_cluster 0x0 on
 		chip cpu/intel/model_206ax # FIXME: check all registers
 			register "c1_acpower" = "1"
@@ -50,7 +42,7 @@ chip northbridge/intel/sandybridge # FIXME: check gfx.ndid and gfx.did
 			end
 			device pci 16.2 off # Management Engine IDE-R
 			end
-			device pci 16.3 on # Management Engine KT
+			device pci 16.3 off # Management Engine KT
 				subsystemid 0x1028 0x047e
 			end
 			device pci 19.0 on # Intel Gigabit Ethernet
@@ -74,11 +66,11 @@ chip northbridge/intel/sandybridge # FIXME: check gfx.ndid and gfx.did
 			end
 			device pci 1c.4 on # PCIe Port #5
 			end
-			device pci 1c.5 on # PCIe Port #6
+			device pci 1c.5 off # PCIe Port #6
 			end
-			device pci 1c.6 on # PCIe Port #7
+			device pci 1c.6 off # PCIe Port #7
 			end
-			device pci 1c.7 on # PCIe Port #8
+			device pci 1c.7 off # PCIe Port #8
 			end
 			device pci 1d.0 on # USB2 EHCI #1
 				subsystemid 0x1028 0x047e
