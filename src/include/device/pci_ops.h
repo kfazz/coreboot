@@ -39,61 +39,54 @@
 
 #include <device/pci.h>
 
-const struct pci_bus_operations *pci_bus_default_ops(void);
-
-static __always_inline const struct pci_bus_operations *pci_bus_ops(void)
-{
-	return pci_bus_default_ops();
-}
-
 void __noreturn pcidev_die(void);
 
-static __always_inline void pcidev_assert(const struct device *dev)
+static __always_inline pci_devfn_t pcidev_bdf(const struct device *dev)
+{
+	return (dev->path.pci.devfn << 12) | (dev->bus->secondary << 20);
+}
+
+static __always_inline pci_devfn_t pcidev_assert(const struct device *dev)
 {
 	if (!dev)
 		pcidev_die();
+	return pcidev_bdf(dev);
 }
 
 static __always_inline
 u8 pci_read_config8(const struct device *dev, u16 reg)
 {
-	pcidev_assert(dev);
-	return pci_bus_ops()->read8(dev, reg);
+	return pci_s_read_config8(PCI_BDF(dev), reg);
 }
 
 static __always_inline
 u16 pci_read_config16(const struct device *dev, u16 reg)
 {
-	pcidev_assert(dev);
-	return pci_bus_ops()->read16(dev, reg);
+	return pci_s_read_config16(PCI_BDF(dev), reg);
 }
 
 static __always_inline
 u32 pci_read_config32(const struct device *dev, u16 reg)
 {
-	pcidev_assert(dev);
-	return pci_bus_ops()->read32(dev, reg);
+	return pci_s_read_config32(PCI_BDF(dev), reg);
 }
 
 static __always_inline
 void pci_write_config8(const struct device *dev, u16 reg, u8 val)
 {
-	pcidev_assert(dev);
-	pci_bus_ops()->write8(dev, reg, val);
+	pci_s_write_config8(PCI_BDF(dev), reg, val);
 }
 
 static __always_inline
 void pci_write_config16(const struct device *dev, u16 reg, u16 val)
 {
-	pcidev_assert(dev);
-	pci_bus_ops()->write16(dev, reg, val);
+	pci_s_write_config16(PCI_BDF(dev), reg, val);
 }
 
 static __always_inline
 void pci_write_config32(const struct device *dev, u16 reg, u32 val)
 {
-	pcidev_assert(dev);
-	pci_bus_ops()->write32(dev, reg, val);
+	pci_s_write_config32(PCI_BDF(dev), reg, val);
 }
 
 #endif

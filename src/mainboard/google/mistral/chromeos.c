@@ -1,11 +1,11 @@
 /*
  * This file is part of the coreboot project.
  *
- * Copyright 2018 Facebook, Inc.
+ * Copyright (C) 2018, The Linux Foundation.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,10 +13,9 @@
  * GNU General Public License for more details.
  */
 
-#include <device/device.h>
-#include <device/pci_ops.h>
+#include <boot/coreboot_tables.h>
 
-const struct pci_bus_operations *pci_bus_default_ops(void)
+void fill_lb_gpios(struct lb_gpios *gpios)
 {
-	return &pci_cf8_conf1;
+
 }

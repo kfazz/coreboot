@@ -31,17 +31,21 @@
 #include <northbridge/intel/sandybridge/raminit_native.h>
 #include <southbridge/intel/bd82x6x/pch.h>
 #include <southbridge/intel/common/gpio.h>
+#include <superio/smsc/smscsuperio/smscsuperio.h>
+#include <superio/smsc/sch5545/sch5545.h>
 #include <arch/cpu.h>
 #include <cpu/x86/msr.h>
 
+#define SERIAL_DEV PNP_DEV(0x2e, 7)
+
 void pch_enable_lpc(void)
 {
-	pci_write_config16(PCI_DEV(0, 0x1f, 0), 0x82, 0x3c0f);
-	pci_write_config32(PCI_DEV(0, 0x1f, 0), 0x84, 0x007c0681);
-	pci_write_config32(PCI_DEV(0, 0x1f, 0), 0x88, 0x000c1641);
-	pci_write_config32(PCI_DEV(0, 0x1f, 0), 0x8c, 0x000400e1);
-	pci_write_config32(PCI_DEV(0, 0x1f, 0), 0x90, 0x001c02d1);
-	pci_write_config16(PCI_DEV(0, 0x1f, 0), 0x80, 0x0000);
+	pci_write_config16(PCI_DEV(0, 0x1f, 0), LPC_EN, 0x3c0f);
+	pci_write_config32(PCI_DEV(0, 0x1f, 0), LPC_GEN1_DEC, 0x007c0681);
+	pci_write_config32(PCI_DEV(0, 0x1f, 0), LPC_GEN2_DEC, 0x000c1641);
+	pci_write_config32(PCI_DEV(0, 0x1f, 0), LPC_GEN3_DEC, 0x000400e1);
+	pci_write_config32(PCI_DEV(0, 0x1f, 0), LPC_GEN4_DEC, 0x001c02d1);
+	pci_write_config16(PCI_DEV(0, 0x1f, 0), LPC_IO_DEC, 0x0000);
 }
 
 void mainboard_rcba_config(void)
@@ -67,13 +71,15 @@ const struct southbridge_usb_port mainboard_usb_ports[] = {
 
 void mainboard_early_init(int s3resume)
 {
+	//set BAR addresses of periphs
+	sch5545_early_init(0x2e);
+	//smscsuperio_enable_serial(SERIAL_DEV, CONFIG_TTYS0_BASE);
 }
 
 void mainboard_config_superio(void)
 {
 }
 
-/* FIXME: Put proper SPD map here. */
 void mainboard_get_spd(spd_raw_data *spd, bool id_only)
 {
 	read_spd(&spd[0], 0x50, id_only);

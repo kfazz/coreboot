@@ -1,19 +1,11 @@
 chip northbridge/intel/sandybridge # FIXME: check gfx.ndid and gfx.did
-	register "gfx.did" = "{ 0x80000100, 0x80000240, 0x80000410, 0x80000410, 0x00000005 }"
+	register "gfx.did" = "{ 0x80000100, 0x80000240 }"
 	register "gfx.link_frequency_270_mhz" = "1"
 	register "gfx.ndid" = "3"
 	register "gfx.use_spread_spectrum_clock" = "0"
-	register "gpu_cpu_backlight" = "0x00000000"
 	register "gpu_dp_b_hotplug" = "4"
 	register "gpu_dp_c_hotplug" = "4"
 	register "gpu_dp_d_hotplug" = "4"
-	register "gpu_panel_port_select" = "0"
-	register "gpu_panel_power_backlight_off_delay" = "0"
-	register "gpu_panel_power_backlight_on_delay" = "0"
-	register "gpu_panel_power_cycle_delay" = "4"
-	register "gpu_panel_power_down_delay" = "0"
-	register "gpu_panel_power_up_delay" = "0"
-	register "gpu_pch_backlight" = "0x00000000"
 	device cpu_cluster 0x0 on
 		chip cpu/intel/model_206ax # FIXME: check all registers
 			register "c1_acpower" = "1"
@@ -50,7 +42,7 @@ chip northbridge/intel/sandybridge # FIXME: check gfx.ndid and gfx.did
 			end
 			device pci 16.2 off # Management Engine IDE-R
 			end
-			device pci 16.3 on # Management Engine KT
+			device pci 16.3 off # Management Engine KT
 				subsystemid 0x1028 0x047e
 			end
 			device pci 19.0 on # Intel Gigabit Ethernet
@@ -65,14 +57,14 @@ chip northbridge/intel/sandybridge # FIXME: check gfx.ndid and gfx.did
 			device pci 1c.0 on # PCIe Port #1
 				subsystemid 0x1028 0x047e
 			end
-			device pci 1c.1 off # PCIe Port #2
+			device pci 1c.1 on # PCIe Port #2
 			end
 			device pci 1c.2 on # PCIe Port #3
 				subsystemid 0x1028 0x047e
 			end
-			device pci 1c.3 off # PCIe Port #4
+			device pci 1c.3 on # PCIe Port #4
 			end
-			device pci 1c.4 off # PCIe Port #5
+			device pci 1c.4 on # PCIe Port #5
 			end
 			device pci 1c.5 off # PCIe Port #6
 			end
@@ -88,6 +80,28 @@ chip northbridge/intel/sandybridge # FIXME: check gfx.ndid and gfx.did
 			end
 			device pci 1f.0 on # LPC bridge PCI-LPC bridge
 				subsystemid 0x1028 0x047e
+                                chip superio/smsc/sch5545
+                                        device pnp 2e.b off end         # Floppy
+                                        device pnp 2e.11 on              # Parallel Port
+                                                io 0x60 = 0x378
+                                                irq 0x70 = 7
+                                                drq 0x74 = 3
+                                        end
+                                        device pnp 2e.7 on              # COM1
+                                                io 0x60 = 0x3f8
+                                                irq 0x70 = 4
+                                        end
+                                        device pnp 2e.8 off end         # COM2
+                                        device pnp 2e.1 on              # Keyboard
+                                                io 0x60 = 0x60 # Can't read this back
+                                                io 0x62 = 0x64 # Can't read this back
+                                                irq 0x70 = 1
+                                                irq 0x72 = 12
+                                        end
+                                        device pnp 2e.a on              # Runtime Regs
+                                                io 0x60 = 0x680 
+                                        end
+                                end # smscsuperio
 			end
 			device pci 1f.2 on # SATA Controller 1 Unsupported PCI device 8086:2822
 				subsystemid 0x1028 0x047e
@@ -95,9 +109,9 @@ chip northbridge/intel/sandybridge # FIXME: check gfx.ndid and gfx.did
 			device pci 1f.3 on # SMBus
 				subsystemid 0x1028 0x047e
 			end
-			device pci 1f.5 off # SATA Controller 2
+			device pci 1f.5 on # SATA Controller 2
 			end
-			device pci 1f.6 off # Thermal
+			device pci 1f.6 on # Thermal
 			end
 		end
 		device pci 00.0 on # Host bridge Host bridge
