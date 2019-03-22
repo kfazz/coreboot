@@ -64,7 +64,8 @@ chip northbridge/intel/sandybridge # FIXME: check gfx.ndid and gfx.did
 			end
 			device pci 1c.3 on # PCIe Port #4
 			end
-			device pci 1c.4 on # PCIe Port #5
+			device pci 1c.4 on # PCIe Port #5 Pcie Slot #4
+				subsystemid 0x1028 0x047e
 			end
 			device pci 1c.5 on # PCIe Port #6
 			end
