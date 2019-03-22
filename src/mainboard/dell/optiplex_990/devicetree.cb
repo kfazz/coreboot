@@ -66,11 +66,11 @@ chip northbridge/intel/sandybridge # FIXME: check gfx.ndid and gfx.did
 			end
 			device pci 1c.4 on # PCIe Port #5
 			end
-			device pci 1c.5 off # PCIe Port #6
+			device pci 1c.5 on # PCIe Port #6
 			end
-			device pci 1c.6 off # PCIe Port #7
+			device pci 1c.6 on # PCIe Port #7
 			end
-			device pci 1c.7 off # PCIe Port #8
+			device pci 1c.7 on # PCIe Port #8
 			end
 			device pci 1d.0 on # USB2 EHCI #1
 				subsystemid 0x1028 0x047e
