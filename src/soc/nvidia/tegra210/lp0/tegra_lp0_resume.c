@@ -14,9 +14,6 @@
  * GNU General Public License for more details.
  */
 
-#include <halt.h>
-#include <stdint.h>
-
 /* Function unit addresses. */
 enum {
 	UP_TAG_BASE = 0x60000000,
