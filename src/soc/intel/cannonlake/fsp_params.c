@@ -40,22 +40,28 @@ static const int serial_io_dev[] = {
 	PCH_DEVFN_UART2
 };
 
+/*
+ * Given an enum for PCH_SERIAL_IO_MODE, 1 needs to be subtracted to get the FSP
+ * UPD expected value for Serial IO since valid enum index starts from 1.
+ */
+#define PCH_SERIAL_IO_INDEX(x)		((x) - 1)
+
 static uint8_t get_param_value(const config_t *config, uint32_t dev_offset)
 {
 	struct device *dev;
 
 	dev = dev_find_slot(0, serial_io_dev[dev_offset]);
 	if (!dev || !dev->enabled)
-		return PchSerialIoDisabled;
+		return PCH_SERIAL_IO_INDEX(PchSerialIoDisabled);
 
 	if ((config->SerialIoDevMode[dev_offset] >= PchSerialIoMax) ||
 	    (config->SerialIoDevMode[dev_offset] == PchSerialIoNotInitialized))
-		return PchSerialIoPci;
+		return PCH_SERIAL_IO_INDEX(PchSerialIoPci);
 
 	/*
 	 * Correct Enum index starts from 1, so subtract 1 while returning value
 	 */
-	return config->SerialIoDevMode[dev_offset] - 1;
+	return PCH_SERIAL_IO_INDEX(config->SerialIoDevMode[dev_offset]);
 }
 
 #if IS_ENABLED(CONFIG_SOC_INTEL_COMETLAKE)
@@ -170,6 +176,21 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd)
 	params->PchHdaAudioLinkSndw2 = config->PchHdaAudioLinkSndw2;
 	params->PchHdaAudioLinkSndw3 = config->PchHdaAudioLinkSndw3;
 	params->PchHdaAudioLinkSndw4 = config->PchHdaAudioLinkSndw4;
+
+	/* eDP device */
+	params->DdiPortEdp = config->DdiPortEdp;
+
+	/* HPD of DDI ports */
+	params->DdiPortBHpd = config->DdiPortBHpd;
+	params->DdiPortCHpd = config->DdiPortCHpd;
+	params->DdiPortDHpd = config->DdiPortDHpd;
+	params->DdiPortFHpd = config->DdiPortFHpd;
+
+	/* DDC of DDI ports */
+	params->DdiPortBDdc = config->DdiPortBDdc;
+	params->DdiPortCDdc = config->DdiPortCDdc;
+	params->DdiPortDDdc = config->DdiPortDDdc;
+	params->DdiPortFDdc = config->DdiPortFDdc;
 
 	/* S0ix */
 	params->PchPmSlpS0Enable = config->s0ix_enable;
