@@ -1,7 +1,7 @@
 /*
  * This file is part of the coreboot project.
  *
- * Copyright (C) 2018, The Linux Foundation.  All rights reserved.
+ * Copyright (c) 2018-2019 Qualcomm Technologies
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -13,16 +13,15 @@
  * GNU General Public License for more details.
  */
 
-#include <bootblock_common.h>
-#include <soc/mmu.h>
-#include <soc/clock.h>
+#ifndef __SOC_QUALCOMM_QCS405_ADDRESS_MAP_H__
+#define __SOC_QUALCOMM_QCS405_ADDRESS_MAP_H__
 
-void bootblock_soc_early_init(void)
-{
-	clock_init();
-}
+#include <stdint.h>
 
-void bootblock_soc_init(void)
-{
-	qcs405_mmu_init();
-}
+#define QSPI_BASE			0x88DF000
+#define TLMM_EAST_TILE_BASE		0x7B00000
+#define TLMM_NORTH_TILE_BASE		0x1300000
+#define TLMM_SOUTH_TILE_BASE		0x1000000
+#define GCC_BASE			0x01800000
+
+#endif /*  __SOC_QUALCOMM_QCS405_ADDRESS_MAP_H__ */
