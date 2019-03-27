@@ -532,6 +532,9 @@ static void disable_dev(struct device *dev, FSP_S_CONFIG *silconfig)
 		silconfig->IpuEn = 0;
 		break;
 #endif
+	case PCH_DEVFN_HDA:
+		silconfig->HdaEnable = 0;
+		break;
 	default:
 		printk(BIOS_WARNING, "PCI:%02x.%01x: Could not disable the device\n",
 			PCI_SLOT(dev->path.pci.devfn),
@@ -733,7 +736,7 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *silupd)
 	if (!CONFIG(SOC_INTEL_GLK))
 		silconfig->MonitorMwaitEnable = 0;
 
-	silconfig->SkipMpInit = !chip_get_fsp_mp_init();
+	silconfig->SkipMpInit = !CONFIG_USE_INTEL_FSP_MP_INIT;
 
 	/* Disable setting of EISS bit in FSP. */
 	silconfig->SpiEiss = 0;
