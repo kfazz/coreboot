@@ -98,38 +98,39 @@ void sch5545_early_init(unsigned port)
 	/* enable lpc if */
 	dev = PNP_DEV(port, SCH5545_LDN_LPC_IF);
 	pnp_enter_conf_state(dev);
-
 	pnp_set_logical_device(dev);
 	pnp_set_enable(dev, 1);
 
 	/* map runtime register */
-	sch5545_set_iobase(dev,
-			SCH5545_BAR_RUNTIME_REG,
-			SCH5545_RUNTIME_REG_BASE);
+//	sch5545_set_iobase(dev,
+//			SCH5545_BAR_RUNTIME_REG,
+//			SCH5545_RUNTIME_REG_BASE);
 
 	/*Map KBC BAR */ //FIXME don't hardcode these
-	dev = PNP_DEV(port,SCH5545_LDN_KBC);
-	pnp_set_logical_device(dev);
-	sch5545_set_iobase(dev, SCH5545_BAR_KBC, 0x60);
-	sch5545_set_irq(dev, SCH5545_IRQ_KBD, 1);
-	sch5545_set_irq(dev, SCH5545_IRQ_MOUSE,12);
+//	dev = PNP_DEV(port,SCH5545_LDN_KBC);
+//	pnp_set_logical_device(dev);
+//	sch5545_set_iobase(dev, SCH5545_BAR_KBC, 0x60);
+//	sch5545_set_irq(dev, SCH5545_IRQ_KBD, 1);
+//	sch5545_set_irq(dev, SCH5545_IRQ_MOUSE,12);
 
-	dev = PNP_DEV(port,SCH5545_LDN_EM_IF);
-	pnp_set_logical_device(dev);
-	pnp_set_enable(dev,1);
-	sch5545_set_iobase(dev, SCH5545_BAR_EM_IF, 0x2d0);
-	sch5545_set_irq(dev, SCH5545_IRQ_EMI_IRQ_SOURCE, 2);
+//	dev = PNP_DEV(port,SCH5545_LDN_EM_IF);
+//	pnp_set_logical_device(dev);
+//	pnp_set_enable(dev,1);
+//	sch5545_set_iobase(dev, SCH5545_BAR_EM_IF, 0x2d0);
+//	sch5545_set_irq(dev, SCH5545_IRQ_EMI_IRQ_SOURCE, 2);
 
-	dev = PNP_DEV(port,SCH5545_LDN_PARPORT);
-	pnp_set_logical_device(dev);
-	pnp_set_enable(dev,1);
-	pnp_write_config(dev,0xF0, 0x3B); //Parport mode = ECP + EPP 1.9
-	sch5545_set_iobase(dev, SCH5545_BAR_PARPORT, 0x378);
-	sch5545_set_irq(dev, SCH5545_IRQ_PARPORT, 7);
+//	dev = PNP_DEV(port,SCH5545_LDN_PARPORT);
+//	pnp_set_logical_device(dev);
+//	pnp_set_enable(dev,1);
+//	pnp_write_config(dev,0xF0, 0x3B); //Parport mode = ECP + EPP 1.9
+//	sch5545_set_iobase(dev, SCH5545_BAR_PARPORT, 0x378);
+//	sch5545_set_irq(dev, SCH5545_IRQ_PARPORT, 7);
 
 	/* configure serial 1 / UART 1 */
 	dev = PNP_DEV(port, SCH5545_LDN_UART1);
 	pnp_set_logical_device(dev);
+        /* Enabled High speed, disabled MIDI support. */
+        pnp_write_config(dev, 0xF0, 0x02);
 	pnp_set_enable(dev, 1);
 	pnp_write_config(dev, SCH5545_CONFIG_SELECT, SCH5545_UART_POWER_VCC);
 	sch5545_set_iobase(dev, SCH5545_BAR_UART1, CONFIG_TTYS0_BASE);
