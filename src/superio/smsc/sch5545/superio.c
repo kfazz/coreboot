@@ -63,7 +63,8 @@ static struct pnp_info pnp_dev_info[] = {
         { &ops, SCH5545_LDN_UART1, PNP_IO0 | PNP_IRQ0, 0x07f8, },
         { &ops, SCH5545_LDN_UART2, PNP_IO0 | PNP_IRQ0, 0x07f8, },
         { &ops, SCH5545_LDN_KBC, PNP_IO0 | PNP_IO1 | PNP_IRQ0 | PNP_IRQ1,0x07ff, 0x07ff, },
-        { &ops, SCH5545_LDN_RT,  PNP_IO0, 0x0780, },
+        { &ops, SCH5545_LDN_RT,  PNP_IO0, 0x07C0, },
+        { &ops, SCH5545_LDN_EM_IF,  PNP_IO0, 0x07F0, },
 };
 
 static void enable_dev(struct device *dev)
@@ -78,7 +79,7 @@ static void enable_dev(struct device *dev)
 
                 /* TODO: Error handling? */
 
-                printk(BIOS_INFO, "Found SMSC SCH5544 Super I/O (ID = 0x%02x, "
+                printk(BIOS_INFO, "Found SMSC SCH554x Super I/O (ID = 0x%02x, "
                        "rev = 0x%02x)\n", superio_id, superio_rev);
                 first_time = 0;
 
@@ -90,7 +91,7 @@ static void enable_dev(struct device *dev)
 }
 
 struct chip_operations superio_smsc_sch5545_ops = {
-	CHIP_NAME("SMSC SCH5545 Super I/O")
+	CHIP_NAME("SMSC SCH554x Super I/O")
 		.enable_dev = enable_dev,
 };
 

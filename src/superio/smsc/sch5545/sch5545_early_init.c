@@ -101,10 +101,15 @@ void sch5545_early_init(unsigned port)
 	pnp_set_logical_device(dev);
 	pnp_set_enable(dev, 1);
 
-	/* map runtime register */
-//	sch5545_set_iobase(dev,
-//			SCH5545_BAR_RUNTIME_REG,
-//			SCH5545_RUNTIME_REG_BASE);
+
+
+	/* Runtime Register Set @ 0x0680 */
+	dev = PNP_DEV(port, SCH5545_LDN_RT);
+	pnp_set_logical_device(dev);
+	pnp_set_enable(dev, 1);
+	sch5545_set_iobase(dev,
+			SCH5545_BAR_RUNTIME_REG,
+			SCH5545_RUNTIME_REG_BASE);
 
 	/*Map KBC BAR */ //FIXME don't hardcode these
 //	dev = PNP_DEV(port,SCH5545_LDN_KBC);
