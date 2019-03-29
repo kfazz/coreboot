@@ -101,17 +101,15 @@ void sch5545_early_init(unsigned port)
 	pnp_set_logical_device(dev);
 	pnp_set_enable(dev, 1);
 
-
-
 	/* Runtime Register Set @ 0x0680 */
 	dev = PNP_DEV(port, SCH5545_LDN_RT);
 	pnp_set_logical_device(dev);
-	pnp_set_enable(dev, 1);
 	sch5545_set_iobase(dev,
 			SCH5545_BAR_RUNTIME_REG,
 			SCH5545_RUNTIME_REG_BASE);
 
-	/*Map KBC BAR */ //FIXME don't hardcode these
+
+	/*Map KBC BAR */
 //	dev = PNP_DEV(port,SCH5545_LDN_KBC);
 //	pnp_set_logical_device(dev);
 //	sch5545_set_iobase(dev, SCH5545_BAR_KBC, 0x60);
@@ -120,7 +118,6 @@ void sch5545_early_init(unsigned port)
 
 //	dev = PNP_DEV(port,SCH5545_LDN_EM_IF);
 //	pnp_set_logical_device(dev);
-//	pnp_set_enable(dev,1);
 //	sch5545_set_iobase(dev, SCH5545_BAR_EM_IF, 0x2d0);
 //	sch5545_set_irq(dev, SCH5545_IRQ_EMI_IRQ_SOURCE, 2);
 
@@ -135,11 +132,10 @@ void sch5545_early_init(unsigned port)
 	dev = PNP_DEV(port, SCH5545_LDN_UART1);
 	pnp_set_logical_device(dev);
         /* Enabled High speed, disabled MIDI support. */
-        pnp_write_config(dev, 0xF0, 0x02);
-	pnp_set_enable(dev, 1);
 	pnp_write_config(dev, SCH5545_CONFIG_SELECT, SCH5545_UART_POWER_VCC);
 	sch5545_set_iobase(dev, SCH5545_BAR_UART1, CONFIG_TTYS0_BASE);
 	sch5545_set_irq(dev, SCH5545_IRQ_UART1, 4);
+	pnp_set_enable(dev, 1);
 
 	//set Power LED to solid blue
 	sch5545_set_led(SCH5545_RUNTIME_REG_BASE, SCH5545_LED_COLOR_GREEN, SCH5545_LED_BLINK_ON);
