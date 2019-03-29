@@ -1,7 +1,7 @@
 /*
  * This file is part of the coreboot project.
  *
- * Copyright 2018 Google LLC
+ * Copyright 2019 Google LLC
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,9 +13,11 @@
  * GNU General Public License for more details.
  */
 
-#ifndef MAINBOARD_EC_H
-#define MAINBOARD_EC_H
+#include "commands.h"
+#include "ec.h"
+#include "romstage.h"
 
-#include <baseboard/ec.h>
-
-#endif
+void wilco_ec_romstage_init(void)
+{
+	wilco_ec_send(KB_BIOS_PROGRESS, BIOS_PROGRESS_BEFORE_MEMORY);
+}

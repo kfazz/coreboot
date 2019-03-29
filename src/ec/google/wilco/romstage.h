@@ -1,7 +1,7 @@
 /*
  * This file is part of the coreboot project.
  *
- * Copyright 2018 Google LLC
+ * Copyright 2019 Google LLC
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -9,13 +9,18 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
 
-#ifndef MAINBOARD_GPIO_H
-#define MAINBOARD_GPIO_H
+#ifndef EC_GOOGLE_WILCO_ROMSTAGE_H
+#define EC_GOOGLE_WILCO_ROMSTAGE_H
 
-#include <baseboard/gpio.h>
+/**
+ * wilco_ec_early_init
+ *
+ * This function performs initialization of the EC in romstage.
+ */
+void wilco_ec_romstage_init(void);
 
-#endif /* MAINBOARD_GPIO_H */
+#endif /* EC_GOOGLE_WILCO_ROMSTAGE_H */
