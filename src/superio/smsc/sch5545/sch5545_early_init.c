@@ -116,9 +116,9 @@ void sch5545_early_init(unsigned port)
 //	sch5545_set_irq(dev, SCH5545_IRQ_KBD, 1);
 //	sch5545_set_irq(dev, SCH5545_IRQ_MOUSE,12);
 
-//	dev = PNP_DEV(port,SCH5545_LDN_EM_IF);
-//	pnp_set_logical_device(dev);
-//	sch5545_set_iobase(dev, SCH5545_BAR_EM_IF, 0x2d0);
+	dev = PNP_DEV(port,SCH5545_LDN_EM_IF);
+	pnp_set_logical_device(dev);
+	sch5545_set_iobase(dev, SCH5545_BAR_EM_IF, 0x2d0);
 //	sch5545_set_irq(dev, SCH5545_IRQ_EMI_IRQ_SOURCE, 2);
 
 //	dev = PNP_DEV(port,SCH5545_LDN_PARPORT);

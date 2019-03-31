@@ -63,8 +63,8 @@ static struct pnp_info pnp_dev_info[] = {
         { &ops, SCH5545_LDN_UART1, PNP_IO0 | PNP_IRQ0, 0x07f8, },
         { &ops, SCH5545_LDN_UART2, PNP_IO0 | PNP_IRQ0, 0x07f8, },
         { &ops, SCH5545_LDN_KBC, PNP_IO0 | PNP_IO1 | PNP_IRQ0 | PNP_IRQ1,0x07ff, 0x07ff, },
-        { &ops, SCH5545_LDN_RT,  PNP_IO0, 0x07C0, },
-        { &ops, SCH5545_LDN_EM_IF,  PNP_IO0, 0x07F0, },
+        { &ops, SCH5545_LDN_RT,  PNP_IO0 , 0x07C0, },
+        { &ops, SCH5545_LDN_EM_IF,  PNP_IO0 | PNP_IRQ1, 0x07F0, },
 };
 
 static void enable_dev(struct device *dev)
