@@ -10,15 +10,15 @@
 #include <arch/early_variables.h>
 #include <assert.h>
 #include <boot_device.h>
+#include <console/console.h>
 #include <cpu/x86/smm.h>
-#include <delay.h>
 #include <stdlib.h>
 #include <string.h>
 #include <spi-generic.h>
 #include <spi_flash.h>
+#include <timer.h>
 
 #include "spi_flash_internal.h"
-#include <timer.h>
 
 static void spi_flash_addr(u32 addr, u8 *cmd)
 {
