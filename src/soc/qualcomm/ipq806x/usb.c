@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <console/console.h>
@@ -127,9 +114,9 @@ static void setup_dwc3(struct usb_dwc3 *dwc3)
 
 	udelay(5);
 
-	clrbits_le32(&dwc3->ctl, 0x1 << 11);	/* deassert core soft reset */
-	clrbits_le32(&dwc3->usb2phycfg, 0x1 << 31);	/* PHY soft reset */
-	clrbits_le32(&dwc3->usb3pipectl, 0x1 << 31);	/* PHY soft reset */
+	clrbits32(&dwc3->ctl, 0x1 << 11);	/* deassert core soft reset */
+	clrbits32(&dwc3->usb2phycfg, 0x1 << 31);	/* PHY soft reset */
+	clrbits32(&dwc3->usb3pipectl, 0x1 << 31);	/* PHY soft reset */
 }
 
 static void setup_phy(struct usb_qc_phy *phy)
@@ -164,7 +151,7 @@ static void setup_phy(struct usb_qc_phy *phy)
 	write32(&phy->general_cfg, 0x1 << 2);	/* set XHCI 1.00 compliance */
 
 	udelay(5);
-	clrbits_le32(&phy->ss_phy_ctrl, 0x1 << 7); /* deassert SS PHY reset */
+	clrbits32(&phy->ss_phy_ctrl, 0x1 << 7); /* deassert SS PHY reset */
 }
 
 static void crport_handshake(void *capture_reg, void *acknowledge_bit, u32 data)
@@ -206,7 +193,7 @@ static void tune_phy(struct usb_qc_phy *phy)
 void setup_usb_host1(void)
 {
 	printk(BIOS_INFO, "Setting up USB HOST1 controller...\n");
-	setbits_le32(tcsr_usb_sel, 1 << 0);	/* Select DWC3 controller */
+	setbits32(tcsr_usb_sel, 1 << 0);	/* Select DWC3 controller */
 	setup_phy(usb_host1_phy);
 	setup_dwc3(usb_host1_dwc3);
 	tune_phy(usb_host1_phy);
@@ -215,7 +202,7 @@ void setup_usb_host1(void)
 void setup_usb_host2(void)
 {
 	printk(BIOS_INFO, "Setting up USB HOST2 controller...\n");
-	setbits_le32(tcsr_usb_sel, 1 << 1);	/* Select DWC3 controller */
+	setbits32(tcsr_usb_sel, 1 << 1);	/* Select DWC3 controller */
 	setup_phy(usb_host2_phy);
 	setup_dwc3(usb_host2_dwc3);
 	tune_phy(usb_host2_phy);

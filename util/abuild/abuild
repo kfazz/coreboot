@@ -4,11 +4,6 @@
 #
 #  This script builds coreboot images for all available targets.
 #
-#  (C) 2004 by Stefan Reinauer <stepan@openbios.org>
-#  (C) 2006-2010 by coresystems GmbH <info@coresystems.de>
-#  (C) 2013-2014 Sage Electronic Engineering, LLC
-#  (C) 2014 Patrick Georgi <patrick@georgi-clan.de>
-#
 #  This file is subject to the terms and conditions of the GNU General
 #  Public License. See the file COPYING in the main directory of this
 #  archive for more details.
@@ -268,10 +263,8 @@ function update_config
 	# Disable all other payload config options
 	{
 		echo "# CONFIG_PAYLOAD_SEABIOS is not set"
-		echo "# CONFIG_PAYLOAD_BAYOU is not set"
 		echo "# CONFIG_PAYLOAD_FILO is not set"
 		echo "# CONFIG_PAYLOAD_GRUB2 is not set"
-		echo "# CONFIG_PAYLOAD_OPENBIOS is not set"
 		echo "# CONFIG_PAYLOAD_DEPTHCHARGE is not set"
 		echo "# CONFIG_PAYLOAD_LINUXBOOT is not set"
 		echo "# CONFIG_PAYLOAD_UBOOT is not set"
@@ -337,14 +330,23 @@ function check_config
 	local BUILD_DIR="$1"
 	local TEST_TYPE="$2"
 	local TEST_STRING="$3"
+	local NEGATE="$4"
 
 	local CONFIG_FILE="$BUILD_DIR/config.build"
 	local CONFIG_LOG="$BUILD_DIR/config.log"
 
-	if ! grep -q "$TEST_STRING" "$CONFIG_FILE"; then
-		echo "config file: $CONFIG_FILE has incorrect $TEST_TYPE"
-		echo "Error: Expected '$TEST_STRING' in config file." >> "$CONFIG_LOG"
-		return 1
+	if [ -z "$NEGATE" ]; then
+		if ! grep -q "$TEST_STRING" "$CONFIG_FILE"; then
+			echo "config file: $CONFIG_FILE has incorrect $TEST_TYPE"
+			echo "Error: Expected '$TEST_STRING' in config file." >> "$CONFIG_LOG"
+			return 1
+		fi
+	else
+		if grep -q "$TEST_STRING" "$CONFIG_FILE"; then
+			echo "config file: $CONFIG_FILE has incorrect $TEST_TYPE"
+			echo "Error: Expected not to see '$TEST_STRING' in config file." >> "$CONFIG_LOG"
+			return 1
+		fi
 	fi
 
 	return 0
@@ -361,7 +363,6 @@ function compile_target
 	eval "$BUILDPREFIX" "$MAKE" "$verboseopt" DOTCONFIG="${build_dir}/config.build" obj="${build_dir}" objutil="$TARGET/sharedutils" BUILD_TIMELESS=$TIMELESS \
 		&> "${build_dir}/make.log" ; \
 		MAKE_FAILED=$?
-	cp "${ROOT}/.xcompile" "${build_dir}/xcompile.build"
 	cd "${build_dir}" || return $?
 
 	etime=$(perl -e 'print time();' 2>/dev/null || date +%s)
@@ -398,6 +399,10 @@ function compile_target
 	if [ "$clean_work" = "true" ]; then
 		rm -rf "${build_dir}"
 	fi
+	if [ "$clean_objs" = "true" ]; then
+		find ${build_dir} \! \( -name coreboot.rom -o -name config.h -o -name config.build -o -name make.log \) -type f -exec rm {} +
+		find ${build_dir} -type d -exec rmdir -p {} + 2>/dev/null
+	fi
 	return $MAKE_FAILED
 }
 
@@ -425,12 +430,6 @@ function build_config
 		return
 	fi
 
-	if [ -f "src/mainboard/${board_srcdir}/abuild.disabled" ]; then
-		echo "${BUILD_NAME} disabled:"
-		cat "src/mainboard/${board_srcdir}/abuild.disabled"
-		return
-	fi
-
 	if [ "$quiet" == "false" ]; then echo "Building $BUILD_NAME"; fi
 	mkdir -p "$TARGET/${BUILD_NAME}" "$TARGET/abuild"
 	ABSPATH="$(cd "$TARGET/abuild" && pwd)"
@@ -447,7 +446,17 @@ function build_config
 	check_config "$build_dir" "vendor" "CONFIG_VENDOR_$(mainboard_vendor "${MAINBOARD}")=y"
 	local VENDOR_OK=$?
 
-	if [ $BUILDENV_CREATED -ne 0 ] || [ $MAINBOARD_OK -ne 0 ] || [ $VENDOR_OK -ne 0 ]; then
+	if [ "$chromeos" = false ]; then
+		# Skip this rule for configs created from templates that already
+		# come with CHROMEOS enabled.
+		grep -q "^CONFIG_CHROMEOS=y" ${config_file:-/dev/null} || \
+		check_config "$build_dir" "Chrome OS" "CONFIG_CHROMEOS=y" negate
+		local FORCE_ENABLED_CROS=$?
+	else
+		local FORCE_ENABLED_CROS=0
+	fi
+
+	if [ $BUILDENV_CREATED -ne 0 ] || [ $MAINBOARD_OK -ne 0 ] || [ $VENDOR_OK -ne 0 ] || [ $FORCE_ENABLED_CROS -eq 1 ]; then
 		junit " <testcase classname='board${testclass/#/.}' name='$BUILD_NAME' >"
 
 		junit "<failure type='BuildFailed'>"
@@ -462,10 +471,26 @@ function build_config
 		return
 	fi
 
+	local required_arches
+
 	required_arches=$(grep -E "^CONFIG_ARCH_(BOOTBLOCK|R.MSTAGE|VERSTAGE)" "$TARGET/${BUILD_NAME}/config.build" | \
 			sed "s,^CONFIG_ARCH_[^_]*_\([^=]*\)=.*$,\1," |sort -u |tr 'A-Z\n\r' 'a-z  ')
-	# shellcheck disable=SC2016,SC2059
-	missing_arches=$(printf 'include .xcompile\nall: ; @echo $(foreach arch,'"$required_arches"',$(if $(filter $(arch),$(SUBARCH_SUPPORTED)),,$(arch)))' | $MAKE --no-print-directory -f -)
+
+	missing_arches="$($MAKE --no-print-directory -f - \
+		REQUIRED_ARCHES="$required_arches" <<'EOF'
+include $(xcompile)
+.PHONY: missing_arches
+missing_arches:
+	$(if $(XCOMPILE_COMPLETE),,$(error $(xcompile) is invalid.))
+	@echo $(foreach arch,$(REQUIRED_ARCHES),$(if $(filter $(arch),$(SUBARCH_SUPPORTED)),,$(arch)))
+EOF
+)"
+	# shellcheck disable=SC2181
+	if [[ $? -ne 0 ]]; then
+		echo "Calculating missing_arches failed" >&2
+		exit 1
+	fi
+
 	if [ -n "$missing_arches" ]; then
 		printf "skipping %s because we're missing compilers for (%s)\n" "$BUILD_NAME" "$missing_arches"
 		return
@@ -505,16 +530,13 @@ function build_target
 			build_dir=$TARGET/${BUILD_NAME}
 			build_config "$MAINBOARD" "$build_dir" "$BUILD_NAME" "$config"
 			remove_target "$BUILD_NAME"
-
 		done
-	else
-		echo "Building board $MAINBOARD (using default config)"
-		build_dir=$TARGET/${MAINBOARD}
-
-		build_config "$MAINBOARD" "$build_dir" "$MAINBOARD"
-		remove_target "$MAINBOARD"
 	fi
 
+	echo "Building board $MAINBOARD (using default config)"
+	build_dir=$TARGET/${MAINBOARD}
+	build_config "$MAINBOARD" "$build_dir" "$MAINBOARD"
+	remove_target "$MAINBOARD"
 }
 
 function remove_target
@@ -579,6 +601,7 @@ Options:\n"
                                   (defaults to $XMLFILE)
     [-y|--ccache]                 Use ccache
     [-z|--clean]                  Remove build results when finished
+    [-Z|--clean-somewhat]         Remove build but keep coreboot.rom + config
 
     [-V|--version]                Print version number and exit
     [-h|--help]                   Print this help and exit
@@ -625,12 +648,12 @@ getoptbrand="$(getopt -V)"
 # shellcheck disable=SC2086
 if [ "${getoptbrand:0:6}" == "getopt" ]; then
 	# Detected GNU getopt that supports long options.
-	args=$(getopt -l version,verbose,quiet,help,all,target:,board-variant:,payloads:,cpus:,silent,junit,config,loglevel:,remove,prefix:,update,scan-build,ccache,blobs,clang,any-toolchain,clean,outdir:,chromeos,xmlfile:,kconfig:,dir:,root:,recursive,checksum:,timeless,exitcode -o Vvqhat:b:p:c:sJCl:rP:uyBLAzo:xX:K:d:R:Ie -- "$@") || exit 1
+	args=$(getopt -l version,verbose,quiet,help,all,target:,board-variant:,payloads:,cpus:,silent,junit,config,loglevel:,remove,prefix:,update,scan-build,ccache,blobs,clang,any-toolchain,clean,clean-somewhat,outdir:,chromeos,xmlfile:,kconfig:,dir:,root:,recursive,checksum:,timeless,exitcode,asserts -o Vvqhat:b:p:c:sJCl:rP:uyBLAzZo:xX:K:d:R:Ie -- "$@") || exit 1
 	eval set -- $args
 	retval=$?
 else
 	# Detected non-GNU getopt
-	args=$(getopt Vvqhat:b:p:c:sJCl:rP:uyBLAzo:xX:K:d:R:Ie "$@")
+	args=$(getopt Vvqhat:b:p:c:sJCl:rP:uyBLAZzo:xX:K:d:R:Ie "$@")
 	set -- $args
 	retval=$?
 fi
@@ -642,6 +665,7 @@ fi
 
 chromeos=false
 clean_work=false
+clean_objs=false
 verboseopt='V=0'
 customizing=""
 configoptions=""
@@ -677,6 +701,9 @@ while true ; do
 			SCANBUILD_ARGS=${SCANBUILD_ARGS:-'-k'}
 			configoptions="${configoptions}CONFIG_FATAL_ASSERTS=y\n"
 			;;
+		--asserts)	shift
+			configoptions="${configoptions}CONFIG_FATAL_ASSERTS=y\n"
+			;;
 		-y|--ccache)    shift
 			customizing="${customizing}, ccache"
 			configoptions="${configoptions}CONFIG_CCACHE=y\n"
@@ -697,7 +724,7 @@ while true ; do
 			shift;;
 		-B|--blobs)	shift
 			customizing="${customizing}, blobs"
-			configoptions="${configoptions}CONFIG_USE_BLOBS=y\nCONFIG_ADD_FSP_BINARIES=y\nCONFIG_FSP_USE_REPO=y\n"
+			configoptions="${configoptions}CONFIG_USE_AMD_BLOBS=y\nCONFIG_USE_QC_BLOBS=y\nCONFIG_ADD_FSP_BINARIES=y\n"
 			;;
 		-A|--any-toolchain)	shift
 			customizing="${customizing}, any-toolchain"
@@ -710,6 +737,10 @@ while true ; do
 		-z|--clean)	shift
 			customizing="${customizing}, clean"
 			clean_work=true
+			;;
+		-Z|--clean-somewhat)	shift
+			customizing="${customizing}, clean-somewhat"
+			clean_objs=true
 			;;
 		-o|--outdir)	shift
 			TARGET=$1; shift
@@ -743,13 +774,22 @@ if [ -z "$TARGET" ] || [ "$TARGET" = "/" ]; then
 	exit 1
 fi
 
+if ! mkdir -p "$TARGET"; then
+	echo "Unable to create build directory"
+	exit 1
+fi
+
+# Generate a single xcompile for all boards
+export xcompile="${TARGET}/xcompile"
+$MAKE -C"${ROOT}" UPDATED_SUBMODULES=1 "${xcompile}" || exit 1
+
 customizing=$(echo "$customizing" | cut -c3-)
 if [ "$customizing" = "" ]; then
 	customizing="default configuration"
 fi
 
-FAILED_BOARDS="${TARGET}/failed_boards"
-PASSED_BOARDS="${TARGET}/passing_boards"
+FAILED_BOARDS="$(realpath ${TARGET}/failed_boards)"
+PASSED_BOARDS="$(realpath ${TARGET}/passing_boards)"
 
 if [ "$recursive" = "false" ]; then
 	rm -f "$FAILED_BOARDS" "$PASSED_BOARDS"
@@ -770,6 +810,7 @@ fi
 
 if [ "$USE_XARGS" = "0" ]; then
 test "$MAKEFLAGS" == "" && test "$cpus" != "" && export MAKEFLAGS="-j $cpus"
+export MAKEFLAGS="$MAKEFLAGS UPDATED_SUBMODULES=1" # no need to re-download
 build_targets()
 {
 	local targets=${*-$(get_mainboards)}
@@ -792,7 +833,7 @@ build_targets()
 	printf "%s" "$configoptions" > "$TMPCFG"
 	$MAKE -j "$cpus" DOTCONFIG="$TMPCFG" obj="$TARGET/temp" objutil="$TARGET/sharedutils" allnoconfig
 	printf "%s" "$configoptions" >> "$TMPCFG"
-	yes "" 2>/dev/null | $MAKE -j "$cpus" DOTCONFIG="$TMPCFG" obj="$TARGET/temp" objutil="$TARGET/sharedutils" oldconfig 2>/dev/null |head > /dev/null
+	yes "" 2>/dev/null | $MAKE -j "$cpus" DOTCONFIG="$TMPCFG" obj="$TARGET/temp" objutil="$TARGET/sharedutils" oldconfig
 	BUILDPREFIX=
 	if [ "$scanbuild" = "true" ]; then
 		scanbuild_out=$TARGET/sharedutils-scanbuild
@@ -821,6 +862,7 @@ build_targets()
 		junit "</failure>"
 		junit "</testcase>"
 		echo "Shared Utilities - Log: $TARGET/sharedutils/make.log" >> "$FAILED_BOARDS"
+		rm "$TMPCFG"
 		return
 	fi
 

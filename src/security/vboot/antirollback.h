@@ -1,31 +1,4 @@
-/* Copyright (c) 2013 The Chromium OS Authors. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *
- *    * Redistributions of source code must retain the above copyright
- * notice, this list of conditions and the following disclaimer.
- *    * Redistributions in binary form must reproduce the above
- * copyright notice, this list of conditions and the following disclaimer
- * in the documentation and/or other materials provided with the
- * distribution.
- *    * Neither the name of Google Inc. nor the names of its
- * contributors may be used to endorse or promote products derived from
- * this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+/* SPDX-License-Identifier: BSD-3-Clause */
 
 /*
  * Functions for querying, manipulating and locking rollback indices
@@ -37,6 +10,7 @@
 
 #include <types.h>
 #include <security/tpm/tspi.h>
+#include <vb2_sha.h>
 
 struct vb2_context;
 enum vb2_pcr_digest;
@@ -48,8 +22,12 @@ enum vb2_pcr_digest;
  * want to use 0x1009 for something else. */
 #define BACKUP_NV_INDEX                 0x1009
 #define FWMP_NV_INDEX                   0x100a
-#define REC_HASH_NV_INDEX               0x100b
-#define REC_HASH_NV_SIZE                VB2_SHA256_DIGEST_SIZE
+/* 0x100b: Hash of MRC_CACHE training data for recovery boot */
+#define MRC_REC_HASH_NV_INDEX           0x100b
+/* 0x100c: OOBE autoconfig public key hashes */
+/* 0x100d: Hash of MRC_CACHE training data for non-recovery boot */
+#define MRC_RW_HASH_NV_INDEX            0x100d
+#define HASH_NV_SIZE                    VB2_SHA256_DIGEST_SIZE
 
 /* Structure definitions for TPM spaces */
 
@@ -71,22 +49,44 @@ uint32_t antirollback_read_space_firmware(struct vb2_context *ctx);
 uint32_t antirollback_write_space_firmware(struct vb2_context *ctx);
 
 /**
+ * Read and write kernel space in TPM.
+ */
+uint32_t antirollback_read_space_kernel(struct vb2_context *ctx);
+uint32_t antirollback_write_space_kernel(struct vb2_context *ctx);
+
+/**
  * Lock must be called.
  */
 uint32_t antirollback_lock_space_firmware(void);
 
-/* Read recovery hash data from TPM. */
-uint32_t antirollback_read_space_rec_hash(uint8_t *data, uint32_t size);
-/* Write new hash data to recovery space in TPM. */
-uint32_t antirollback_write_space_rec_hash(const uint8_t *data, uint32_t size);
-/* Lock down recovery hash space in TPM. */
-uint32_t antirollback_lock_space_rec_hash(void);
-
-/* Start of the root of trust */
-uint32_t vboot_setup_tpm(struct vb2_context *ctx);
-
-/* vboot_extend_pcr function for vb2 context */
-uint32_t vboot_extend_pcr(struct vb2_context *ctx, int pcr,
-			enum vb2_pcr_digest which_digest);
+/*
+ * Read MRC hash data from TPM.
+ * @param index index into TPM NVRAM where hash is stored The index
+ *              can be set to either MRC_REC_HASH_NV_INDEX or
+ *              MRC_RW_HASH_NV_INDEX depending upon whether we are
+ *              booting in recovery or normal mode.
+ * @param data  pointer to buffer where hash from TPM read into
+ * @param size  size of buffer
+ */
+uint32_t antirollback_read_space_mrc_hash(uint32_t index, uint8_t *data, uint32_t size);
+/*
+ * Write new hash data to MRC space in TPM.\
+ * @param index index into TPM NVRAM where hash is stored The index
+ *              can be set to either MRC_REC_HASH_NV_INDEX or
+ *              MRC_RW_HASH_NV_INDEX depending upon whether we are
+ *              booting in recovery or normal mode.
+ * @param data  pointer to buffer of hash value to be written
+ * @param size  size of buffer
+*/
+uint32_t antirollback_write_space_mrc_hash(uint32_t index, const uint8_t *data,
+					   uint32_t size);
+/*
+ * Lock down MRC hash space in TPM.
+ * @param index index into TPM NVRAM where hash is stored The index
+ *              can be set to either MRC_REC_HASH_NV_INDEX or
+ *              MRC_RW_HASH_NV_INDEX depending upon whether we are
+ *              booting in recovery or normal mode.
+*/
+uint32_t antirollback_lock_space_mrc_hash(uint32_t index);
 
 #endif  /* ANTIROLLBACK_H_ */

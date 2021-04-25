@@ -1,31 +1,16 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2003 Linux Networx
- * Copyright (C) 2004 SuSE Linux AG
- * Copyright (C) 2004 Tyan Computer
- * Copyright (C) 2010 Joseph Smith <joe@settoplinux.org>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
 #include <device/pci_ops.h>
+#include <option.h>
 #include <pc80/mc146818rtc.h>
 #include <pc80/isa-dma.h>
 #include <arch/io.h>
 #include <arch/ioapic.h>
+#include "chip.h"
 #include "i82801dx.h"
 
 #define NMI_OFF 0
@@ -103,17 +88,13 @@ static void i82801dx_power_options(struct device *dev)
 	u32 reg32;
 	const char *state;
 
-	int pwr_on = CONFIG_MAINBOARD_POWER_FAILURE_STATE;
-	int nmi_option;
-
 	/* Which state do we want to goto after g3 (power restored)?
 	 * 0 == S0 Full On
 	 * 1 == S5 Soft Off
 	 *
 	 * If the option is not existent (Laptops), use MAINBOARD_POWER_ON.
 	 */
-	pwr_on = MAINBOARD_POWER_ON;
-	get_option(&pwr_on, "power_on_after_fail");
+	const int pwr_on = get_int_option("power_on_after_fail", MAINBOARD_POWER_ON);
 
 	reg8 = pci_read_config8(dev, GEN_PMCON_3);
 	reg8 &= 0xfe;
@@ -134,7 +115,7 @@ static void i82801dx_power_options(struct device *dev)
 			state = "undefined";
 	}
 
-	reg8 &= ~(1 << 3);	/* minimum asssertion is 1 to 2 RTCCLK */
+	reg8 &= ~(1 << 3);	/* minimum assertion is 1 to 2 RTCCLK */
 
 	pci_write_config8(dev, GEN_PMCON_3, reg8);
 	printk(BIOS_INFO, "Set power %s after power failure.\n", state);
@@ -148,8 +129,7 @@ static void i82801dx_power_options(struct device *dev)
 	outb(reg8, 0x61);
 
 	reg8 = inb(0x70);
-	nmi_option = NMI_OFF;
-	get_option(&nmi_option, "nmi");
+	const int nmi_option = get_int_option("nmi", NMI_OFF);
 	if (nmi_option) {
 		printk(BIOS_INFO, "NMI sources enabled.\n");
 		reg8 &= ~(1 << 7);	/* Set NMI. */
@@ -267,9 +247,6 @@ static void enable_hpet(struct device *dev)
 
 static void lpc_init(struct device *dev)
 {
-	/* Set the value for PCI command register. */
-	pci_write_config16(dev, PCI_COMMAND, 0x000f);
-
 	i82801dx_enable_acpi(dev);
 	/* IO APIC initialization. */
 	i82801dx_enable_ioapic(dev);
@@ -299,6 +276,12 @@ static void lpc_init(struct device *dev)
 
 	/* Initialize the High Precision Event Timers */
 	enable_hpet(dev);
+
+	/* Don't allow evil boot loaders, kernels, or
+	 * userspace applications to deceive us:
+	 */
+	if (CONFIG(HAVE_SMI_HANDLER) && !CONFIG(PARALLEL_MP))
+		aseg_smm_lock();
 }
 
 static void i82801dx_lpc_read_resources(struct device *dev)
@@ -332,7 +315,7 @@ static struct device_operations lpc_ops = {
 	.set_resources		= pci_dev_set_resources,
 	.enable_resources	= pci_dev_enable_resources,
 	.init			= lpc_init,
-	.scan_bus		= scan_lpc_bus,
+	.scan_bus		= scan_static_bus,
 	.enable			= i82801dx_enable,
 };
 

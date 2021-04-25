@@ -1,22 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
 /*
- * This file is part of the coreboot project.
- *
- * Copyright 2018       Facebook, Inc.
- * Copyright 2003-2017  Cavium Inc.  <support@cavium.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  * Derived from Cavium's BSD-3 Clause OCTEONTX-SDK-6.2.0.
  */
 
-#include <bootmode.h>
 #include <console/console.h>
 #include <device/device.h>
 #include <soc/addressmap.h>
@@ -149,7 +136,7 @@ static void dt_platform_fixup_mac(struct device_tree_node *node)
 		if (*localmac)
 			return;
 		if (used_mac < num_free_mac_addresses) {
-			const u64 genmac = next_free_mac_address + used_mac;
+			u64 genmac = next_free_mac_address + used_mac;
 			dt_add_bin_prop(node, name, &genmac, 6);
 			used_mac++;
 			return;
@@ -185,7 +172,7 @@ static int dt_platform_fixup(struct device_tree_fixup *fixup,
 	size_t i;
 
 	/* Set the sclk clock rate. */
-	dt_node = dt_find_node_by_path(tree->root, "soc@0/sclk", NULL, NULL, 0);
+	dt_node = dt_find_node_by_path(tree, "/soc@0/sclk", NULL, NULL, 0);
 	if (dt_node) {
 		const u32 freq = thunderx_get_io_clock();
 		printk(BIOS_INFO, "%s: Set SCLK to %u Hz\n", __func__, freq);
@@ -195,7 +182,7 @@ static int dt_platform_fixup(struct device_tree_fixup *fixup,
 		       __func__);
 
 	/* Set refclkuaa clock rate. */
-	dt_node = dt_find_node_by_path(tree->root, "soc@0/refclkuaa", NULL,
+	dt_node = dt_find_node_by_path(tree, "/soc@0/refclkuaa", NULL,
 				       NULL, 0);
 	if (dt_node) {
 		const u32 freq = uart_platform_refclk();
@@ -211,8 +198,8 @@ static int dt_platform_fixup(struct device_tree_fixup *fixup,
 		char path[32];
 		const uint64_t addr = UAAx_PF_BAR0(i);
 		/* Remove the node */
-		snprintf(path, sizeof(path), "soc@0/serial@%llx", addr);
-		dt_node = dt_find_node_by_path(tree->root, path, NULL, NULL, 0);
+		snprintf(path, sizeof(path), "/soc@0/serial@%llx", addr);
+		dt_node = dt_find_node_by_path(tree, path, NULL, NULL, 0);
 		if (!dt_node || uart_is_enabled(i)) {
 			printk(BIOS_INFO, "%s: ignoring %s\n", __func__, path);
 			continue;
@@ -227,20 +214,20 @@ static int dt_platform_fixup(struct device_tree_fixup *fixup,
 		u32 phandle = 0;
 		const uint64_t addr = PEM_PEMX_PF_BAR0(i);
 		/* Remove the node */
-		snprintf(path, sizeof(path), "soc@0/pci@%llx", addr);
-		dt_node = dt_find_node_by_path(tree->root, path, NULL, NULL, 0);
+		snprintf(path, sizeof(path), "/soc@0/pci@%llx", addr);
+		dt_node = dt_find_node_by_path(tree, path, NULL, NULL, 0);
 		if (!dt_node || bdk_pcie_is_running(0, i)) {
 			printk(BIOS_INFO, "%s: ignoring %s\n", __func__, path);
 			continue;
 		}
 		/* Store the phandle */
-		phandle = dt_get_phandle(dt_node);
+		phandle = dt_node->phandle;
 		printk(BIOS_INFO, "%s: Removing node %s\n", __func__, path);
 		list_remove(&dt_node->list_node);
 
 		/* Remove phandle to non existing nodes */
-		snprintf(path, sizeof(path), "soc@0/smmu0@%llx", SMMU_PF_BAR0);
-		dt_node = dt_find_node_by_path(tree->root, path, NULL, NULL, 0);
+		snprintf(path, sizeof(path), "/soc@0/smmu0@%llx", SMMU_PF_BAR0);
+		dt_node = dt_find_node_by_path(tree, path, NULL, NULL, 0);
 		if (!dt_node) {
 			printk(BIOS_ERR, "%s: SMMU entry not found\n",
 			       __func__);
@@ -347,14 +334,13 @@ static void soc_init_atf(void)
 
 	size_t size = 0;
 
-	void *ptr = cbfs_boot_map_with_leak("sff8104-linux.dtb",
-					    CBFS_TYPE_RAW, &size);
+	void *ptr = cbfs_map("sff8104-linux.dtb", &size);
 	if (ptr)
 		memcpy(_sff8104, ptr, size);
 	/* Point to devicetree in secure memory */
 	fdt_param.fdt_ptr = (uintptr_t)_sff8104;
 
-	register_bl31_param(&fdt_param.h);
+	cn81xx_register_bl31_param(&fdt_param.h);
 
 	static struct bl31_u64_param cbtable_param = {
 		.h = { .type = PARAM_COREBOOT_TABLE, },
@@ -362,7 +348,7 @@ static void soc_init_atf(void)
 	/* Point to coreboot tables */
 	cbtable_param.value = (uint64_t)cbmem_find(CBMEM_ID_CBTABLE);
 	if (cbtable_param.value)
-		register_bl31_param(&cbtable_param.h);
+		cn81xx_register_bl31_param(&cbtable_param.h);
 }
 
 static void soc_init(struct device *dev)
@@ -392,11 +378,9 @@ static void soc_final(struct device *dev)
 
 static struct device_operations soc_ops = {
 	.read_resources   = soc_read_resources,
-	.set_resources    = DEVICE_NOOP,
-	.enable_resources = DEVICE_NOOP,
+	.set_resources    = noop_set_resources,
 	.init             = soc_init,
 	.final            = soc_final,
-	.scan_bus         = NULL,
 };
 
 static void enable_soc_dev(struct device *dev)

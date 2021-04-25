@@ -1,31 +1,4 @@
-/*
- * Copyright (c) 2012 - 2013 The Linux Foundation. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above
- *       copyright notice, this list of conditions and the following
- *       disclaimer in the documentation and/or other materials provided
- *       with the distribution.
- *     * Neither the name of The Linux Foundation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+/* SPDX-License-Identifier: BSD-3-Clause */
 
 #include <device/mmio.h>
 #include <delay.h>
@@ -59,7 +32,7 @@ void uart_clock_config(unsigned int blsp_uart, unsigned int m,
 			2 << 12);	/* 13:12 Mode = Dual Edge */
 
 	/* Trigger update */
-	setbits_le32(GCC_BLSP1_UART_APPS_CMD_RCGR(blsp_uart), 1);
+	setbits32(GCC_BLSP1_UART_APPS_CMD_RCGR(blsp_uart), 1);
 
 	/* Wait for update */
 	for (i = 0; i < CLOCK_UPDATE_DELAY; i++) {
@@ -71,7 +44,7 @@ void uart_clock_config(unsigned int blsp_uart, unsigned int m,
 	}
 
 	/* Please refer to the comments in blsp_i2c_clock_config() */
-	setbits_le32(GCC_CLK_BRANCH_ENA, BLSP1_AHB | BLSP1_SLEEP);
+	setbits32(GCC_CLK_BRANCH_ENA, BLSP1_AHB | BLSP1_SLEEP);
 }
 
 /**
@@ -154,7 +127,7 @@ int blsp_i2c_clock_config(blsp_qup_id_t id)
 	 * the same bits is harmless. Hence repeating them here should be ok.
 	 * This will ensure root and branch clocks remain on.
 	 */
-	setbits_le32(GCC_CLK_BRANCH_ENA, BLSP1_AHB | BLSP1_SLEEP);
+	setbits32(GCC_CLK_BRANCH_ENA, BLSP1_AHB | BLSP1_SLEEP);
 
 	/* Src Sel 1 (fepll 200), Src Div 10.5 */
 	write32(clk[id].cfg, (1u << 8) | (20u << 0));

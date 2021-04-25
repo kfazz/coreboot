@@ -1,26 +1,11 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- * Copyright (C) 2015-2016 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #define __SIMPLE_DEVICE__
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
+#include <acpi/acpi_pm.h>
 #include <arch/io.h>
 #include <device/mmio.h>
-#include <cbmem.h>
 #include <console/console.h>
 #include <cpu/x86/msr.h>
 #include <device/device.h>
@@ -35,8 +20,8 @@
 #include <soc/pci_devs.h>
 #include <soc/pm.h>
 #include <soc/smbus.h>
-#include <timer.h>
 #include <security/vboot/vbnv.h>
+
 #include "chip.h"
 
 static uintptr_t read_pmc_mmio_bar(void)
@@ -49,30 +34,36 @@ uintptr_t soc_read_pmc_base(void)
 	return read_pmc_mmio_bar();
 }
 
+uint32_t *soc_pmc_etr_addr(void)
+{
+	return (uint32_t *)(soc_read_pmc_base() + ETR);
+}
+
 const char *const *soc_smi_sts_array(size_t *a)
 {
 	static const char *const smi_sts_bits[] = {
-		[BIOS_SMI_STS] = "BIOS",
-		[LEGACY_USB_SMI_STS] = "LEGACY USB",
-		[SLP_SMI_STS] = "SLP_SMI",
-		[APM_SMI_STS] = "APM",
-		[SWSMI_TMR_SMI_STS] = "SWSMI_TMR",
-		[FAKE_PM1_SMI_STS] = "PM1",
-		[GPIO_SMI_STS] = "GPIO_SMI",
-		[GPIO_UNLOCK_SMI_STS] = "GPIO_UNLOCK_SSMI",
-		[MC_SMI_STS] = "MCSMI",
-		[TCO_SMI_STS] = "TCO",
-		[PERIODIC_SMI_STS] = "PERIODIC",
-		[SERIRQ_SMI_STS] = "SERIRQ",
-		[SMBUS_SMI_STS] = "SMBUS_SMI",
-		[XHCI_SMI_STS] = "XHCI",
-		[HSMBUS_SMI_STS] = "HOST_SMBUS",
-		[SCS_SMI_STS] = "SCS",
-		[PCIE_SMI_STS] = "PCI_EXP_SMI",
-		[SCC2_SMI_STS] = "SCC2",
-		[SPI_SSMI_STS] = "SPI_SSMI",
-		[SPI_SMI_STS] = "SPI",
-		[PMC_OCP_SMI_STS] = "OCP_CSE",
+		[BIOS_STS_BIT] = "BIOS",
+		[LEGACY_USB_STS_BIT] = "LEGACY USB",
+		[SMI_ON_SLP_EN_STS_BIT] = "SLP_SMI",
+		[APM_STS_BIT] = "APM",
+		[SWSMI_TMR_STS_BIT] = "SWSMI_TMR",
+		[PM1_STS_BIT] = "PM1",
+		[GPE0_STS_BIT] = "GPE0 (reserved)",
+		[GPIO_STS_BIT] = "GPIO_SMI",
+		[GPIO_UNLOCK_SMI_STS_BIT] = "GPIO_UNLOCK_SSMI",
+		[MC_SMI_STS_BIT] = "MCSMI",
+		[TCO_STS_BIT] = "TCO",
+		[PERIODIC_STS_BIT] = "PERIODIC",
+		[SERIRQ_SMI_STS_BIT] = "SERIRQ",
+		[SMBUS_SMI_STS_BIT] = "SMBUS_SMI",
+		[XHCI_SMI_STS_BIT] = "XHCI",
+		[SCS_SMI_STS_BIT] = "HOST_SMBUS",
+		[SCS_SMI_STS_BIT] = "SCS",
+		[PCI_EXP_SMI_STS_BIT] = "PCI_EXP_SMI",
+		[SCC2_SMI_STS_BIT] = "SCC2",
+		[SPI_SSMI_STS_BIT] = "SPI_SSMI",
+		[SPI_SMI_STS_BIT] = "SPI",
+		[PMC_OCP_SMI_STS_BIT] = "OCP_CSE",
 	};
 
 	*a = ARRAY_SIZE(smi_sts_bits);
@@ -93,10 +84,14 @@ uint32_t soc_get_smi_status(uint32_t generic_sts)
 
 		/* Fake PM1 status bit if power button pressed. */
 		if (pm1_sts & PWRBTN_STS)
-			generic_sts |= (1 << FAKE_PM1_SMI_STS);
+			generic_sts |= (1 << PM1_STS_BIT);
 	}
 
-	return generic_sts;
+	/*
+	 * GPE0_STS is reserved in APL/GLK datasheets. For compatibility
+	 * with common code, mask it out so that it is always zero.
+	 */
+	return generic_sts & ~(1 << GPE0_STS_BIT);
 }
 
 const char *const *soc_tco_sts_array(size_t *a)
@@ -148,13 +143,7 @@ void soc_get_gpi_gpe_configs(uint8_t *dw0, uint8_t *dw1, uint8_t *dw2)
 {
 	DEVTREE_CONST struct soc_intel_apollolake_config *config;
 
-	/* Look up the device in devicetree */
-	DEVTREE_CONST struct device *dev = dev_find_slot(0, SA_DEVFN_ROOT);
-	if (!dev || !dev->chip_info) {
-		printk(BIOS_ERR, "BUG! Could not find SOC devicetree config\n");
-		return;
-	}
-	config = dev->chip_info;
+	config = config_of_soc();
 
 	/* Assign to out variable */
 	*dw0 = config->gpe0_dw1;
@@ -194,22 +183,6 @@ int soc_prev_sleep_state(const struct chipset_power_state *ps,
 	return prev_sleep_state;
 }
 
-void enable_pm_timer_emulation(void)
-{
-	/* ACPI PM timer emulation */
-	msr_t msr;
-	/*
-	 * The derived frequency is calculated as follows:
-	 *    (CTC_FREQ * msr[63:32]) >> 32 = target frequency.
-	 * Back solve the multiplier so the 3.579545MHz ACPI timer
-	 * frequency is used.
-	 */
-	msr.hi = (3579545ULL << 32) / CTC_FREQ;
-	/* Set PM1 timer IO port and enable */
-	msr.lo = EMULATE_PM_TMR_EN | (ACPI_BASE_ADDRESS + R_ACPI_PM1_TMR);
-	wrmsr(MSR_EMULATE_PM_TIMER, msr);
-}
-
 static int rtc_failed(uint32_t gen_pmcon1)
 {
 	return !!(gen_pmcon1 & RPS);
@@ -217,12 +190,10 @@ static int rtc_failed(uint32_t gen_pmcon1)
 
 int soc_get_rtc_failed(void)
 {
-	const struct chipset_power_state *ps = cbmem_find(CBMEM_ID_POWER_STATE);
+	const struct chipset_power_state *ps;
 
-	if (!ps) {
-		printk(BIOS_ERR, "Could not find power state in cbmem, RTC init aborted\n");
+	if (acpi_pm_state_for_rtc(&ps) < 0)
 		return 1;
-	}
 
 	return rtc_failed(ps->gen_pmcon1);
 }
@@ -246,4 +217,23 @@ int vbnv_cmos_failed(void)
 	}
 
 	return rtc_failure;
+}
+
+/* STM Support */
+uint16_t get_pmbase(void)
+{
+	return (uint16_t) ACPI_BASE_ADDRESS;
+}
+
+void pmc_soc_set_afterg3_en(const bool on)
+{
+	void *const gen_pmcon1 = (void *)(soc_read_pmc_base() + GEN_PMCON1);
+	uint32_t reg32;
+
+	reg32 = read32(gen_pmcon1);
+	if (on)
+		reg32 &= ~SLEEP_AFTER_POWER_FAIL;
+	else
+		reg32 |= SLEEP_AFTER_POWER_FAIL;
+	write32(gen_pmcon1, reg32);
 }

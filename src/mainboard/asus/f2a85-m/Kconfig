@@ -1,18 +1,4 @@
-#
-# This file is part of the coreboot project.
-#
-# Copyright (C) 2012 Advanced Micro Devices, Inc.
-# Copyright (C) 2012 Rudolf Marek <r.marek@assembler.cz>
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
+# SPDX-License-Identifier: GPL-2.0-only
 
 if BOARD_ASUS_F2A85_M || BOARD_ASUS_F2A85_M_PRO || BOARD_ASUS_F2A85_M_LE
 
@@ -23,11 +9,11 @@ config BOARD_SPECIFIC_OPTIONS
 	select SOUTHBRIDGE_AMD_AGESA_HUDSON
 	select HAVE_OPTION_TABLE
 	select HAVE_PIRQ_TABLE
-	select HAVE_MP_TABLE
 	select HAVE_ACPI_RESUME
 	select HAVE_ACPI_TABLES
 	select SUPERIO_ITE_IT8728F if BOARD_ASUS_F2A85_M || BOARD_ASUS_F2A85_M_LE
 	select SUPERIO_NUVOTON_NCT6779D if BOARD_ASUS_F2A85_M_PRO
+	select SUPERIO_NUVOTON_COMMON_COM_A if BOARD_ASUS_F2A85_M_PRO
 	select BOARD_ROMSIZE_KB_8192
 	select GFXUMA
 
@@ -57,7 +43,7 @@ config BOARD_ASUS_F2A85_M_DDR3_VOLT_VAL
 
 config MAINBOARD_DIR
 	string
-	default asus/f2a85-m
+	default "asus/f2a85-m"
 
 config MAINBOARD_PART_NUMBER
 	string
@@ -97,7 +83,7 @@ config VGA_BIOS_ID
 
 config HUDSON_LEGACY_FREE
 	bool
-	default y
+	default n
 
 config POST_IO
 	bool

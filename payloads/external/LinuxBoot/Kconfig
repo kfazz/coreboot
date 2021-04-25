@@ -1,17 +1,4 @@
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2017 Facebook Inc.
-## Copyright (C) 2018 9elements Cyber Security
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+## SPDX-License-Identifier: GPL-2.0-only
 
 if PAYLOAD_LINUXBOOT
 
@@ -39,19 +26,24 @@ config LINUXBOOT_ARM64
 	help
 	  AARCH64 kernel and initramfs
 
-endchoice
+config LINUXBOOT_RISCV
+	bool "RISC-V"
+	depends on ARCH_RISCV
+	select PAYLOAD_FIT_SUPPORT
+	help
+	  RISC-V kernel and initramfs
 
-config LINUXBOOT_ARCH
-	string
-	default "amd64" if LINUXBOOT_X86_64
-	default "i386" if LINUXBOOT_X86
-	default "arm64" if LINUXBOOT_ARM64
+endchoice
 
 comment "Linux kernel"
 
 config LINUXBOOT_COMPILE_KERNEL
 	bool "Compile kernel"
 	default n
+
+if LINUXBOOT_COMPILE_KERNEL
+comment "parse linux crosscompiler with: LINUXBOOT_CROSS_COMPILE"
+endif
 
 config LINUXBOOT_KERNEL_PATH
 	string "Path to kernel"
@@ -61,36 +53,87 @@ config LINUXBOOT_KERNEL_PATH
 if LINUXBOOT_COMPILE_KERNEL
 
 choice
-	prompt "Kernel version"
+	prompt "Kernel release"
 	default LINUXBOOT_KERNEL_STABLE
+	help
+	  Choose the kernel release.
+
+	  Select 'custom' if your want to define the kernel version.
+	  For more information about the current 'mainline', 'stable' or 'longterm'
+	  version, visit: https://www.kernel.org/
+
+config LINUXBOOT_KERNEL_MAINLINE
+	bool "mainline"
+	help
+	  Mainline kernel version
 
 config LINUXBOOT_KERNEL_STABLE
-	bool "4.14.67"
+	bool "stable"
 	help
 	  Stable kernel version
 
-config LINUXBOOT_KERNEL_LATEST
-	bool "4.18.5"
+config LINUXBOOT_KERNEL_LONGTERM
+	bool "longterm"
 	help
-	  Latest kernel version
+	  Longterm (LTS) kernel version
+
+config LINUXBOOT_KERNEL_CUSTOM
+	bool "custom"
+	help
+	  Custom kernel version
 
 endchoice
 
-config LINUXBOOT_KERNEL_VERSION
-	string
-	default "4.18.5" if LINUXBOOT_KERNEL_LATEST
-	default "4.14.67" if LINUXBOOT_KERNEL_STABLE
+config LINUXBOOT_KERNEL_CUSTOM_VERSION
+	string "kernel version"
+	default ""
+	depends on LINUXBOOT_KERNEL_CUSTOM
+	help
+	  Choose the Linux kernel version number. (x.x.x)
+	  Release candidate kernels (rc) are currently are not supported.
+
+choice
+	prompt "Kernel configuration"
+	default LINUXBOOT_KERNEL_ARCH_DEFAULT_CONFIG
+
+config LINUXBOOT_KERNEL_ARCH_DEFAULT_CONFIG
+	bool "Default architecture configuration"
+	help
+	  This option will use the default configuration for the
+	  selected architecture.
+
+config LINUXBOOT_KERNEL_CUSTOM_CONFIG
+	bool "Custom (def)config file"
+
+endchoice
 
 config LINUXBOOT_KERNEL_CONFIGFILE
-	string "Kernel config file"
-	default ""
+	string "Config file path"
+	default "defconfig"
+	depends on LINUXBOOT_KERNEL_CUSTOM_CONFIG
 	help
-	  Add your own kernel configuration file. Otherwise a default
-	  minimal defconfig is used.
+	  Path to the kernel configuration file.
+
+	  Note: this can be a defconfig file or a complete .config file.
+
+choice
+	prompt "Kernel binary format"
+	default LINUXBOOT_KERNEL_BZIMAGE if LINUXBOOT_X86 || LINUXBOOT_X86_64
+	default LINUXBOOT_KERNEL_UIMAGE if LINUXBOOT_ARM64 || LINUXBOOT_RISCV
+
+config LINUXBOOT_KERNEL_BZIMAGE
+	bool "bzImage"
+	depends on LINUXBOOT_X86 || LINUXBOOT_X86_64
+
+config LINUXBOOT_KERNEL_UIMAGE
+	bool "uImage"
+	depends on LINUXBOOT_ARM64 || LINUXBOOT_RISCV
+
+endchoice
 
 config LINUXBOOT_DTB_FILE
 	string "Compiled devicetree file"
-	depends on LINUXBOOT_ARM64
+	depends on LINUXBOOT_ARM64 || LINUXBOOT_RISCV
 	default ""
 
 endif #LINUXBOOT_COMPILE_KERNEL
@@ -103,7 +146,7 @@ config LINUX_COMMAND_LINE
 
 config PAYLOAD_FILE
 	default "payloads/external/LinuxBoot/linuxboot/bzImage" if LINUXBOOT_COMPILE_KERNEL && ( LINUXBOOT_X86 || LINUXBOOT_X86_64 )
-	default "payloads/external/LinuxBoot/linuxboot/uImage" if LINUXBOOT_COMPILE_KERNEL && LINUXBOOT_ARM64
+	default "payloads/external/LinuxBoot/linuxboot/uImage" if LINUXBOOT_COMPILE_KERNEL && (LINUXBOOT_ARM64 || LINUXBOOT_RISCV)
 	default LINUXBOOT_KERNEL_PATH if !LINUXBOOT_COMPILE_KERNEL
 
 comment "Linux initramfs"
@@ -210,10 +253,10 @@ config LINUXBOOT_UROOT_SHELL
 
 config LINUXBOOT_UROOT_COMMANDS
 	string "U-root commands"
-	default "coreboot-app"
+	default "boot coreboot-app"
 	help
 	  List of additional modules to include,
-	  separated by space. (default "coreboot-app")
+	  separated by space. (default "boot coreboot-app")
 
 endif #LINUXBOOT_UROOT
 

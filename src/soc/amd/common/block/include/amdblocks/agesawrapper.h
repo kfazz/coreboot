@@ -1,22 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 - 2017 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#ifndef __AGESAWRAPPER_H__
-#define __AGESAWRAPPER_H__
+#ifndef AMD_BLOCK_AGESAWRAPPER_H
+#define AMD_BLOCK_AGESAWRAPPER_H
 
-#include <stdint.h>
 #include <agesa_headers.h>
 
 enum {
@@ -34,22 +20,10 @@ enum {
 /* Return current dispatcher or NULL on error. */
 MODULE_ENTRY agesa_get_dispatcher(void);
 
+AGESA_STATUS agesa_execute_state(AGESA_STRUCT_NAME func);
 AGESA_STATUS amd_late_run_ap_task(AP_EXE_PARAMS *ApExeParams);
 
-AGESA_STATUS agesawrapper_amdinitreset(void);
-AGESA_STATUS agesawrapper_amdinitearly(void);
-AGESA_STATUS agesawrapper_amdinitenv(void);
-AGESA_STATUS agesawrapper_amdinitlate(void);
-AGESA_STATUS agesawrapper_amdinitpost(void);
-AGESA_STATUS agesawrapper_amdinitmid(void);
 void *agesawrapper_getlateinitptr(int pick);
-AGESA_STATUS agesawrapper_amdinitrtb(void);
-AGESA_STATUS agesawrapper_amdinitresume(void);
-AGESA_STATUS agesawrapper_amds3laterestore(void);
-AGESA_STATUS agesawrapper_amds3finalrestore(void);
-
-AGESA_STATUS agesawrapper_fchs3earlyrestore(void);
-AGESA_STATUS agesawrapper_fchs3laterestore(void);
 
 void OemCustomizeInitEarly(AMD_EARLY_PARAMS *InitEarly);
 void amd_initcpuio(void);
@@ -65,4 +39,4 @@ void SetNbMidParams(GNB_MID_CONFIGURATION *params);
 void set_board_env_params(GNB_ENV_CONFIGURATION *params);
 void soc_customize_init_early(AMD_EARLY_PARAMS *InitEarly);
 
-#endif /* __AGESAWRAPPER_H__ */
+#endif /* AMD_BLOCK_AGESAWRAPPER_H */

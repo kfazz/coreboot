@@ -1,17 +1,6 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#define __SIMPLE_DEVICE__
 
 #include <device/mmio.h>
 #include <assert.h>
@@ -221,11 +210,7 @@ void pcr_or8(uint8_t pid, uint16_t offset, uint8_t ordata)
 
 #if !CONFIG(PCR_COMMON_IOSF_1_0)
 
-#ifdef __SIMPLE_DEVICE__
-static int pcr_wait_for_completion(pci_devfn_t dev)
-#else
-static int pcr_wait_for_completion(struct device *dev)
-#endif
+static int pcr_wait_for_completion(const pci_devfn_t dev)
 {
 	struct stopwatch sw;
 
@@ -258,11 +243,7 @@ static int pcr_wait_for_completion(struct device *dev)
 int pcr_execute_sideband_msg(struct pcr_sbi_msg *msg, uint32_t *data,
 		uint8_t *response)
 {
-#if defined(__SIMPLE_DEVICE__)
-	pci_devfn_t dev = PCH_DEV_P2SB;
-#else
-	struct device *dev = PCH_DEV_P2SB;
-#endif
+	const pci_devfn_t dev = PCH_DEV_P2SB;
 	uint32_t sbi_data;
 	uint16_t sbi_status;
 	uint16_t sbi_rid;
@@ -394,10 +375,9 @@ int pcr_execute_sideband_msg(struct pcr_sbi_msg *msg, uint32_t *data,
 			break;
 		}
 		return 0;
-	} else {
-		printk(BIOS_ERR, "SBI Failure: Transaction Status = %x\n",
-				*response);
-		return -1;
 	}
+	printk(BIOS_ERR, "SBI Failure: Transaction Status = %x\n",
+			*response);
+	return -1;
 }
 #endif

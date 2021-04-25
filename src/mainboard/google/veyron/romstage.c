@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Rockchip Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/cache.h>
 #include <arch/exception.h>
@@ -20,7 +7,6 @@
 #include <cbmem.h>
 #include <console/console.h>
 #include <device/mmio.h>
-#include <delay.h>
 #include <program_loading.h>
 #include <soc/sdram.h>
 #include <soc/clock.h>
@@ -28,7 +14,6 @@
 #include <soc/grf.h>
 #include <soc/rk808.h>
 #include <soc/tsadc.h>
-#include <stdlib.h>
 #include <symbols.h>
 #include <timestamp.h>
 #include <types.h>

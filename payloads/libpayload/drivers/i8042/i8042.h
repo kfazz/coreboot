@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright 2018 Google LLC
  *
@@ -33,6 +32,7 @@
 /* Port 0x64 commands */
 #define I8042_CMD_RD_CMD_BYTE		0x20
 #define I8042_CMD_WR_CMD_BYTE		0x60
+#define   I8042_CMD_BYTE_XLATE		(1 << 6)
 #define I8042_CMD_DIS_AUX		0xa7
 #define I8042_CMD_EN_AUX		0xa8
 #define I8042_CMD_AUX_TEST		0xa9
@@ -55,10 +55,8 @@
 #define   I8042_MODE_NUM_LOCK_OFF	(0 << 1)
 #define   I8042_MODE_SCROLL_LOCK_ON	(1 << 0)
 #define   I8042_MODE_SCROLL_LOCK_OFF	(0 << 0)
+#define I8042_KBCMD_ECHO		0xee
 #define I8042_KBCMD_SET_SCANCODE	0xf0
-#define   I8042_SCANCODE_SET_1		(1)
-#define   I8042_SCANCODE_SET_2		(2)
-#define   I8042_SCANCODE_SET_3		(3)
 #define I8042_KBCMD_SET_TYPEMATIC	0xf3
 #define I8042_KBCMD_EN			0xf4
 #define I8042_KBCMD_DEFAULT_DIS		0xf5

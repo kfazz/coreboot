@@ -1,29 +1,13 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2000 AG Electronics Ltd.
- * Copyright (C) 2003-2004 Linux Networx
- * Copyright (C) 2004 Tyan
- * Copyright (C) 2007 AMD
- * Written by Yinghai Lu <yinghai.lu@amd.com> for AMD.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/device.h>
 #include <device/pnp.h>
 #include <superio/conf_mode.h>
+#include <superio/hwm5_conf.h>
 #include <console/console.h>
 #include <pc80/keyboard.h>
-#include <pc80/mc146818rtc.h>
-#include <stdlib.h>
+#include <option.h>
+
 #include "w83627ehg.h"
 
 static void enable_hwm_smbus(struct device *dev)
@@ -39,9 +23,8 @@ static void enable_hwm_smbus(struct device *dev)
 static void init_acpi(struct device *dev)
 {
 	u8 value;
-	int power_on = 1;
+	int power_on = get_int_option("power_on_after_fail", 1);
 
-	get_option(&power_on, "power_on_after_fail");
 	pnp_enter_conf_mode(dev);
 	pnp_set_logical_device(dev);
 	value = pnp_read_config(dev, 0xe4);
@@ -65,12 +48,12 @@ static void init_hwm(u16 base)
 
 	for (i = 0; i < ARRAY_SIZE(hwm_reg_values); i += 3) {
 		reg = hwm_reg_values[i];
-		value = pnp_read_index(base, reg);
+		value = pnp_read_hwm5_index(base, reg);
 		value &= 0xff & (~(hwm_reg_values[i + 1]));
 		value |= 0xff & hwm_reg_values[i + 2];
 		printk(BIOS_DEBUG, "base = 0x%04x, reg = 0x%02x, "
 		       "value = 0x%02x\n", base, reg, value);
-		pnp_write_index(base, reg, value);
+		pnp_write_hwm5_index(base, reg, value);
 	}
 }
 
@@ -87,8 +70,7 @@ static void w83627ehg_init(struct device *dev)
 		break;
 	case W83627EHG_HWM:
 		res0 = find_resource(dev, PNP_IDX_IO0);
-#define HWM_INDEX_PORT 5
-		init_hwm(res0->base + HWM_INDEX_PORT);
+		init_hwm(res0->base);
 		break;
 	case W83627EHG_ACPI:
 		init_acpi(dev);

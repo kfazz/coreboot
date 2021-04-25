@@ -1,25 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015 Rockchip, Inc.
- * Copyright (C) 2011 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef __SOC_HDMI_H__
 #define __SOC_HDMI_H__
 
 #include <types.h>
-#include <stdlib.h>
 
 #define HDMI_EDID_BLOCK_SIZE            128
 
@@ -278,7 +262,6 @@ enum {
 	HDMI_FC_INVIDCONF_IN_I_P_MASK = 0x1,
 	HDMI_FC_INVIDCONF_IN_I_P_INTERLACED = 0x1,
 	HDMI_FC_INVIDCONF_IN_I_P_PROGRESSIVE = 0x0,
-
 
 	/* fc_aviconf0-fc_aviconf3 field values */
 	HDMI_FC_AVICONF0_PIX_FMT_MASK = 0x03,

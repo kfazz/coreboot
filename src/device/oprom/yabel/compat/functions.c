@@ -36,7 +36,6 @@
  */
 
 #include <types.h>
-#include <string.h>
 #include <device/device.h>
 #include "../debug.h"
 #include "../biosemu.h"
@@ -73,7 +72,7 @@ unsigned long tb_freq = 0;
 u64 get_time(void)
 {
 	u64 act = 0;
-#if CONFIG(ARCH_X86)
+#if ENV_X86
 	u32 eax, edx;
 
 	__asm__ __volatile__(

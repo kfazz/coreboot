@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Christoph Grenz <christophg+cb@grenz-bonn.de>
- * Copyright (C) 2013 secunet Security Networks AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* ======== General PnP configuration functions ======= */
 
@@ -41,7 +27,7 @@ Mutex(CONF_MODE_MUTEX, 1)
 
 /*
  * Enter configuration mode (and aquire mutex)
- * Method must be run before accesssing the configuration region.
+ * Method must be run before accessing the configuration region.
  * Parameter is the LDN which should be accessed. Values >= 0xFF mean
  * no LDN switch should be done.
  */

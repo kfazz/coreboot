@@ -1,19 +1,14 @@
-/*
- * Copyright 2016 The Chromium OS Authors. All rights reserved.
- * Use of this source code is governed by a BSD-style license that can be
- * found in the LICENSE file.
- */
+/* SPDX-License-Identifier: BSD-3-Clause */
 
-#include <arch/early_variables.h>
 #include <commonlib/iobuf.h>
 #include <console/console.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "tss_marshaling.h"
 #include <security/tpm/tss/vendor/cr50/cr50.h>
+#include <security/tpm/tss.h>
 
-static uint16_t tpm_tag CAR_GLOBAL;  /* Depends on the command type. */
+static uint16_t tpm_tag;  /* Depends on the command type. */
 
 #define unmarshal_TPM_CAP(a, b) ibuf_read_be32(a, b)
 #define unmarshal_TPM_CC(a, b) ibuf_read_be32(a, b)
@@ -23,18 +18,18 @@ static uint16_t tpm_tag CAR_GLOBAL;  /* Depends on the command type. */
 #define marshal_TPM_HANDLE(a, b) obuf_write_be32(a, b)
 #define marshal_TPMI_ALG_HASH(a, b) obuf_write_be16(a, b)
 
-static int marshal_startup(struct obuf *ob, struct tpm2_startup *cmd_body)
+static int marshal_startup(struct obuf *ob, const struct tpm2_startup *cmd_body)
 {
 	return obuf_write_be16(ob, cmd_body->startup_type);
 }
 
-static int marshal_shutdown(struct obuf *ob, struct tpm2_shutdown *cmd_body)
+static int marshal_shutdown(struct obuf *ob, const struct tpm2_shutdown *cmd_body)
 {
 	return obuf_write_be16(ob, cmd_body->shutdown_type);
 }
 
 static int marshal_get_capability(struct obuf *ob,
-				   struct tpm2_get_capability *cmd_body)
+				  const struct tpm2_get_capability *cmd_body)
 {
 	int rc = 0;
 
@@ -45,7 +40,7 @@ static int marshal_get_capability(struct obuf *ob,
 	return rc;
 }
 
-static int marshal_TPM2B(struct obuf *ob, TPM2B *data)
+static int marshal_TPM2B(struct obuf *ob, const TPM2B *data)
 {
 	int rc = 0;
 
@@ -55,7 +50,7 @@ static int marshal_TPM2B(struct obuf *ob, TPM2B *data)
 	return rc;
 }
 
-static int marshal_TPMA_NV(struct obuf *ob, TPMA_NV *nv)
+static int marshal_TPMA_NV(struct obuf *ob, const TPMA_NV *nv)
 {
 	uint32_t v;
 
@@ -63,7 +58,7 @@ static int marshal_TPMA_NV(struct obuf *ob, TPMA_NV *nv)
 	return obuf_write_be32(ob, v);
 }
 
-static int marshal_TPMS_NV_PUBLIC(struct obuf *ob, TPMS_NV_PUBLIC *nvpub)
+static int marshal_TPMS_NV_PUBLIC(struct obuf *ob, const TPMS_NV_PUBLIC *nvpub)
 {
 	int rc = 0;
 
@@ -76,19 +71,40 @@ static int marshal_TPMS_NV_PUBLIC(struct obuf *ob, TPMS_NV_PUBLIC *nvpub)
 	return rc;
 }
 
-static int marshal_TPMT_HA(struct obuf *ob, TPMT_HA *tpmtha)
+static int marshal_TPMT_HA(struct obuf *ob, const TPMT_HA *tpmtha)
 {
 	int rc = 0;
 
 	rc |= marshal_TPMI_ALG_HASH(ob, tpmtha->hashAlg);
-	rc |= obuf_write(ob, tpmtha->digest.sha256,
-			sizeof(tpmtha->digest.sha256));
-
+	switch (tpmtha->hashAlg) {
+	case TPM_ALG_SHA1:
+		rc |= obuf_write(ob, tpmtha->digest.sha1,
+			 tlcl_get_hash_size_from_algo(tpmtha->hashAlg));
+		break;
+	case TPM_ALG_SHA256:
+		rc |= obuf_write(ob, tpmtha->digest.sha256,
+			 tlcl_get_hash_size_from_algo(tpmtha->hashAlg));
+		break;
+	case TPM_ALG_SM3_256:
+		rc |= obuf_write(ob, tpmtha->digest.sm3_256,
+			 tlcl_get_hash_size_from_algo(tpmtha->hashAlg));
+		break;
+	case TPM_ALG_SHA384:
+		rc |= obuf_write(ob, tpmtha->digest.sha384,
+			 tlcl_get_hash_size_from_algo(tpmtha->hashAlg));
+		break;
+	case TPM_ALG_SHA512:
+		rc |= obuf_write(ob, tpmtha->digest.sha512,
+			 tlcl_get_hash_size_from_algo(tpmtha->hashAlg));
+		break;
+	default:
+		rc = -1;
+	}
 	return rc;
 }
 
 static int marshal_TPML_DIGEST_VALUES(struct obuf *ob,
-				       TPML_DIGEST_VALUES *dvalues)
+				      const TPML_DIGEST_VALUES *dvalues)
 {
 	int i;
 	int rc = 0;
@@ -101,7 +117,7 @@ static int marshal_TPML_DIGEST_VALUES(struct obuf *ob,
 }
 
 static int marshal_session_header(struct obuf *ob,
-				   struct tpm2_session_header *session_header)
+			const struct tpm2_session_header *session_header)
 {
 	int rc = 0;
 	struct obuf ob_sz;
@@ -135,14 +151,14 @@ static int marshal_session_header(struct obuf *ob,
  * session_header structure.
  */
 static int marshal_common_session_header(struct obuf *ob,
-					  const uint32_t *handles,
-					  size_t handle_count)
+					 const uint32_t *handles,
+					 size_t handle_count)
 {
 	size_t i;
 	struct tpm2_session_header session_header;
 	int rc = 0;
 
-	car_set_var(tpm_tag, TPM_ST_SESSIONS);
+	tpm_tag = TPM_ST_SESSIONS;
 
 	for (i = 0; i < handle_count; i++)
 		rc |= marshal_TPM_HANDLE(ob, handles[i]);
@@ -155,7 +171,7 @@ static int marshal_common_session_header(struct obuf *ob,
 }
 
 static int marshal_nv_define_space(struct obuf *ob,
-				    struct tpm2_nv_define_space_cmd *nvd_in)
+				   const struct tpm2_nv_define_space_cmd *nvd_in)
 {
 	const uint32_t handle[] = { TPM_RH_PLATFORM };
 	struct obuf ob_sz;
@@ -182,10 +198,10 @@ static int marshal_nv_define_space(struct obuf *ob,
 }
 
 static int marshal_nv_write(struct obuf *ob,
-			     struct tpm2_nv_write_cmd *command_body)
+			    const struct tpm2_nv_write_cmd *command_body)
 {
 	int rc = 0;
-	uint32_t handles[] = { TPM_RH_PLATFORM, command_body->nvIndex };
+	const uint32_t handles[] = { TPM_RH_PLATFORM, command_body->nvIndex };
 
 	rc |= marshal_common_session_header(ob, handles, ARRAY_SIZE(handles));
 	rc |= marshal_TPM2B(ob, &command_body->data.b);
@@ -195,18 +211,18 @@ static int marshal_nv_write(struct obuf *ob,
 }
 
 static int marshal_nv_write_lock(struct obuf *ob,
-				  struct tpm2_nv_write_lock_cmd *command_body)
+			const struct tpm2_nv_write_lock_cmd *command_body)
 {
-	uint32_t handles[] = { TPM_RH_PLATFORM, command_body->nvIndex };
+	const uint32_t handles[] = { TPM_RH_PLATFORM, command_body->nvIndex };
 
 	return marshal_common_session_header(ob, handles, ARRAY_SIZE(handles));
 }
 
 static int marshal_pcr_extend(struct obuf *ob,
-			       struct tpm2_pcr_extend_cmd *command_body)
+			      const struct tpm2_pcr_extend_cmd *command_body)
 {
 	int rc = 0;
-	uint32_t handles[] = { command_body->pcrHandle };
+	const uint32_t handles[] = { command_body->pcrHandle };
 
 	rc |= marshal_common_session_header(ob, handles, ARRAY_SIZE(handles));
 	rc |= marshal_TPML_DIGEST_VALUES(ob, &command_body->digests);
@@ -215,10 +231,10 @@ static int marshal_pcr_extend(struct obuf *ob,
 }
 
 static int marshal_nv_read(struct obuf *ob,
-			    struct tpm2_nv_read_cmd *command_body)
+			   const struct tpm2_nv_read_cmd *command_body)
 {
 	int rc = 0;
-	uint32_t handles[] = { TPM_RH_PLATFORM, command_body->nvIndex };
+	const uint32_t handles[] = { TPM_RH_PLATFORM, command_body->nvIndex };
 
 	rc |= marshal_common_session_header(ob, handles, ARRAY_SIZE(handles));
 	rc |= obuf_write_be16(ob, command_body->size);
@@ -236,18 +252,18 @@ static int marshal_clear(struct obuf *ob)
 }
 
 static int marshal_selftest(struct obuf *ob,
-			     struct tpm2_self_test *command_body)
+			    const struct tpm2_self_test *command_body)
 {
 	return obuf_write_be8(ob, command_body->yes_no);
 }
 
 static int marshal_hierarchy_control(struct obuf *ob,
-			struct tpm2_hierarchy_control_cmd *command_body)
+			const struct tpm2_hierarchy_control_cmd *command_body)
 {
 	int rc = 0;
 	struct tpm2_session_header session_header;
 
-	car_set_var(tpm_tag, TPM_ST_SESSIONS);
+	tpm_tag = TPM_ST_SESSIONS;
 
 	rc |= marshal_TPM_HANDLE(ob, TPM_RH_PLATFORM);
 	memset(&session_header, 0, sizeof(session_header));
@@ -260,10 +276,28 @@ static int marshal_hierarchy_control(struct obuf *ob,
 	return rc;
 }
 
-static int marshal_cr50_vendor_command(struct obuf *ob, void *command_body)
+static int marshal_clear_control(struct obuf *ob,
+			const struct tpm2_clear_control_cmd *command_body)
 {
 	int rc = 0;
-	uint16_t *sub_command = command_body;
+	struct tpm2_session_header session_header;
+
+	tpm_tag = TPM_ST_SESSIONS;
+
+	rc |= marshal_TPM_HANDLE(ob, TPM_RH_PLATFORM);
+	memset(&session_header, 0, sizeof(session_header));
+	session_header.session_handle = TPM_RS_PW;
+	rc |= marshal_session_header(ob, &session_header);
+
+	rc |= obuf_write_be8(ob, command_body->disable);
+
+	return rc;
+}
+
+static int marshal_cr50_vendor_command(struct obuf *ob, const void *command_body)
+{
+	int rc = 0;
+	const uint16_t *sub_command = command_body;
 
 	switch (*sub_command) {
 	case TPM2_CR50_SUB_CMD_IMMEDIATE_RESET:
@@ -296,6 +330,12 @@ static int marshal_cr50_vendor_command(struct obuf *ob, void *command_body)
 		 */
 		rc |= obuf_write_be16(ob, *sub_command);
 		break;
+	case TPM2_CR50_SUB_CMD_GET_BOOT_MODE:
+		rc |= obuf_write_be16(ob, *sub_command);
+		break;
+	case TPM2_CR50_SUB_CMD_RESET_EC:
+		rc |= obuf_write_be16(ob, *sub_command);
+		break;
 	default:
 		/* Unsupported subcommand. */
 		printk(BIOS_WARNING, "Unsupported cr50 subcommand: 0x%04x\n",
@@ -306,13 +346,13 @@ static int marshal_cr50_vendor_command(struct obuf *ob, void *command_body)
 	return rc;
 }
 
-int tpm_marshal_command(TPM_CC command, void *tpm_command_body, struct obuf *ob)
+int tpm_marshal_command(TPM_CC command, const void *tpm_command_body, struct obuf *ob)
 {
 	struct obuf ob_hdr;
 	const size_t hdr_sz = sizeof(uint16_t) + 2 * sizeof(uint32_t);
 	int rc = 0;
 
-	car_set_var(tpm_tag, TPM_ST_NO_SESSIONS);
+	tpm_tag = TPM_ST_NO_SESSIONS;
 
 	if (obuf_splice_current(ob, &ob_hdr, hdr_sz) < 0)
 		return -1;
@@ -362,6 +402,10 @@ int tpm_marshal_command(TPM_CC command, void *tpm_command_body, struct obuf *ob)
 		rc |= marshal_hierarchy_control(ob, tpm_command_body);
 		break;
 
+	case TPM2_ClearControl:
+		rc |= marshal_clear_control(ob, tpm_command_body);
+		break;
+
 	case TPM2_Clear:
 		rc |= marshal_clear(ob);
 		break;
@@ -384,14 +428,14 @@ int tpm_marshal_command(TPM_CC command, void *tpm_command_body, struct obuf *ob)
 		return rc;
 
 	/* Fix up the command header with known values. */
-	rc |= obuf_write_be16(&ob_hdr, car_get_var(tpm_tag));
+	rc |= obuf_write_be16(&ob_hdr, tpm_tag);
 	rc |= obuf_write_be32(&ob_hdr, obuf_nr_written(ob));
 
 	return rc;
 }
 
 static int unmarshal_get_capability(struct ibuf *ib,
-				     struct get_cap_response *gcr)
+				    struct get_cap_response *gcr)
 {
 	int i;
 	int rc = 0;
@@ -421,6 +465,22 @@ static int unmarshal_get_capability(struct ibuf *ib,
 			rc |= ibuf_read_be32(ib, &pp->value);
 		}
 		break;
+	case TPM_CAP_PCRS:
+		if (ibuf_read_be32(ib, &gcr->cd.data.assignedPCR.count))
+			return -1;
+		if (gcr->cd.data.assignedPCR.count >
+		    ARRAY_SIZE(gcr->cd.data.assignedPCR.pcrSelections)) {
+			printk(BIOS_INFO, "%s:%s:%d - %d - too many properties\n",
+			       __FILE__, __func__, __LINE__,
+			      gcr->cd.data.assignedPCR.count);
+			return -1;
+		}
+		for (i = 0; i < gcr->cd.data.assignedPCR.count; i++) {
+			TPMS_PCR_SELECTION *pp =
+				&gcr->cd.data.assignedPCR.pcrSelections[i];
+			rc |= ibuf_read(ib, pp, sizeof(TPMS_PCR_SELECTION));
+		}
+		break;
 	default:
 		printk(BIOS_ERR,
 		       "%s:%d - unable to unmarshal capability response",
@@ -434,7 +494,7 @@ static int unmarshal_get_capability(struct ibuf *ib,
 }
 
 static int unmarshal_TPM2B_MAX_NV_BUFFER(struct ibuf *ib,
-					  TPM2B_MAX_NV_BUFFER *nv_buffer)
+					 TPM2B_MAX_NV_BUFFER *nv_buffer)
 {
 	if (ibuf_read_be16(ib, &nv_buffer->t.size))
 		return -1;
@@ -471,12 +531,12 @@ static int unmarshal_nv_read(struct ibuf *ib, struct nv_read_response *nvr)
 	}
 
 	/*
-	 * Let's ignore the authorisation section. It should be 5 bytes total,
+	 * Let's ignore the authorization section. It should be 5 bytes total,
 	 * just confirm that this is the case and report any discrepancy.
 	 */
 	if (ibuf_remaining(ib) != 5)
 		printk(BIOS_ERR,
-		       "%s:%d - unexpected authorisation seciton size %zd\n",
+		       "%s:%d - unexpected authorization section size %zd\n",
 		       __func__, __LINE__, ibuf_remaining(ib));
 
 	ibuf_oob_drain(ib, ibuf_remaining(ib));
@@ -485,7 +545,7 @@ static int unmarshal_nv_read(struct ibuf *ib, struct nv_read_response *nvr)
 }
 
 static int unmarshal_vendor_command(struct ibuf *ib,
-				     struct vendor_command_response *vcr)
+				    struct vendor_command_response *vcr)
 {
 	if (ibuf_read_be16(ib, &vcr->vc_subcommand))
 		return -1;
@@ -501,6 +561,10 @@ static int unmarshal_vendor_command(struct ibuf *ib,
 		return ibuf_read_be8(ib, &vcr->recovery_button_state);
 	case TPM2_CR50_SUB_CMD_TPM_MODE:
 		return ibuf_read_be8(ib, &vcr->tpm_mode);
+	case TPM2_CR50_SUB_CMD_GET_BOOT_MODE:
+		return ibuf_read_be8(ib, &vcr->boot_mode);
+	case TPM2_CR50_SUB_CMD_RESET_EC:
+		break;
 	default:
 		printk(BIOS_ERR,
 		       "%s:%d - unsupported vendor command %#04x!\n",
@@ -513,40 +577,46 @@ static int unmarshal_vendor_command(struct ibuf *ib,
 
 struct tpm2_response *tpm_unmarshal_response(TPM_CC command, struct ibuf *ib)
 {
-	static struct tpm2_response tpm2_static_resp CAR_GLOBAL;
-	struct tpm2_response *tpm2_resp = car_get_var_ptr(&tpm2_static_resp);
+	static struct tpm2_response tpm2_static_resp;
 	int rc = 0;
 
-	rc |= ibuf_read_be16(ib, &tpm2_resp->hdr.tpm_tag);
-	rc |= ibuf_read_be32(ib, &tpm2_resp->hdr.tpm_size);
-	rc |= unmarshal_TPM_CC(ib, &tpm2_resp->hdr.tpm_code);
+	rc |= ibuf_read_be16(ib, &tpm2_static_resp.hdr.tpm_tag);
+	rc |= ibuf_read_be32(ib, &tpm2_static_resp.hdr.tpm_size);
+	rc |= unmarshal_TPM_CC(ib, &tpm2_static_resp.hdr.tpm_code);
 
 	if (rc != 0)
 		return NULL;
 
-	if (ibuf_remaining(ib) == 0) {
-		if (tpm2_resp->hdr.tpm_size != ibuf_nr_read(ib))
-			printk(BIOS_ERR,
-			       "%s: size mismatch in response to command %#x\n",
-			       __func__, command);
-		return tpm2_resp;
+	if (ibuf_capacity(ib) != tpm2_static_resp.hdr.tpm_size) {
+		printk(BIOS_ERR,
+		       "%s: size mismatch in response to command %#x\n",
+		       __func__, command);
+		return NULL;
 	}
+
+	/* On errors, we're not sure what the TPM is returning. None of the
+	   commands we use actually expect useful data payloads for errors, so
+	   just ignore any data after the header. */
+	if (tpm2_static_resp.hdr.tpm_code != TPM2_RC_SUCCESS)
+		return &tpm2_static_resp;
 
 	switch (command) {
 	case TPM2_Startup:
 	case TPM2_Shutdown:
+	case TPM2_SelfTest:
 		break;
 
 	case TPM2_GetCapability:
-		rc |= unmarshal_get_capability(ib, &tpm2_resp->gc);
+		rc |= unmarshal_get_capability(ib, &tpm2_static_resp.gc);
 		break;
 
 	case TPM2_NV_Read:
-		rc |= unmarshal_nv_read(ib, &tpm2_resp->nvr);
+		rc |= unmarshal_nv_read(ib, &tpm2_static_resp.nvr);
 		break;
 
 	case TPM2_Hierarchy_Control:
 	case TPM2_Clear:
+	case TPM2_ClearControl:
 	case TPM2_NV_DefineSpace:
 	case TPM2_NV_Write:
 	case TPM2_NV_WriteLock:
@@ -556,7 +626,7 @@ struct tpm2_response *tpm_unmarshal_response(TPM_CC command, struct ibuf *ib)
 		break;
 
 	case TPM2_CR50_VENDOR_COMMAND:
-		rc |= unmarshal_vendor_command(ib, &tpm2_resp->vcr);
+		rc |= unmarshal_vendor_command(ib, &tpm2_static_resp.vcr);
 		break;
 
 	default:
@@ -569,7 +639,7 @@ struct tpm2_response *tpm_unmarshal_response(TPM_CC command, struct ibuf *ib)
 			       "Request to unmarshal unexpected command %#x,"
 			       " code %#x",
 			       __func__, __LINE__, command,
-			       tpm2_resp->hdr.tpm_code);
+			       tpm2_static_resp.hdr.tpm_code);
 
 			sz_left = ibuf_remaining(ib);
 			data = ibuf_oob_drain(ib, sz_left);
@@ -588,7 +658,7 @@ struct tpm2_response *tpm_unmarshal_response(TPM_CC command, struct ibuf *ib)
 		printk(BIOS_INFO,
 		       "%s:%d got %d bytes back in response to %#x,"
 		       " failed to parse (%zd)\n",
-		       __func__, __LINE__, tpm2_resp->hdr.tpm_size,
+		       __func__, __LINE__, tpm2_static_resp.hdr.tpm_size,
 		       command, ibuf_remaining(ib));
 		return NULL;
 	}
@@ -597,5 +667,5 @@ struct tpm2_response *tpm_unmarshal_response(TPM_CC command, struct ibuf *ib)
 					__func__);
 
 	/* The entire message have been parsed. */
-	return tpm2_resp;
+	return &tpm2_static_resp;
 }

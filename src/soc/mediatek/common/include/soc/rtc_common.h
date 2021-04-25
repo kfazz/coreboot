@@ -1,27 +1,16 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef SOC_MEDIATEK_RTC_COMMON_H
 #define SOC_MEDIATEK_RTC_COMMON_H
 
-#include <assert.h>
 #include <bcd.h>
 #include <console/console.h>
-#include <delay.h>
 #include <rtc.h>
-#include <timer.h>
+#include <stdbool.h>
+
+#define RTCTAG			"[RTC]"
+#define rtc_info(fmt, arg ...)	printk(BIOS_INFO, RTCTAG "%s,%d: " fmt, \
+				__func__, __LINE__, ## arg)
 
 /*
  * Default values for RTC initialization
@@ -93,13 +82,26 @@ enum {
 	RTC_STATE_INIT		= 2
 };
 
+/* RTC error code */
+enum {
+	RTC_STATUS_OK	= 0,
+	RTC_STATUS_POWERKEY_INIT_FAIL,
+	RTC_STATUS_WRITEIF_UNLOCK_FAIL,
+	RTC_STATUS_OSC_SETTING_FAIL,
+	RTC_STATUS_GPIO_INIT_FAIL,
+	RTC_STATUS_HW_INIT_FAIL,
+	RTC_STATUS_REG_INIT_FAIL,
+	RTC_STATUS_LPD_INIT_FAIL
+};
+
 /* external API */
-int rtc_busy_wait(void);
-int rtc_write_trigger(void);
-int rtc_writeif_unlock(void);
-void rtc_xosc_write(u16 val);
-int rtc_reg_init(void);
-u8 rtc_check_state(void);
+bool rtc_write_trigger(void);
+bool rtc_writeif_unlock(void);
+bool rtc_xosc_write(u16 val);
+bool rtc_lpen(u16 con);
+bool rtc_reg_init(void);
+void rtc_osc_init(void);
+bool rtc_powerkey_init(void);
 void rtc_boot_common(void);
 
 #endif /* SOC_MEDIATEK_RTC_COMMON_H */

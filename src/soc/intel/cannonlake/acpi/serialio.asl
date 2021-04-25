@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015 Google Inc.
- * Copyright (C) 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* Intel Serial IO Devices */
 
@@ -40,6 +26,7 @@ Device (I2C3)
 	Name (_DDN, "Serial IO I2C Controller 3")
 }
 
+#if !CONFIG(SOC_INTEL_CANNONLAKE_PCH_H)
 Device (I2C4)
 {
 	Name (_ADR, 0x00190000)
@@ -51,6 +38,7 @@ Device (I2C5)
 	Name (_ADR, 0x00190001)
 	Name (_DDN, "Serial IO I2C Controller 5")
 }
+#endif
 
 Device (SPI0)
 {
@@ -82,8 +70,10 @@ Device (UAR1)
 	Name (_DDN, "Serial IO UART Controller 1")
 }
 
+#if !CONFIG(SOC_INTEL_CANNONLAKE_PCH_H)
 Device (UAR2)
 {
 	Name (_ADR, 0x00190002)
 	Name (_DDN, "Serial IO UART Controller 2")
 }
+#endif

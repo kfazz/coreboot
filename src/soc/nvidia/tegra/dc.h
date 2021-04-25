@@ -1,23 +1,9 @@
-/*
- *  Copyright 2013 Google Inc.
- *  (C) Copyright 2010
- *  NVIDIA Corporation <www.nvidia.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef __SOC_NVIDIA_TEGRA_DC_H
 #define __SOC_NVIDIA_TEGRA_DC_H
+
 #include <device/device.h>
-#include <stddef.h>
 #include <types.h>
 
 /* Register definitions for the Tegra display controller */
@@ -362,7 +348,6 @@ struct display_controller {
 };
 check_member(display_controller, winbuf, 0x800 * 4);
 
-
 /* DC_CMD_DISPLAY_COMMAND 0x032 */
 #define  DISP_COMMAND_RAISE			(1 << 0)
 #define  DISP_CTRL_MODE_STOP			(0 << 5)
@@ -515,9 +500,7 @@ struct tegra_dc_mode {
 unsigned long READL(void *p);
 void WRITEL(unsigned long value, void *p);
 
-#ifndef __PRE_RAM__
 void display_startup(struct device *dev);
-#endif
 void dp_init(void *_config);
 void dp_enable(void *_dp);
 unsigned int fb_base_mb(void);

@@ -22,7 +22,7 @@ static const io_register_t pch_bios_cntl_registers[] = {
 	{ 0x1, 1, "BLE - lock enable" },
 	{ 0x2, 2, "SPI Read configuration" },
 	{ 0x4, 1, "TopSwapStatus" },
-	{ 0x5, 1, "SMM Bios Write Protect Disable" },
+	{ 0x5, 1, "SMM BIOS Write Protect Disable" },
 	{ 0x6, 2, "reserved" },
 };
 
@@ -79,7 +79,7 @@ static const io_register_t ich7_spi_bar_registers[] = {
 	{ 0x68, 4, "PBR2 Protected BIOS Range 2" },
 };
 
-int print_bioscntl(struct pci_dev *sb)
+static int print_bioscntl(struct pci_dev *sb)
 {
 	int i, size = 0;
 	unsigned char bios_cntl = 0xff;
@@ -107,6 +107,7 @@ int print_bioscntl(struct pci_dev *sb)
 	case PCI_DEVICE_ID_INTEL_ICH9M:
 	case PCI_DEVICE_ID_INTEL_ICH9ME:
 	case PCI_DEVICE_ID_INTEL_ICH10:
+	case PCI_DEVICE_ID_INTEL_ICH10DO:
 	case PCI_DEVICE_ID_INTEL_ICH10R:
 	case PCI_DEVICE_ID_INTEL_NM10:
 		bios_cntl = pci_read_byte(sb, 0xdc);
@@ -175,9 +176,27 @@ int print_bioscntl(struct pci_dev *sb)
 	case PCI_DEVICE_ID_INTEL_C224:
 	case PCI_DEVICE_ID_INTEL_C226:
 	case PCI_DEVICE_ID_INTEL_H81:
-	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_BASE:
-	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_PREM:
-	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_Y_PREM:
+	case PCI_DEVICE_ID_INTEL_H110:
+	case PCI_DEVICE_ID_INTEL_H170:
+	case PCI_DEVICE_ID_INTEL_Z170:
+	case PCI_DEVICE_ID_INTEL_Q170:
+	case PCI_DEVICE_ID_INTEL_Q150:
+	case PCI_DEVICE_ID_INTEL_B150:
+	case PCI_DEVICE_ID_INTEL_C236:
+	case PCI_DEVICE_ID_INTEL_C232:
+	case PCI_DEVICE_ID_INTEL_QM170:
+	case PCI_DEVICE_ID_INTEL_HM170:
+	case PCI_DEVICE_ID_INTEL_CM236:
+	case PCI_DEVICE_ID_INTEL_HM175:
+	case PCI_DEVICE_ID_INTEL_QM175:
+	case PCI_DEVICE_ID_INTEL_CM238:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_PRE:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_BASE_SKL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_Y_PREM_SKL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_PREM_SKL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_BASE_KBL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_PREM_KBL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_Y_PREM_KBL:
 	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_IHDCP_BASE:
 	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_IHDCP_PREM:
 	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_Y_IHDCP_PREM:
@@ -203,7 +222,7 @@ int print_bioscntl(struct pci_dev *sb)
 	return 0;
 }
 
-int print_spibar(struct pci_dev *sb) {
+static int print_spibar(struct pci_dev *sb) {
 	int i, size = 0, rcba_size = 0x4000;
 	volatile uint8_t *rcba;
 	uint32_t rcba_phys;
@@ -240,6 +259,7 @@ int print_spibar(struct pci_dev *sb) {
 	case PCI_DEVICE_ID_INTEL_ICH9M:
 	case PCI_DEVICE_ID_INTEL_ICH9ME:
 	case PCI_DEVICE_ID_INTEL_ICH10:
+	case PCI_DEVICE_ID_INTEL_ICH10DO:
 	case PCI_DEVICE_ID_INTEL_ICH10R:
 	case PCI_DEVICE_ID_INTEL_NM10:
 	case PCI_DEVICE_ID_INTEL_I63XX:
@@ -309,9 +329,13 @@ int print_spibar(struct pci_dev *sb) {
 	case PCI_DEVICE_ID_INTEL_C224:
 	case PCI_DEVICE_ID_INTEL_C226:
 	case PCI_DEVICE_ID_INTEL_H81:
-	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_BASE:
-	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_PREM:
-	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_Y_PREM:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_PRE:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_BASE_SKL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_Y_PREM_SKL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_PREM_SKL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_BASE_KBL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_PREM_KBL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_Y_PREM_KBL:
 	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_IHDCP_BASE:
 	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_IHDCP_PREM:
 	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_Y_IHDCP_PREM:
@@ -342,17 +366,17 @@ int print_spibar(struct pci_dev *sb) {
 	for (i = 0; i < size; i++) {
 		switch(spi_register[i].size) {
 			case 1:
-				printf("0x%08x = %s\n", *(uint8_t *)(rcba + spibaroffset + spi_register[i].addr), spi_register[i].name);
+				printf("0x%08x = %s\n", read8(rcba + spibaroffset + spi_register[i].addr), spi_register[i].name);
 				break;
 			case 2:
-				printf("0x%08x = %s\n", *(uint16_t *)(rcba + spibaroffset + spi_register[i].addr), spi_register[i].name);
+				printf("0x%08x = %s\n", read16(rcba + spibaroffset + spi_register[i].addr), spi_register[i].name);
 				break;
 			case 4:
-				printf("0x%08x = %s\n", *(uint32_t *)(rcba + spibaroffset + spi_register[i].addr), spi_register[i].name);
+				printf("0x%08x = %s\n", read32(rcba + spibaroffset + spi_register[i].addr), spi_register[i].name);
 				break;
 			case 8:
-				printf("0x%08x%08x = %s\n",  *(uint32_t *)(rcba + spibaroffset + spi_register[i].addr + 4),
-					*(uint32_t *)(rcba + spibaroffset + spi_register[i].addr), spi_register[i].name);
+				printf("0x%08x%08x = %s\n",  read32(rcba + spibaroffset + spi_register[i].addr + 4),
+					read32(rcba + spibaroffset + spi_register[i].addr), spi_register[i].name);
 				break;
 		}
 	}

@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 Facebook, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <bootblock_common.h>
 #include <soc/soc.h>
@@ -39,7 +26,7 @@ void bootblock_mainboard_early_init(void)
 
 static void configure_spi_flash(void)
 {
-	/* The maximum SPI frequency for error free transmission is at 30 Mhz */
+	/* The maximum SPI frequency for error-free transmission is at 30 MHz */
 	spi_init_custom(0, // bus
 			28000000, // speed Hz
 			0, // idle low disabled
@@ -84,7 +71,7 @@ static void protect_ro_rgn_spi_flash(void)
 		* WP_RO read only and use /WP pin
 		* non-volatile programming
 		*/
-		if (spi_flash_set_write_protected(flash, &ro_rgn, 1,
+		if (spi_flash_set_write_protected(flash, &ro_rgn,
 		    SPI_WRITE_PROTECTION_PIN) != 0)
 			die("Failed to write-protect WP_RO region!");
 	}

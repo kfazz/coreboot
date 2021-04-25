@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <cpu/x86/msr.h>
@@ -23,7 +10,7 @@
 #include <cpu/x86/lapic.h>
 #include <cpu/cpu.h>
 #include <cpu/x86/cache.h>
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <northbridge/amd/agesa/agesa_helper.h>
 
 static void model_16_init(struct device *dev)
@@ -62,7 +49,7 @@ static void model_16_init(struct device *dev)
 	msr.lo |= SYSCFG_MSR_MtrrFixDramEn;
 	wrmsr(SYSCFG_MSR, msr);
 
-	if (acpi_is_wakeup())
+	if (acpi_is_wakeup_s3())
 		restore_mtrr();
 
 	x86_mtrr_check();

@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
 #include <arch/io.h>
 #include <pc80/isa-dma.h>
 
@@ -29,7 +31,6 @@
 #define DMA_MODE_CASCADE 0xC0   /* pass thru DREQ->HRQ, DACK<-HLDA only */
 
 #define DMA_AUTOINIT	0x10
-
 
 void isa_dma_init(void)
 {

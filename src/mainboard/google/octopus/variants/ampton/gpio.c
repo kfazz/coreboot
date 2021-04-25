@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <baseboard/gpio.h>
 #include <baseboard/variants.h>
@@ -246,7 +233,9 @@ static const struct pad_config gpio_table[] = {
 	/* SCC COMMUNITY GPIOS */
 	PAD_NC(GPIO_176, UP_20K), /* SMB_ALERTB -- unused */
 	PAD_NC(GPIO_177, UP_20K), /* SMB_CLK -- unused */
-	PAD_CFG_GPO_IOSSTATE_IOSTERM(GPIO_178, 1, DEEP, NONE, Tx1RxDCRx0, DISPUPD), /* EN_PP3300_WLAN */
+	/* EN_PP3300_WLAN_L */
+	PAD_CFG_GPO_IOSSTATE_IOSTERM(GPIO_178, 1, DEEP, NONE, Tx0RxDCRx0,
+				DISPUPD),
 	PAD_NC(GPIO_179, NONE), /* SDCARD_CLK -- unused */
 	PAD_NC(GPIO_180, NONE), /* SDCARD_CMD -- unused */
 	PAD_NC(GPIO_181, UP_20K), /* SDCARD_D0 -- unused */
@@ -305,11 +294,11 @@ static const struct pad_config early_gpio_table[] = {
 	PAD_CFG_NF(GPIO_83, NONE, DEEP, NF1), /* H1_SLAVE_SPI_MOSI_R */
 
 	/* Enable power to wifi early in bootblock and de-assert PERST#. */
-	PAD_CFG_GPO(GPIO_178, 1, DEEP), /* EN_PP3300_WLAN */
+	PAD_CFG_GPO(GPIO_178, 0, DEEP), /* EN_PP3300_WLAN_L */
 	PAD_CFG_GPO(GPIO_164, 0, DEEP), /* WLAN_PE_RST */
 
 	/*
-	 * ESPI_IO1 acts as ALERT# (which is open-drain) and requies a weak
+	 * ESPI_IO1 acts as ALERT# (which is open-drain) and requires a weak
 	 * pull-up for proper operation. Since there is no external pull present
 	 * on this platform, configure an internal weak pull-up.
 	 */

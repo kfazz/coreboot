@@ -1,23 +1,11 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _DEVICE_I2C_SIMPLE_H_
 #define _DEVICE_I2C_SIMPLE_H_
 
 #include <commonlib/helpers.h>
 #include <device/i2c.h>
+#include <stdint.h>
 
 int platform_i2c_transfer(unsigned int bus, struct i2c_msg *segments,
 			  int count);
@@ -54,7 +42,7 @@ int i2c_write_field(unsigned int bus, uint8_t slave, uint8_t reg, uint8_t data,
 static inline int i2c_transfer(unsigned int bus, struct i2c_msg *segments,
 			       int count)
 {
-	if (CONFIG_SOFTWARE_I2C)
+	if (CONFIG(SOFTWARE_I2C))
 		if (bus < SOFTWARE_I2C_MAX_BUS && software_i2c[bus])
 			return software_i2c_transfer(bus, segments, count);
 

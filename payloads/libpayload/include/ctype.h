@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2008 Advanced Micro Devices, Inc.
  *
@@ -50,6 +49,5 @@ int isxdigit(int c);
 int tolower(int c);
 int toupper(int c);
 /** @} */
-
 
 #endif

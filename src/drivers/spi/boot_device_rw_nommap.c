@@ -1,36 +1,17 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2016 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/early_variables.h>
 #include <boot_device.h>
 #include <spi_flash.h>
 #include <spi-generic.h>
 #include <stdint.h>
 
-static struct spi_flash sfg CAR_GLOBAL;
-static bool sfg_init_done CAR_GLOBAL;
+static struct spi_flash sfg;
+static bool sfg_init_done;
 
 static ssize_t spi_readat(const struct region_device *rd, void *b,
 				size_t offset, size_t size)
 {
-	struct spi_flash *sf = car_get_var_ptr(&sfg);
-
-	if (sf == NULL)
-		return -1;
-
-	if (spi_flash_read(sf, offset, size, b))
+	if (spi_flash_read(&sfg, offset, size, b))
 		return -1;
 
 	return size;
@@ -39,12 +20,7 @@ static ssize_t spi_readat(const struct region_device *rd, void *b,
 static ssize_t spi_writeat(const struct region_device *rd, const void *b,
 				size_t offset, size_t size)
 {
-	struct spi_flash *sf = car_get_var_ptr(&sfg);
-
-	if (sf == NULL)
-		return -1;
-
-	if (spi_flash_write(sf, offset, size, b))
+	if (spi_flash_write(&sfg, offset, size, b))
 		return -1;
 
 	return size;
@@ -53,12 +29,7 @@ static ssize_t spi_writeat(const struct region_device *rd, const void *b,
 static ssize_t spi_eraseat(const struct region_device *rd,
 				size_t offset, size_t size)
 {
-	struct spi_flash *sf = car_get_var_ptr(&sfg);
-
-	if (sf == NULL)
-		return -1;
-
-	if (spi_flash_erase(sf, offset, size))
+	if (spi_flash_erase(&sfg, offset, size))
 		return -1;
 
 	return size;
@@ -78,14 +49,14 @@ static void boot_device_rw_init(void)
 	const int bus = CONFIG_BOOT_DEVICE_SPI_FLASH_BUS;
 	const int cs = 0;
 
-	if (car_get_var(sfg_init_done) == true)
+	if (sfg_init_done == true)
 		return;
 
 	/* Ensure any necessary setup is performed by the drivers. */
 	spi_init();
 
-	if (!spi_flash_probe(bus, cs, car_get_var_ptr(&sfg)))
-		car_set_var(sfg_init_done, true);
+	if (!spi_flash_probe(bus, cs, &sfg))
+		sfg_init_done = true;
 }
 
 const struct region_device *boot_device_rw(void)
@@ -93,7 +64,7 @@ const struct region_device *boot_device_rw(void)
 	/* Probe for the SPI flash device if not already done. */
 	boot_device_rw_init();
 
-	if (car_get_var(sfg_init_done) != true)
+	if (sfg_init_done != true)
 		return NULL;
 
 	return &spi_rw;
@@ -103,13 +74,13 @@ const struct spi_flash *boot_device_spi_flash(void)
 {
 	boot_device_rw_init();
 
-	if (car_get_var(sfg_init_done) != true)
+	if (sfg_init_done != true)
 		return NULL;
 
-	return car_get_var_ptr(&sfg);
+	return &sfg;
 }
 
-int boot_device_wp_region(struct region_device *rd,
+int boot_device_wp_region(const struct region_device *rd,
 			  const enum bootdev_prot_type type)
 {
 	uint32_t ctrlr_pr;
@@ -124,10 +95,18 @@ int boot_device_wp_region(struct region_device *rd,
 
 	if (type == MEDIA_WP) {
 		if (spi_flash_is_write_protected(boot_dev,
-					region_device_region(rd)) != 1) {
+						 region_device_region(rd)) != 1) {
+			enum spi_flash_status_reg_lockdown lock =
+				SPI_WRITE_PROTECTION_REBOOT;
+			if (CONFIG(BOOTMEDIA_SPI_LOCK_REBOOT))
+				lock = SPI_WRITE_PROTECTION_REBOOT;
+			else if (CONFIG(BOOTMEDIA_SPI_LOCK_PIN))
+				lock = SPI_WRITE_PROTECTION_PIN;
+			else if (CONFIG(BOOTMEDIA_SPI_LOCK_PERMANENT))
+				lock = SPI_WRITE_PROTECTION_PERMANENT;
+
 			return spi_flash_set_write_protected(boot_dev,
-						region_device_region(rd), true,
-						SPI_WRITE_PROTECTION_REBOOT);
+						region_device_region(rd), lock);
 		}
 
 		/* Already write protected */

@@ -1,24 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
-
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 Name(_HID,EISAID("PNP0A08"))	// PCIe
 Name(_CID,EISAID("PNP0A03"))	// PCI
 
-Name(_ADR, 0)
 Name(_BBN, 0)
 
 Device (MCHC)
@@ -31,24 +15,24 @@ Device (MCHC)
 		Offset (0x40),	// EPBAR
 		EPEN,	 1,	// Enable
 		,	11,	//
-		EPBR,	24,	// EPBAR
+		EPBR,	27,	// EPBAR
 
 		Offset (0x48),	// MCHBAR
 		MHEN,	 1,	// Enable
-		,	13,	//
-		MHBR,	22,	// MCHBAR
+		,	14,	//
+		MHBR,	24,	// MCHBAR
 		Offset (0x54),
 		DVEN,	32,
 		Offset (0x60),	// PCIe BAR
 		PXEN,	 1,	// Enable
 		PXSZ,	 2,	// BAR size
 		,	23,	//
-		PXBR,	10,	// PCIe BAR
+		PXBR,	13,	// PCIe BAR
 
 		Offset (0x68),	// DMIBAR
 		DMEN,	 1,	// Enable
 		,	11,	//
-		DMBR,	24,	// DMIBAR
+		DMBR,	27,	// DMIBAR
 
 		Offset (0x70),	// ME Base Address
 		MEBA,	 64,
@@ -103,7 +87,7 @@ Device (MCHC)
 	Name (CTCD, 1)		/* CTDP Down Select */
 	Name (CTCU, 2)		/* CTDP Up Select */
 
-	OperationRegion (MCHB, SystemMemory, DEFAULT_MCHBAR, 0x8000)
+	OperationRegion (MCHB, SystemMemory, \_SB.PCI0.MCHC.MHBR << 15, 0x8000)
 	Field (MCHB, DWordAcc, Lock, Preserve)
 	{
 		Offset (0x5930),
@@ -143,20 +127,19 @@ Device (MCHC)
 	 *     Package (6) { freq, power, tlat, blat, control, status }
 	 *   }
 	 */
-	External (\_PR.CP00._PSS)
+	External (\_SB.CP00._PSS)
 	Method (PSSS, 1, NotSerialized)
 	{
-		Store (One, Local0) /* Start at P1 */
-		Store (SizeOf (\_PR.CP00._PSS), Local1)
+		Local0 = 1 /* Start at P1 */
+		Local1 = SizeOf (\_SB.CP00._PSS)
 
-		While (LLess (Local0, Local1)) {
+		While (Local0 < Local1) {
 			/* Store _PSS entry Control value to Local2 */
-			ShiftRight (DeRefOf (Index (DeRefOf (Index
-			      (\_PR.CP00._PSS, Local0)), 4)), 8, Local2)
-			If (LEqual (Local2, Arg0)) {
-				Return (Subtract (Local0, 1))
+			Local2 = DeRefOf (Index (DeRefOf (Index (\_SB.CP00._PSS, Local0)), 4)) >> 8
+			If (Local2 == Arg0) {
+				Return (Local0 - 1)
 			}
-			Increment (Local0)
+			Local0++
 		}
 
 		Return (0)
@@ -168,31 +151,31 @@ Device (MCHC)
 		If (Acquire (CTCM, 100)) {
 			Return (0)
 		}
-		If (LEqual (CTCD, CTCC)) {
+		If (CTCD == CTCC) {
 			Release (CTCM)
 			Return (0)
 		}
 
-		Store ("Set TDP Down", Debug)
+		Debug = "Set TDP Down"
 
 		/* Set CTC */
-		Store (CTCD, CTCS)
+		CTCS = CTCD
 
 		/* Set TAR */
-		Store (TARD, TARS)
+		TARS = TARD
 
 		/* Set PPC limit and notify OS */
-		Store (PSSS (TARD), PPCM)
+		PPCM = PSSS (TARD)
 		PPCN ()
 
 		/* Set PL2 to 1.25 * PL1 */
-		Divide (Multiply (CTDD, 125), 100, , PL2V)
+		PL2V = (CTDD * 125) / 100
 
 		/* Set PL1 */
-		Store (CTDD, PL1V)
+		PL1V = CTDD
 
 		/* Store the new TDP Down setting */
-		Store (CTCD, CTCC)
+		CTCC = CTCD
 
 		Release (CTCM)
 		Return (1)
@@ -204,31 +187,31 @@ Device (MCHC)
 		If (Acquire (CTCM, 100)) {
 			Return (0)
 		}
-		If (LEqual (CTCN, CTCC)) {
+		If (CTCN == CTCC) {
 			Release (CTCM)
 			Return (0)
 		}
 
-		Store ("Set TDP Nominal", Debug)
+		Debug = "Set TDP Nominal"
 
 		/* Set PL1 */
-		Store (CTDN, PL1V)
+		PL1V = CTDN
 
 		/* Set PL2 to 1.25 * PL1 */
-		Divide (Multiply (CTDN, 125), 100, , PL2V)
+		PL2V = (CTDN * 125) / 100
 
 		/* Set PPC limit and notify OS */
-		Store (PSSS (TARN), PPCM)
+		PPCM = PSSS (TARN)
 		PPCN ()
 
 		/* Set TAR */
-		Store (TARN, TARS)
+		TARS = TARN
 
 		/* Set CTC */
-		Store (CTCN, CTCS)
+		CTCS = CTCN
 
 		/* Store the new TDP Nominal setting */
-		Store (CTCN, CTCC)
+		CTCC = CTCN
 
 		Release (CTCM)
 		Return (1)
@@ -359,18 +342,22 @@ Method (_CRS, 0, Serialized)
 
 	// Fix up PCI memory region
 	// Start with Top of Lower Usable DRAM
-	Store (^MCHC.TLUD, Local0)
-	Store (^MCHC.MEBA, Local1)
+	// Lower 20 bits of TOLUD register need to be masked since they contain lock and
+	// reserved bits.
+	Local0 = ^MCHC.TLUD & (0xfff << 20)
+	Local1 = ^MCHC.MEBA
 
 	// Check if ME base is equal
-	If (LEqual (Local0, Local1)) {
+	If (Local0 == Local1) {
 		// Use Top Of Memory instead
-		Store (^MCHC.TOM, Local0)
+		// Lower 20 bits of TOM register need to be masked since they contain lock and
+		// reserved bits.
+		Local0 = ^MCHC.TOM & (0x7ffff << 20)
 	}
 
-	Store (Local0, PMIN)
-	Store (Subtract(CONFIG_MMCONF_BASE_ADDRESS, 1), PMAX)
-	Add(Subtract(PMAX, PMIN), 1, PLEN)
+	PMIN = Local0
+	PMAX = CONFIG_MMCONF_BASE_ADDRESS - 1
+	PLEN = PMAX - PMIN + 1
 
 	Return (MCRS)
 }

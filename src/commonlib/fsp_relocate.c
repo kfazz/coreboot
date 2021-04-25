@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 Google Inc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <commonlib/endian.h>
@@ -138,8 +125,8 @@ static int te_relocate(uintptr_t new_addr, void *te)
 	/*
 	 * A TE image is created by converting a PE file. Because of this
 	 * the offsets within the headers are off. In order to calculate
-	 * the correct releative offets one needs to subtract fixup_offset
-	 * from the encoded offets.  Similarly, the linked address of the
+	 * the correct relative offsets one needs to subtract fixup_offset
+	 * from the encoded offsets. Similarly, the linked address of the
 	 * program is found by adding the fixup_offset to the ImageBase.
 	 */
 	fixup_offset = read_le16(&teih->StrippedSize);

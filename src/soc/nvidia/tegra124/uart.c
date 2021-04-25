@@ -1,23 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2009 Samsung Electronics
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <boot/coreboot_tables.h>
 #include <console/uart.h>
 #include <drivers/uart/uart8250reg.h>
-
 
 struct tegra124_uart {
 	union {
@@ -45,7 +31,7 @@ static int tegra124_uart_tst_byte(struct tegra124_uart *uart_ptr);
 static void tegra124_uart_init(struct tegra124_uart *uart_ptr)
 {
 	// Use a hardcoded divisor for now.
-	const unsigned divisor = 221;
+	const unsigned int divisor = 221;
 	const uint8_t line_config = UART8250_LCR_WLS_8; // 8n1
 
 	tegra124_uart_tx_flush(uart_ptr);
@@ -89,12 +75,12 @@ static int tegra124_uart_tst_byte(struct tegra124_uart *uart_ptr)
 	return (read8(&uart_ptr->lsr) & UART8250_LSR_DR) == UART8250_LSR_DR;
 }
 
-uintptr_t uart_platform_base(int idx)
+uintptr_t uart_platform_base(unsigned int idx)
 {
 	//Default to UART A
 	unsigned int base = 0x70006000;
 	//UARTs A - E are mapped as index 0 - 4
-	if ((idx < 5) && (idx >= 0)) {
+	if ((idx < 5)) {
 		if (idx != 1) { //not UART B
 			base += idx * 0x100;
 		} else {
@@ -104,31 +90,30 @@ uintptr_t uart_platform_base(int idx)
 	return base;
 }
 
-void uart_init(int idx)
+void uart_init(unsigned int idx)
 {
 	struct tegra124_uart *uart_ptr = uart_platform_baseptr(idx);
 	tegra124_uart_init(uart_ptr);
 }
 
-unsigned char uart_rx_byte(int idx)
+unsigned char uart_rx_byte(unsigned int idx)
 {
 	struct tegra124_uart *uart_ptr = uart_platform_baseptr(idx);
 	return tegra124_uart_rx_byte(uart_ptr);
 }
 
-void uart_tx_byte(int idx, unsigned char data)
+void uart_tx_byte(unsigned int idx, unsigned char data)
 {
 	struct tegra124_uart *uart_ptr = uart_platform_baseptr(idx);
 	tegra124_uart_tx_byte(uart_ptr, data);
 }
 
-void uart_tx_flush(int idx)
+void uart_tx_flush(unsigned int idx)
 {
 	struct tegra124_uart *uart_ptr = uart_platform_baseptr(idx);
 	tegra124_uart_tx_flush(uart_ptr);
 }
 
-#ifndef __PRE_RAM__
 void uart_fill_lb(void *data)
 {
 	struct lb_serial serial;
@@ -136,8 +121,9 @@ void uart_fill_lb(void *data)
 	serial.baseaddr = uart_platform_base(CONFIG_UART_FOR_CONSOLE);
 	serial.baud = get_uart_baudrate();
 	serial.regwidth = 4;
+	serial.input_hertz = uart_platform_refclk();
+	serial.uart_pci_addr = CONFIG_UART_PCI_ADDR;
 	lb_add_serial(&serial, data);
 
 	lb_add_console(LB_TAG_CONSOLE_SERIAL8250MEM, data);
 }
-#endif

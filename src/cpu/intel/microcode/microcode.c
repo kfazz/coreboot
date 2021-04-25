@@ -1,37 +1,17 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 The ChromiumOS Authors.  All rights reserved.
- * Copyright (C) 2000 Ronald G. Minnich
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* Microcode update for Intel PIII and later CPUs */
 
 #include <stdint.h>
 #include <stddef.h>
-#if !defined(__ROMCC__)
 #include <cbfs.h>
-#include <console/console.h>
-#else
-#include <arch/cbfs.h>
-#endif
 #include <arch/cpu.h>
+#include <console/console.h>
 #include <cpu/x86/msr.h>
 #include <cpu/intel/microcode.h>
-
-#if !defined(__PRE_RAM__)
 #include <smp/spinlock.h>
+
 DECLARE_SPIN_LOCK(microcode_lock)
-#endif
 
 struct microcode {
 	u32 hdrver;	/* Header Version */
@@ -89,9 +69,7 @@ void intel_microcode_load_unlocked(const void *microcode_patch)
 
 	/* No use loading the same revision. */
 	if (current_rev == m->rev) {
-#if !defined(__ROMCC__)
 		printk(BIOS_INFO, "microcode: Update skipped, already up-to-date\n");
-#endif
 		return;
 	}
 
@@ -109,18 +87,14 @@ void intel_microcode_load_unlocked(const void *microcode_patch)
 
 	current_rev = read_microcode_rev();
 	if (current_rev == m->rev) {
-#if !defined(__ROMCC__)
 		printk(BIOS_INFO, "microcode: updated to revision "
 		    "0x%x date=%04x-%02x-%02x\n", read_microcode_rev(),
 		    m->date & 0xffff, (m->date >> 24) & 0xff,
 		    (m->date >> 16) & 0xff);
-#endif
 		return;
 	}
 
-#if !defined(__ROMCC__)
 	printk(BIOS_INFO, "microcode: Update failed\n");
-#endif
 }
 
 uint32_t get_current_microcode_rev(void)
@@ -143,55 +117,32 @@ uint32_t get_microcode_checksum(const void *microcode)
 	return ((struct microcode *)microcode)->cksum;
 }
 
-const void *intel_microcode_find(void)
+static const void *find_cbfs_microcode(void)
 {
 	const struct microcode *ucode_updates;
 	size_t microcode_len;
 	u32 eax;
 	u32 pf, rev, sig, update_size;
-	unsigned int x86_model, x86_family;
 	msr_t msr;
+	struct cpuinfo_x86 c;
 
-#ifdef __ROMCC__
-	struct cbfs_file *microcode_file;
-
-	microcode_file = walkcbfs_head((char *) MICROCODE_CBFS_FILE);
-	if (!microcode_file)
-		return NULL;
-
-	ucode_updates = CBFS_SUBHEADER(microcode_file);
-	microcode_len = ntohl(microcode_file->len);
-#else
-	ucode_updates = cbfs_boot_map_with_leak(MICROCODE_CBFS_FILE,
-						CBFS_TYPE_MICROCODE,
-						&microcode_len);
+	ucode_updates = cbfs_map(MICROCODE_CBFS_FILE, &microcode_len);
 	if (ucode_updates == NULL)
 		return NULL;
-#endif
 
-	/* CPUID sets MSR 0x8B if a microcode update has been loaded. */
-	msr.lo = 0;
-	msr.hi = 0;
-	wrmsr(IA32_BIOS_SIGN_ID, msr);
+	rev = read_microcode_rev();
 	eax = cpuid_eax(1);
-	msr = rdmsr(IA32_BIOS_SIGN_ID);
-	rev = msr.hi;
-	x86_model = (eax >> 4) & 0x0f;
-	x86_family = (eax >> 8) & 0x0f;
+	get_fms(&c, eax);
 	sig = eax;
 
 	pf = 0;
-	if ((x86_model >= 5) || (x86_family > 6)) {
+	if ((c.x86_model >= 5) || (c.x86 > 6)) {
 		msr = rdmsr(IA32_PLATFORM_ID);
 		pf = 1 << ((msr.hi >> 18) & 7);
 	}
-#if !defined(__ROMCC__)
-	/* If this code is compiled with ROMCC we're probably in
-	 * the bootblock and don't have console output yet.
-	 */
+
 	printk(BIOS_DEBUG, "microcode: sig=0x%x pf=0x%x revision=0x%x\n",
 			sig, pf, rev);
-#endif
 
 	while (microcode_len >= sizeof(*ucode_updates)) {
 		/* Newer microcode updates include a size field, whereas older
@@ -199,17 +150,13 @@ const void *intel_microcode_find(void)
 		if (ucode_updates->total_size) {
 			update_size = ucode_updates->total_size;
 		} else {
-			#if !defined(__ROMCC__)
 			printk(BIOS_SPEW, "Microcode size field is 0\n");
-			#endif
 			update_size = 2048;
 		}
 
 		/* Checkpoint 1: The microcode update falls within CBFS */
 		if (update_size > microcode_len) {
-#if !defined(__ROMCC__)
 			printk(BIOS_WARNING, "Microcode header corrupted!\n");
-#endif
 			break;
 		}
 
@@ -220,27 +167,41 @@ const void *intel_microcode_find(void)
 		microcode_len -= update_size;
 	}
 
-	/* ROMCC doesn't like NULL. */
-	return (void *)0;
+	return NULL;
+}
+
+const void *intel_microcode_find(void)
+{
+	static bool microcode_checked;
+	static const void *ucode_update;
+
+	if (microcode_checked)
+		return ucode_update;
+
+	/*
+	 * Since this function caches the found microcode (NULL or a valid
+	 * microcode pointer), it is expected to be run from BSP before starting
+	 * any other APs. This sequence is not multithread safe otherwise.
+	 */
+	ucode_update = find_cbfs_microcode();
+	microcode_checked = true;
+
+	return ucode_update;
 }
 
 void intel_update_microcode_from_cbfs(void)
 {
 	const void *patch = intel_microcode_find();
 
-#if !defined(__ROMCC__) && !defined(__PRE_RAM__)
 	spin_lock(&microcode_lock);
-#endif
 
 	intel_microcode_load_unlocked(patch);
 
-#if !defined(__ROMCC__) && !defined(__PRE_RAM__)
 	spin_unlock(&microcode_lock);
-#endif
 }
 
 #if ENV_RAMSTAGE
-__weak int soc_skip_ucode_update(u32 currrent_patch_id,
+__weak int soc_skip_ucode_update(u32 current_patch_id,
 	u32 new_patch_id)
 {
 	return 0;

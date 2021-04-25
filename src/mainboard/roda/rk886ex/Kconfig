@@ -17,12 +17,12 @@ config BOARD_SPECIFIC_OPTIONS
 	select HAVE_ACPI_TABLES
 	select HAVE_ACPI_RESUME
 	select BOARD_ROMSIZE_KB_1024
-	select CHANNEL_XOR_RANDOMIZATION
 	select INTEL_INT15
+	select BOOT_DEVICE_NOT_SPI_FLASH
 
 config MAINBOARD_DIR
 	string
-	default roda/rk886ex
+	default "roda/rk886ex"
 
 config MAINBOARD_PART_NUMBER
 	string
@@ -31,10 +31,6 @@ config MAINBOARD_PART_NUMBER
 config IRQ_SLOT_COUNT
 	int
 	default 18
-
-config MAX_CPUS
-	int
-	default 4
 
 config MAXIMUM_SUPPORTED_FREQUENCY
 	int

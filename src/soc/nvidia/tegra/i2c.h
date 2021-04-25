@@ -1,26 +1,13 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __SOC_NVIDIA_TEGRA_I2C_H__
 #define __SOC_NVIDIA_TEGRA_I2C_H__
 
 #include <stdint.h>
 
-void i2c_init(unsigned bus);
-void tegra_software_i2c_init(unsigned bus);
-void tegra_software_i2c_disable(unsigned bus);
+void i2c_init(unsigned int bus);
+void tegra_software_i2c_init(unsigned int bus);
+void tegra_software_i2c_disable(unsigned int bus);
 
 enum {
 	/* Word 0 */
@@ -168,6 +155,6 @@ struct tegra_i2c_regs {
 };
 check_member(tegra_i2c_regs, config_load, 0x8C);
 
-extern unsigned g_num_i2c_buses;
+extern const unsigned int num_i2c_buses;
 
 #endif	/* __SOC_NVIDIA_TEGRA_I2C_H__ */

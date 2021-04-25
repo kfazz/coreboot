@@ -1,17 +1,4 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2013 Google Inc.
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+## SPDX-License-Identifier: GPL-2.0-only
 
 ramstage-$(CONFIG_INTEL_DDI) += intel_ddi.c
 ramstage-$(CONFIG_INTEL_EDID) += edid.c vbt.c
@@ -33,7 +20,7 @@ ifeq ($(CONFIG_INTEL_GMA_ADD_VBT),y)
 $(call add_vbt_to_cbfs, vbt.bin, $(call strip_quotes,$(CONFIG_INTEL_GMA_VBT_FILE)))
 endif
 
-ifeq ($(CONFIG_MAINBOARD_USE_LIBGFXINIT),y)
+ifeq ($(CONFIG_GFX_GMA),y)
 
 $(call add-special-class,gfxinit)
 gfxinit-handler = $(eval ramstage-srcs += $(1)$(2))
@@ -50,11 +37,13 @@ CONFIG_GFX_GMA_DEFAULT_MMIO := 0 # dummy, will be overwritten at runtime
 
 subdirs-y += ../../../../3rdparty/libgfxinit
 
-ramstage-y += gma.ads
+ramstage-y += gma.ads gma.adb
+
+ramstage-$(CONFIG_MAINBOARD_USE_LIBGFXINIT) += gma-gfx_init.ads
 ifeq ($(CONFIG_LINEAR_FRAMEBUFFER),y)
-ramstage-y += hires_fb/gma.adb
+ramstage-$(CONFIG_MAINBOARD_USE_LIBGFXINIT) += hires_fb/gma-gfx_init.adb
 else
-ramstage-y += text_fb/gma.adb
+ramstage-$(CONFIG_MAINBOARD_USE_LIBGFXINIT) += text_fb/gma-gfx_init.adb
 endif
 
-endif # CONFIG_MAINBOARD_USE_LIBGFXINIT
+endif # CONFIG_GFX_GMA

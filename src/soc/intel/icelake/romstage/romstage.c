@@ -1,43 +1,34 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <assert.h>
-#include <chip.h>
-#include <cpu/x86/mtrr.h>
+#include <arch/romstage.h>
 #include <cbmem.h>
 #include <console/console.h>
 #include <fsp/util.h>
-#include <intelblocks/chip.h>
+#include <intelblocks/cfg.h>
 #include <intelblocks/cse.h>
 #include <intelblocks/pmclib.h>
+#include <intelblocks/smbus.h>
 #include <memory_info.h>
 #include <soc/intel/common/smbios.h>
 #include <soc/iomap.h>
 #include <soc/pci_devs.h>
 #include <soc/pm.h>
 #include <soc/romstage.h>
+#include <soc/soc_chip.h>
 #include <string.h>
-#include <timestamp.h>
-
-static struct chipset_power_state power_state;
 
 #define FSP_SMBIOS_MEMORY_INFO_GUID	\
 {	\
 	0xd4, 0x71, 0x20, 0x9b, 0x54, 0xb0, 0x0c, 0x4e,	\
 	0x8d, 0x09, 0x11, 0xcf, 0x8b, 0x9f, 0x03, 0x23	\
 }
+
+/* Memory Channel Present Status */
+enum {
+	CHANNEL_NOT_PRESENT,
+	CHANNEL_DISABLED,
+	CHANNEL_PRESENT
+};
 
 /* Save the DIMM information for SMBIOS table 17 */
 static void save_dimm_info(void)
@@ -88,6 +79,8 @@ static void save_dimm_info(void)
 			if (src_dimm->Status != DIMM_PRESENT)
 				continue;
 
+			u8 memProfNum = memory_info_hob->MemoryProfile;
+
 			/* Populate the DIMM information */
 			dimm_info_fill(dest_dimm,
 				src_dimm->DimmCapacity,
@@ -98,7 +91,12 @@ static void save_dimm_info(void)
 				src_dimm->DimmId,
 				(const char *)src_dimm->ModulePartNum,
 				sizeof(src_dimm->ModulePartNum),
-				memory_info_hob->DataWidth);
+				src_dimm->SpdSave + SPD_SAVE_OFFSET_SERIAL,
+				memory_info_hob->DataWidth,
+				memory_info_hob->VddVoltage[memProfNum],
+				memory_info_hob->EccSupport,
+				src_dimm->MfgId,
+				src_dimm->SpdModuleType);
 			index++;
 		}
 	}
@@ -106,42 +104,21 @@ static void save_dimm_info(void)
 	printk(BIOS_DEBUG, "%d DIMMs found\n", mem_info->dimm_cnt);
 }
 
-asmlinkage void car_stage_entry(void)
+void mainboard_romstage_entry(void)
 {
 	bool s3wake;
-	struct postcar_frame pcf;
-	uintptr_t top_of_ram;
-	struct chipset_power_state *ps = &power_state;
-
-	console_init();
+	struct chipset_power_state *ps = pmc_get_power_state();
 
 	/* Program MCHBAR, DMIBAR, GDXBAR and EDRAMBAR */
 	systemagent_early_init();
+	/* Program SMBus base address and enable it */
+	smbus_common_init();
 	/* initialize Heci interface */
 	heci_init(HECI1_BASE_ADDRESS);
 
-	timestamp_add_now(TS_START_ROMSTAGE);
 	s3wake = pmc_fill_power_state(ps) == ACPI_S3;
 	fsp_memory_init(s3wake);
 	pmc_set_disb();
 	if (!s3wake)
 		save_dimm_info();
-	if (postcar_frame_init(&pcf, 1 * KiB))
-		die("Unable to initialize postcar frame.\n");
-
-	/*
-	 * We need to make sure ramstage will be run cached. At this
-	 * point exact location of ramstage in cbmem is not known.
-	 * Instruct postcar to cache 16 megs under cbmem top which is
-	 * a safe bet to cover ramstage.
-	 */
-	top_of_ram = (uintptr_t) cbmem_top();
-	printk(BIOS_DEBUG, "top_of_ram = 0x%lx\n", top_of_ram);
-	top_of_ram -= 16*MiB;
-	postcar_frame_add_mtrr(&pcf, top_of_ram, 16*MiB, MTRR_TYPE_WRBACK);
-
-	/* Cache the ROM as WP just below 4GiB. */
-	postcar_frame_add_romcache(&pcf, MTRR_TYPE_WRPROT);
-
-	run_postcar_phase(&pcf);
 }

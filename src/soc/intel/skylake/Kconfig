@@ -1,113 +1,109 @@
+config SOC_INTEL_COMMON_SKYLAKE_BASE
+	bool
+
 config SOC_INTEL_SKYLAKE
 	bool
+	select SOC_INTEL_COMMON_SKYLAKE_BASE
 	help
 	  Intel Skylake support
 
 config SOC_INTEL_KABYLAKE
 	bool
-	default n
-	select SOC_INTEL_SKYLAKE
+	select SOC_INTEL_COMMON_SKYLAKE_BASE
 	help
 	  Intel Kabylake support
 
-if SOC_INTEL_SKYLAKE
+if SOC_INTEL_COMMON_SKYLAKE_BASE
 
 config CPU_SPECIFIC_OPTIONS
 	def_bool y
 	select ACPI_INTEL_HARDWARE_SLEEP_VALUES
 	select ACPI_NHLT
-	select ARCH_BOOTBLOCK_X86_32
-	select ARCH_RAMSTAGE_X86_32
-	select ARCH_ROMSTAGE_X86_32
-	select ARCH_VERSTAGE_X86_32
-	select BOOT_DEVICE_SPI_FLASH_RW_NOMMAP_EARLY if BOOT_DEVICE_SPI_FLASH
+	select ARCH_ALL_STAGES_X86_32
 	select BOOT_DEVICE_SUPPORTS_WRITES
 	select CACHE_MRC_SETTINGS
-	select CACHE_RELOCATED_RAMSTAGE_OUTSIDE_CBMEM
-	select COLLECT_TIMESTAMPS
-	select COMMON_FADT
 	select CPU_INTEL_COMMON
 	select CPU_INTEL_FIRMWARE_INTERFACE_TABLE
-	select C_ENVIRONMENT_BOOTBLOCK
-	select FSP_M_XIP if MAINBOARD_USES_FSP2_0
-	select FSP_T_XIP if FSP_CAR
+	select CPU_SUPPORTS_PM_TIMER_EMULATION
+	select FSP_COMPRESS_FSP_S_LZ4
+	select FSP_M_XIP
+	select FSP_STATUS_GLOBAL_RESET_REQUIRED_3
 	select GENERIC_GPIO_LIB
 	select HAVE_FSP_GOP
-	select INTEL_DESCRIPTOR_MODE_CAPABLE
-	select HAVE_MONOTONIC_TIMER
-	select HAVE_SMI_HANDLER
+	select HAVE_FSP_LOGO_SUPPORT
+	select HAVE_INTEL_FSP_REPO
 	select INTEL_CAR_NEM_ENHANCED
+	select HAVE_SMI_HANDLER
+	select INTEL_DESCRIPTOR_MODE_CAPABLE
 	select INTEL_GMA_ACPI
+	select INTEL_GMA_ADD_VBT if RUN_FSP_GOP
 	select IOAPIC
 	select MRC_SETTINGS_PROTECT
-	select NO_FIXED_XIP_ROM_SIZE
 	select PARALLEL_MP
 	select PARALLEL_MP_AP_WORK
-	select PCIEX_LENGTH_64MB
+	select PLATFORM_USES_FSP2_0
+	select PM_ACPI_TIMER_OPTIONAL
+	select PMC_GLOBAL_RESET_ENABLE_LOCK
 	select REG_SCRIPT
 	select SA_ENABLE_DPR
-	select SMM_TSEG
-	select SMP
-	select PMC_GLOBAL_RESET_ENABLE_LOCK
 	select SOC_INTEL_COMMON
 	select SOC_INTEL_COMMON_ACPI_WAKE_SOURCE
 	select SOC_INTEL_COMMON_BLOCK
+	select SOC_INTEL_COMMON_BLOCK_ACPI_GPIO
+	select SOC_INTEL_COMMON_BLOCK_ACPI_LPIT
 	select SOC_INTEL_COMMON_BLOCK_CAR
 	select SOC_INTEL_COMMON_BLOCK_CHIP_CONFIG
 	select SOC_INTEL_COMMON_BLOCK_CPU
 	select SOC_INTEL_COMMON_BLOCK_CPU_MPINIT
+	select SOC_INTEL_COMMON_BLOCK_CPU_SMMRELOCATE
 	select SOC_INTEL_COMMON_BLOCK_GPIO_DUAL_ROUTE_SUPPORT
-	select SOC_INTEL_COMMON_BLOCK_GPIO_LEGACY_MACROS
 	select SOC_INTEL_COMMON_BLOCK_GPIO_PADCFG_PADTOL
 	select SOC_INTEL_COMMON_BLOCK_GSPI
 	select SOC_INTEL_COMMON_BLOCK_HDA
+	select SOC_INTEL_COMMON_BLOCK_PMC_DISCOVERABLE
 	select SOC_INTEL_COMMON_BLOCK_SA
+	select SOC_INTEL_COMMON_BLOCK_SCS
 	select SOC_INTEL_COMMON_BLOCK_SGX
+	select SOC_INTEL_COMMON_BLOCK_SGX_LOCK_MEMORY
 	select SOC_INTEL_COMMON_BLOCK_SMM
 	select SOC_INTEL_COMMON_BLOCK_SMM_IO_TRAP
+	select SOC_INTEL_COMMON_BLOCK_THERMAL
 	select SOC_INTEL_COMMON_BLOCK_UART
+	select SOC_INTEL_COMMON_BLOCK_XHCI_ELOG
+	select SOC_INTEL_COMMON_FSP_RESET
 	select SOC_INTEL_COMMON_PCH_BASE
 	select SOC_INTEL_COMMON_NHLT
 	select SOC_INTEL_COMMON_RESET
+	select SOC_INTEL_COMMON_BLOCK_POWER_LIMIT
+	select SOC_INTEL_CONFIGURE_DDI_A_4_LANES
 	select SSE2
 	select SUPPORT_CPU_UCODE_IN_CBFS
-	select TSC_CONSTANT_RATE
 	select TSC_MONOTONIC_TIMER
 	select TSC_SYNC_MFENCE
 	select UDELAY_TSC
+	select UDK_2015_BINDING
+
+config MAX_CPUS
+	int
+	default 8
+
+config FSP_HYPERTHREADING
+	bool "Enable Hyper-Threading"
+	default y
+
+config ENABLE_SATA_TEST_MODE
+	bool "Enable SATA test mode"
+	default n
+	help
+	  Enable SATA test mode in FSP-S.
 
 config CPU_INTEL_NUM_FIT_ENTRIES
 	int
 	default 10
 
-config MAINBOARD_USES_FSP2_0
-	bool
-	default n
-
-config USE_FSP2_0_DRIVER
-	def_bool y
-	depends on MAINBOARD_USES_FSP2_0
-	select PLATFORM_USES_FSP2_0
-	select UDK_2015_BINDING
-	select INTEL_GMA_ADD_VBT if RUN_FSP_GOP
-	select POSTCAR_CONSOLE
-	select POSTCAR_STAGE
-
-config USE_FSP1_1_DRIVER
-	def_bool y
-	depends on !MAINBOARD_USES_FSP2_0
-	select PLATFORM_USES_FSP1_1
-	select DISPLAY_FSP_ENTRY_POINTS
-	select SKIP_FSP_CAR
-
-config CHROMEOS
-	select CHROMEOS_RAMOOPS_DYNAMIC
-
 config VBOOT
-	select VBOOT_EC_SLOW_UPDATE if VBOOT_EC_SOFTWARE_SYNC
 	select VBOOT_SEPARATE_VERSTAGE
-	select VBOOT_OPROM_MATTERS
-	select VBOOT_SAVE_RECOVERY_REASON_ON_REBOOT
+	select VBOOT_MUST_REQUEST_DISPLAY
 	select VBOOT_STARTS_IN_BOOTBLOCK
 	select VBOOT_VBNV_CMOS
 	select VBOOT_VBNV_CMOS_BACKUP_TO_FLASH
@@ -115,10 +111,6 @@ config VBOOT
 config CBFS_SIZE
 	hex
 	default 0x200000
-
-config CPU_ADDR_BITS
-	int
-	default 36
 
 config DCACHE_RAM_BASE
 	hex
@@ -137,10 +129,6 @@ config DCACHE_BSP_STACK_SIZE
 	help
 	  The amount of anticipated stack usage in CAR by bootblock and
 	  other stages.
-
-config C_ENV_BOOTBLOCK_SIZE
-	hex
-	default 0xC000
 
 config EXCLUDE_NATIVE_SD_INTERFACE
 	bool
@@ -179,6 +167,12 @@ config SKYLAKE_SOC_PCH_H
 	default n
 	help
 	  Choose this option if you have a PCH-H chipset.
+
+config NHLT_DMIC_1CH
+	bool
+	default n
+	help
+	  Include DSP firmware settings for 1 channel DMIC array.
 
 config NHLT_DMIC_2CH
 	bool
@@ -241,27 +235,16 @@ config NHLT_DA7219
 	  Include DSP firmware settings for DA7219 headset codec.
 
 config FSP_HEADER_PATH
-	string "Location of FSP headers"
-	depends on MAINBOARD_USES_FSP2_0
 	# Use KabylakeFsp for both Skylake and Kabylake as it supports both.
 	# SkylakeFsp is FSP 1.1 and therefore incompatible.
-	default "3rdparty/fsp/KabylakeFspBinPkg/Include/" if SOC_INTEL_SKYLAKE
-	default "3rdparty/fsp/KabylakeFspBinPkg/Include/" if SOC_INTEL_KABYLAKE
+	default "3rdparty/fsp/KabylakeFspBinPkg/Include/"
 
 config FSP_FD_PATH
-	string
-	depends on FSP_USE_REPO
-	default "3rdparty/fsp/KabylakeFspBinPkg/Fsp.fd" if SOC_INTEL_SKYLAKE
-	default "3rdparty/fsp/KabylakeFspBinPkg/Fsp.fd" if SOC_INTEL_KABYLAKE
-
-config SPI_FLASH_INCLUDE_ALL_DRIVERS
-	bool
-	default n
+	default "3rdparty/fsp/KabylakeFspBinPkg/Fsp.fd"
 
 config MAX_ROOT_PORTS
 	int
-	default 24 if PLATFORM_USES_FSP2_0
-	default 20 if PLATFORM_USES_FSP1_1
+	default 24
 
 config NO_FADT_8042
 	bool
@@ -272,6 +255,9 @@ config NO_FADT_8042
 config SOC_INTEL_COMMON_BLOCK_GSPI_CLOCK_MHZ
 	int
 	default 120
+
+config CPU_XTAL_HZ
+	default 24000000
 
 config DRIVERS_I2C_DESIGNWARE_CLOCK_MHZ
 	int
@@ -289,6 +275,11 @@ config CPU_BCLK_MHZ
 	int
 	default 100
 
+config CONSOLE_UART_BASE_ADDRESS
+	hex
+	default 0xfe030000
+	depends on INTEL_LPSS_UART_FOR_CONSOLE
+
 # Clock divider parameters for 115200 baud rate
 config SOC_INTEL_COMMON_LPSS_UART_CLK_M_VAL
 	hex
@@ -298,8 +289,40 @@ config SOC_INTEL_COMMON_LPSS_UART_CLK_N_VAL
 	hex
 	default 0xc35
 
+config CHIPSET_DEVICETREE
+	string
+	default "soc/intel/skylake/chipset.cb"
+
 config IFD_CHIPSET
 	string
 	default "sklkbl"
+
+config INTEL_TXT_BIOSACM_ALIGNMENT
+	hex
+	default 0x40000 # 256KB
+
+config MAINBOARD_SUPPORTS_SKYLAKE_CPU
+	bool "Board can contain Skylake CPU"
+	default y
+
+if SKYLAKE_SOC_PCH_H
+
+config MAINBOARD_SUPPORTS_KABYLAKE_CPU
+	bool "Board can contain Kaby Lake CPU"
+	default y if SOC_INTEL_KABYLAKE
+
+endif
+
+if !SKYLAKE_SOC_PCH_H
+
+config MAINBOARD_SUPPORTS_KABYLAKE_DUAL
+	bool "Board can contain Kaby Lake DUAL core"
+	default y
+
+config MAINBOARD_SUPPORTS_KABYLAKE_QUAD
+	bool "Board can contain Kaby Lake QUAD core"
+	default y
+
+endif
 
 endif

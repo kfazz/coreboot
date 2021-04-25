@@ -1,20 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015-2016 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <soc/gpio.h>
 #include <soc/iomap.h>
+#include <amdblocks/acpimmio_map.h>
 
 Device (AAHB)
 {
@@ -22,7 +10,7 @@ Device (AAHB)
 	Name (_UID, 0x0)
 	Name (_CRS, ResourceTemplate()
 	{
-		Memory32Fixed (ReadWrite, 0xFEDC0000, 0x2000)
+		Memory32Fixed (ReadWrite, ALINK_AHB_ADDRESS, 0x2000)
 	})
 
 	Method (_STA, 0x0, NotSerialized)
@@ -42,7 +30,7 @@ Device (GPIO)
 	{
 		Interrupt (ResourceConsumer, Level, ActiveLow, Shared, , , )
 			{ 7 }
-		Memory32Fixed (ReadWrite, 0xFED81500, 0x300)
+		Memory32Fixed (ReadWrite, ACPIMMIO_GPIO0_BASE, 0x300)
 	})
 
 	Method (_STA, 0x0, NotSerialized)
@@ -58,7 +46,7 @@ Device (FUR0)
 	Name (_CRS, ResourceTemplate()
 	{
 		IRQ (Edge, ActiveHigh, Exclusive) { 10 }
-		Memory32Fixed (ReadWrite, 0xFEDC6000, 0x2000)
+		Memory32Fixed (ReadWrite, APU_UART0_BASE, 0x2000)
 	})
 	Method (_STA, 0x0, NotSerialized)
 	{
@@ -72,7 +60,7 @@ Device (FUR1) {
 	Name (_CRS, ResourceTemplate()
 	{
 			IRQ (Edge, ActiveHigh, Exclusive) { 11 }
-			Memory32Fixed (ReadWrite, 0xFEDC8000, 0x2000)
+			Memory32Fixed (ReadWrite, APU_UART1_BASE, 0x2000)
 	})
 	Method (_STA, 0x0, NotSerialized)
 	{
@@ -144,7 +132,7 @@ Device (MISC)
 	Name (_HID, "AMD0040")
 	Name (_UID, 0x3)
 	Name (_CRS, ResourceTemplate() {
-		Memory32Fixed(ReadWrite, MISC_MMIO_BASE, 0x100)
+		Memory32Fixed(ReadWrite, ACPIMMIO_MISC_BASE, 0x100)
 	})
 	Method (_STA, 0x0, NotSerialized)
 	{

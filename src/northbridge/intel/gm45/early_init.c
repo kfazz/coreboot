@@ -1,20 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 secunet Security Networks AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <stdint.h>
 #include <device/pci_ops.h>
+#include <southbridge/intel/i82801ix/i82801ix.h>
 #include "gm45.h"
 
 void gm45_early_init(void)
@@ -22,13 +10,13 @@ void gm45_early_init(void)
 	const pci_devfn_t d0f0 = PCI_DEV(0, 0, 0);
 
 	/* Setup MCHBAR. */
-	pci_write_config32(d0f0, D0F0_MCHBAR_LO, (uintptr_t)DEFAULT_MCHBAR | 1);
+	pci_write_config32(d0f0, D0F0_MCHBAR_LO, CONFIG_FIXED_MCHBAR_MMIO_BASE | 1);
 
 	/* Setup DMIBAR. */
-	pci_write_config32(d0f0, D0F0_DMIBAR_LO, (uintptr_t)DEFAULT_DMIBAR | 1);
+	pci_write_config32(d0f0, D0F0_DMIBAR_LO, CONFIG_FIXED_DMIBAR_MMIO_BASE | 1);
 
 	/* Setup EPBAR. */
-	pci_write_config32(d0f0, D0F0_EPBAR_LO, DEFAULT_EPBAR | 1);
+	pci_write_config32(d0f0, D0F0_EPBAR_LO, CONFIG_FIXED_EPBAR_MMIO_BASE | 1);
 
 	pci_write_config32(d0f0, D0F0_PMBASE, DEFAULT_PMBASE | 1);
 

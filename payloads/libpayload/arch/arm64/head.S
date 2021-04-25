@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2008 Advanced Micro Devices, Inc.
  *
@@ -28,11 +27,15 @@
  */
 
 #include <arch/asm.h>
+#include <arch/lib_helpers.h>
 
 /*
  * Our entry point
  */
 ENTRY(_entry)
+	/* Initialize SCTLR to intended state (icache and stack-alignment on) */
+	ldr w1, =(SCTLR_RES1 | SCTLR_I | SCTLR_SA)
+	msr sctlr_el2, x1
 
 	/* Save off the location of the coreboot tables */
 	ldr x1, 1f

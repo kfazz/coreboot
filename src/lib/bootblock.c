@@ -1,35 +1,30 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2010 Google Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/exception.h>
 #include <bootblock_common.h>
 #include <console/console.h>
 #include <delay.h>
-#include <pc80/mc146818rtc.h>
+#include <metadata_hash.h>
+#include <option.h>
+#include <post.h>
 #include <program_loading.h>
 #include <symbols.h>
-
-DECLARE_OPTIONAL_REGION(timestamp);
+#include <timestamp.h>
 
 __weak void bootblock_mainboard_early_init(void) { /* no-op */ }
 __weak void bootblock_soc_early_init(void) { /* do nothing */ }
 __weak void bootblock_soc_init(void) { /* do nothing */ }
 __weak void bootblock_mainboard_init(void) { /* do nothing */ }
 
-asmlinkage void bootblock_main_with_timestamp(uint64_t base_timestamp,
+/*
+ * This is a the same as the bootblock main(), with the difference that it does
+ * not collect a timestamp. Instead it accepts the initial timestamp and
+ * possibly additional timestamp entries as arguments. This can be used in cases
+ * where earlier stamps are available. Note that this function is designed to be
+ * entered from C code. This function assumes that the timer has already been
+ * initialized, so it does not call init_timer().
+ */
+void bootblock_main_with_timestamp(uint64_t base_timestamp,
 	struct timestamp_entry *timestamps, size_t num_timestamps)
 {
 	/* Initialize timestamps if we have TIMESTAMP region in memlayout.ld. */
@@ -42,11 +37,16 @@ asmlinkage void bootblock_main_with_timestamp(uint64_t base_timestamp,
 				      timestamps[i].entry_stamp);
 	}
 
-	sanitize_cmos();
-	cmos_post_init();
+	timestamp_add_now(TS_START_BOOTBLOCK);
 
 	bootblock_soc_early_init();
 	bootblock_mainboard_early_init();
+
+	if (CONFIG(USE_OPTION_TABLE))
+		sanitize_cmos();
+
+	if (CONFIG(CMOS_POST))
+		cmos_post_init();
 
 	if (CONFIG(BOOTBLOCK_CONSOLE)) {
 		console_init();
@@ -56,7 +56,14 @@ asmlinkage void bootblock_main_with_timestamp(uint64_t base_timestamp,
 	bootblock_soc_init();
 	bootblock_mainboard_init();
 
+	timestamp_add_now(TS_END_BOOTBLOCK);
+
 	run_romstage();
+}
+
+void bootblock_main_with_basetime(uint64_t base_timestamp)
+{
+	bootblock_main_with_timestamp(base_timestamp, NULL, 0);
 }
 
 void main(void)
@@ -82,6 +89,8 @@ void main(void)
 void _start(struct bootblock_arg *arg);
 void _start(struct bootblock_arg *arg)
 {
+	if (CONFIG(CBFS_VERIFICATION))
+		metadata_hash_import_anchor(arg->metadata_hash_anchor);
 	bootblock_main_with_timestamp(arg->base_timestamp, arg->timestamps,
 				      arg->num_timestamps);
 }

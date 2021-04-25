@@ -1,35 +1,49 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 The ChromiumOS Authors. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _CPU_INTEL_MODEL_206AX_H
 #define _CPU_INTEL_MODEL_206AX_H
 
+#include <arch/cpu.h>
 #include <stdint.h>
+
+/* SandyBridge CPU stepping */
+#define SNB_STEP_B2	2
+#define SNB_STEP_C0	3
+#define SNB_STEP_D0	5 /* Also J0 */
+#define SNB_STEP_D1	6
+#define SNB_STEP_D2	7 /* Also J1/Q0 */
+
+/* IvyBridge CPU stepping */
+#define IVB_STEP_A0	0
+#define IVB_STEP_B0	2
+#define IVB_STEP_C0	4
+#define IVB_STEP_K0	5
+#define IVB_STEP_D0	6
+#define IVB_STEP_E0	8
+#define IVB_STEP_E1	9
+
+#define IS_SANDY_CPU(x)    ((x & 0xffff0) == 0x206a0)
+#define IS_SANDY_CPU_C(x)  ((x & 0xf) == 4)
+#define IS_SANDY_CPU_D0(x) ((x & 0xf) == 5)
+#define IS_SANDY_CPU_D1(x) ((x & 0xf) == 6)
+#define IS_SANDY_CPU_D2(x) ((x & 0xf) == 7)
+
+#define IS_IVY_CPU(x)   ((x & 0xffff0) == 0x306a0)
+#define IS_IVY_CPU_C(x) ((x & 0xf) == 4)
+#define IS_IVY_CPU_K(x) ((x & 0xf) == 5)
+#define IS_IVY_CPU_D(x) ((x & 0xf) == 6)
+#define IS_IVY_CPU_E(x) ((x & 0xf) >= 8)
 
 /* SandyBridge/IvyBridge bus clock is fixed at 100MHz */
 #define SANDYBRIDGE_BCLK		100
 
-#define CORE_THREAD_COUNT_MSR		0x35
+#define MSR_CORE_THREAD_COUNT		0x35
 #define MSR_FEATURE_CONFIG		0x13c
 #define MSR_FLEX_RATIO			0x194
 #define  FLEX_RATIO_LOCK		(1 << 20)
 #define  FLEX_RATIO_EN			(1 << 16)
 #define MSR_TEMPERATURE_TARGET		0x1a2
 #define MSR_LT_LOCK_MEMORY		0x2e7
-#define MSR_PIC_MSG_CONTROL		0x2e
 #define MSR_PLATFORM_INFO		0xce
 #define  PLATFORM_INFO_SET_TDP		(1 << 29)
 
@@ -81,17 +95,9 @@
 #define PSS_LATENCY_TRANSITION		10
 #define PSS_LATENCY_BUSMASTER		10
 
-/*
- * Region of SMM space is reserved for multipurpose use. It falls below
- * the IED region and above the SMM handler.
- */
-#define RESERVED_SMM_SIZE CONFIG_SMM_RESERVED_SIZE
-#define RESERVED_SMM_OFFSET \
-	(CONFIG_SMM_TSEG_SIZE - CONFIG_IED_REGION_SIZE - RESERVED_SMM_SIZE)
-
 /* Sanity check config options. */
-#if (CONFIG_SMM_TSEG_SIZE <= (CONFIG_IED_REGION_SIZE + RESERVED_SMM_SIZE))
-# error "CONFIG_SMM_TSEG_SIZE <= (CONFIG_IED_REGION_SIZE + RESERVED_SMM_SIZE)"
+#if (CONFIG_SMM_TSEG_SIZE <= (CONFIG_IED_REGION_SIZE + CONFIG_SMM_RESERVED_SIZE))
+# error "CONFIG_SMM_TSEG_SIZE <= (CONFIG_IED_REGION_SIZE + CONFIG_SMM_RESERVED_SIZE)"
 #endif
 #if (CONFIG_SMM_TSEG_SIZE < 0x800000)
 # error "CONFIG_SMM_TSEG_SIZE must at least be 8MiB"
@@ -103,14 +109,17 @@
 # error "CONFIG_IED_REGION_SIZE is not a power of 2"
 #endif
 
-#ifdef __SMM__
 /* Lock MSRs */
 void intel_model_206ax_finalize_smm(void);
-#else
+
 /* Configure power limits for turbo mode */
 void set_power_limits(u8 power_limit_1_time);
 int cpu_config_tdp_levels(void);
-#endif
 int get_platform_id(void);
+
+static inline u8 cpu_stepping(void)
+{
+	return cpuid_eax(1) & 0xf;
+}
 
 #endif

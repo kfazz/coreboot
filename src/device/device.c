@@ -1,51 +1,18 @@
-/*
- * This file is part of the coreboot project.
- *
- * It was originally based on the Linux kernel (arch/i386/kernel/pci-pc.c).
- *
- * Modifications are:
- * Copyright (C) 2003 Eric Biederman <ebiederm@xmission.com>
- * Copyright (C) 2003-2004 Linux Networx
- * (Written by Eric Biederman <ebiederman@lnxi.com> for Linux Networx)
- * Copyright (C) 2003 Ronald G. Minnich <rminnich@gmail.com>
- * Copyright (C) 2004-2005 Li-Ta Lo <ollie@lanl.gov>
- * Copyright (C) 2005-2006 Tyan
- * (Written by Yinghai Lu <yhlu@tyan.com> for Tyan)
- * Copyright (C) 2005-2006 Stefan Reinauer <stepan@openbios.org>
- * Copyright (C) 2009 Myles Watson <mylesgw@gmail.com>
- * Copyright (c) 1999--2000 Martin Mares <mj@suse.cz>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /*
- * Lots of mods by Ron Minnich <rminnich@lanl.gov>, with
- * the final architecture guidance from Tom Merritt <tjm@codegen.com>.
- *
- * In particular, we changed from the one-pass original version to
- * Tom's recommended multiple-pass version. I wasn't sure about doing
- * it with multiple passes, until I actually started doing it and saw
- * the wisdom of Tom's recommendations...
- *
- * Lots of cleanups by Eric Biederman to handle bridges, and to
- * handle resource allocation for non-PCI devices.
+ * Originally based on the Linux kernel (arch/i386/kernel/pci-pc.c).
  */
 
 #include <console/console.h>
 #include <device/device.h>
 #include <device/pci_def.h>
 #include <device/pci_ids.h>
+#include <post.h>
 #include <stdlib.h>
 #include <string.h>
 #include <smp/spinlock.h>
-#if CONFIG(ARCH_X86)
+#if ENV_X86
 #include <arch/ebda.h>
 #endif
 #include <timer.h>
@@ -179,33 +146,6 @@ struct device *alloc_find_dev(struct bus *parent, struct device_path *path)
 }
 
 /**
- * Round a number up to an alignment.
- *
- * @param val The starting value.
- * @param pow Alignment as a power of two.
- * @return Rounded up number.
- */
-static resource_t round(resource_t val, unsigned long pow)
-{
-	resource_t mask;
-	mask = (1ULL << pow) - 1ULL;
-	val += mask;
-	val &= ~mask;
-	return val;
-}
-
-static const char *resource2str(struct resource *res)
-{
-	if (res->flags & IORESOURCE_IO)
-		return "io";
-	if (res->flags & IORESOURCE_PREFETCH)
-		return "prefmem";
-	if (res->flags & IORESOURCE_MEM)
-		return "mem";
-	return "undefined";
-}
-
-/**
  * Read the resources on all devices of a given bus.
  *
  * @param bus Bus to read the resources on.
@@ -226,8 +166,8 @@ static void read_resources(struct bus *bus)
 
 		if (!curdev->ops || !curdev->ops->read_resources) {
 			if (curdev->path.type != DEVICE_PATH_APIC)
-				printk(BIOS_ERR, "%s missing read_resources\n",
-				       dev_path(curdev));
+				printk(BIOS_ERR, "%s missing %s\n",
+				       dev_path(curdev), __func__);
 			continue;
 		}
 		post_log_path(curdev);
@@ -238,519 +178,8 @@ static void read_resources(struct bus *bus)
 			read_resources(link);
 	}
 	post_log_clear();
-	printk(BIOS_SPEW, "%s read_resources bus %d link: %d done\n",
-	       dev_path(bus->dev), bus->secondary, bus->link_num);
-}
-
-struct pick_largest_state {
-	struct resource *last;
-	const struct device *result_dev;
-	struct resource *result;
-	int seen_last;
-};
-
-static void pick_largest_resource(void *gp, struct device *dev,
-				  struct resource *resource)
-{
-	struct pick_largest_state *state = gp;
-	struct resource *last;
-
-	last = state->last;
-
-	/* Be certain to pick the successor to last. */
-	if (resource == last) {
-		state->seen_last = 1;
-		return;
-	}
-	if (resource->flags & IORESOURCE_FIXED)
-		return;	/* Skip it. */
-	if (last && ((last->align < resource->align) ||
-		     ((last->align == resource->align) &&
-		      (last->size < resource->size)) ||
-		     ((last->align == resource->align) &&
-		      (last->size == resource->size) && (!state->seen_last)))) {
-		return;
-	}
-	if (!state->result ||
-	    (state->result->align < resource->align) ||
-	    ((state->result->align == resource->align) &&
-	     (state->result->size < resource->size))) {
-		state->result_dev = dev;
-		state->result = resource;
-	}
-}
-
-static const struct device *largest_resource(struct bus *bus,
-				       struct resource **result_res,
-				       unsigned long type_mask,
-				       unsigned long type)
-{
-	struct pick_largest_state state;
-
-	state.last = *result_res;
-	state.result_dev = NULL;
-	state.result = NULL;
-	state.seen_last = 0;
-
-	search_bus_resources(bus, type_mask, type, pick_largest_resource,
-			     &state);
-
-	*result_res = state.result;
-	return state.result_dev;
-}
-
-/**
- * This function is the guts of the resource allocator.
- *
- * The problem.
- *  - Allocate resource locations for every device.
- *  - Don't overlap, and follow the rules of bridges.
- *  - Don't overlap with resources in fixed locations.
- *  - Be efficient so we don't have ugly strategies.
- *
- * The strategy.
- * - Devices that have fixed addresses are the minority so don't
- *   worry about them too much. Instead only use part of the address
- *   space for devices with programmable addresses. This easily handles
- *   everything except bridges.
- *
- * - PCI devices are required to have their sizes and their alignments
- *   equal. In this case an optimal solution to the packing problem
- *   exists. Allocate all devices from highest alignment to least
- *   alignment or vice versa. Use this.
- *
- * - So we can handle more than PCI run two allocation passes on bridges. The
- *   first to see how large the resources are behind the bridge, and what
- *   their alignment requirements are. The second to assign a safe address to
- *   the devices behind the bridge. This allows us to treat a bridge as just
- *   a device with a couple of resources, and not need to special case it in
- *   the allocator. Also this allows handling of other types of bridges.
- *
- * @param bus The bus we are traversing.
- * @param bridge The bridge resource which must contain the bus' resources.
- * @param type_mask This value gets ANDed with the resource type.
- * @param type This value must match the result of the AND.
- * @return TODO
- */
-static void compute_resources(struct bus *bus, struct resource *bridge,
-			      unsigned long type_mask, unsigned long type)
-{
-	const struct device *dev;
-	struct resource *resource;
-	resource_t base;
-	base = round(bridge->base, bridge->align);
-
-	printk(BIOS_SPEW,  "%s %s: base: %llx size: %llx align: %d gran: %d"
-	       " limit: %llx\n", dev_path(bus->dev), resource2str(bridge),
-	       base, bridge->size, bridge->align,
-	       bridge->gran, bridge->limit);
-
-	/* For each child which is a bridge, compute the resource needs. */
-	for (dev = bus->children; dev; dev = dev->sibling) {
-		struct resource *child_bridge;
-
-		if (!dev->link_list)
-			continue;
-
-		/* Find the resources with matching type flags. */
-		for (child_bridge = dev->resource_list; child_bridge;
-		     child_bridge = child_bridge->next) {
-			struct bus* link;
-
-			if (!(child_bridge->flags & IORESOURCE_BRIDGE)
-			    || (child_bridge->flags & type_mask) != type)
-				continue;
-
-			/*
-			 * Split prefetchable memory if combined. Many domains
-			 * use the same address space for prefetchable memory
-			 * and non-prefetchable memory. Bridges below them need
-			 * it separated. Add the PREFETCH flag to the type_mask
-			 * and type.
-			 */
-			link = dev->link_list;
-			while (link && link->link_num !=
-					IOINDEX_LINK(child_bridge->index))
-				link = link->next;
-
-			if (link == NULL) {
-				printk(BIOS_ERR, "link %ld not found on %s\n",
-				       IOINDEX_LINK(child_bridge->index),
-				       dev_path(dev));
-			}
-
-			compute_resources(link, child_bridge,
-					  type_mask | IORESOURCE_PREFETCH,
-					  type | (child_bridge->flags &
-						  IORESOURCE_PREFETCH));
-		}
-	}
-
-	/* Remember we haven't found anything yet. */
-	resource = NULL;
-
-	/*
-	 * Walk through all the resources on the current bus and compute the
-	 * amount of address space taken by them. Take granularity and
-	 * alignment into account.
-	 */
-	while ((dev = largest_resource(bus, &resource, type_mask, type))) {
-
-		/* Size 0 resources can be skipped. */
-		if (!resource->size)
-			continue;
-
-		/* Propagate the resource alignment to the bridge resource. */
-		if (resource->align > bridge->align)
-			bridge->align = resource->align;
-
-		/* Propagate the resource limit to the bridge register. */
-		if (bridge->limit > resource->limit)
-			bridge->limit = resource->limit;
-
-		/* Warn if it looks like APICs aren't declared. */
-		if ((resource->limit == 0xffffffff) &&
-		    (resource->flags & IORESOURCE_ASSIGNED)) {
-			printk(BIOS_ERR,
-			       "Resource limit looks wrong! (no APIC?)\n");
-			printk(BIOS_ERR, "%s %02lx limit %08llx\n",
-			       dev_path(dev), resource->index, resource->limit);
-		}
-
-		if (resource->flags & IORESOURCE_IO) {
-			/*
-			 * Don't allow potential aliases over the legacy PCI
-			 * expansion card addresses. The legacy PCI decodes
-			 * only 10 bits, uses 0x100 - 0x3ff. Therefore, only
-			 * 0x00 - 0xff can be used out of each 0x400 block of
-			 * I/O space.
-			 */
-			if ((base & 0x300) != 0) {
-				base = (base & ~0x3ff) + 0x400;
-			}
-			/*
-			 * Don't allow allocations in the VGA I/O range.
-			 * PCI has special cases for that.
-			 */
-			else if ((base >= 0x3b0) && (base <= 0x3df)) {
-				base = 0x3e0;
-			}
-		}
-		/* Base must be aligned. */
-		base = round(base, resource->align);
-		resource->base = base;
-		base += resource->size;
-
-		printk(BIOS_SPEW, "%s %02lx *  [0x%llx - 0x%llx] %s\n",
-		       dev_path(dev), resource->index, resource->base,
-		       resource->base + resource->size - 1,
-		       resource2str(resource));
-	}
-
-	/*
-	 * A PCI bridge resource does not need to be a power of two size, but
-	 * it does have a minimum granularity. Round the size up to that
-	 * minimum granularity so we know not to place something else at an
-	 * address positively decoded by the bridge.
-	 */
-	bridge->size = round(base, bridge->gran) -
-		       round(bridge->base, bridge->align);
-
-	printk(BIOS_SPEW, "%s %s: base: %llx size: %llx align: %d gran: %d"
-	       " limit: %llx done\n", dev_path(bus->dev),
-	       resource2str(bridge),
-	       base, bridge->size, bridge->align, bridge->gran, bridge->limit);
-}
-
-/**
- * This function is the second part of the resource allocator.
- *
- * See the compute_resources function for a more detailed explanation.
- *
- * This function assigns the resources a value.
- *
- * @param bus The bus we are traversing.
- * @param bridge The bridge resource which must contain the bus' resources.
- * @param type_mask This value gets ANDed with the resource type.
- * @param type This value must match the result of the AND.
- *
- * @see compute_resources
- */
-static void allocate_resources(struct bus *bus, struct resource *bridge,
-			       unsigned long type_mask, unsigned long type)
-{
-	const struct device *dev;
-	struct resource *resource;
-	resource_t base;
-	base = bridge->base;
-
-	printk(BIOS_SPEW, "%s %s: base:%llx size:%llx align:%d gran:%d "
-	       "limit:%llx\n", dev_path(bus->dev),
-	       resource2str(bridge),
-	       base, bridge->size, bridge->align, bridge->gran, bridge->limit);
-
-	/* Remember we haven't found anything yet. */
-	resource = NULL;
-
-	/*
-	 * Walk through all the resources on the current bus and allocate them
-	 * address space.
-	 */
-	while ((dev = largest_resource(bus, &resource, type_mask, type))) {
-
-		/* Propagate the bridge limit to the resource register. */
-		if (resource->limit > bridge->limit)
-			resource->limit = bridge->limit;
-
-		/* Size 0 resources can be skipped. */
-		if (!resource->size) {
-			/* Set the base to limit so it doesn't confuse tolm. */
-			resource->base = resource->limit;
-			resource->flags |= IORESOURCE_ASSIGNED;
-			continue;
-		}
-
-		if (resource->flags & IORESOURCE_IO) {
-			/*
-			 * Don't allow potential aliases over the legacy PCI
-			 * expansion card addresses. The legacy PCI decodes
-			 * only 10 bits, uses 0x100 - 0x3ff. Therefore, only
-			 * 0x00 - 0xff can be used out of each 0x400 block of
-			 * I/O space.
-			 */
-			if ((base & 0x300) != 0) {
-				base = (base & ~0x3ff) + 0x400;
-			}
-			/*
-			 * Don't allow allocations in the VGA I/O range.
-			 * PCI has special cases for that.
-			 */
-			else if ((base >= 0x3b0) && (base <= 0x3df)) {
-				base = 0x3e0;
-			}
-		}
-
-		if ((round(base, resource->align) + resource->size - 1) <=
-		    resource->limit) {
-			/* Base must be aligned. */
-			base = round(base, resource->align);
-			resource->base = base;
-			resource->limit = resource->base + resource->size - 1;
-			resource->flags |= IORESOURCE_ASSIGNED;
-			resource->flags &= ~IORESOURCE_STORED;
-			base += resource->size;
-		} else {
-			printk(BIOS_ERR, "!! Resource didn't fit !!\n");
-			printk(BIOS_ERR, "   aligned base %llx size %llx "
-			       "limit %llx\n", round(base, resource->align),
-			       resource->size, resource->limit);
-			printk(BIOS_ERR, "   %llx needs to be <= %llx "
-			       "(limit)\n", (round(base, resource->align) +
-				resource->size) - 1, resource->limit);
-			printk(BIOS_ERR, "   %s%s %02lx *  [0x%llx - 0x%llx]"
-			       " %s\n", (resource->flags & IORESOURCE_ASSIGNED)
-			       ? "Assigned: " : "", dev_path(dev),
-			       resource->index, resource->base,
-			       resource->base + resource->size - 1,
-			       resource2str(resource));
-		}
-
-		printk(BIOS_SPEW, "%s %02lx *  [0x%llx - 0x%llx] %s\n",
-		       dev_path(dev), resource->index, resource->base,
-		       resource->size ? resource->base + resource->size - 1 :
-		       resource->base, resource2str(resource));
-	}
-
-	/*
-	 * A PCI bridge resource does not need to be a power of two size, but
-	 * it does have a minimum granularity. Round the size up to that
-	 * minimum granularity so we know not to place something else at an
-	 * address positively decoded by the bridge.
-	 */
-
-	bridge->flags |= IORESOURCE_ASSIGNED;
-
-	printk(BIOS_SPEW, "%s %s: next_base: %llx size: %llx align: %d "
-	       "gran: %d done\n", dev_path(bus->dev),
-	       resource2str(bridge), base, bridge->size, bridge->align,
-	       bridge->gran);
-
-	/* For each child which is a bridge, allocate_resources. */
-	for (dev = bus->children; dev; dev = dev->sibling) {
-		struct resource *child_bridge;
-
-		if (!dev->link_list)
-			continue;
-
-		/* Find the resources with matching type flags. */
-		for (child_bridge = dev->resource_list; child_bridge;
-		     child_bridge = child_bridge->next) {
-			struct bus* link;
-
-			if (!(child_bridge->flags & IORESOURCE_BRIDGE) ||
-			    (child_bridge->flags & type_mask) != type)
-				continue;
-
-			/*
-			 * Split prefetchable memory if combined. Many domains
-			 * use the same address space for prefetchable memory
-			 * and non-prefetchable memory. Bridges below them need
-			 * it separated. Add the PREFETCH flag to the type_mask
-			 * and type.
-			 */
-			link = dev->link_list;
-			while (link && link->link_num !=
-			               IOINDEX_LINK(child_bridge->index))
-				link = link->next;
-			if (link == NULL)
-				printk(BIOS_ERR, "link %ld not found on %s\n",
-				       IOINDEX_LINK(child_bridge->index),
-				       dev_path(dev));
-
-			allocate_resources(link, child_bridge,
-					   type_mask | IORESOURCE_PREFETCH,
-					   type | (child_bridge->flags &
-						   IORESOURCE_PREFETCH));
-		}
-	}
-}
-
-static int resource_is(struct resource *res, u32 type)
-{
-	return (res->flags & IORESOURCE_TYPE_MASK) == type;
-}
-
-struct constraints {
-	struct resource io, mem;
-};
-
-static struct resource *resource_limit(struct constraints *limits,
-				       struct resource *res)
-{
-	struct resource *lim = NULL;
-
-	/* MEM, or I/O - skip any others. */
-	if (resource_is(res, IORESOURCE_MEM))
-		lim = &limits->mem;
-	else if (resource_is(res, IORESOURCE_IO))
-		lim = &limits->io;
-
-	return lim;
-}
-
-static void constrain_resources(const struct device *dev,
-				struct constraints* limits)
-{
-	const struct device *child;
-	struct resource *res;
-	struct resource *lim;
-	struct bus *link;
-
-	/* Constrain limits based on the fixed resources of this device. */
-	for (res = dev->resource_list; res; res = res->next) {
-		if (!(res->flags & IORESOURCE_FIXED))
-			continue;
-		if (!res->size) {
-			/* It makes no sense to have 0-sized, fixed resources.*/
-			printk(BIOS_ERR, "skipping %s@%lx fixed resource, "
-			       "size=0!\n", dev_path(dev), res->index);
-			continue;
-		}
-
-		lim = resource_limit(limits, res);
-		if (!lim)
-			continue;
-
-		/*
-		 * Is it a fixed resource outside the current known region?
-		 * If so, we don't have to consider it - it will be handled
-		 * correctly and doesn't affect current region's limits.
-		 */
-		if (((res->base + res->size -1) < lim->base)
-		    || (res->base > lim->limit))
-			continue;
-
-		printk(BIOS_SPEW, "%s: %s %02lx base %08llx limit %08llx %s (fixed)\n",
-			__func__, dev_path(dev), res->index, res->base,
-			res->base + res->size - 1, resource2str(res));
-
-		/*
-		 * Choose to be above or below fixed resources. This check is
-		 * signed so that "negative" amounts of space are handled
-		 * correctly.
-		 */
-		if ((signed long long)(lim->limit - (res->base + res->size -1))
-		    > (signed long long)(res->base - lim->base))
-			lim->base = res->base + res->size;
-		else
-			lim->limit = res->base -1;
-	}
-
-	/* Descend into every enabled child and look for fixed resources. */
-	for (link = dev->link_list; link; link = link->next) {
-		for (child = link->children; child; child = child->sibling) {
-			if (child->enabled)
-				constrain_resources(child, limits);
-		}
-	}
-}
-
-static void avoid_fixed_resources(const struct device *dev)
-{
-	struct constraints limits;
-	struct resource *res;
-	struct resource *lim;
-
-	printk(BIOS_SPEW, "%s: %s\n", __func__, dev_path(dev));
-
-	/* Initialize constraints to maximum size. */
-	limits.io.base = 0;
-	limits.io.limit = 0xffffffffffffffffULL;
-	limits.mem.base = 0;
-	limits.mem.limit = 0xffffffffffffffffULL;
-
-	/* Constrain the limits to dev's initial resources. */
-	for (res = dev->resource_list; res; res = res->next) {
-		if ((res->flags & IORESOURCE_FIXED))
-			continue;
-		printk(BIOS_SPEW, "%s:@%s %02lx limit %08llx\n", __func__,
-		       dev_path(dev), res->index, res->limit);
-
-		lim = resource_limit(&limits, res);
-		if (!lim)
-			continue;
-
-		if (res->base > lim->base)
-			lim->base = res->base;
-		if (res->limit < lim->limit)
-			lim->limit = res->limit;
-	}
-
-	/* Look through the tree for fixed resources and update the limits. */
-	constrain_resources(dev, &limits);
-
-	/* Update dev's resources with new limits. */
-	for (res = dev->resource_list; res; res = res->next) {
-		if ((res->flags & IORESOURCE_FIXED))
-			continue;
-
-		lim = resource_limit(&limits, res);
-		if (!lim)
-			continue;
-
-		/* Is the resource outside the limits? */
-		if (lim->base > res->base)
-			res->base = lim->base;
-		if (res->limit > lim->limit)
-			res->limit = lim->limit;
-
-		/* MEM resources need to start at the highest address manageable. */
-		if (res->flags & IORESOURCE_MEM)
-			res->base = resource_max(res);
-
-		printk(BIOS_SPEW, "%s:@%s %02lx base %08llx limit %08llx\n",
-			__func__, dev_path(dev), res->index, res->base, res->limit);
-	}
+	printk(BIOS_SPEW, "%s %s bus %d link: %d done\n",
+	       dev_path(bus->dev), __func__, bus->secondary, bus->link_num);
 }
 
 struct device *vga_pri = NULL;
@@ -776,12 +205,15 @@ static void set_vga_bridge_bits(void)
 			continue;
 
 		printk(BIOS_DEBUG, "found VGA at %s\n", dev_path(dev));
-
-		if (dev->on_mainboard) {
-			vga_onboard = dev;
-		} else {
-			vga = dev;
+		if (dev->bus->no_vga16) {
+			printk(BIOS_WARNING,
+				"A bridge on the path doesn't support 16-bit VGA decoding!");
 		}
+
+		if (dev->on_mainboard)
+			vga_onboard = dev;
+		else
+			vga = dev;
 
 		/* It isn't safe to enable all VGA cards. */
 		dev->command &= ~(PCI_COMMAND_MEMORY | PCI_COMMAND_IO);
@@ -790,15 +222,15 @@ static void set_vga_bridge_bits(void)
 	if (!vga)
 		vga = vga_onboard;
 
-	if (CONFIG_ONBOARD_VGA_IS_PRIMARY && vga_onboard)
+	if (CONFIG(ONBOARD_VGA_IS_PRIMARY) && vga_onboard)
 		vga = vga_onboard;
 
 	/* If we prefer plugin VGA over chipset VGA, the chipset might
 	   want to know. */
-	if (!CONFIG_ONBOARD_VGA_IS_PRIMARY && (vga != vga_onboard) &&
-		vga_onboard && vga_onboard->ops && vga_onboard->ops->disable) {
+	if (!CONFIG(ONBOARD_VGA_IS_PRIMARY) && (vga != vga_onboard) &&
+		vga_onboard && vga_onboard->ops && vga_onboard->ops->vga_disable) {
 		printk(BIOS_DEBUG, "Use plugin graphics over integrated.\n");
-		vga_onboard->ops->disable(vga_onboard);
+		vga_onboard->ops->vga_disable(vga_onboard);
 	}
 
 	if (vga) {
@@ -814,7 +246,7 @@ static void set_vga_bridge_bits(void)
 	while (bus) {
 		printk(BIOS_DEBUG, "Setting PCI_BRIDGE_CTL_VGA for bridge %s\n",
 		       dev_path(bus->dev));
-		bus->bridge_ctrl |= PCI_BRIDGE_CTL_VGA;
+		bus->bridge_ctrl |= PCI_BRIDGE_CTL_VGA | PCI_BRIDGE_CTL_VGA16;
 		bus = (bus == bus->dev->bus) ? 0 : bus->dev->bus;
 	}
 }
@@ -836,8 +268,8 @@ void assign_resources(struct bus *bus)
 {
 	struct device *curdev;
 
-	printk(BIOS_SPEW, "%s assign_resources, bus %d link: %d\n",
-	       dev_path(bus->dev), bus->secondary, bus->link_num);
+	printk(BIOS_SPEW, "%s %s, bus %d link: %d\n",
+	       dev_path(bus->dev), __func__, bus->secondary, bus->link_num);
 
 	for (curdev = bus->children; curdev; curdev = curdev->sibling) {
 		if (!curdev->enabled || !curdev->resource_list)
@@ -852,8 +284,8 @@ void assign_resources(struct bus *bus)
 		curdev->ops->set_resources(curdev);
 	}
 	post_log_clear();
-	printk(BIOS_SPEW, "%s assign_resources, bus %d link: %d\n",
-	       dev_path(bus->dev), bus->secondary, bus->link_num);
+	printk(BIOS_SPEW, "%s %s, bus %d link: %d done\n",
+	       dev_path(bus->dev), __func__, bus->secondary, bus->link_num);
 }
 
 /**
@@ -916,15 +348,16 @@ static void scan_bus(struct device *busdev)
 {
 	int do_scan_bus;
 	struct stopwatch sw;
-
-	stopwatch_init(&sw);
+	long scan_time;
 
 	if (!busdev->enabled)
 		return;
 
-	printk(BIOS_SPEW, "%s scanning...\n", dev_path(busdev));
+	printk(BIOS_DEBUG, "%s scanning...\n", dev_path(busdev));
 
 	post_log_path(busdev);
+
+	stopwatch_init(&sw);
 
 	do_scan_bus = 1;
 	while (do_scan_bus) {
@@ -941,8 +374,9 @@ static void scan_bus(struct device *busdev)
 		}
 	}
 
-	printk(BIOS_DEBUG, "%s: scanning of bus %s took %ld usecs\n",
-		__func__, dev_path(busdev), stopwatch_duration_usecs(&sw));
+	scan_time = stopwatch_duration_msecs(&sw);
+	printk(BIOS_DEBUG, "%s: bus %s finished in %ld msecs\n", __func__,
+	       dev_path(busdev), scan_time);
 }
 
 void scan_bridges(struct bus *bus)
@@ -1017,9 +451,7 @@ void dev_enumerate(void)
  */
 void dev_configure(void)
 {
-	struct resource *res;
 	const struct device *root;
-	const struct device *child;
 
 	set_vga_bridge_bits();
 
@@ -1041,53 +473,8 @@ void dev_configure(void)
 
 	print_resource_tree(root, BIOS_SPEW, "After reading.");
 
-	/* Compute resources for all domains. */
-	for (child = root->link_list->children; child; child = child->sibling) {
-		if (!(child->path.type == DEVICE_PATH_DOMAIN))
-			continue;
-		post_log_path(child);
-		for (res = child->resource_list; res; res = res->next) {
-			if (res->flags & IORESOURCE_FIXED)
-				continue;
-			if (res->flags & IORESOURCE_MEM) {
-				compute_resources(child->link_list,
-						  res, IORESOURCE_TYPE_MASK, IORESOURCE_MEM);
-				continue;
-			}
-			if (res->flags & IORESOURCE_IO) {
-				compute_resources(child->link_list,
-						  res, IORESOURCE_TYPE_MASK, IORESOURCE_IO);
-				continue;
-			}
-		}
-	}
+	allocate_resources(root);
 
-	/* For all domains. */
-	for (child = root->link_list->children; child; child=child->sibling)
-		if (child->path.type == DEVICE_PATH_DOMAIN)
-			avoid_fixed_resources(child);
-
-	/* Store the computed resource allocations into device registers ... */
-	printk(BIOS_INFO, "Setting resources...\n");
-	for (child = root->link_list->children; child; child = child->sibling) {
-		if (!(child->path.type == DEVICE_PATH_DOMAIN))
-			continue;
-		post_log_path(child);
-		for (res = child->resource_list; res; res = res->next) {
-			if (res->flags & IORESOURCE_FIXED)
-				continue;
-			if (res->flags & IORESOURCE_MEM) {
-				allocate_resources(child->link_list,
-						   res, IORESOURCE_TYPE_MASK, IORESOURCE_MEM);
-				continue;
-			}
-			if (res->flags & IORESOURCE_IO) {
-				allocate_resources(child->link_list,
-						   res, IORESOURCE_TYPE_MASK, IORESOURCE_IO);
-				continue;
-			}
-		}
-	}
 	assign_resources(root->link_list);
 	printk(BIOS_INFO, "Done setting resources.\n");
 	print_resource_tree(root, BIOS_SPEW, "After assigning values.");
@@ -1129,22 +516,23 @@ static void init_dev(struct device *dev)
 		return;
 
 	if (!dev->initialized && dev->ops && dev->ops->init) {
-#if CONFIG(HAVE_MONOTONIC_TIMER)
 		struct stopwatch sw;
-		stopwatch_init(&sw);
-#endif
+		long init_time;
+
 		if (dev->path.type == DEVICE_PATH_I2C) {
 			printk(BIOS_DEBUG, "smbus: %s[%d]->",
 			       dev_path(dev->bus->dev), dev->bus->link_num);
 		}
 
-		printk(BIOS_DEBUG, "%s init ...\n", dev_path(dev));
+		printk(BIOS_DEBUG, "%s init\n", dev_path(dev));
+
+		stopwatch_init(&sw);
 		dev->initialized = 1;
 		dev->ops->init(dev);
-#if CONFIG(HAVE_MONOTONIC_TIMER)
-		printk(BIOS_DEBUG, "%s init finished in %ld usecs\n", dev_path(dev),
-			stopwatch_duration_usecs(&sw));
-#endif
+
+		init_time = stopwatch_duration_msecs(&sw);
+		printk(BIOS_DEBUG, "%s init finished in %ld msecs\n", dev_path(dev),
+		       init_time);
 	}
 }
 
@@ -1177,14 +565,9 @@ void dev_initialize(void)
 
 	printk(BIOS_INFO, "Initializing devices...\n");
 
-#if CONFIG(ARCH_X86)
-	/*
-	 * Initialize EBDA area in ramstage if early
-	 * initialization is not done.
-	 */
-	if (!CONFIG(EARLY_EBDA_INIT))
-		/* Ensure EBDA is prepared before Option ROMs. */
-		setup_default_ebda();
+#if ENV_X86
+	/* Ensure EBDA is prepared before Option ROMs. */
+	setup_default_ebda();
 #endif
 
 	/* First call the mainboard init. */

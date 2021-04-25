@@ -1,19 +1,6 @@
-#
-# This file is part of the coreboot project.
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
+# SPDX-License-Identifier: GPL-2.0-only
 
 ifeq ($(CONFIG_DRIVERS_AMD_PI),y)
-
-ifneq ($(CONFIG_BINARYPI_LEGACY_WRAPPER),y)
 
 romstage-y += romstage.c
 romstage-y += mtrr_fixme.c
@@ -21,14 +8,10 @@ romstage-y += state_machine.c
 
 ramstage-y += state_machine.c
 
-cpu_incs-y += $(src)/drivers/amd/agesa/cache_as_ram.S
-postcar-y += cache_as_ram.S
+bootblock-y += bootblock.c
+bootblock-y += cache_as_ram.S
 
-else
-
-romstage-y += heapmanager.c
-
-endif
+postcar-y += exit_car.S
 
 romstage-y += def_callouts.c
 romstage-y += eventlog.c

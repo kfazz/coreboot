@@ -1,38 +1,16 @@
+-- SPDX-License-Identifier: GPL-2.0-only
+
 with Interfaces.C;
 
-with HW;
-use HW;
+with HW.GFX.EDID;
 
-package GMA
-is
+package GMA is
 
-   procedure gfxinit (lightup_ok : out Interfaces.C.int);
-   pragma Export (C, gfxinit, "gma_gfxinit");
-
-   ----------------------------------------------------------------------------
-
-   type lb_framebuffer is record
-      tag                  : word32;
-      size                 : word32;
-
-      physical_address     : word64;
-      x_resolution         : word32;
-      y_resolution         : word32;
-      bytes_per_line       : word32;
-      bits_per_pixel       : word8;
-      red_mask_pos         : word8;
-      red_mask_size        : word8;
-      green_mask_pos       : word8;
-      green_mask_size      : word8;
-      blue_mask_pos        : word8;
-      blue_mask_size       : word8;
-      reserved_mask_pos    : word8;
-      reserved_mask_size   : word8;
-   end record;
-
-   function fill_lb_framebuffer
-     (framebuffer : in out lb_framebuffer)
-      return Interfaces.C.int;
-   pragma Export (C, fill_lb_framebuffer, "fill_lb_framebuffer");
+   function read_edid
+     (raw_edid :    out HW.GFX.EDID.Raw_EDID_Data;
+      port     : in     Interfaces.C.int)
+      return Interfaces.C.int
+   with
+      Export, Convention => C, External_Name => "gma_read_edid";
 
 end GMA;

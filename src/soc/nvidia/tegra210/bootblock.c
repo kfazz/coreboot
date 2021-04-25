@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/exception.h>
 #include <arch/hlt.h>
@@ -30,6 +17,9 @@
 #define BCT_OFFSET_IN_BIT	0x4c
 #define ODMDATA_OFFSET_IN_BCT	0x508
 #define TEGRA_SRAM_MAX		(TEGRA_SRAM_BASE + TEGRA_SRAM_SIZE)
+
+/* called from assembly in bootblock_asm.S */
+void tegra210_main(void);
 
 static void save_odmdata(void)
 {
@@ -155,7 +145,7 @@ static void mbist_workaround(void)
 	}
 }
 
-void main(void)
+void tegra210_main(void)
 {
 	// enable JTAG at the earliest stage
 	enable_jtag();
@@ -177,7 +167,7 @@ void main(void)
 
 	bootblock_mainboard_early_init();
 
-	if (CONFIG_BOOTBLOCK_CONSOLE) {
+	if (CONFIG(BOOTBLOCK_CONSOLE)) {
 		console_init();
 		exception_init();
 		printk(BIOS_INFO, "T210: Bootblock here\n");
@@ -188,7 +178,6 @@ void main(void)
 	printk(BIOS_INFO, "T210 bootblock: Clock init done\n");
 
 	pmc_print_rst_status();
-
 
 	bootblock_mainboard_init();
 

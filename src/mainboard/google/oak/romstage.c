@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/stages.h>
 #include <boardid.h>
@@ -41,9 +28,9 @@ void platform_romstage_main(void)
 
 	/* Set to maximum frequency */
 	if (board_id() + CONFIG_BOARD_ID_ADJUSTMENT < 5)
-		mt_pll_raise_ca53_freq(1600 * MHz);
+		mt_pll_raise_little_cpu_freq(1600 * MHz);
 	else
-		mt_pll_raise_ca53_freq(1700 * MHz);
+		mt_pll_raise_little_cpu_freq(1700 * MHz);
 
 	mtk_mmu_after_dram();
 }

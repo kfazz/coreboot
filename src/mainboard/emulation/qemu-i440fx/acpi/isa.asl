@@ -1,15 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* Common legacy ISA style devices. */
 Scope(\_SB.PCI0.ISA) {
@@ -48,8 +37,8 @@ Scope(\_SB.PCI0.ISA) {
     Device(FDC0) {
         Name(_HID, EisaId("PNP0700"))
         Method(_STA, 0, NotSerialized) {
-            Store(FDEN, Local0)
-            If (LEqual(Local0, 0)) {
+            Local0 = FDEN
+            If (Local0 == 0) {
                 Return (0x00)
             } Else {
                 Return (0x0F)
@@ -66,8 +55,8 @@ Scope(\_SB.PCI0.ISA) {
     Device(LPT) {
         Name(_HID, EisaId("PNP0400"))
         Method(_STA, 0, NotSerialized) {
-            Store(LPEN, Local0)
-            If (LEqual(Local0, 0)) {
+            Local0 = LPEN
+            If (Local0 == 0) {
                 Return (0x00)
             } Else {
                 Return (0x0F)
@@ -83,8 +72,8 @@ Scope(\_SB.PCI0.ISA) {
         Name(_HID, EisaId("PNP0501"))
         Name(_UID, 0x01)
         Method(_STA, 0, NotSerialized) {
-            Store(CAEN, Local0)
-            If (LEqual(Local0, 0)) {
+            Local0 = CAEN
+            If (Local0 == 0) {
                 Return (0x00)
             } Else {
                 Return (0x0F)
@@ -100,8 +89,8 @@ Scope(\_SB.PCI0.ISA) {
         Name(_HID, EisaId("PNP0501"))
         Name(_UID, 0x02)
         Method(_STA, 0, NotSerialized) {
-            Store(CBEN, Local0)
-            If (LEqual(Local0, 0)) {
+            Local0 = CBEN
+            If (Local0 == 0) {
                 Return (0x00)
             } Else {
                 Return (0x0F)

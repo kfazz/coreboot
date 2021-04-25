@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Google Inc.
- * Copyright (c) 2013-2015, NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __SOC_NVIDIA_TEGRA210_CLOCK_H__
 #define __SOC_NVIDIA_TEGRA210_CLOCK_H__
@@ -22,7 +8,6 @@
 #include <device/mmio.h>
 #include <soc/clk_rst.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 enum {
 	CLK_L_CPU = 0x1 << 0,
@@ -320,8 +305,8 @@ static inline void _clock_set_div(u32 *reg, const char *name, u32 div,
 		printk(BIOS_ERR, "%s clock divisor overflow!", name);
 		hlt();
 	}
-	clrsetbits_le32(reg, CLK_SOURCE_MASK | CLK_DIVISOR_MASK,
-			src << CLK_SOURCE_SHIFT | div);
+	clrsetbits32(reg, CLK_SOURCE_MASK | CLK_DIVISOR_MASK,
+		     src << CLK_SOURCE_SHIFT | div);
 }
 
 #define get_i2c_clk_div(src, freq)	\

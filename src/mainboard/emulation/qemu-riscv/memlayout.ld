@@ -1,29 +1,31 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <memlayout.h>
 #include <arch/header.ld>
+#include <mainboard/addressmap.h>
 
-#define START 0x80000000
+// Stages start after CBFS in DRAM
+#define STAGES_START (QEMU_VIRT_DRAM + CONFIG_ROM_SIZE)
 
 SECTIONS
 {
-	DRAM_START(START)
-	BOOTBLOCK(START, 64K)
-	STACK(START + 4M, 4K)
-	ROMSTAGE(START + 4M + 64K, 128K)
-	PRERAM_CBMEM_CONSOLE(START + 4M + 192K, 8K)
-	RAMSTAGE(START + 4M + 200K, 16M)
+	// the virt target doesn't emulate flash and just puts the CBFS into DRAM.
+	// fake SRAM where CBFS resides. It's only done for better integration.
+	SRAM_START(QEMU_VIRT_DRAM)
+	BOOTBLOCK(QEMU_VIRT_DRAM, 64K)
+	// CBFS goes here
+	SRAM_END(STAGES_START)
+	DRAM_START(STAGES_START)
+
+#if ENV_ROMSTAGE
+	ROMSTAGE(STAGES_START, 128K)
+#endif
+#if ENV_RAMSTAGE
+	REGION(opensbi, STAGES_START, 128K, 4K)
+#endif
+	PRERAM_CBMEM_CONSOLE(STAGES_START + 128K, 8K)
+	FMAP_CACHE(STAGES_START + 136K, 2K)
+	CBFS_MCACHE(STAGES_START + 138K, 8K)
+	RAMSTAGE(STAGES_START + 200K, 16M)
+	STACK(STAGES_START + 200K + 16M, 4K)
 }

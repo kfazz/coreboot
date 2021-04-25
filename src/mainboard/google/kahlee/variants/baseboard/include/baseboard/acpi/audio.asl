@@ -1,23 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
-#include <soc/iomap.h>
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#include <amdblocks/acpimmio_map.h>
 
 /* Grunt specific I2S machine driver */
-Device (I2S)
+Device (I2S0)
 {
-	Name (_ADR, 1)
 	Name (_HID, "AMD7219")
 	Name (_CID, "AMD7219")
 
@@ -35,7 +22,33 @@ Device (I2S)
 		Name (RBUF, ResourceTemplate () {
 			// Memory resource is for MISC FCH register set.
 			// It is needed for enabling the clock.
-			Memory32Fixed(ReadWrite, MISC_MMIO_BASE, 0x100)
+			Memory32Fixed(ReadWrite, ACPIMMIO_MISC_BASE, 0x100)
+		})
+
+		Return (RBUF)
+	}
+}
+
+Device (I2S1)
+{
+	Name (_HID, "AMDI5682")
+	Name (_CID, "AMDI5682")
+
+	/* Device-Specific Data */
+	Name (_DSD, Package ()
+	{
+		ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+		Package ()
+		{
+			Package () { "bt-pad-enable", 1 },
+		}
+	})
+
+	Method (_CRS, 0x0, Serialized) {
+		Name (RBUF, ResourceTemplate () {
+			// Memory resource is for MISC FCH register set.
+			// It is needed for enabling the clock.
+			Memory32Fixed(ReadWrite, ACPIMMIO_MISC_BASE, 0x100)
 		})
 
 		Return (RBUF)

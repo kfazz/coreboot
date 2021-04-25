@@ -1,33 +1,8 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
 /*
  * Optimized assembly for low-level CPU operations on ARMv7 processors.
  *
  * Cache flushing code based off sys/arch/arm/arm/cpufunc_asm_armv7.S in NetBSD
- *
- * Copyright (c) 2010 Per Odlund <per.odlund@armagedon.se>
- * Copyright (c) 2014 Google Inc.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
  */
 
 #include <arch/asm.h>
@@ -47,6 +22,19 @@
  *
  * THIS FUNCTION MUST PRESERVE THE VALUE OF r10
  */
+
+#if ENV_USER_SPACE
+/*
+ * Empty macro for code running in userspace.  Trying to manipulate the
+ * cache from userspace hangs the system. To run code at a privileged level,
+ * the userspace code needs to execute an API call to the privileged mode
+ * code.
+ */
+.macro	dcache_apply_all crm
+	bx	lr
+.endm
+
+#else
 
 .macro	dcache_apply_all crm
 	dsb
@@ -106,6 +94,8 @@
 	isb
 	bx	lr
 .endm
+
+#endif /* ENV_USER_SPACE */
 
 /*
  * Bring an ARM processor we just gained control of (e.g. from IROM) into a

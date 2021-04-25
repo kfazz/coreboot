@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2011 secunet Security Networks AG
  * Copyright (C) 2013 Google, Inc.
@@ -212,9 +211,15 @@ struct cbfs_handle *cbfs_get_handle(struct cbfs_media *media, const char *name)
 		}
 
 		// Move to next file.
-		offset += ntohl(file.len) + ntohl(file.offset);
-		if (offset % CBFS_ALIGNMENT)
-			offset += CBFS_ALIGNMENT - (offset % CBFS_ALIGNMENT);
+		uint32_t next_offset = offset + ntohl(file.len) + ntohl(file.offset);
+		if (next_offset % CBFS_ALIGNMENT)
+			next_offset += CBFS_ALIGNMENT - (next_offset % CBFS_ALIGNMENT);
+		// Check that offset is strictly monotonic to prevent infinite loop
+		if (next_offset <= offset) {
+			ERROR("ERROR: corrupted CBFS file header at 0x%x.\n", offset);
+			break;
+		}
+		offset = next_offset;
 	}
 	media->close(media);
 	LOG("WARNING: '%s' not found.\n", name);
@@ -309,7 +314,14 @@ void *cbfs_get_attr(struct cbfs_handle *handle, uint32_t tag)
 			return NULL;
 		}
 		if (ntohl(attr.tag) != tag) {
-			offset += ntohl(attr.len);
+			uint32_t next_offset = offset + ntohl(attr.len);
+			// Check that offset is strictly monotonic to prevent infinite loop
+			if (next_offset <= offset) {
+				ERROR("ERROR: corrupted CBFS attribute at 0x%x.\n", offset);
+				m->close(m);
+				return NULL;
+			}
+			offset = next_offset;
 			continue;
 		}
 		ret = m->map(m, offset, ntohl(attr.len));

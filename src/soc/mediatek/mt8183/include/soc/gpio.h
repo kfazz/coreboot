@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef SOC_MEDIATEK_MT8183_GPIO_H
 #define SOC_MEDIATEK_MT8183_GPIO_H
@@ -19,6 +6,7 @@
 #include <soc/addressmap.h>
 #include <soc/gpio_common.h>
 #include <types.h>
+#include <soc/spi_common.h>
 
 enum {
 	MAX_GPIO_REG_BITS = 32,
@@ -617,5 +605,7 @@ check_member(gpio_regs, mode[22].val, 0x460);
 
 static struct gpio_regs *const mtk_gpio = (void *)(GPIO_BASE);
 void gpio_set_i2c_eh_rsel(void);
+void gpio_set_spi_driving(unsigned int bus, enum spi_pad_mask pad_select,
+			  unsigned int milliamps);
 
 #endif

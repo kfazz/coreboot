@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <bootmode.h>
 #include <boot/coreboot_tables.h>
@@ -21,9 +8,6 @@
 void fill_lb_gpios(struct lb_gpios *gpios)
 {
 	struct lb_gpio chromeos_gpios[] = {
-		{WRITE_PROTECT_L, ACTIVE_LOW,
-			gpio_get(WRITE_PROTECT_L), "write protect"},
-		{-1, ACTIVE_HIGH, get_recovery_mode_switch(), "recovery"},
 		{POWER_BUTTON, ACTIVE_LOW, -1, "power"},
 		{EC_IN_RW, ACTIVE_HIGH, -1, "EC in RW"},
 		{AP_SYS_RESET_L, ACTIVE_LOW, -1, "reset"},

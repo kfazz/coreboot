@@ -1,6 +1,4 @@
 /*
- * This file is part of the coreboot project.
- *
  * Copyright (c) 2003-2017  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  * Copyright 2018-present Facebook, Inc.
@@ -11,6 +9,7 @@
  */
 
 #include <assert.h>
+#include <ctype.h>
 #include <string.h>
 #include <lame_string.h>
 

@@ -1,80 +1,89 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2017 Advanced Micro Devices, Inc.
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+# SPDX-License-Identifier: GPL-2.0-only
 
-config SOC_AMD_STONEYRIDGE_FP4
+config SOC_AMD_STONEYRIDGE
 	bool
 	help
-	  AMD Stoney Ridge FP4 support
+	  AMD support for SOCs in Family 15h Models 60h-6Fh and Models 70h-7Fh.
 
-config SOC_AMD_STONEYRIDGE_FT4
-	bool
-	help
-	  AMD Stoney Ridge FT4 support
-
-if SOC_AMD_STONEYRIDGE_FP4 || SOC_AMD_STONEYRIDGE_FT4
+if SOC_AMD_STONEYRIDGE
 
 config CPU_SPECIFIC_OPTIONS
 	def_bool y
-	select ARCH_BOOTBLOCK_X86_32
-	select ARCH_VERSTAGE_X86_32
-	select ARCH_ROMSTAGE_X86_32
-	select ARCH_RAMSTAGE_X86_32
-	select X86_AMD_FIXED_MTRRS
-	select ACPI_AMD_HARDWARE_SLEEP_VALUES
+	select ACPI_SOC_NVS
+	select ARCH_ALL_STAGES_X86_32
+	select BOOT_DEVICE_SUPPORTS_WRITES if BOOT_DEVICE_SPI_FLASH
 	select COLLECT_TIMESTAMPS_NO_TSC
 	select DRIVERS_I2C_DESIGNWARE
 	select GENERIC_GPIO_LIB
 	select GENERIC_UDELAY
-	select IOAPIC
+	select HAVE_CF9_RESET
+	select HAVE_SMI_HANDLER
 	select HAVE_USBDEBUG_OPTIONS
-	select HAVE_MONOTONIC_TIMER
-	select SPI_FLASH if HAVE_ACPI_RESUME
-	select TSC_SYNC_LFENCE
-	select COLLECT_TIMESTAMPS
-	select SOC_AMD_PI
-	select SOC_AMD_COMMON
-	select SOC_AMD_COMMON_BLOCK
-	select SOC_AMD_COMMON_BLOCK_PCI
-	select SOC_AMD_COMMON_BLOCK_PI
-	select SOC_AMD_COMMON_BLOCK_PSP
-	select SOC_AMD_COMMON_BLOCK_CAR
-	select SOC_AMD_COMMON_BLOCK_S3
-	select C_ENVIRONMENT_BOOTBLOCK
-	select BOOT_DEVICE_SUPPORTS_WRITES if BOOT_DEVICE_SPI_FLASH
-	select BOOT_DEVICE_SPI_FLASH_RW_NOMMAP_EARLY if BOOT_DEVICE_SPI_FLASH
-	select CACHE_RELOCATED_RAMSTAGE_OUTSIDE_CBMEM
+	select IOAPIC
 	select PARALLEL_MP
 	select PARALLEL_MP_AP_WORK
-	select HAVE_SMI_HANDLER
-	select SMM_TSEG
-	select POSTCAR_STAGE
-	select POSTCAR_CONSOLE
-	select SSE2
 	select RTC
-	select SOC_AMD_PSP_SELECTABLE_SMU_FW
+	select SOC_AMD_PI
+	select SOC_AMD_COMMON
+	select SOC_AMD_COMMON_BLOCK_ACPI
+	select SOC_AMD_COMMON_BLOCK_ACPIMMIO
+	select SOC_AMD_COMMON_BLOCK_AOAC
+	select SOC_AMD_COMMON_BLOCK_BANKED_GPIOS
+	select SOC_AMD_COMMON_BLOCK_CAR
+	select SOC_AMD_COMMON_BLOCK_HDA
+	select SOC_AMD_COMMON_BLOCK_I2C
+	select SOC_AMD_COMMON_BLOCK_IOMMU
+	select SOC_AMD_COMMON_BLOCK_LPC
+	select SOC_AMD_COMMON_BLOCK_PCI
+	select SOC_AMD_COMMON_BLOCK_PI
+	select SOC_AMD_COMMON_BLOCK_PM
+	select SOC_AMD_COMMON_BLOCK_PSP_GEN1
+	select SOC_AMD_COMMON_BLOCK_S3
+	select SOC_AMD_COMMON_BLOCK_SATA
+	select SOC_AMD_COMMON_BLOCK_SMBUS
+	select SOC_AMD_COMMON_BLOCK_SMI
+	select SOC_AMD_COMMON_BLOCK_SMM
+	select SOC_AMD_COMMON_BLOCK_SPI
+	select SOC_AMD_COMMON_BLOCK_UART
+	select SSE2
+	select TSC_SYNC_LFENCE
+	select X86_AMD_FIXED_MTRRS
+
+config AMD_APU_STONEYRIDGE
+	bool
+	help
+	  AMD Stoney Ridge APU
+
+config AMD_APU_PRAIRIEFALCON
+	bool
+	help
+	  AMD Embedded Prairie Falcon APU
+
+config AMD_APU_MERLINFALCON
+	bool
+	help
+	  AMD Embedded Merlin Falcon APU
+
+config AMD_APU_PKG_FP4
+	bool
+	help
+	  AMD FP4 package
+
+config AMD_APU_PKG_FT4
+	bool
+	help
+	  AMD FT4 package
+
+config AMD_SOC_PACKAGE
+	string
+	default "FP4" if AMD_APU_PKG_FP4
+	default "FT4" if AMD_APU_PKG_FT4
 
 config VBOOT
 	select VBOOT_SEPARATE_VERSTAGE
 	select VBOOT_STARTS_IN_BOOTBLOCK
-	select VBOOT_SAVE_RECOVERY_REASON_ON_REBOOT
 	select VBOOT_VBNV_CMOS
 	select VBOOT_VBNV_CMOS_BACKUP_TO_FLASH
-
-config UDELAY_LAPIC_FIXED_FSB
-	int
-	default 200
 
 # TODO: Sync these with definitions in PI vendorcode.
 # DCACHE_RAM_BASE must equal BSP_STACK_BASE_ADDR.
@@ -89,7 +98,6 @@ config DCACHE_RAM_SIZE
 	default 0x10000
 
 config DCACHE_BSP_STACK_SIZE
-	depends on C_ENVIRONMENT_BOOTBLOCK
 	hex
 	default 0x4000
 	help
@@ -119,15 +127,14 @@ config BOTTOMIO_POSITION
 	  ranges are present.
 
 config MMCONF_BASE_ADDRESS
-	hex
 	default 0xF8000000
 
 config MMCONF_BUS_NUMBER
-	int
 	default 64
 
 config VGA_BIOS_ID
 	string
+	default "1002,9874" if AMD_APU_MERLINFALCON
 	default "1002,98e4"
 	help
 	  The default VGA BIOS PCI vendor/device ID should be set to the
@@ -135,7 +142,9 @@ config VGA_BIOS_ID
 
 config VGA_BIOS_FILE
 	string
-	default "3rdparty/blobs/soc/amd/stoneyridge/VBIOS.bin"
+	default "3rdparty/amd_blobs/stoneyridge/CarrizoGenericVbios.bin" if AMD_APU_MERLINFALCON
+	default "3rdparty/amd_blobs/stoneyridge/StoneyGenericVbios.bin" if AMD_APU_PRAIRIEFALCON
+	default "3rdparty/amd_blobs/stoneyridge/StoneyGenericVbios.bin" if AMD_APU_STONEYRIDGE
 
 config S3_VGA_ROM_RUN
 	bool
@@ -174,16 +183,19 @@ config STONEYRIDGE_GEC_FWM
 
 config STONEYRIDGE_XHCI_FWM_FILE
 	string "XHCI firmware path and filename"
-	default "3rdparty/blobs/soc/amd/stoneyridge/xhci.bin"
+	default "3rdparty/amd_blobs/stoneyridge/xhci.bin"
 	depends on STONEYRIDGE_XHCI_FWM
 
 config STONEYRIDGE_GEC_FWM_FILE
 	string "GEC firmware path and filename"
 	depends on STONEYRIDGE_GEC_FWM
 
-config AMD_PUBKEY_FILE
-	string "AMD public Key"
-	default "3rdparty/blobs/soc/amd/stoneyridge/PSP/AmdPubKeyST.bin"
+config AMDFW_CONFIG_FILE
+	string
+	string "AMD PSP Firmware config file"
+	default "src/soc/amd/stoneyridge/fw_cz.cfg" if AMD_APU_MERLINFALCON
+	default "src/soc/amd/stoneyridge/fw_st.cfg" if AMD_APU_PRAIRIEFALCON
+	default "src/soc/amd/stoneyridge/fw_st.cfg" if AMD_APU_STONEYRIDGE
 
 config STONEYRIDGE_SATA_MODE
 	int "SATA Mode"
@@ -240,27 +252,6 @@ config SERIRQ_CONTINUOUS_MODE
 	  Set this option to y for serial IRQ in continuous mode.
 	  Otherwise it is in quiet mode.
 
-config STONEYRIDGE_ACPI_IO_BASE
-	hex
-	default 0x400
-	help
-	  Base address for the ACPI registers.
-	  This value must match the hardcoded value of AGESA.
-
-config STONEYRIDGE_UART
-	bool "UART controller on Stoney Ridge"
-	default n
-	select DRIVERS_UART_8250MEM
-	select DRIVERS_UART_8250MEM_32
-	select NO_UART_ON_SUPERIO
-	select UART_OVERRIDE_REFCLK
-	help
-	  There are two UART controllers in Stoney Ridge.
-	  The UART registers are memory-mapped. UART
-	  controller 0 registers range from FEDC_6000h
-	  to FEDC_6FFFh. UART controller 1 registers
-	  range from FEDC_8000h to FEDC_8FFFh.
-
 config CONSOLE_UART_BASE_ADDRESS
 	depends on CONSOLE_SERIAL
 	hex
@@ -268,7 +259,7 @@ config CONSOLE_UART_BASE_ADDRESS
 
 config SMM_TSEG_SIZE
 	hex
-	default 0x800000 if SMM_TSEG && HAVE_SMI_HANDLER
+	default 0x800000 if HAVE_SMI_HANDLER
 	default 0x0
 
 config SMM_RESERVED_SIZE
@@ -281,7 +272,7 @@ config SMM_MODULE_STACK_SIZE
 
 config ACPI_CPU_STRING
 	string
-	default "\\_PR.P%03d"
+	default "\\_SB.P%03d"
 
 config ACPI_BERT
 	bool "Build ACPI BERT Table"
@@ -300,6 +291,16 @@ config USE_PSPSECUREOS
 	  in the amdfw section.
 
 	  If unsure, answer 'y'
+
+config SOC_AMD_PSP_SELECTABLE_SMU_FW
+	bool
+	default y if AMD_APU_STONEYRIDGE
+	help
+	  Some ST implementations allow storing SMU firmware into cbfs and
+	  calling the PSP to load the blobs at the proper time.
+
+	  Merlin Falcon does not support it. If you are using 00670F00 SOC,
+	  ask your AMD representative if it supports it or not.
 
 config SOC_AMD_SMU_FANLESS
 	bool
@@ -371,12 +372,12 @@ config DRIVERS_I2C_DESIGNWARE_CLOCK_MHZ
 	int
 	default 133
 
-config MAINBOARD_POWER_RESTORE
-	def_bool n
+config DISABLE_KEYBOARD_RESET_PIN
+	bool
 	help
-	  This option determines what state to go to once power is restored
-	  after having been lost in S0.  Select this option to automatically
-	  return to S0.  Otherwise the system will remain in S5 once power
-	  is restored.
+	  Instruct the SoC to not use the state of GPIO_129 as keyboard reset
+	  signal. When this pin is used as GPIO and the keyboard reset
+	  functionality isn't disabled, configuring it as an output and driving
+	  it as 0 will cause a reset.
 
-endif # SOC_AMD_STONEYRIDGE_FP4 || SOC_AMD_STONEYRIDGE_FT4
+endif # SOC_AMD_STONEYRIDGE

@@ -1,20 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2005 Yinghai Lu <yinghailu@gmail.com>
- * Copyright (C) 2009 coresystems GmbH
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2015 - 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _DENVERTON_NS_SMBUS_H_
 #define _DENVERTON_NS_SMBUS_H_
@@ -25,7 +9,7 @@
 #define HST_EN (1 << 0)
 #define HOSTC_SMI_EN (1 << 1)
 #define HOSTC_I2C_EN (1 << 2)
-#define SMB_RCV_SLVA 0x09
+
 /* SMBUS TCO base address. */
 #define TCOBASE 0x50
 #define MASK_TCOBASE 0xffe0

@@ -1,20 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015 Raptor Engineering
- * Copyright (C) 2009 coresystems GmbH
- * Copyright (C) 2008 Advanced Micro Devices, Inc.
- * Copyright (C) 2003 Ollie Lo <ollielo@hotmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <pc80/keyboard.h>
@@ -22,7 +6,7 @@
 #include <arch/io.h>
 #include <delay.h>
 #include <types.h>
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 
 #define KBD_DATA	0x60
 #define KBD_COMMAND	0x64
@@ -249,7 +233,7 @@ uint8_t pc_keyboard_init(uint8_t probe_aux)
 	enum cb_err err;
 	uint8_t aux_dev_detected;
 
-	if (!CONFIG_DRIVERS_PS2_KEYBOARD)
+	if (!CONFIG(DRIVERS_PS2_KEYBOARD))
 		return 0;
 
 	if (acpi_is_wakeup_s3())

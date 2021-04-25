@@ -1,27 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2001 Eric Biederman
- * Copyright (C) 2001 Ronald G. Minnich
- * Copyright (C) 2005 Yinghai Lu
- * Copyright (C) 2008 coresystems GmbH
- * Copyright (C) 2015 Timothy Pearson <tpearson@raptorengineeringinc.com>,
- * Raptor Engineering
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <cpu/x86/cr.h>
 #include <cpu/x86/gdt.h>
 #include <cpu/x86/lapic.h>
-#include <arch/acpi.h>
+#include <cpu/x86/smi_deprecated.h>
+#include <acpi/acpi.h>
 #include <delay.h>
 #include <halt.h>
 #include <lib.h>
@@ -34,6 +17,8 @@
 #include <smp/spinlock.h>
 #include <cpu/cpu.h>
 #include <cpu/intel/speedstep.h>
+#include <smp/node.h>
+#include <stdlib.h>
 #include <thread.h>
 
 /* This is a lot more paranoid now, since Linux can NOT handle
@@ -106,7 +91,7 @@ static void recover_lowest_1M(void)
 static int lapic_start_cpu(unsigned long apicid)
 {
 	int timeout;
-	unsigned long send_status, accept_status;
+	uint32_t send_status, accept_status;
 	int j, maxlvt;
 
 	/*
@@ -138,20 +123,16 @@ static int lapic_start_cpu(unsigned long apicid)
 		printk(BIOS_ERR, "CPU %ld: First APIC write timed out. "
 			"Disabling\n", apicid);
 		// too bad.
-		printk(BIOS_ERR, "ESR is 0x%lx\n", lapic_read(LAPIC_ESR));
+		printk(BIOS_ERR, "ESR is 0x%x\n", lapic_read(LAPIC_ESR));
 		if (lapic_read(LAPIC_ESR)) {
 			printk(BIOS_ERR, "Try to reset ESR\n");
 			lapic_write_around(LAPIC_ESR, 0);
-			printk(BIOS_ERR, "ESR is 0x%lx\n",
+			printk(BIOS_ERR, "ESR is 0x%x\n",
 				lapic_read(LAPIC_ESR));
 		}
 		return 0;
 	}
-#if !CONFIG(CPU_AMD_MODEL_10XXX) \
-	&& !CONFIG(CPU_INTEL_MODEL_206AX) \
-	&& !CONFIG(CPU_INTEL_MODEL_2065X)
 	mdelay(10);
-#endif
 
 	printk(BIOS_SPEW, "Deasserting INIT.\n");
 
@@ -235,7 +216,7 @@ static int lapic_start_cpu(unsigned long apicid)
 	if (send_status)
 		printk(BIOS_WARNING, "APIC never delivered???\n");
 	if (accept_status)
-		printk(BIOS_WARNING, "APIC delivery error (%lx).\n",
+		printk(BIOS_WARNING, "APIC delivery error (%x).\n",
 			accept_status);
 	if (send_status || accept_status)
 		return 0;
@@ -291,6 +272,7 @@ int start_cpu(struct device *cpu)
 	info = (struct cpu_info *)stack_top;
 	info->index = index;
 	info->cpu   = cpu;
+	cpu_add_map_entry(info->index);
 	thread_init_cpu_info_non_bsp(info);
 
 	/* Advertise the new stack and index to start_cpu */
@@ -416,7 +398,7 @@ asmlinkage void secondary_cpu_init(unsigned int index)
 	 * Seems that CR4 was cleared when AP start via lapic_start_cpu()
 	 * Turn on CR4.OSFXSR and CR4.OSXMMEXCPT when SSE options enabled
 	 */
-	u32 cr4_val;
+	CRx_TYPE cr4_val;
 	cr4_val = read_cr4();
 	cr4_val |= (CR4_OSFXSR | CR4_OSXMMEXCPT);
 	write_cr4(cr4_val);
@@ -549,6 +531,7 @@ void initialize_cpus(struct bus *cpu_bus)
 
 	/* Find the device structure for the boot CPU */
 	info->cpu = alloc_find_dev(cpu_bus, &cpu_path);
+	cpu_add_map_entry(info->index);
 
 	// why here? In case some day we can start core1 in amd_sibling_init
 	if (is_smp_boot())
@@ -588,14 +571,3 @@ void initialize_cpus(struct bus *cpu_bus)
 	if (is_smp_boot())
 		recover_lowest_1M();
 }
-
-#if !CONFIG(HAVE_SMI_HANDLER)
-/* Empty stubs for platforms without SMI handlers. */
-void smm_init(void)
-{
-}
-
-void smm_init_completion(void)
-{
-}
-#endif

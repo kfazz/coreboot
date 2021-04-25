@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2016-2017 Intel Corp.
- * (Written by Alexandru Gagniuc <alexandrux.gagniuc@intel.com> for Intel Corp.)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "chip.h"
 #include <console/console.h>
@@ -94,7 +79,7 @@ static void set_slp_s3_assertion_width(int width_usecs)
 
 void pmc_soc_init(struct device *dev)
 {
-	const struct soc_intel_apollolake_config *cfg = dev->chip_info;
+	const struct soc_intel_apollolake_config *cfg = config_of(dev);
 
 	/* Set up GPE configuration */
 	pmc_gpe_init();
@@ -108,4 +93,6 @@ void pmc_soc_init(struct device *dev)
 
 	/* Now that things have been logged clear out the PMC state. */
 	pmc_clear_prsts();
+
+	pmc_set_power_failure_state(true);
 }

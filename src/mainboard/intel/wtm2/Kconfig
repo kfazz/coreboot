@@ -11,24 +11,16 @@ config BOARD_SPECIFIC_OPTIONS
 	select MAINBOARD_HAS_LPC_TPM
 	select INTEL_INT15
 
-config CHROMEOS
-	select CHROMEOS_RAMOOPS_DYNAMIC
-
 config VBOOT
 	select VBOOT_VBNV_CMOS
 
 config MAINBOARD_DIR
 	string
-	default intel/wtm2
+	default "intel/wtm2"
 
 config MAINBOARD_PART_NUMBER
 	string
 	default "WHITETIP MOUNTAIN 2"
-
-
-config MAX_CPUS
-	int
-	default 16
 
 config VGA_BIOS_FILE
 	string

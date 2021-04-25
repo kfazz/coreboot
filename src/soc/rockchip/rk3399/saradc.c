@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2016 Rockchip Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <assert.h>
@@ -20,7 +6,6 @@
 #include <soc/clock.h>
 #include <soc/saradc.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <timer.h>
 
 struct rk3399_saradc_regs {
@@ -60,15 +45,15 @@ u32 get_saradc_value(u32 chn)
 	rkclk_configure_saradc(SARADC_HZ);
 
 	/* power down adc converter */
-	clrbits_le32(&rk3399_saradc->ctrl, ADC_PWR_CTRL);
+	clrbits32(&rk3399_saradc->ctrl, ADC_PWR_CTRL);
 
 	/* select channel */
-	clrsetbits_le32(&rk3399_saradc->ctrl,
-			ADC_CHN_SEL_MASK << ADC_CHN_SEL_SHIFT,
-			chn << ADC_CHN_SEL_SHIFT);
+	clrsetbits32(&rk3399_saradc->ctrl,
+		     ADC_CHN_SEL_MASK << ADC_CHN_SEL_SHIFT,
+		     chn << ADC_CHN_SEL_SHIFT);
 
 	/* power up */
-	setbits_le32(&rk3399_saradc->ctrl, ADC_PWR_CTRL);
+	setbits32(&rk3399_saradc->ctrl, ADC_PWR_CTRL);
 
 	udelay(SARADC_DELAY_PU);
 

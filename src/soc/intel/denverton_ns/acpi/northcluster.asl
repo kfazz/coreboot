@@ -1,26 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007 - 2009 coresystems GmbH
- * Copyright (C) 2014 - 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include "../include/soc/iomap.h"
 
 Name(_HID,EISAID("PNP0A08"))	// PCIe
 Name(_CID,EISAID("PNP0A03"))	// PCI
 
-Name(_ADR, 0)
 Name(_BBN, 0)
 
 Device (MCHC)
@@ -113,9 +97,9 @@ Method (_CRS, 0, Serialized)
 	CreateDwordField(MCRS, ^PM01._LEN, PLEN)
 
 	// MMIO Low is saved in NVS
-	Store (\MMOB, PMIN)
-	Store (\MMOL, PMAX)
-	Add (Subtract (PMAX, PMIN), 1, PLEN)
+	PMIN = \MMOB
+	PMAX = \MMOL
+	PLEN = PMAX - PMIN + 1
 
 	// Find PCI resource area in MCRS
 	CreateQWordField(MCRS, ^PM02._MIN, P2MN)
@@ -123,9 +107,9 @@ Method (_CRS, 0, Serialized)
 	CreateQWordField(MCRS, ^PM02._LEN, P2LN)
 
 	// MMIO High is saved in NVS
-	Store(\MMHB, P2MN)
-	Store(\MMHL, P2MX)
-	Add(Subtract(P2MX,P2MN),1,P2LN)
+	P2MN = \MMHB
+	P2MX = \MMHL
+	P2LN = P2MX - P2MN +1
 
 	Return (MCRS)
 }	// End _CRS
@@ -148,9 +132,9 @@ Device (PDRC)
 	{
 		// Fix up 32-bit TSEG
 		CreateDWordField(PDRS, ^TSMB._BAS, TSMN)
-		Store(\TSGB, TSMN)
+		TSMN = \TSGB
 		CreateDWordField(PDRS, ^TSMB._LEN, TSLN)
-		Store(\TSSZ, TSLN)
+		TSLN = \TSSZ
 		Return(PDRS)
 	}
 }
@@ -168,4 +152,9 @@ Device (RCEC) {
 // Virtual root port 2
 Device (VRP2) {
 	Name   (_ADR, 0x00060000)
+
+	Method (_PRT)
+	{
+		Return (IRQM (6))
+	}
 }

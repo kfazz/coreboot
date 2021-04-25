@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2016 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <stdint.h>
 #include <string.h>
@@ -21,7 +8,7 @@
 
 struct romstage_handoff {
 	/* Indicate if the current boot is an S3 resume. If
-	 * CONFIG_RELOCTABLE_RAMSTAGE is enabled the chipset code is
+	 * CONFIG_RELOCATABLE_RAMSTAGE is enabled the chipset code is
 	 * responsible for initializing this variable. Otherwise, ramstage
 	 * will be re-loaded from cbfs (which can be slower since it lives
 	 * in flash). */
@@ -68,12 +55,23 @@ int romstage_handoff_init(int is_s3_resume)
 
 int romstage_handoff_is_resume(void)
 {
+	static int once, s3_resume;
 	struct romstage_handoff *handoff;
 
-	handoff = cbmem_find(CBMEM_ID_ROMSTAGE_INFO);
+	if (once)
+		return s3_resume;
 
+	/* Only try evaluate handoff once for s3 resume state. */
+	once = 1;
+	handoff = cbmem_find(CBMEM_ID_ROMSTAGE_INFO);
 	if (handoff == NULL)
 		return 0;
 
-	return handoff->s3_resume;
+	s3_resume = handoff->s3_resume;
+	if (s3_resume)
+		printk(BIOS_DEBUG, "S3 Resume\n");
+	else
+		printk(BIOS_DEBUG, "Normal boot\n");
+
+	return s3_resume;
 }

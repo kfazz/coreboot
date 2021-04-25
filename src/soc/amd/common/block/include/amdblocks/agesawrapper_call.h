@@ -1,18 +1,7 @@
-/*
- * This file is part of the coreboot project.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#ifndef __AGESAWRAPPER_CALL_H__
-#define __AGESAWRAPPER_CALL_H__
+#ifndef AMD_BLOCK_AGESAWRAPPER_CALL_H
+#define AMD_BLOCK_AGESAWRAPPER_CALL_H
 
 #include <amdblocks/agesawrapper.h>
 #include <stdint.h>
@@ -42,14 +31,14 @@ static const char *decodeAGESA_STATUS(AGESA_STATUS sret)
 	return statusStrings[sret];
 }
 
-static inline u32 do_agesawrapper(AGESA_STATUS (*func)(void), const char *name)
+static inline u32 do_agesawrapper(AGESA_STRUCT_NAME func, const char *name)
 {
 	AGESA_STATUS ret;
 	printk(BIOS_DEBUG, "agesawrapper_%s() entry\n", name);
-	ret = func();
+	ret = agesa_execute_state(func);
 	printk(BIOS_DEBUG, "agesawrapper_%s() returned %s\n",
 			name, decodeAGESA_STATUS(ret));
 	return (u32)ret;
 }
 
-#endif /* __AGESAWRAPPER_CALL_H__ */
+#endif /* AMD_BLOCK_AGESAWRAPPER_CALL_H */

@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Siemens AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _INTEL_I210_H_
 #define _INTEL_I210_H_
@@ -29,7 +16,6 @@
 #define  I210_DONE		0x02      /* command done bit */
 #define I210_TARGET_CHECKSUM	0xBABA    /* resulting checksum */
 
-
 /*define some other useful values here */
 #define I210_POLL_TIMEOUT_US	300000    /* 300 ms */
 /*Define some error states here*/
@@ -41,9 +27,10 @@
 #define I210_CHECKSUM_ERROR	0x00000010
 #define I210_FLASH_UPDATE_ERROR	0x00000020
 
+#define MAC_ADDR_LEN		6
+
 /* We need one function we can call to get a MAC address to use */
 /* This function can be coded somewhere else but must exist. */
-extern enum cb_err mainboard_get_mac_address(struct device *dev,
-						uint8_t mac[6]);
+extern enum cb_err mainboard_get_mac_address(struct device *dev, uint8_t mac[MAC_ADDR_LEN]);
 
 #endif /* _INTEL_I210_H_ */

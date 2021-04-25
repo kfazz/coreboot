@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Advanced Micro Devices, Inc.
- * Copyright (C) 2013 Sage Electronic Engineering, LLC
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* System Bus */
 /*  _SB.PCI0 */
@@ -21,14 +7,14 @@
 Method(_OSC,4)
 {
 	/* Check for proper PCI/PCIe UUID */
-	If(LEqual(Arg0,ToUUID("33DB4D5B-1FF7-401C-9657-7441C03DD766")))
+	If (Arg0 == ToUUID("33DB4D5B-1FF7-401C-9657-7441C03DD766"))
 	{
 		/* Let OS control everything */
 		Return (Arg3)
 	} Else {
 		CreateDWordField(Arg3,0,CDW1)
-		Or(CDW1,4,CDW1)	// Unrecognized UUID
-		Return(Arg3)
+		CDW1 |= 4	// Unrecognized UUID
+		Return (Arg3)
 	}
 }
 
@@ -138,12 +124,12 @@ Method(_CRS, 0) {
 	 * 32bit (0x00000000 - TOM1) will wrap and give the same
 	 * result as 64bit (0x100000000 - TOM1).
 	 */
-	Store(TOM1, MM1B)
-	ShiftLeft(0x10000000, 4, Local0)
-	Subtract(Local0, TOM1, Local0)
-	Store(Local0, MM1L)
+	MM1B = TOM1
+	Local0 = 0x10000000 << 4
+	Local0 -= TOM1
+	MM1L = Local0
 
-	Return(CRES) /* note to change the Name buffer */
+	Return (CRES) /* note to change the Name buffer */
 } /* end of Method(_SB.PCI0._CRS) */
 
 #if CONFIG(HUDSON_IMC_FWM)
@@ -172,33 +158,9 @@ Method(_INI, 0) {
 	/* DBGO(\_REV) */
 	/* DBGO("\n") */
 
-	/* Determine the OS we're running on */
-	OSFL()
-
 #if CONFIG(HUDSON_IMC_FWM)
 #if CONFIG(ACPI_ENABLE_THERMAL_ZONE)
 	ITZE() /* enable IMC Fan Control*/
 #endif
 #endif
 } /* End Method(_SB._INI) */
-
-Method(OSFL, 0){
-
-	if (LNotEqual(OSVR, Ones)) {Return(OSVR)}	/* OS version was already detected */
-
-	if (CondRefOf(\_OSI))
-	{
-		Store(1, OSVR)					/* Assume some form of XP */
-		if (\_OSI("Windows 2006"))		/* Vista */
-		{
-			Store(2, OSVR)
-		}
-	} else {
-		If(WCMP(\_OS,"Linux")) {
-			Store(3, OSVR)				/* Linux */
-		} Else {
-			Store(4, OSVR)				/* Gotta be WinCE */
-		}
-	}
-	Return(OSVR)
-}

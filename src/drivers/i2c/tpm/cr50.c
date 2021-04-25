@@ -1,20 +1,6 @@
-/*
- * Copyright 2016 Google Inc.
- *
- * Based on Linux Kernel TPM driver by
- * Peter Huewe <peter.huewe@infineon.com>
- * Copyright (C) 2011 Infineon Technologies
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+/* Based on Linux Kernel TPM driver */
 
 /*
  * cr50 is a TPM 2.0 capable device that requries special
@@ -29,9 +15,8 @@
  *   instead of just reading header and determining the remainder
  */
 
-#include <arch/early_variables.h>
 #include <commonlib/endian.h>
-#include <stdint.h>
+#include <commonlib/helpers.h>
 #include <string.h>
 #include <types.h>
 #include <delay.h>
@@ -40,6 +25,7 @@
 #include <endian.h>
 #include <timer.h>
 #include <security/tpm/tis.h>
+
 #include "tpm.h"
 
 #define CR50_MAX_BUFSIZE	63
@@ -56,15 +42,16 @@ struct tpm_inf_dev {
 	uint8_t buf[CR50_MAX_BUFSIZE + sizeof(uint8_t)];
 };
 
-static struct tpm_inf_dev g_tpm_dev CAR_GLOBAL;
+static struct tpm_inf_dev tpm_dev;
 
 __weak int tis_plat_irq_status(void)
 {
-	static int warning_displayed CAR_GLOBAL;
+	static int warning_displayed;
 
-	if (!car_get_var(warning_displayed)) {
-		printk(BIOS_WARNING, "WARNING: tis_plat_irq_status() not implemented, wasting 20ms to wait on Cr50!\n");
-		car_set_var(warning_displayed, 1);
+	if (!warning_displayed) {
+		printk(BIOS_WARNING, "WARNING: %s() not implemented, wasting 20ms to wait on"
+		       " Cr50!\n", __func__);
+		warning_displayed = 1;
 	}
 	mdelay(CR50_TIMEOUT_NOIRQ_MS);
 
@@ -79,9 +66,10 @@ static int cr50_i2c_wait_tpm_ready(struct tpm_chip *chip)
 	stopwatch_init_msecs_expire(&sw, CR50_TIMEOUT_IRQ_MS);
 
 	while (!tis_plat_irq_status())
-		if (stopwatch_expired(&sw))
+		if (stopwatch_expired(&sw)) {
+			printk(BIOS_ERR, "Cr50 i2c TPM IRQ timeout!\n");
 			return -1;
-
+		}
 	return 0;
 }
 
@@ -102,16 +90,14 @@ static int cr50_i2c_wait_tpm_ready(struct tpm_chip *chip)
 static int cr50_i2c_read(struct tpm_chip *chip, uint8_t addr,
 			 uint8_t *buffer, size_t len)
 {
-	struct tpm_inf_dev *tpm_dev = car_get_var_ptr(&g_tpm_dev);
-
-	if (tpm_dev->addr == 0)
+	if (tpm_dev.addr == 0)
 		return -1;
 
 	/* Clear interrupt before starting transaction */
 	tis_plat_irq_status();
 
 	/* Send the register address byte to the TPM */
-	if (i2c_write_raw(tpm_dev->bus, tpm_dev->addr, &addr, 1)) {
+	if (i2c_write_raw(tpm_dev.bus, tpm_dev.addr, &addr, 1)) {
 		printk(BIOS_ERR, "%s: Address write failed\n", __func__);
 		return -1;
 	}
@@ -121,7 +107,7 @@ static int cr50_i2c_read(struct tpm_chip *chip, uint8_t addr,
 		return -1;
 
 	/* Read response data from the TPM */
-	if (i2c_read_raw(tpm_dev->bus, tpm_dev->addr, buffer, len)) {
+	if (i2c_read_raw(tpm_dev.bus, tpm_dev.addr, buffer, len)) {
 		printk(BIOS_ERR, "%s: Read response failed\n", __func__);
 		return -1;
 	}
@@ -146,22 +132,20 @@ static int cr50_i2c_read(struct tpm_chip *chip, uint8_t addr,
 static int cr50_i2c_write(struct tpm_chip *chip,
 			  uint8_t addr, uint8_t *buffer, size_t len)
 {
-	struct tpm_inf_dev *tpm_dev = car_get_var_ptr(&g_tpm_dev);
-
-	if (tpm_dev->addr == 0)
+	if (tpm_dev.addr == 0)
 		return -1;
 	if (len > CR50_MAX_BUFSIZE)
 		return -1;
 
 	/* Prepend the 'register address' to the buffer */
-	tpm_dev->buf[0] = addr;
-	memcpy(tpm_dev->buf + 1, buffer, len);
+	tpm_dev.buf[0] = addr;
+	memcpy(tpm_dev.buf + 1, buffer, len);
 
 	/* Clear interrupt before starting transaction */
 	tis_plat_irq_status();
 
 	/* Send write request buffer with address */
-	if (i2c_write_raw(tpm_dev->bus, tpm_dev->addr, tpm_dev->buf, len + 1)) {
+	if (i2c_write_raw(tpm_dev.bus, tpm_dev.addr, tpm_dev.buf, len + 1)) {
 		printk(BIOS_ERR, "%s: Error writing to TPM\n", __func__);
 		return -1;
 	}
@@ -346,7 +330,7 @@ static int cr50_i2c_tis_recv(struct tpm_chip *chip, uint8_t *buf,
 		if (cr50_i2c_wait_burststs(chip, mask, &burstcnt, &status) < 0)
 			goto out_err;
 
-		len = min(burstcnt, expected - current);
+		len = MIN(burstcnt, expected - current);
 		if (cr50_i2c_read(chip, addr, buf + current, len) != 0) {
 			printk(BIOS_ERR, "%s: Read failed\n", __func__);
 			goto out_err;
@@ -405,7 +389,7 @@ static int cr50_i2c_tis_send(struct tpm_chip *chip, uint8_t *buf, size_t len)
 
 		/* Use burstcnt - 1 to account for the address byte
 		 * that is inserted by cr50_i2c_write() */
-		limit = min(burstcnt - 1, len);
+		limit = MIN(burstcnt - 1, len);
 		if (cr50_i2c_write(chip, TPM_DATA_FIFO(chip->vendor.locality),
 				   &buf[sent], limit) != 0) {
 			printk(BIOS_ERR, "%s: Write failed\n", __func__);
@@ -492,7 +476,6 @@ static int cr50_i2c_probe(struct tpm_chip *chip, uint32_t *did_vid)
 
 int tpm_vendor_init(struct tpm_chip *chip, unsigned int bus, uint32_t dev_addr)
 {
-	struct tpm_inf_dev *tpm_dev = car_get_var_ptr(&g_tpm_dev);
 	uint32_t did_vid = 0;
 
 	if (dev_addr == 0) {
@@ -500,15 +483,15 @@ int tpm_vendor_init(struct tpm_chip *chip, unsigned int bus, uint32_t dev_addr)
 		return -1;
 	}
 
-	tpm_dev->bus = bus;
-	tpm_dev->addr = dev_addr;
+	tpm_dev.bus = bus;
+	tpm_dev.addr = dev_addr;
 
 	cr50_vendor_init(chip);
 
 	if (cr50_i2c_probe(chip, &did_vid))
 		return -1;
 
-	if (ENV_VERSTAGE || ENV_BOOTBLOCK)
+	if (ENV_SEPARATE_VERSTAGE || ENV_BOOTBLOCK)
 		if (process_reset(chip))
 			return -1;
 

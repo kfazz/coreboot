@@ -1,27 +1,12 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ops.h>
 #include <device/pci_ids.h>
+#include "chip.h"
 #include "i82801gx.h"
-
-typedef struct southbridge_intel_i82801gx_config config_t;
 
 static void ide_init(struct device *dev)
 {
@@ -30,7 +15,7 @@ static void ide_init(struct device *dev)
 	u32 enable_primary, enable_secondary;
 
 	/* Get the chip configuration */
-	config_t *config = dev->chip_info;
+	const struct southbridge_intel_i82801gx_config *config = dev->chip_info;
 
 	printk(BIOS_DEBUG, "i82801gx_ide: initializing...");
 	if (config == NULL) {
@@ -42,8 +27,7 @@ static void ide_init(struct device *dev)
 		enable_secondary = config->ide_enable_secondary;
 	}
 
-	reg32 = pci_read_config32(dev, PCI_COMMAND);
-	pci_write_config32(dev, PCI_COMMAND, reg32 | PCI_COMMAND_IO | PCI_COMMAND_MASTER);
+	pci_or_config16(dev, PCI_COMMAND, PCI_COMMAND_IO | PCI_COMMAND_MASTER);
 
 	/* Native Capable, but not enabled. */
 	pci_write_config8(dev, 0x09, 0x8a);
@@ -54,10 +38,10 @@ static void ide_init(struct device *dev)
 	if (enable_primary) {
 		/* Enable primary IDE interface. */
 		ideTimingConfig |= IDE_DECODE_ENABLE;
-		ideTimingConfig |= (2 << 12); // ISP = 3 clocks
-		ideTimingConfig |= (3 << 8); // RCT = 1 clock
-		ideTimingConfig |= (1 << 1); // IE0
-		ideTimingConfig |= (1 << 0); // TIME0
+		ideTimingConfig |= IDE_ISP_3_CLOCKS;
+		ideTimingConfig |= IDE_RCT_1_CLOCKS;
+		ideTimingConfig |= IDE_IE0;
+		ideTimingConfig |= IDE_TIME0; // TIME0
 		printk(BIOS_DEBUG, " IDE0");
 	}
 	pci_write_config16(dev, IDE_TIM_PRI, ideTimingConfig);
@@ -68,10 +52,10 @@ static void ide_init(struct device *dev)
 	if (enable_secondary) {
 		/* Enable secondary IDE interface. */
 		ideTimingConfig |= IDE_DECODE_ENABLE;
-		ideTimingConfig |= (2 << 12); // ISP = 3 clocks
-		ideTimingConfig |= (3 << 8); // RCT = 1 clock
-		ideTimingConfig |= (1 << 1); // IE0
-		ideTimingConfig |= (1 << 0); // TIME0
+		ideTimingConfig |= IDE_ISP_3_CLOCKS;
+		ideTimingConfig |= IDE_RCT_1_CLOCKS;
+		ideTimingConfig |= IDE_IE0;
+		ideTimingConfig |= IDE_TIME0;
 		printk(BIOS_DEBUG, " IDE1");
 	}
 	pci_write_config16(dev, IDE_TIM_SEC, ideTimingConfig);
@@ -92,18 +76,13 @@ static void ide_init(struct device *dev)
 	printk(BIOS_DEBUG, "\n");
 }
 
-static struct pci_operations ide_pci_ops = {
-	.set_subsystem    = pci_dev_set_subsystem,
-};
-
 static struct device_operations ide_ops = {
 	.read_resources		= pci_dev_read_resources,
 	.set_resources		= pci_dev_set_resources,
 	.enable_resources	= pci_dev_enable_resources,
 	.init			= ide_init,
-	.scan_bus		= 0,
 	.enable			= i82801gx_enable,
-	.ops_pci		= &ide_pci_ops,
+	.ops_pci		= &pci_dev_ops_pci,
 };
 
 /* 82801GB/GR/GDH/GBM/GHM/GU (ICH7/ICH7R/ICH7DH/ICH7-M/ICH7-M DH/ICH7-U) */

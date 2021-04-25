@@ -1,35 +1,20 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Alexander Couzens <lynxis@fe80.eu>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
-
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/io.h>
 #include <device/pnp.h>
-#include <device/pnp_ops.h>
 #include <stdint.h>
-
+#include <device/pnp_ops.h>
 #include "sch5545.h"
 
 static void pnp_enter_conf_state(pnp_devfn_t dev)
 {
-	unsigned port = dev >> 8;
+	unsigned int port = dev >> 8;
 	outb(0x55, port);
 }
 
 static void pnp_exit_conf_state(pnp_devfn_t dev)
 {
-	unsigned port = dev >> 8;
+	unsigned int port = dev >> 8;
 	outb(0xaa, port);
 }
 
@@ -38,105 +23,156 @@ static void pnp_exit_conf_state(pnp_devfn_t dev)
  * pnp_devfn_t dev must be in conf state.
  * LDN LPC IF must be active.
  */
-static void sch5545_set_iobase(pnp_devfn_t dev, uint16_t device_addr, uint32_t bar_addr)
+static void set_iobase(pnp_devfn_t dev, uint16_t device_addr, uint16_t bar_addr)
 {
-	uint8_t val;
-	unsigned port = dev >> 8;
+	uint16_t bar;
 
-	pnp_devfn_t lpcif = PNP_DEV(port, SCH5545_LDN_LPC_IF);
-	pnp_set_logical_device(lpcif);
-
-	//BAR Addresses are backwards
-	bar_addr = ((bar_addr & 0x00FF) << 8) | ((bar_addr & 0xFF00) >> 8);
-
-	/* set BAR */
-	pnp_set_iobase(dev, device_addr + 2, bar_addr);
-
-	/* set valid */
-	val = pnp_read_config(dev, device_addr + 1);
-	val |= 0x80;
-	pnp_write_config(dev, device_addr + 1, val);
-
-	pnp_set_logical_device(dev);
+	/*
+	 * Set the BAR. We have to flip the BAR due to different register layout:
+	 * - LPC addr LSB on device_addr + 2
+	 * - LPC addr MSB on device_addr + 3
+	 */
+	bar = ((bar_addr >> 8) & 0xff) | ((bar_addr & 0xff) << 8);
+	pnp_set_iobase(dev, device_addr + 2, bar);
 }
 
 /*
- * set the IRQ for the specific device
- * pnp_devfn_t dev must be in conf state
+ * Set the IRQ for the specific device.
+ * pnp_devfn_t dev must be in conf state.
  * LDN LPC IF must be active.
  */
-static void sch5545_set_irq(pnp_devfn_t dev, uint8_t irq_device, unsigned irq)
+static void set_irq(pnp_devfn_t dev, uint8_t irq_device, unsigned int irq)
 {
-	unsigned port = dev >> 8;
 	if (irq > 15)
 		return;
 
-	pnp_devfn_t lpcif = PNP_DEV(port, SCH5545_LDN_LPC_IF);
-	pnp_set_logical_device(lpcif);
 	pnp_write_config(dev, SCH5545_IRQ_BASE + irq, irq_device);
-	pnp_set_logical_device(dev);
 }
 
-/* sch5545 has 2 LEDs which are accessed via color (1 bit),
- * 2 bits for a pattern blink
- * 1 bit for "code fetch" which means the cpu/mainboard is working (always set)
+/*
+ * sch5545 has 2 LEDs which are accessed via color (1 bit), 2 bits for a
+ * pattern blink and 1 bit for "code fetch" which means the cpu/mainboard is
+ * working (always set).
  */
-void sch5545_set_led(unsigned runtime_reg_base, unsigned color, uint16_t blink)
+void sch5545_set_led(unsigned int runtime_reg_base, unsigned int color, uint16_t blink)
 {
-	uint8_t val = (blink & SCH5545_LED_BLINK_MASK);
+	uint8_t val = blink & SCH5545_LED_BLINK_MASK;
 	val |= SCH5545_LED_CODE_FETCH;
 	if (color)
 		val |= SCH5545_LED_COLOR_GREEN;
 	outb(val, runtime_reg_base + SCH5545_RR_LED);
 }
 
-void sch5545_early_init(unsigned port)
+void sch5545_early_init(unsigned int port)
 {
 	pnp_devfn_t dev;
 
-
-	/* enable lpc if */
-	dev = PNP_DEV(port, SCH5545_LDN_LPC_IF);
+	/* Enable SERIRQ */
+	dev = PNP_DEV(port, SCH5545_LDN_GCONF);
 	pnp_enter_conf_state(dev);
+	pnp_set_logical_device(dev);
+	pnp_write_config(dev, 0x24, pnp_read_config(dev, 0x24) | 0x04);
 
+	/* Enable LPC interface */
+	dev = PNP_DEV(port, SCH5545_LDN_LPC);
+	pnp_set_logical_device(dev);
+	pnp_set_enable(dev, 1);
+	/* Set LPC BAR mask */
+	pnp_write_config(dev, SCH5545_BAR_LPC_IF, 0x01);
+	/* BAR valid, Frame/LDN = 0xc */
+	pnp_write_config(dev, SCH5545_BAR_LPC_IF + 1, SCH5545_LDN_LPC | 0x80);
+	set_iobase(dev, SCH5545_BAR_LPC_IF, port);
+
+	/* Enable Runtime Registers */
+
+	/* The Runtime Registers BAR is 0x40 long */
+	pnp_write_config(dev, SCH5545_BAR_RUNTIME_REG, 0x3f);
+	/* BAR valid, Frame/LDN = 0xa */
+	pnp_write_config(dev, SCH5545_BAR_RUNTIME_REG + 1, SCH5545_LDN_RR | 0x80);
+
+	/* Map Runtime Registers */
+	set_iobase(dev, SCH5545_BAR_RUNTIME_REG, SCH5545_RUNTIME_REG_BASE);
+	dev = PNP_DEV(port, SCH5545_LDN_RR);
 	pnp_set_logical_device(dev);
 	pnp_set_enable(dev, 1);
 
-	/* map runtime register */
-	sch5545_set_iobase(dev,
-			SCH5545_BAR_RUNTIME_REG,
-			SCH5545_RUNTIME_REG_BASE);
+	/* Set LED color and indicate BIOS has reached code fetch phase */
+	sch5545_set_led(SCH5545_RUNTIME_REG_BASE, SCH5545_LED_COLOR_GREEN,
+			SCH5545_LED_BLINK_ON);
 
-	/*Map KBC BAR */ //FIXME don't hardcode these
-	dev = PNP_DEV(port,SCH5545_LDN_KBC);
+	/* Configure EMI */
+	dev = PNP_DEV(port, SCH5545_LDN_LPC);
 	pnp_set_logical_device(dev);
-	sch5545_set_iobase(dev, SCH5545_BAR_KBC, 0x60);
-	sch5545_set_irq(dev, SCH5545_IRQ_KBD, 1);
-	sch5545_set_irq(dev, SCH5545_IRQ_MOUSE,12);
-
-	dev = PNP_DEV(port,SCH5545_LDN_EM_IF);
-	pnp_set_logical_device(dev);
-	pnp_set_enable(dev,1);
-	sch5545_set_iobase(dev, SCH5545_BAR_EM_IF, 0x2d0);
-	sch5545_set_irq(dev, SCH5545_IRQ_EMI_IRQ_SOURCE, 2);
-
-	dev = PNP_DEV(port,SCH5545_LDN_PARPORT);
-	pnp_set_logical_device(dev);
-	pnp_set_enable(dev,1);
-	pnp_write_config(dev,0xF0, 0x3B); //Parport mode = ECP + EPP 1.9
-	sch5545_set_iobase(dev, SCH5545_BAR_PARPORT, 0x378);
-	sch5545_set_irq(dev, SCH5545_IRQ_PARPORT, 7);
-
-	/* configure serial 1 / UART 1 */
-	dev = PNP_DEV(port, SCH5545_LDN_UART1);
-	pnp_set_logical_device(dev);
-	pnp_set_enable(dev, 1);
-	pnp_write_config(dev, SCH5545_CONFIG_SELECT, SCH5545_UART_POWER_VCC);
-	sch5545_set_iobase(dev, SCH5545_BAR_UART1, CONFIG_TTYS0_BASE);
-	sch5545_set_irq(dev, SCH5545_IRQ_UART1, 4);
-
-	//set Power LED to solid blue
-	sch5545_set_led(SCH5545_RUNTIME_REG_BASE, SCH5545_LED_COLOR_GREEN, SCH5545_LED_BLINK_ON);
+	/* EMI BAR has 11 registers, but vendor sets the mask to 0xf */
+	pnp_write_config(dev, SCH5545_BAR_EM_IF, 0x0f);
+	/* BAR valid, Frame/LDN = 0x00 */
+	pnp_write_config(dev, SCH5545_BAR_EM_IF + 1, SCH5545_LDN_EMI | 0x80);
+	set_iobase(dev, SCH5545_BAR_EM_IF, SCH5545_EMI_BASE);
 
 	pnp_exit_conf_state(dev);
+}
+
+void sch5545_enable_uart(unsigned int port, unsigned int uart_no)
+{
+	pnp_devfn_t dev;
+
+	if (uart_no > 1)
+		return;
+
+	/* Configure serial port */
+	dev = PNP_DEV(port, SCH5545_LDN_LPC);
+	pnp_enter_conf_state(dev);
+	pnp_set_logical_device(dev);
+	/* Set UART BAR mask to 0x07 (8 registers) */
+	pnp_write_config(dev, SCH5545_BAR_UART1 + (4 * uart_no), 0x07);
+	/* Set BAR valid, Frame/LDN = UART1/2 LDN 0x07/0x08 */
+	pnp_write_config(dev, SCH5545_BAR_UART1 + (4 * uart_no) + 1,
+			 (SCH5545_LDN_UART1 + uart_no) | 0x80);
+	set_iobase(dev, SCH5545_BAR_UART1 + (4 * uart_no), (uart_no == 1) ? 0x2f8 : 0x3f8);
+	/* IRQ 3 for UART2, IRQ4 for UART1 */
+	set_irq(dev, SCH5545_LDN_UART1 + uart_no, 4 - uart_no);
+
+	dev = PNP_DEV(port, SCH5545_LDN_UART1 + uart_no);
+	pnp_set_logical_device(dev);
+	pnp_set_enable(dev, 1);
+	pnp_write_config(dev, SCH5545_UART_CONFIG_SELECT, SCH5545_UART_POWER_VCC);
+
+	pnp_exit_conf_state(dev);
+}
+
+int sch5545_get_gpio(uint8_t sio_port, uint8_t gpio)
+{
+	pnp_devfn_t dev;
+	uint16_t runtime_reg_base;
+	uint8_t gpio_bank, gpio_num;
+
+	gpio_bank = gpio / 10;
+	gpio_num = gpio % 10;
+	/*
+	 * GPIOs are divided into banks of 8 GPIOs (kind of). Each group starts at decimal
+	 * base, i.e. 8 GPIOs from GPIO000, 8 GPIOs from GPIO010, etc., up to GPIO071 and
+	 * GPIO072 which are an exception (only two GPIOs in the bank 7).
+	 */
+	if (gpio_num > 7)
+		return -1;
+	else if (gpio_bank == 7 && gpio_num > 1)
+		return -1;
+	else if (gpio_bank > 7)
+		return -1;
+
+	dev = PNP_DEV(sio_port, SCH5545_LDN_LPC);
+	pnp_enter_conf_state(dev);
+	pnp_set_logical_device(dev);
+
+	runtime_reg_base = pnp_read_config(dev, SCH5545_BAR_RUNTIME_REG + 2);
+	runtime_reg_base |= pnp_read_config(dev, SCH5545_BAR_RUNTIME_REG + 3) << 8;
+
+	pnp_exit_conf_state(dev);
+
+	if (runtime_reg_base == 0)
+		return -1;
+
+	outb(gpio_bank * 8 + gpio_num, runtime_reg_base + SCH5545_RR_GPIO_SEL);
+
+	return inb(runtime_reg_base + SCH5545_RR_GPIO_READ) & 1;
 }

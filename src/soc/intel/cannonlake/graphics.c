@@ -1,83 +1,63 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2016-2017 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <arch/acpi.h>
-#include <console/console.h>
-#include <fsp/util.h>
+#include <commonlib/helpers.h>
 #include <device/device.h>
-#include <device/pci.h>
-#include <device/pci_ops.h>
+#include <device/mmio.h>
+#include <device/pci_def.h>
+#include <device/resource.h>
 #include <drivers/intel/gma/i915_reg.h>
-#include <drivers/intel/gma/opregion.h>
 #include <intelblocks/graphics.h>
+#include <soc/ramstage.h>
+#include <types.h>
 
-uintptr_t fsp_soc_get_igd_bar(void)
+void graphics_soc_panel_init(struct device *dev)
 {
-	return graphics_get_memory_base();
-}
+	const struct soc_intel_cannonlake_config *conf = dev->chip_info;
+	const struct i915_gpu_panel_config *panel_cfg;
+	const struct resource *mmio_res;
+	void *mmio;
+	uint32_t reg32;
+	unsigned int pwm_period, pwm_polarity, pwm_duty;
 
-void graphics_soc_init(struct device *dev)
-{
-	uint32_t ddi_buf_ctl;
-
-	/*
-	 * Enable DDI-A (eDP) 4-lane operation if the link is not up yet.
-	 * This will allow the kernel to use 4-lane eDP links properly
-	 * if the VBIOS or GOP driver do not execute.
-	 */
-	ddi_buf_ctl = graphics_gtt_read(DDI_BUF_CTL_A);
-	if (!acpi_is_wakeup_s3() && !(ddi_buf_ctl & DDI_BUF_CTL_ENABLE)) {
-		ddi_buf_ctl |= (DDI_A_4_LANES | DDI_INIT_DISPLAY_DETECTED |
-				DDI_BUF_IS_IDLE);
-		graphics_gtt_write(DDI_BUF_CTL_A, ddi_buf_ctl);
-	}
-
-	/*
-	 * GFX PEIM module inside FSP binary is taking care of graphics
-	 * initialization based on INTEL_GMA_ADD_VBT Kconfig
-	 * option and input VBT file. Hence no need to load/execute legacy VGA
-	 * OpROM in order to initialize GFX.
-	 *
-	 * In case of non-FSP solution, SoC need to select VGA_ROM_RUN
-	 * Kconfig to perform GFX initialization through VGA OpRom.
-	 */
-	if (CONFIG(INTEL_GMA_ADD_VBT))
+	if (!conf)
 		return;
 
-	/* IGD needs to Bus Master */
-	uint32_t reg32 = pci_read_config32(dev, PCI_COMMAND);
-	reg32 |= PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY | PCI_COMMAND_IO;
-	pci_write_config32(dev, PCI_COMMAND, reg32);
+	panel_cfg = &conf->panel_cfg;
 
-	/* Initialize PCI device, load/execute BIOS Option ROM */
-	pci_dev_init(dev);
+	mmio_res = probe_resource(dev, PCI_BASE_ADDRESS_0);
+	if (!mmio_res || !mmio_res->base)
+		return;
+	mmio = (void *)(uintptr_t)mmio_res->base;
+
+	/* Panel timings */
+
+	reg32 = ((DIV_ROUND_UP(panel_cfg->cycle_delay_ms, 100) + 1) & 0x1f) << 4;
+	reg32 |= PANEL_POWER_RESET;
+	write32(mmio + PCH_PP_CONTROL, reg32);
+
+	reg32 = ((panel_cfg->up_delay_ms * 10) & 0x1fff) << 16;
+	reg32 |= (panel_cfg->backlight_on_delay_ms * 10) & 0x1fff;
+	write32(mmio + PCH_PP_ON_DELAYS, reg32);
+
+	reg32 = ((panel_cfg->down_delay_ms * 10) & 0x1fff) << 16;
+	reg32 |= (panel_cfg->backlight_off_delay_ms * 10) & 0x1fff;
+	write32(mmio + PCH_PP_OFF_DELAYS, reg32);
+
+	/* Backlight */
+	if (panel_cfg->backlight_pwm_hz) {
+		pwm_polarity = panel_cfg->backlight_polarity ? BXT_BLC_PWM_POLARITY : 0;
+		pwm_period = DIV_ROUND_CLOSEST(CONFIG_CPU_XTAL_HZ, panel_cfg->backlight_pwm_hz);
+		pwm_duty = DIV_ROUND_CLOSEST(pwm_period, 2); /* Start with 50 % */
+
+		write32(mmio + BXT_BLC_PWM_FREQ(0), pwm_period);
+		write32(mmio + BXT_BLC_PWM_CTL(0),  pwm_polarity);
+		write32(mmio + BXT_BLC_PWM_DUTY(0), pwm_duty);
+	}
 }
 
-uintptr_t graphics_soc_write_acpi_opregion(struct device *device,
-		uintptr_t current, struct acpi_rsdp *rsdp)
+const struct i915_gpu_controller_info *
+intel_igd_get_controller_info(const struct device *const dev)
 {
-	igd_opregion_t *opregion;
-
-	printk(BIOS_DEBUG, "ACPI:    * IGD OpRegion\n");
-	opregion = (igd_opregion_t *)current;
-
-	if (intel_gma_init_igd_opregion(opregion) != CB_SUCCESS)
-		return current;
-
-	current += sizeof(igd_opregion_t);
-
-	return acpi_align_current(current);
+	const struct soc_intel_cannonlake_config *const chip = dev->chip_info;
+	return &chip->gfx;
 }

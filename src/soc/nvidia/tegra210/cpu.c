@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <assert.h>
@@ -58,7 +45,7 @@ void cpu_prepare_startup(void *entry_64)
 	 */
 
 	write32(&sb->sb_aa64_reset_low, (uintptr_t)entry_64);
-	setbits_le32(&sb->sb_aa64_reset_low, 1);
+	setbits32(&sb->sb_aa64_reset_low, 1);
 	write32(&sb->sb_aa64_reset_high, 0);
 }
 

@@ -1,20 +1,5 @@
-/*
- * This file is part of the coreboot project.
- *
- * DDR3 mem setup file for EXYNOS5 based board
- *
- * Copyright (C) 2012 Samsung Electronics
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* DDR3 mem setup file for EXYNOS5 based board */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <device/mmio.h>
 #include <delay.h>
@@ -33,10 +18,10 @@ int ddr3_mem_ctrl_init(struct mem_timings *mem, int interleave_size, int reset)
 	int i, chip;
 
 	/* Enable PAUSE for DREX */
-	setbits_le32(&exynos_clock->pause, ENABLE_BIT);
+	setbits32(&exynos_clock->pause, ENABLE_BIT);
 
 	/* Enable BYPASS mode */
-	setbits_le32(&exynos_clock->bpll_con1, BYPASS_EN);
+	setbits32(&exynos_clock->bpll_con1, BYPASS_EN);
 
 	write32(&exynos_clock->clk_src_cdrex, MUX_BPLL_SEL_FOUTBPLL);
 	do {
@@ -44,7 +29,7 @@ int ddr3_mem_ctrl_init(struct mem_timings *mem, int interleave_size, int reset)
 		val &= BPLL_SEL_MASK;
 	} while (val != FOUTBPLL);
 
-	clrbits_le32(&exynos_clock->bpll_con1, BYPASS_EN);
+	clrbits32(&exynos_clock->bpll_con1, BYPASS_EN);
 
 	/* Specify the DDR memory type as DDR3 */
 	val = read32(&exynos_phy0_control->phy_con0);
@@ -87,8 +72,8 @@ int ddr3_mem_ctrl_init(struct mem_timings *mem, int interleave_size, int reset)
 	if (dmc_config_zq(mem, exynos_phy0_control, exynos_phy1_control))
 		return SETUP_ERR_ZQ_CALIBRATION_FAILURE;
 
-	clrbits_le32(&exynos_phy0_control->phy_con16, ZQ_CLK_DIV_EN);
-	clrbits_le32(&exynos_phy1_control->phy_con16, ZQ_CLK_DIV_EN);
+	clrbits32(&exynos_phy0_control->phy_con16, ZQ_CLK_DIV_EN);
+	clrbits32(&exynos_phy1_control->phy_con16, ZQ_CLK_DIV_EN);
 
 	/* DQ Signal */
 	val = read32(&exynos_phy0_control->phy_con14);
@@ -116,8 +101,8 @@ int ddr3_mem_ctrl_init(struct mem_timings *mem, int interleave_size, int reset)
 		val = read32(&exynos_drex1->phystatus);
 	} while ((val & DFI_INIT_COMPLETE) != DFI_INIT_COMPLETE);
 
-	clrbits_le32(&exynos_drex0->concontrol, DFI_INIT_START);
-	clrbits_le32(&exynos_drex1->concontrol, DFI_INIT_START);
+	clrbits32(&exynos_drex0->concontrol, DFI_INIT_START);
+	clrbits32(&exynos_drex1->concontrol, DFI_INIT_START);
 
 	update_reset_dll(exynos_drex0, mem->mem_type);
 	update_reset_dll(exynos_drex1, mem->mem_type);
@@ -205,8 +190,8 @@ int ddr3_mem_ctrl_init(struct mem_timings *mem, int interleave_size, int reset)
 		write32(&exynos_phy0_control->phy_con0, PHY_CON0_RESET_VAL);
 		write32(&exynos_phy1_control->phy_con0, PHY_CON0_RESET_VAL);
 
-		setbits_le32(&exynos_phy0_control->phy_con0, P0_CMD_EN);
-		setbits_le32(&exynos_phy1_control->phy_con0, P0_CMD_EN);
+		setbits32(&exynos_phy0_control->phy_con0, P0_CMD_EN);
+		setbits32(&exynos_phy1_control->phy_con0, P0_CMD_EN);
 
 		val = PHY_CON2_RESET_VAL;
 		val |= INIT_DESKEW_EN;
@@ -243,11 +228,11 @@ int ddr3_mem_ctrl_init(struct mem_timings *mem, int interleave_size, int reset)
 				val | (chip << DIRECT_CMD_CHIP_SHIFT));
 		}
 
-		setbits_le32(&exynos_phy0_control->phy_con2, RDLVL_GATE_EN);
-		setbits_le32(&exynos_phy1_control->phy_con2, RDLVL_GATE_EN);
+		setbits32(&exynos_phy0_control->phy_con2, RDLVL_GATE_EN);
+		setbits32(&exynos_phy1_control->phy_con2, RDLVL_GATE_EN);
 
-		setbits_le32(&exynos_phy0_control->phy_con0, CTRL_SHGATE);
-		setbits_le32(&exynos_phy1_control->phy_con0, CTRL_SHGATE);
+		setbits32(&exynos_phy0_control->phy_con0, CTRL_SHGATE);
+		setbits32(&exynos_phy1_control->phy_con0, CTRL_SHGATE);
 
 		val = read32(&exynos_phy0_control->phy_con1);
 		val &= ~(CTRL_GATEDURADJ_MASK);
@@ -303,8 +288,8 @@ int ddr3_mem_ctrl_init(struct mem_timings *mem, int interleave_size, int reset)
 		write32(&exynos_phy0_control->phy_con12, (val + nLockW_phy0));
 		write32(&exynos_phy1_control->phy_con12, (val + nLockW_phy1));
 
-		setbits_le32(&exynos_phy0_control->phy_con2, DLL_DESKEW_EN);
-		setbits_le32(&exynos_phy1_control->phy_con2, DLL_DESKEW_EN);
+		setbits32(&exynos_phy0_control->phy_con2, DLL_DESKEW_EN);
+		setbits32(&exynos_phy1_control->phy_con2, DLL_DESKEW_EN);
 	}
 
 	/* Send PALL command */
@@ -332,8 +317,8 @@ int ddr3_mem_ctrl_init(struct mem_timings *mem, int interleave_size, int reset)
 	 * this saves around 25 mw dmc power as compared to the power
 	 * consumption without these bits enabled
 	 */
-	setbits_le32(&exynos_drex0->cgcontrol, DMC_INTERNAL_CG);
-	setbits_le32(&exynos_drex1->cgcontrol, DMC_INTERNAL_CG);
+	setbits32(&exynos_drex0->cgcontrol, DMC_INTERNAL_CG);
+	setbits32(&exynos_drex1->cgcontrol, DMC_INTERNAL_CG);
 
 	return 0;
 }

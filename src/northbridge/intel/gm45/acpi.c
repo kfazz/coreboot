@@ -1,77 +1,34 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <types.h>
+#include <commonlib/helpers.h>
 #include <console/console.h>
-#include <arch/acpi.h>
-#include <arch/acpigen.h>
+#include <acpi/acpi.h>
+#include <acpi/acpigen.h>
 #include <device/device.h>
-#include <device/pci.h>
+#include <device/pci_def.h>
 #include <device/pci_ops.h>
 
 #include "gm45.h"
 
 unsigned long acpi_fill_mcfg(unsigned long current)
 {
-	struct device *dev;
-	u32 pciexbar = 0;
-	u32 pciexbar_reg;
-	int max_buses;
-
-	dev = dev_find_device(0x8086, 0x2a40, 0);
-	if (!dev)
-		return current;
-
-	pciexbar_reg = pci_read_config32(dev, D0F0_PCIEXBAR_LO);
-
-	// MMCFG not supported or not enabled.
-	if (!(pciexbar_reg & (1 << 0)))
-		return current;
-
-	switch ((pciexbar_reg >> 1) & 3) {
-	case 0: // 256MB
-		pciexbar = pciexbar_reg & ((1 << 31)|(1 << 30)|(1 << 29)|(1 << 28));
-		max_buses = 256;
-		break;
-	case 1: // 128M
-		pciexbar = pciexbar_reg & ((1 << 31)|(1 << 30)|(1 << 29)|(1 << 28)|(1 << 27));
-		max_buses = 128;
-		break;
-	case 2: // 64M
-		pciexbar = pciexbar_reg & ((1 << 31)|(1 << 30)|(1 << 29)|(1 << 28)|(1 << 27)|(1 << 26));
-		max_buses = 64;
-		break;
-	default: // RSVD
-		return current;
-	}
-
-	if (!pciexbar)
-		return current;
-
-	current += acpi_create_mcfg_mmconfig((acpi_mcfg_mmconfig_t *) current,
-			pciexbar, 0x0, 0x0, max_buses - 1);
+	current += acpi_create_mcfg_mmconfig((acpi_mcfg_mmconfig_t *)current,
+			CONFIG_MMCONF_BASE_ADDRESS, 0, 0, CONFIG_MMCONF_BUS_NUMBER - 1);
 
 	return current;
 }
 
 static unsigned long acpi_fill_dmar(unsigned long current)
 {
-	int me_active = (pcidev_on_root(3, 0) != NULL) &&
-		(pci_read_config8(pcidev_on_root(3, 0), PCI_CLASS_REVISION) !=
-									 0xff);
+	const struct device *dev;
+
+	dev = pcidev_on_root(3, 0);
+	int me_active = dev && dev->enabled;
+
+	dev = pcidev_on_root(2, 0);
+	int igd_active = dev && dev->enabled;
+
 	int stepping = pci_read_config8(pcidev_on_root(0, 0),
 							   PCI_CLASS_REVISION);
 
@@ -80,7 +37,7 @@ static unsigned long acpi_fill_dmar(unsigned long current)
 	current += acpi_create_dmar_ds_pci(current, 0, 0x1b, 0);
 	acpi_dmar_drhd_fixup(tmp, current);
 
-	if (stepping != STEPPING_B2) {
+	if (stepping != STEPPING_B2 && igd_active) {
 		tmp = current;
 		current += acpi_create_dmar_drhd(current, 0, 0, IOMMU_BASE2);
 		current += acpi_create_dmar_ds_pci(current, 0, 0x2, 0);
@@ -104,7 +61,7 @@ static unsigned long acpi_fill_dmar(unsigned long current)
 	return current;
 }
 
-unsigned long northbridge_write_acpi_tables(struct device *device,
+unsigned long northbridge_write_acpi_tables(const struct device *device,
 					    unsigned long start,
 					    struct acpi_rsdp *rsdp)
 {

@@ -1,26 +1,12 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Vladimir Serbinenko
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <device/device.h>
 #include <device/pci.h>
+#include <device/pci_def.h>
 #include <device/pci_ids.h>
 #include "pch.h"
 #include <device/mmio.h>
-#include <device/pci_ops.h>
 
 static void thermal_init(struct device *dev)
 {
@@ -28,7 +14,7 @@ static void thermal_init(struct device *dev)
 	u8 *base;
 	printk(BIOS_DEBUG, "Thermal init start.\n");
 
-	res = find_resource(dev, 0x10);
+	res = find_resource(dev, PCI_BASE_ADDRESS_0);
 	if (!res)
 		return;
 
@@ -45,23 +31,16 @@ static void thermal_init(struct device *dev)
 	printk(BIOS_DEBUG, "Thermal init done.\n");
 }
 
-static struct pci_operations pci_ops = {
-	.set_subsystem = pci_dev_set_subsystem,
-};
-
 static struct device_operations thermal_ops = {
 	.read_resources = pci_dev_read_resources,
 	.set_resources = pci_dev_set_resources,
 	.enable_resources = pci_dev_enable_resources,
 	.init = thermal_init,
-	.scan_bus = 0,
-	.ops_pci = &pci_ops,
+	.ops_pci = &pci_dev_ops_pci,
 };
-
-static const unsigned short pci_device_ids[] = { 0x3b32, 0 };
 
 static const struct pci_driver pch_thermal __pci_driver = {
 	.ops = &thermal_ops,
 	.vendor = PCI_VENDOR_ID_INTEL,
-	.devices = pci_device_ids,
+	.device = PCI_DID_INTEL_IBEXPEAK_THERMAL,
 };

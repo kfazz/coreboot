@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Samsung Electronics
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* DDR3 mem setup file for SMDK5250 board based on EXYNOS5 */
 
@@ -32,20 +19,6 @@ static void reset_phy_ctrl(void)
 	write32(&exynos_clock->lpddr3phy_ctrl,
 		LPDDR3PHY_CTRL_PHY_RESET_DISABLE);
 
-#if 0
-	/*
-	 * For proper memory initialization there should be a minimum delay of
-	 * 500us after the LPDDR3PHY_CTRL_PHY_RESET signal.
-	 * The below value is an approximate value whose calculation in done
-	 * considering that sdelay takes 2 instruction for every 1 delay cycle.
-	 * And assuming each instruction takes 1 clock cycle i.e 1/(1.7 Ghz)sec
-	 * So for 500 usec, the number of delay cycle should be
-	 * (500 * 10^-6) * (1.7 * 10^9) / 2 = 425000
-	 *
-	 * TODO(hatim.rv@samsung.com): Implement the delay using timer/counter
-	 */
-	sdelay(425000);
-#endif
 	udelay(500);
 }
 

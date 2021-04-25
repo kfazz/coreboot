@@ -1,20 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Google Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef INTEL_LYNXPOINT_LP_GPIO_H
 #define INTEL_LYNXPOINT_LP_GPIO_H
+
+#include <stdint.h>
 
 /* LynxPoint LP GPIOBASE Registers */
 #define GPIO_OWNER(set)		(0x00 + ((set) * 4))
@@ -51,9 +40,9 @@
 #define GPI_LEVEL		(1 << 30)
 
 #define GPO_LEVEL_SHIFT		31
-#define GPO_LEVEL_MASK		(1UL << GPO_LEVEL_SHIFT)
-#define GPO_LEVEL_LOW		(0UL << GPO_LEVEL_SHIFT)
-#define GPO_LEVEL_HIGH		(1UL << GPO_LEVEL_SHIFT)
+#define GPO_LEVEL_MASK		(1 << GPO_LEVEL_SHIFT)
+#define GPO_LEVEL_LOW		(0 << GPO_LEVEL_SHIFT)
+#define GPO_LEVEL_HIGH		(1 << GPO_LEVEL_SHIFT)
 
 /* conf1 */
 
@@ -138,6 +127,11 @@
 	  .owner = GPIO_OWNER_GPIO, \
 	  .pirq  = GPIO_PIRQ_APIC_ROUTE }
 
+#define LP_GPIO_PIRQ_INVERT \
+	{ .conf0 = GPIO_MODE_GPIO | GPIO_DIR_INPUT | GPIO_INVERT, \
+	  .owner = GPIO_OWNER_GPIO, \
+	  .pirq  = GPIO_PIRQ_APIC_ROUTE }
+
 #define LP_GPIO_OUT_HIGH \
 	{ .conf0 = GPIO_MODE_GPIO | GPIO_DIR_OUTPUT | GPO_LEVEL_HIGH, \
 	  .owner = GPIO_OWNER_GPIO, \
@@ -163,15 +157,21 @@ struct pch_lp_gpio_map {
 /* Configure GPIOs with mainboard provided settings */
 void setup_pch_lp_gpios(const struct pch_lp_gpio_map map[]);
 
-/* get GPIO pin value */
+/* Get GPIO pin value */
 int get_gpio(int gpio_num);
-/*
- * get a number comprised of multiple GPIO values. gpio_num_array points to
- * the array of gpio pin numbers to scan, terminated by -1.
- */
-unsigned get_gpios(const int *gpio_num_array);
 
+/* Set GPIO pin value */
 void set_gpio(int gpio_num, int value);
 
+/* Return non-zero if gpio is set to native function. 0 otherwise. */
 int gpio_is_native(int gpio_num);
+
+/*
+ * Get a number comprised of multiple GPIO values. gpio_num_array points to
+ * the array of gpio pin numbers to scan, terminated by -1.
+ */
+unsigned int get_gpios(const int *gpio_num_array);
+
+extern const struct pch_lp_gpio_map mainboard_lp_gpio_map[];
+
 #endif

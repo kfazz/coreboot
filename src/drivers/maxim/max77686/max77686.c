@@ -1,17 +1,4 @@
-/*
- * Copyright (C) 2012 Samsung Electronics
- * Alim Akhtar <alim.akhtar@samsung.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <console/console.h>
 #include <device/mmio.h>
@@ -128,10 +115,10 @@ static int max77686_enablereg(unsigned int bus, enum max77686_regnum reg, int en
 	}
 
 	if (enable == REG_DISABLE) {
-		clrbits_8(&read_data,
+		clrbits8(&read_data,
 				pmic->reg_enbitmask << pmic->reg_enbitpos);
 	} else {
-		clrsetbits_8(&read_data,
+		clrsetbits8(&read_data,
 				pmic->reg_enbitmask << pmic->reg_enbitpos,
 				pmic->reg_enbiton << pmic->reg_enbitpos);
 	}
@@ -178,7 +165,7 @@ int max77686_volsetting(unsigned int bus, enum max77686_regnum reg,
 	}
 	vol_level /= (u32)pmic->vol_div;
 
-	clrsetbits_8(&read_data, pmic->vol_bitmask << pmic->vol_bitpos,
+	clrsetbits8(&read_data, pmic->vol_bitmask << pmic->vol_bitpos,
 			vol_level << pmic->vol_bitpos);
 
 	ret = max77686_i2c_write(bus, MAX77686_I2C_ADDR, pmic->vol_addr, read_data);

@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <soc/mcucfg.h>
@@ -31,5 +18,5 @@ void timer_prepare(void)
 	 */
 	write32(&mt8173_mcucfg->xgpt_idx, 0);
 	/* Set clock mode to 13Mhz and enable XGPT */
-	write32(&mt8173_mcucfg->xgpt_ctl, (0x1 | ((26 / GPT4_MHZ) << 8)));
+	write32(&mt8173_mcucfg->xgpt_ctl, (0x1 | ((26 / GPT_MHZ) << 8)));
 }

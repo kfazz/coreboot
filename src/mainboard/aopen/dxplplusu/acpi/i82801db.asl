@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Kyösti Mälkki <kyosti.malkki@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/ioapic.h>
 
@@ -85,10 +72,23 @@ Device (ICH0)
 	OperationRegion (ACPI, SystemIO, 0x0400, 0xC0)
 	Field (ACPI, ByteAcc, NoLock, Preserve)
 	{
-		Offset (0x00),       PS1L,8,  PS1H,8,   PE1L,8,   PE1H,8,
-		Offset (0x28),       GS0L,8,  GS0H,8,   GSPL,8,   GSPH,8,
-		Offset (0x2C),       GE0L,8,  GE0H,8,   GEPL,8,   GEPH,8,
-		Offset (0xB8),       GPLV,8
+		PS1L,	8,
+		PS1H,	8,
+		PE1L,	8,
+		PE1H,	8,
+
+		Offset (0x28),
+		GS0L,	8,
+		GS0H,	8,
+		GSPL,	8,
+		GSPH,	8,
+		GE0L,	8,
+		GE0H,	8,
+		GEPL,	8,
+		GEPH,	8,
+
+		Offset (0xB8),
+		GPLV,	8
 	}
 
 	Name (MSBF, ResourceTemplate ()

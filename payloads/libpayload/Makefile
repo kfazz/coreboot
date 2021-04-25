@@ -1,5 +1,4 @@
 ##
-## This file is part of the libpayload project.
 ##
 ## Copyright (C) 2008 Advanced Micro Devices, Inc.
 ## Copyright (C) 2008 Uwe Hermann <uwe@hermann-uwe.de>
@@ -95,7 +94,6 @@ include $(HAVE_DOTCONFIG)
 
 ARCHDIR-$(CONFIG_LP_ARCH_ARM)     := arm
 ARCHDIR-$(CONFIG_LP_ARCH_ARM64)   := arm64
-ARCHDIR-$(CONFIG_LP_ARCH_MIPS)    := mips
 ARCHDIR-$(CONFIG_LP_ARCH_X86)     := x86
 
 ARCH-y := $(ARCHDIR-y)
@@ -105,7 +103,6 @@ ARCH-y := $(ARCHDIR-y)
 ARCH-$(CONFIG_LP_ARCH_ARM)     := arm
 ARCH-$(CONFIG_LP_ARCH_ARM64)   := arm64
 ARCH-$(CONFIG_LP_ARCH_X86)     := x86_32
-ARCH-$(CONFIG_LP_ARCH_MIPS)    := mips
 
 # Three cases where we don't need fully populated $(obj) lists:
 # 1. when no .config exists
@@ -121,6 +118,11 @@ NOCOMPILE:=1
 endif
 endif
 
+xcompile ?= $(obj)/xcompile
+$(xcompile): $(top)/../../util/xcompile/xcompile
+	$< $(XGCCPATH) > $@.tmp
+	\mv -f $@.tmp $@ 2> /dev/null
+
 ifeq ($(NOCOMPILE),1)
 include $(TOPLEVEL)/Makefile.inc
 real-all: config
@@ -129,13 +131,17 @@ else
 
 # in addition to the dependency below, create the file if it doesn't exist
 # to silence stupid warnings about a file that would be generated anyway.
-$(if $(wildcard .xcompile)$(NOCOMPILE),,$(eval $(shell $(top)/../../util/xcompile/xcompile $(XGCCPATH) > .xcompile)))
+$(if $(wildcard $(xcompile)),,$(shell	\
+	mkdir -p $(dir $(xcompile)) &&	\
+	$(top)/../../util/xcompile/xcompile $(XGCCPATH) > $(xcompile) || rm -f $(xcompile)))
 
-.xcompile: $(top)/../../util/xcompile/xcompile
-	$< $(XGCCPATH) > $@.tmp
-	\mv -f $@.tmp $@ 2> /dev/null
+include $(xcompile)
 
--include .xcompile
+ifneq ($(XCOMPILE_COMPLETE),1)
+$(shell rm -f $(xcompile))
+$(error $(xcompile) deleted because it's invalid. \
+	Restarting the build should fix that, or explain the problem)
+endif
 
 CC := $(CC_$(ARCH-y))
 AS := $(AS_$(ARCH-y))
@@ -165,7 +171,6 @@ CCACHE:=CCACHE_COMPILERCHECK=content CCACHE_BASEDIR=$(top) $(CCACHE)
 CC := $(CCACHE) $(CC)
 HOSTCC := $(CCACHE) $(HOSTCC)
 HOSTCXX := $(CCACHE) $(HOSTCXX)
-ROMCC := $(CCACHE) $(ROMCC)
 endif
 
 strip_quotes = $(subst ",,$(subst \",,$(1)))
@@ -221,12 +226,12 @@ includemakefiles= \
 	$(foreach class,classes subdirs $(classes) $(special-classes), $(eval $(class)-y:=)) \
 	$(eval -include $(1)) \
 	$(foreach class,$(classes-y), $(call add-class,$(class))) \
+	$(foreach special,$(special-classes), \
+		$(foreach item,$($(special)-y), $(call $(special)-handler,$(dir $(1)),$(item)))) \
 	$(foreach class,$(classes), \
 		$(eval $(class)-srcs+= \
 			$$(subst $(top)/,, \
 			$$(abspath $$(addprefix $(dir $(1)),$$($(class)-y)))))) \
-	$(foreach special,$(special-classes), \
-		$(foreach item,$($(special)-y), $(call $(special)-handler,$(dir $(1)),$(item)))) \
 	$(eval subdirs+=$$(subst $(CURDIR)/,,$$(abspath $$(addprefix $(dir $(1)),$$(subdirs-y)))))
 
 # For each path in $(subdirs) call includemakefiles
@@ -298,7 +303,7 @@ doxygen-clean:
 	rm -rf $(DOXYGEN_OUTPUT_DIR)
 
 clean-for-update: doxygen-clean clean-for-update-target
-	rm -f $(allobjs) .xcompile
+	rm -f $(allobjs) $(xcompile)
 	rm -f $(DEPENDENCIES)
 	rmdir -p $(alldirs) 2>/dev/null >/dev/null || true
 

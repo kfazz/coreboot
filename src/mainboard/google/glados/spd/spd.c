@@ -1,28 +1,14 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015 Google Inc.
- * Copyright (C) 2015 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/byteorder.h>
 #include <cbfs.h>
 #include <console/console.h>
 #include <gpio.h>
 #include <soc/gpio.h>
-#include <soc/pei_data.h>
 #include <soc/romstage.h>
 #include <string.h>
 #include <baseboard/variant.h>
+
+#include "spd_util.h"
 #include "spd.h"
 
 static void mainboard_print_spd_info(uint8_t spd[])
@@ -83,18 +69,17 @@ __weak int is_dual_channel(const int spd_index)
 }
 
 /* Copy SPD data for on-board memory */
-void mainboard_fill_spd_data(struct pei_data *pei_data)
+void spd_memory_init_params(FSPM_UPD *mupd, int spd_index)
 {
-	char *spd_file;
+	FSP_M_CONFIG *mem_cfg;
+	mem_cfg = &mupd->FspmConfig;
+	uint8_t *spd_file;
 	size_t spd_file_len;
-	int spd_index;
 
-	spd_index = pei_data->mem_cfg_id;
 	printk(BIOS_INFO, "SPD index %d\n", spd_index);
 
 	/* Load SPD data from CBFS */
-	spd_file = cbfs_boot_map_with_leak("spd.bin", CBFS_TYPE_SPD,
-		&spd_file_len);
+	spd_file = cbfs_map("spd.bin", &spd_file_len);
 	if (!spd_file)
 		die("SPD data not found.");
 
@@ -108,15 +93,15 @@ void mainboard_fill_spd_data(struct pei_data *pei_data)
 		spd_index = 1;
 	}
 
-	/* Assume same memory in both channels */
-	spd_index *= SPD_LEN;
-	memcpy(pei_data->spd_data[0][0], spd_file + spd_index, SPD_LEN);
-	if (is_dual_channel(spd_index))
-		memcpy(pei_data->spd_data[1][0], spd_file + spd_index, SPD_LEN);
-
+	const size_t spd_offset = spd_index * SPD_LEN;
 	/* Make sure a valid SPD was found */
-	if (pei_data->spd_data[0][0][0] == 0)
+	if (spd_file[spd_offset] == 0)
 		die("Invalid SPD data.");
 
-	mainboard_print_spd_info(pei_data->spd_data[0][0]);
+	/* Assume same memory in both channels */
+	mem_cfg->MemorySpdPtr00 = (uintptr_t)spd_file + spd_offset;
+	if (is_dual_channel(spd_index))
+		mem_cfg->MemorySpdPtr10 = mem_cfg->MemorySpdPtr00;
+
+	mainboard_print_spd_info(spd_file + spd_offset);
 }

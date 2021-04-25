@@ -1,27 +1,11 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Rockchip Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
-#include <assert.h>
-#include <delay.h>
 #include <soc/addressmap.h>
 #include <soc/grf.h>
 #include <soc/soc.h>
 #include <soc/pwm.h>
 #include <soc/clock.h>
-#include <stdlib.h>
 #include <timer.h>
 
 struct pwm_ctl {
@@ -40,7 +24,6 @@ check_member(rk_pwm_regs, int_en, 0x44);
 
 #define RK_PWM_DISABLE                  (0 << 0)
 #define RK_PWM_ENABLE                   (1 << 0)
-
 
 #define PWM_ONE_SHOT                    (0 << 1)
 #define PWM_CONTINUOUS                  (1 << 1)
@@ -81,5 +64,5 @@ void pwm_init(u32 id, u32 period_ns, u32 duty_ns)
 
 	write32(&rk_pwm->pwm[id].pwm_period_hpr, period);
 	write32(&rk_pwm->pwm[id].pwm_duty_lpr, duty);
-	setbits_le32(&rk_pwm->pwm[id].pwm_ctrl, RK_PWM_ENABLE);
+	setbits32(&rk_pwm->pwm[id].pwm_ctrl, RK_PWM_ENABLE);
 }

@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 secunet Security Networks AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef SUPERIO_ACPI_PNP_DEFS_ASL
 #define SUPERIO_ACPI_PNP_DEFS_ASL
@@ -81,7 +68,7 @@
 
 /*
  * Current power state (returns the chip's state, if it's in
- * power saving mode, 1 if this LDN is in power saving mode,
+ * power saving mode, 3 if this LDN is in power saving mode,
  * 0 else)
  *
  * PM_REG	Identifier of a register which powers down the device
@@ -94,7 +81,7 @@
 	ENTER_CONFIG_MODE (PM_LDN)\
 	  Store (PM_REG, Local0)\
 	EXIT_CONFIG_MODE ()\
-	If (LEqual(Local0, PM_VAL)) { Return (1) }\
+	If (LEqual(Local0, PM_VAL)) { Return (3) }\
 	Else { Return (0) }\
 
 /* Disable power saving mode */
@@ -104,7 +91,7 @@
 	EXIT_CONFIG_MODE ()
 
 /* Enable power saving mode */
-#define PNP_GENERIC_PS1(PM_REG, PM_VAL, PM_LDN) \
+#define PNP_GENERIC_PS3(PM_REG, PM_VAL, PM_LDN) \
 	ENTER_CONFIG_MODE (PM_LDN)\
 	  Store (PM_VAL, PM_REG)\
 	EXIT_CONFIG_MODE ()

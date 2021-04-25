@@ -14,3 +14,5 @@ sticky_fn=Disable
 trackpoint=Enable
 backlight=Both
 usb_always_on=Disable
+f1_to_f12_as_primary=Enable
+me_state=Normal

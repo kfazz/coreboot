@@ -1,44 +1,44 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 Google LLC
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi_device.h>
-#include <arch/acpi_pld.h>
-#include <arch/acpigen.h>
+#include <acpi/acpi_device.h>
+#include <acpi/acpi_pld.h>
+#include <acpi/acpigen.h>
 #include <console/console.h>
 #include <device/device.h>
 #include <device/path.h>
-#include <stdint.h>
 #include "chip.h"
 
 static bool usb_acpi_add_gpios_to_crs(struct drivers_usb_acpi_config *cfg)
 {
-	/*
-	 * Return false if reset GPIO is not provided.
-	 */
-	if (cfg->reset_gpio.pin_count == 0)
-		return false;
+	if (cfg->privacy_gpio.pin_count)
+		return true;
 
-	return true;
+	if (cfg->reset_gpio.pin_count && !cfg->has_power_resource)
+		return true;
+
+	return false;
 }
 
-static void usb_acpi_fill_ssdt_generator(struct device *dev)
+static int usb_acpi_write_gpio(struct acpi_gpio *gpio, int *curr_index)
+{
+	int ret = -1;
+
+	if (gpio->pin_count == 0)
+		return ret;
+
+	acpi_device_write_gpio(gpio);
+	ret = *curr_index;
+	(*curr_index)++;
+
+	return ret;
+}
+
+static void usb_acpi_fill_ssdt_generator(const struct device *dev)
 {
 	struct drivers_usb_acpi_config *config = dev->chip_info;
 	const char *path = acpi_device_path(dev);
 
-	if (!dev->enabled || !path || !config)
+	if (!path || !config)
 		return;
 
 	/* Don't generate output for hubs, only ports */
@@ -63,16 +63,45 @@ static void usb_acpi_fill_ssdt_generator(struct device *dev)
 	/* Resources */
 	if (usb_acpi_add_gpios_to_crs(config) == true) {
 		struct acpi_dp *dsd;
+		int idx = 0;
+		int reset_gpio_index = -1;
+		int privacy_gpio_index;
 
 		acpigen_write_name("_CRS");
 		acpigen_write_resourcetemplate_header();
-		acpi_device_write_gpio(&config->reset_gpio);
+		if (!config->has_power_resource) {
+			reset_gpio_index = usb_acpi_write_gpio(
+						&config->reset_gpio, &idx);
+		}
+		privacy_gpio_index = usb_acpi_write_gpio(&config->privacy_gpio,
+							 &idx);
 		acpigen_write_resourcetemplate_footer();
 
 		dsd = acpi_dp_new_table("_DSD");
-		acpi_dp_add_gpio(dsd, "reset-gpio", path, 0, 0,
-				config->reset_gpio.polarity);
+		if (reset_gpio_index >= 0)
+			acpi_dp_add_gpio(dsd, "reset-gpio", path,
+					 reset_gpio_index, 0,
+					 config->reset_gpio.active_low);
+		if (privacy_gpio_index >= 0)
+			acpi_dp_add_gpio(dsd, "privacy-gpio", path,
+					 privacy_gpio_index, 0,
+					 config->privacy_gpio.active_low);
 		acpi_dp_write(dsd);
+	}
+
+	if (config->has_power_resource) {
+		const struct acpi_power_res_params power_res_params = {
+			&config->reset_gpio,
+			config->reset_delay_ms,
+			config->reset_off_delay_ms,
+			&config->enable_gpio,
+			config->enable_delay_ms,
+			config->enable_off_delay_ms,
+			NULL,
+			0,
+			0
+		};
+		acpi_device_add_power_res(&power_res_params);
 	}
 
 	acpigen_pop_len();
@@ -82,11 +111,10 @@ static void usb_acpi_fill_ssdt_generator(struct device *dev)
 }
 
 static struct device_operations usb_acpi_ops = {
-	.read_resources			= DEVICE_NOOP,
-	.set_resources			= DEVICE_NOOP,
-	.enable_resources		= DEVICE_NOOP,
-	.scan_bus			= scan_usb_bus,
-	.acpi_fill_ssdt_generator	= usb_acpi_fill_ssdt_generator,
+	.read_resources		= noop_read_resources,
+	.set_resources		= noop_set_resources,
+	.scan_bus		= scan_static_bus,
+	.acpi_fill_ssdt		= usb_acpi_fill_ssdt_generator,
 };
 
 static void usb_acpi_enable(struct device *dev)

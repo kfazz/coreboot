@@ -1,30 +1,13 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2013 Google Inc.
- * Copyright (C) 2012 Samsung Electronics
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/cache.h>
 #include <console/console.h>
 #include <device/mmio.h>
-#include <delay.h>
 #include <device/device.h>
 #include <soc/clk.h>
 #include <soc/cpu.h>
 #include <soc/dp-core.h>
 #include <soc/fimd.h>
-#include <stddef.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "chip.h"
@@ -112,12 +95,18 @@ static void cpu_enable(struct device *dev)
 	unsigned long fb_size = FB_SIZE_KB * KiB;
 	u32 lcdbase = get_fb_base_kb() * KiB;
 
-	ram_resource(dev, 0, RAM_BASE_KB, RAM_SIZE_KB - FB_SIZE_KB);
-	mmio_resource(dev, 1, lcdbase / KiB, DIV_ROUND_UP(fb_size, KiB));
-
 	exynos_displayport_init(dev, lcdbase, fb_size);
 
 	set_cpu_id();
+}
+
+static void cpu_read_resources(struct device *dev)
+{
+	unsigned long fb_size = FB_SIZE_KB * KiB;
+	u32 lcdbase = get_fb_base_kb() * KiB;
+
+	ram_resource(dev, 0, RAM_BASE_KB, RAM_SIZE_KB - FB_SIZE_KB);
+	mmio_resource(dev, 1, lcdbase / KiB, DIV_ROUND_UP(fb_size, KiB));
 }
 
 static void cpu_init(struct device *dev)
@@ -127,11 +116,10 @@ static void cpu_init(struct device *dev)
 }
 
 static struct device_operations cpu_ops = {
-	.read_resources   = DEVICE_NOOP,
-	.set_resources    = DEVICE_NOOP,
+	.read_resources   = cpu_read_resources,
+	.set_resources    = noop_set_resources,
 	.enable_resources = cpu_enable,
 	.init             = cpu_init,
-	.scan_bus         = 0,
 };
 
 static void enable_exynos5250_dev(struct device *dev)

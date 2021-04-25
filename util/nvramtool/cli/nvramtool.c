@@ -1,28 +1,4 @@
-/*****************************************************************************\
- * nvramtool.c
- *****************************************************************************
- *  Copyright (C) 2002-2005 The Regents of the University of California.
- *  Produced at the Lawrence Livermore National Laboratory.
- *  Written by Dave Peterson <dsp@llnl.gov> <dave_peterson@pobox.com>.
- *  UCRL-CODE-2003-012
- *  All rights reserved.
- *
- *  This file is part of nvramtool, a utility for reading/writing coreboot
- *  parameters and displaying information from the coreboot table.
- *  For details, see https://coreboot.org/nvramtool.
- *
- *  Please also read the file DISCLAIMER which is included in this software
- *  distribution.
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License (as published by the
- *  Free Software Foundation) version 2, dated June 1991.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the terms and
- *  conditions of the GNU General Public License for more details.
-\*****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -126,7 +102,7 @@ int main(int argc, char *argv[])
 		if (!nvramtool_op_modifiers[NVRAMTOOL_MOD_USE_CMOS_FILE].found) {
 			cmos_default = cbfs_find_file("cmos.default", CBFS_COMPONENT_CMOS_DEFAULT, NULL);
 			if (cmos_default == NULL) {
-				fprintf(stderr, "Need a cmos.default in the CBFS image or separate cmos file (-D).\n");
+				fprintf(stderr, "Need a cmos.default in the CBFS image or separate CMOS file (-D).\n");
 				exit(1);
 			}
 		}

@@ -1,19 +1,7 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Arthur Heymans <arthur@aheymans.xyz>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpigen.h>
+#include <acpi/acpigen.h>
+#include <acpi/acpigen_pci.h>
 #include <console/console.h>
 #include <device/pci_def.h>
 #include <device/pci_ops.h>
@@ -65,25 +53,21 @@ static void gen_pirq_route(const enum emit_type emit, const char *lpcb_path,
 			pirq = pci_int_mapping[pci_dev][int_pin];
 			if (pirq == PIRQ_NONE)
 				continue;
-			acpigen_write_package(4);
-			acpigen_write_dword((pci_dev << 16) | 0xffff);
-			acpigen_write_byte(int_pin);
+
 			if (emit == EMIT_APIC) {
-				acpigen_write_zero();
-				acpigen_write_dword(16 + pirq - PIRQ_A);
+				const unsigned int gsi = 16 + pirq - PIRQ_A;
+				acpigen_write_PRT_GSI_entry(pci_dev, int_pin, gsi);
 			} else {
 				snprintf(buffer, sizeof(buffer),
-					"%s.LNK%c",
-					lpcb_path, 'A' + pirq - PIRQ_A);
-				acpigen_emit_namestring(buffer);
-				acpigen_write_dword(0);
+					 "%s.LNK%c",
+					 lpcb_path, 'A' + pirq - PIRQ_A);
+				acpigen_write_PRT_source_entry(pci_dev, int_pin, buffer, 0);
 			}
-			acpigen_pop_len();
 		}
 	}
 }
 
-void intel_acpi_gen_def_acpi_pirq(struct device *dev)
+void intel_acpi_gen_def_acpi_pirq(const struct device *dev)
 {
 	const char *lpcb_path = acpi_device_path(dev);
 	char pci_int_mapping[32][4];
@@ -107,7 +91,6 @@ void intel_acpi_gen_def_acpi_pirq(struct device *dev)
 	acpigen_write_package(num_devs);
 	gen_pirq_route(EMIT_APIC, lpcb_path, pci_int_mapping);
 	acpigen_pop_len(); /* package */
-	acpigen_pop_len(); /* if PICM */
 	acpigen_write_else();
 	acpigen_emit_byte(RETURN_OP);
 	acpigen_write_package(num_devs);

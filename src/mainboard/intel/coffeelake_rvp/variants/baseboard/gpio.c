@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <baseboard/gpio.h>
 #include <baseboard/variants.h>
@@ -120,8 +107,14 @@ static const struct pad_config gpio_table[] = {
 	/* C17 : I2C0_SCL */
 	/* C18 : I2C1_SDA */
 	/* C19 : I2C1_SCL */
+
+	/*
+	 * Note: It's unconfirmed if this redundancy to the bootblock table is necessary.
+	 */
 	/* C20 : UART2_RXD */
+	PAD_CFG_NF(GPP_C20, NONE, DEEP, NF1),
 	/* C21 : UART2_TXD */
+	PAD_CFG_NF(GPP_C21, NONE, DEEP, NF1),
 	/* C22 : UART2_RTSB */
 	/* C23 : UART2_CTSB */
 
@@ -264,8 +257,7 @@ static const struct pad_config gpio_table[] = {
 	/* H21 : GPPC_H_21 */
 	/* H22 : GPPC_H_22 */
 	PAD_CFG_GPI(GPP_H22, NONE, DEEP),
-#if IS_ENABLED(CONFIG_BOARD_INTEL_WHISKEYLAKE_RVP) || \
-		IS_ENABLED(CONFIG_BOARD_INTEL_COMETLAKE_RVP)
+#if CONFIG(BOARD_INTEL_WHISKEYLAKE_RVP) || CONFIG(BOARD_INTEL_COMETLAKE_RVPU)
 	PAD_CFG_GPO(GPP_H22, 1, PLTRST),
 #else
 	PAD_CFG_GPI(GPP_H22, NONE, DEEP),
@@ -593,8 +585,10 @@ static const struct pad_config gpio_table[] = {
 
 /* Early pad configuration in bootblock */
 static const struct pad_config early_gpio_table[] = {
-
-
+	/* C20 : UART2_RXD */
+	PAD_CFG_NF(GPP_C20, NONE, DEEP, NF1),
+	/* C21 : UART2_TXD */
+	PAD_CFG_NF(GPP_C21, NONE, DEEP, NF1),
 };
 
 const struct pad_config *__weak variant_gpio_table(size_t *num)

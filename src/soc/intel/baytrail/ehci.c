@@ -1,19 +1,6 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
@@ -23,7 +10,7 @@
 #include <soc/iomap.h>
 #include <soc/iosf.h>
 #include <soc/pci_devs.h>
-#include <soc/pmc.h>
+#include <soc/pm.h>
 #include <soc/ramstage.h>
 #include <soc/ehci.h>
 
@@ -88,7 +75,7 @@ static const struct reg_script ehci_hc_reset[] = {
 
 static void usb2_phy_init(struct device *dev)
 {
-	struct soc_intel_baytrail_config *config = dev->chip_info;
+	struct soc_intel_baytrail_config *config = config_of(dev);
 	u32 usb2_comp_bg = (config->usb2_comp_bg == 0 ?
 			    0x4700 : config->usb2_comp_bg);
 	struct reg_script usb2_phy_script[] = {
@@ -123,7 +110,7 @@ static void usb2_phy_init(struct device *dev)
 
 static void ehci_init(struct device *dev)
 {
-	struct soc_intel_baytrail_config *config = dev->chip_info;
+	struct soc_intel_baytrail_config *config = config_of(dev);
 	struct reg_script ehci_hc_init[] = {
 		/* Controller init */
 		REG_SCRIPT_NEXT(ehci_init_script),

@@ -1,20 +1,5 @@
-/*
- * inteltool - dump all registers on an Intel CPU + chipset based system.
- *
- * Copyright (C) 2008-2010 by coresystems GmbH
- *  written by Stefan Reinauer <stepan@coresystems.de>
- * Copyright (C) 2009 Carl-Daniel Hailfinger
- * Copyright (C) 2017 secunet Security Networks AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* inteltool - dump all registers on an Intel CPU + chipset based system */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -128,6 +113,12 @@ static const struct {
 	  "6th generation (Skylake-S family) Core Processor (Desktop)" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_D2,
 	  "6th generation (Skylake-S family) Core Processor (Desktop)" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_E,
+	  "6th generation (Skylake family) Core Processor Xeon E (Server)" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_U,
+	  "6th generation (Skylake family) Core Processor (Mobile)" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_Y,
+	  "6th generation (Skylake family) Core Processor (Mobile)" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BAYTRAIL, "Bay Trail" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CORE_7TH_GEN_U,
 	  "7th generation (Kaby Lake family) Core Processor (Mobile)" },
@@ -135,9 +126,26 @@ static const struct {
 	  "7th generation (Kaby Lake family) Core Processor (Mobile)" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CORE_7TH_GEN_U_Q,
 	  "7th generation (Kaby Lake family) Core Processor (Mobile)" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CORE_7TH_GEN_E3,
+	  "7th generation (Kaby Lake family) Core Processor Xeon E3-1200" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CORE_8TH_GEN_U_1,
+	  "8th generation (Coffee Lake family) Core Processor (Mobile)" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CORE_8TH_GEN_U_2,
+	  "8th generation (Whiskey Lake family) Core Processor (Mobile)" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CORE_10TH_GEN_U,
+	  "10th generation (Icelake family) Core Processor (Mobile)" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CORE_CML_U1,
+	  "10th generation (Comet Lake family) Core Processor (Mobile)" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CORE_CML_U2,
+	  "10th generation (Comet Lake family) Core Processor (Mobile)" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CORE_CML_U3,
+	  "10th generation (Comet Lake family) Core Processor (Mobile)" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_HEWITTLAKE,
+	  "Xeon E7 v4/Xeon E5 v4/Xeon E3 v4/Xeon D (Hewitt Lake)" },
 	/* Southbridges (LPC controllers) */
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371XX, "371AB/EB/MB" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH10, "ICH10" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH10DO, "ICH10DO" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH10R, "ICH10R" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH9DH, "ICH9DH" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH9DO, "ICH9DO" },
@@ -212,30 +220,48 @@ static const struct {
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_HM75, "HM75" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_HM70, "HM70" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_NM70, "NM70" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICELAKE_LP_U,
+	  "Icelake U LPC" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_LYNXPOINT_LP_FULL,
 	  "Lynx Point Low Power Full Featured Engineering Sample" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_LYNXPOINT_LP_PREM,
 	  "Lynx Point Low Power Premium SKU" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_LYNXPOINT_LP_BASE,
 	  "Lynx Point Low Power Base SKU" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_WILDCATPOINT_LP_PREM,
+	  "Wildcat Point Low Power Premium SKU" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_WILDCATPOINT_LP,
-	  "Wildcat Point Low Power SKU" },
+	  "Wildcat Point Low Power Base SKU" },
 	{ PCI_VENDOR_ID_INTEL, 0x2310, "DH89xxCC" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BAYTRAIL_LPC, "Bay Trail" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SUNRISEPOINT_PRE,
 	  "Sunrise Point Desktop Engineering Sample" },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_BASE,
-	  "Sunrise Point-LP U Base" },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_PREM,
-	  "Sunrise Point-LP U Premium" },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_Y_PREM,
-	  "Sunrise Point-LP Y Premium" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_PRE,
+	  "Sunrise Point-LP Engineering Sample" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_BASE_SKL,
+	  "Sunrise Point-LP U Base/Skylake" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_Y_PREM_SKL,
+	  "Sunrise Point-LP Y Premium/Skylake" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_PREM_SKL,
+	  "Sunrise Point-LP U Premium/Skylake" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_BASE_KBL,
+	  "Sunrise Point-LP U Base/Kabylake" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_Y_PREM_KBL,
+	  "Sunrise Point-LP Y Premium/Kabylake" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_PREM_KBL,
+	  "Sunrise Point-LP U Premium/Kabylake" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_IHDCP_BASE,
-	  "Sunrise Point-LP U iHDCP 2.2 Base" },
+	  "Sunrise Point-LP U iHDCP 2.2 Base/Kabylake" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_IHDCP_PREM,
-	  "Sunrise Point-LP U iHDCP 2.2 Premium" },
+	  "Sunrise Point-LP U iHDCP 2.2 Premium/Kabylake" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_Y_IHDCP_PREM,
-	  "Sunrise Point-LP Y iHDCP 2.2 Premium" },
+	  "Sunrise Point-LP Y iHDCP 2.2 Premium/Kabylake" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CANNONPOINT_LP_U_PREM,
+	  "Cannon Point-LP U Premium/CoffeeLake/Whiskeylake" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_COMETPOINT_LP_U_PREM,
+	  "Comet Point-LP U Premium/Cometlake" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_COMETPOINT_LP_U_BASE,
+	  "Comet Point-LP U Base/Cometlake" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_H110, "H110" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_H170, "H170" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_Z170, "Z170" },
@@ -250,6 +276,20 @@ static const struct {
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_HM175, "HM175" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_QM175, "QM175" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CM238, "CM238" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_C621, "C621" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_C621A, "C621A" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_C622, "C622" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_C624, "C624" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_C625, "C625" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_C626, "C626" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_C627, "C627" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_C628, "C628" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_C629, "C629" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_C624_SUPER, "C624 Super SKU" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_C627_SUPER_1, "C627 Super SKU" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_C621_SUPER, "C621 Super SKU" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_C627_SUPER_2, "C627 Super SKU" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_C628_SUPER, "C628 Super SKU" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_H310, "H310" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_H370, "H370" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_Z390, "Z390" },
@@ -348,6 +388,8 @@ static const struct {
 	  "Intel(R) HD 4000 Graphics" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_HD_4000_2,
 	  "Intel(R) HD 4000 Graphics" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_HD_4400,
+	  "Intel(R) HD 4400 Graphics" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_HD_4600,
 	  "Intel(R) HD 4600 Graphics" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_HD_4600_1,
@@ -406,6 +448,10 @@ static const struct {
 	  "Intel(R) Iris Plus Graphics 650" },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_IRIS_PLUS_655,
 	  "Intel(R) Iris Plus Graphics 655" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_IRIS_PLUS_G7,
+	  "Intel(R) Iris Plus Graphics G7" },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_UHD_GRAPHICS,
+	  "Intel(R) UHD Graphics" },
 };
 
 #ifndef __DARWIN__
@@ -433,7 +479,7 @@ void unmap_physical(void *virt_addr, size_t len)
 }
 #endif
 
-void print_version(void)
+static void print_version(void)
 {
 	printf("inteltool v%s -- ", INTELTOOL_VERSION);
 	printf("Copyright (C) 2008 coresystems GmbH\n\n");
@@ -447,9 +493,9 @@ void print_version(void)
     "GNU General Public License for more details.\n\n");
 }
 
-void print_usage(const char *name)
+static void print_usage(const char *name)
 {
-	printf("usage: %s [-vh?gGrpmedPMaAsfSRx]\n", name);
+	printf("usage: %s [-vh?gGrplmedPMaAsfSRx]\n", name);
 	printf("\n"
 	     "   -v | --version:                   print the version\n"
 	     "   -h | --help:                      print this help\n\n"
@@ -460,6 +506,7 @@ void print_usage(const char *name)
 	     "   -G | --gpio-diffs:                show GPIO differences from defaults\n"
 	     "   -r | --rcba:                      dump southbridge RCBA registers\n"
 	     "   -p | --pmbase:                    dump southbridge Power Management registers\n\n"
+	     "   -l | --lpc:                       dump southbridge LPC/eSPI Interface registers\n\n"
 	     "   -m | --mchbar:                    dump northbridge Memory Controller registers\n"
 	     "   -S FILE | --spd=FILE:             create a file storing current timings (implies -m)\n"
 	     "   -e | --epbar:                     dump northbridge EPBAR registers\n"
@@ -468,11 +515,55 @@ void print_usage(const char *name)
 	     "   -M | --msrs:                      dump CPU MSRs\n"
 	     "   -A | --ambs:                      dump AMB registers\n"
 	     "   -x | --sgx:                       dump SGX status\n"
+	     "   -t | --tme:                       dump TME status\n"
 	     "   -a | --all:                       dump all known (safe) registers\n"
 	     "        --pcr=PORT_ID:               dump all registers of a PCR port\n"
 	     "                                     (may be specified max %d times)\n"
 	     "\n", MAX_PCR_PORTS);
 	exit(1);
+}
+
+static void print_system_info(struct pci_dev *nb, struct pci_dev *sb, struct pci_dev *gfx)
+{
+	unsigned int id, i;
+	char *sbname = "unknown", *nbname = "unknown", *gfxname = "unknown";
+
+	id = cpuid(1);
+
+	/* Determine names */
+	for (i = 0; i < ARRAY_SIZE(supported_chips_list); i++) {
+		if (nb->device_id == supported_chips_list[i].device_id)
+			nbname = supported_chips_list[i].name;
+	}
+	for (i = 0; i < ARRAY_SIZE(supported_chips_list); i++) {
+		if (sb->device_id == supported_chips_list[i].device_id)
+			sbname = supported_chips_list[i].name;
+	}
+	if (gfx) {
+		for (i = 0; i < ARRAY_SIZE(supported_chips_list); i++)
+			if (gfx->device_id == supported_chips_list[i].device_id)
+				gfxname = supported_chips_list[i].name;
+	}
+
+	/* Intel has suggested applications to display the family of a CPU as
+	 * the sum of the "Family" and the "Extended Family" fields shown
+	 * above, and the model as the sum of the "Model" and the 4-bit
+	 * left-shifted "Extended Model" fields.
+	 * http://download.intel.com/design/processor/applnots/24161832.pdf
+	 */
+	printf("CPU: ID 0x%x, Processor Type 0x%x, Family 0x%x, Model 0x%x, Stepping 0x%x\n",
+			id, (id >> 12) & 0x3, ((id >> 8) & 0xf) + ((id >> 20) & 0xff),
+			((id >> 12) & 0xf0) + ((id >> 4) & 0xf), (id & 0xf));
+
+	printf("Northbridge: %04x:%04x (%s)\n",
+		nb->vendor_id, nb->device_id, nbname);
+
+	printf("Southbridge: %04x:%04x (%s)\n",
+		sb->vendor_id, sb->device_id, sbname);
+
+	if (gfx)
+		printf("IGD: %04x:%04x (%s)\n",
+		       gfx->vendor_id, gfx->device_id, gfxname);
 }
 
 int main(int argc, char *argv[])
@@ -481,14 +572,12 @@ int main(int argc, char *argv[])
 	struct pci_dev *sb = NULL, *nb, *gfx = NULL, *ahci = NULL, *dev;
 	const char *dump_spd_file = NULL;
 	int opt, option_index = 0;
-	unsigned int id, i;
-
-	char *sbname = "unknown", *nbname = "unknown", *gfxname = "unknown";
 
 	int dump_gpios = 0, dump_mchbar = 0, dump_rcba = 0;
 	int dump_pmbase = 0, dump_epbar = 0, dump_dmibar = 0;
 	int dump_pciexbar = 0, dump_coremsrs = 0, dump_ambs = 0;
-	int dump_spi = 0, dump_gfx = 0, dump_ahci = 0, dump_sgx = 0;
+	int dump_spi = 0, dump_gfx = 0, dump_ahci = 0, dump_sgx = 0, dump_tme = 0;
+	int dump_lpc = 0;
 	int show_gpio_diffs = 0;
 	size_t pcr_count = 0;
 	uint8_t dump_pcr[MAX_PCR_PORTS];
@@ -501,6 +590,7 @@ int main(int argc, char *argv[])
 		{"mchbar", 0, 0, 'm'},
 		{"rcba", 0, 0, 'r'},
 		{"pmbase", 0, 0, 'p'},
+		{"lpc", 0, 0, 'l'},
 		{"epbar", 0, 0, 'e'},
 		{"dmibar", 0, 0, 'd'},
 		{"pciexpress", 0, 0, 'P'},
@@ -513,10 +603,11 @@ int main(int argc, char *argv[])
 		{"ahci", 0, 0, 'R'},
 		{"sgx", 0, 0, 'x'},
 		{"pcr", required_argument, 0, LONG_OPT_PCR},
+		{"tme", 0, 0, 't'},
 		{0, 0, 0, 0}
 	};
 
-	while ((opt = getopt_long(argc, argv, "vh?gGrpmedPMaAsfRS:x",
+	while ((opt = getopt_long(argc, argv, "vh?gGrplmedPMaAsfRS:xt",
                                   long_options, &option_index)) != EOF) {
 		switch (opt) {
 		case 'v':
@@ -548,6 +639,9 @@ int main(int argc, char *argv[])
 		case 'p':
 			dump_pmbase = 1;
 			break;
+		case 'l':
+			dump_lpc = 1;
+			break;
 		case 'e':
 			dump_epbar = 1;
 			break;
@@ -566,6 +660,7 @@ int main(int argc, char *argv[])
 			dump_mchbar = 1;
 			dump_rcba = 1;
 			dump_pmbase = 1;
+			dump_lpc = 1;
 			dump_epbar = 1;
 			dump_dmibar = 1;
 			dump_pciexbar = 1;
@@ -574,6 +669,7 @@ int main(int argc, char *argv[])
 			dump_spi = 1;
 			dump_ahci = 1;
 			dump_sgx = 1;
+			dump_tme = 1;
 			break;
 		case 'A':
 			dump_ambs = 1;
@@ -583,6 +679,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'x':
 			dump_sgx = 1;
+			break;
+		case 't':
+			dump_tme = 1;
 			break;
 		case LONG_OPT_PCR:
 			if (pcr_count < MAX_PCR_PORTS) {
@@ -681,13 +780,13 @@ int main(int argc, char *argv[])
 	}
 
 	gfx = pci_get_dev(pacc, 0, 0, 0x02, 0);
-
 	if (gfx) {
 		pci_fill_info(gfx, PCI_FILL_IDENT | PCI_FILL_BASES |
 				   PCI_FILL_CLASS);
-
-		if (gfx->vendor_id != PCI_VENDOR_ID_INTEL)
-			gfx = 0;
+		if ((gfx->device_class & 0xff00) != 0x0300)
+			gfx = NULL;
+		else if (gfx->vendor_id != PCI_VENDOR_ID_INTEL)
+			gfx = NULL;
 	}
 
 	if (sb->device_id == PCI_DEVICE_ID_INTEL_BAYTRAIL_LPC) {
@@ -710,43 +809,9 @@ int main(int argc, char *argv[])
 			ahci = NULL;
 	}
 
-	id = cpuid(1);
-
-	/* Intel has suggested applications to display the family of a CPU as
-	 * the sum of the "Family" and the "Extended Family" fields shown
-	 * above, and the model as the sum of the "Model" and the 4-bit
-	 * left-shifted "Extended Model" fields.
-	 * http://download.intel.com/design/processor/applnots/24161832.pdf
-	 */
-	printf("CPU: ID 0x%x, Processor Type 0x%x, Family 0x%x, Model 0x%x, Stepping 0x%x\n",
-			id, (id >> 12) & 0x3, ((id >> 8) & 0xf) + ((id >> 20) & 0xff),
-			((id >> 12) & 0xf0) + ((id >> 4) & 0xf), (id & 0xf));
-
-	/* Determine names */
-	for (i = 0; i < ARRAY_SIZE(supported_chips_list); i++)
-		if (nb->device_id == supported_chips_list[i].device_id)
-			nbname = supported_chips_list[i].name;
-	for (i = 0; i < ARRAY_SIZE(supported_chips_list); i++)
-		if (sb->device_id == supported_chips_list[i].device_id)
-			sbname = supported_chips_list[i].name;
-	if (gfx) {
-		for (i = 0; i < ARRAY_SIZE(supported_chips_list); i++)
-			if (gfx->device_id == supported_chips_list[i].device_id)
-				gfxname = supported_chips_list[i].name;
-	}
-
-	printf("Northbridge: %04x:%04x (%s)\n",
-		nb->vendor_id, nb->device_id, nbname);
-
-	printf("Southbridge: %04x:%04x (%s)\n",
-		sb->vendor_id, sb->device_id, sbname);
-
-	if (gfx)
-		printf("IGD: %04x:%04x (%s)\n",
-		       gfx->vendor_id, gfx->device_id, gfxname);
+	print_system_info(nb, sb, gfx);
 
 	/* Now do the deed */
-
 	if (dump_gpios) {
 		print_gpios(sb, 1, show_gpio_diffs);
 		printf("\n\n");
@@ -762,6 +827,11 @@ int main(int argc, char *argv[])
 
 	if (dump_pmbase) {
 		print_pmbase(sb, pacc);
+		printf("\n\n");
+	}
+
+	if (dump_lpc) {
+		print_lpc(sb, pacc);
 		printf("\n\n");
 	}
 
@@ -804,6 +874,9 @@ int main(int argc, char *argv[])
 
 	if (dump_sgx)
 		print_sgx();
+
+	if (dump_tme)
+		print_tme();
 
 	if (pcr_count)
 		print_pcr_ports(sb, dump_pcr, pcr_count);

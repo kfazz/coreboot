@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <assert.h>
 #include <device/mmio.h>
@@ -21,9 +8,9 @@
 #include <soc/id.h>
 #include <soc/mc.h>
 #include <soc/sdram.h>
-#include <stdlib.h>
 #include <symbols.h>
 #include <soc/nvidia/tegra/types.h>
+#include <types.h>
 
 static uintptr_t tz_base_mib;
 static const size_t tz_size_mib = CONFIG_TRUSTZONE_CARVEOUT_SIZE_MB;
@@ -297,14 +284,14 @@ void gpu_region_init(void)
 	write32(&mc->security_carveout2_bom_hi, 0);
 
 	/* Set the locked bit. This will lock out any other writes! */
-	setbits_le32(&mc->security_carveout2_cfg0, MC_SECURITY_CARVEOUT_LOCKED);
+	setbits32(&mc->security_carveout2_cfg0, MC_SECURITY_CARVEOUT_LOCKED);
 
 	/* Set the carveout3 base to 0, unused */
 	write32(&mc->security_carveout3_bom, 0);
 	write32(&mc->security_carveout3_bom_hi, 0);
 
 	/* Set the locked bit. This will lock out any other writes! */
-	setbits_le32(&mc->security_carveout3_cfg0, MC_SECURITY_CARVEOUT_LOCKED);
+	setbits32(&mc->security_carveout3_cfg0, MC_SECURITY_CARVEOUT_LOCKED);
 }
 
 void nvdec_region_init(void)
@@ -322,7 +309,7 @@ void nvdec_region_init(void)
 	write32(&mc->security_carveout1_bom_hi, 0);
 
 	/* Set the locked bit. This will lock out any other writes! */
-	setbits_le32(&mc->security_carveout1_cfg0, MC_SECURITY_CARVEOUT_LOCKED);
+	setbits32(&mc->security_carveout1_cfg0, MC_SECURITY_CARVEOUT_LOCKED);
 }
 
 void tsec_region_init(void)
@@ -345,8 +332,8 @@ void tsec_region_init(void)
 	write32(&mc->security_carveout5_bom_hi, 0);
 
 	/* Set the locked bit. This will lock out any other writes! */
-	setbits_le32(&mc->security_carveout4_cfg0, MC_SECURITY_CARVEOUT_LOCKED);
-	setbits_le32(&mc->security_carveout5_cfg0, MC_SECURITY_CARVEOUT_LOCKED);
+	setbits32(&mc->security_carveout4_cfg0, MC_SECURITY_CARVEOUT_LOCKED);
+	setbits32(&mc->security_carveout5_cfg0, MC_SECURITY_CARVEOUT_LOCKED);
 }
 
 void vpr_region_init(void)

@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Google Inc.
- * Copyright 2013-2015, NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* Function unit addresses. */
 enum {
@@ -40,7 +26,6 @@ enum {
 	UP_TAG_AVP = 0xaaaaaaaa
 };
 
-
 /*  APB Misc JTAG Configuration Register */
 static uint32_t *misc_pp_config_ctl_ptr = (void *)(APB_MISC_BASE + 0x24);
 enum {
@@ -53,7 +38,6 @@ enum {
 	CFG2TMC_RAM_SVOP_PDP_MASK = 0x3 << 24,
 	CFG2TMC_RAM_SVOP_PDP_VAL_2 = 0x2 << 24,
 };
-
 
 /* PINMUX registers. */
 static uint32_t *pinmux_pwr_i2c_scl_ptr = (void *)(PINMUX_BASE + 0xdc);
@@ -70,7 +54,6 @@ enum {
 /* Timer registers. */
 static uint32_t *timer_us_ptr = (void *)(TIMER_BASE + 0x10);
 static uint32_t *timer_us_cfg_ptr = (void *)(TIMER_BASE + 0x14);
-
 
 /* Clock and reset controller registers. */
 static uint32_t *clk_rst_rst_devices_l_ptr = (void *)(CLK_RST_BASE + 0x4);
@@ -278,7 +261,6 @@ enum {
 	ACTIVE_SLOW = 0x1 << 0
 };
 
-
 /* Power management controller registers. */
 enum {
 	PARTID_CRAIL = 0,
@@ -360,7 +342,6 @@ enum {
 static uint32_t *sb_aa64_reset_low = (void *)(SECURE_BOOT_BASE + 0x30);
 static uint32_t *sb_aa64_reset_high = (void *)(SECURE_BOOT_BASE + 0x34);
 
-
 /* EMC registers */
 static uint32_t *pmacro_cfg_pm_global = (void *)(EMC_BASE + 0xc30);
 enum {
@@ -422,7 +403,6 @@ enum {
 #define MAX77621_VOUT_VAL	(0x80 | 0x27)
 #define MAX77621_VOUT_DATA	(MAX77621_VOUT_REG | (MAX77621_VOUT_VAL << 8))
 
-
 /* Utility functions. */
 
 static __always_inline void __noreturn halt(void)
@@ -456,7 +436,7 @@ static void __noreturn reset(void)
 	halt();
 }
 
-static void udelay(unsigned usecs)
+static void udelay(unsigned int usecs)
 {
 	uint32_t start = read32(timer_us_ptr);
 	while (read32(timer_us_ptr) - start < usecs)
@@ -606,7 +586,6 @@ static void enable_select_cpu_clocks(void)
 	udelay(10);
 }
 
-
 /* Function unit configuration. */
 
 static void config_core_sight(void)
@@ -623,7 +602,6 @@ static void config_core_sight(void)
 	write32(clk_rst_rst_dev_u_clr_ptr, SWR_CSITE_RST);
 }
 
-
 /* RAM repair */
 
 void ram_repair(void)
@@ -635,10 +613,9 @@ void ram_repair(void)
 		;
 }
 
-
 /* Power. */
 
-static void power_on_partition(unsigned id)
+static void power_on_partition(unsigned int id)
 {
 	uint32_t bit = 0x1 << id;
 	if (!(read32(pmc_pwrgate_status_ptr) & bit)) {
@@ -777,7 +754,6 @@ static void mbist_workaround(void)
 	write32(clk_rst_lvl2_clk_gate_ovrc_ptr, 0x00000002);
 	write32(clk_rst_lvl2_clk_gate_ovrd_ptr, 0x01000000);	/* QSPI OVR=1 */
 	write32(clk_rst_lvl2_clk_gate_ovre_ptr, 0x00000c00);
-
 
 	clks_to_be_cleared = read32(clk_rst_clk_out_enb_l_ptr);
 	clks_to_be_cleared &= ~MBIST_CLK_ENB_L_0;
@@ -1098,7 +1074,6 @@ void lp0_resume(void)
 		write32(flow_ctlr_halt_cop_events_ptr,
 		        FLOW_MODE_STOP | EVENT_JTAG);
 }
-
 
 /* Header. */
 

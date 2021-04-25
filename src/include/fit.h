@@ -1,19 +1,5 @@
-/*
- * Copyright 2013 Google Inc.
- * Copyright 2018-present Facebook, Inc.
- *
- * Taken from depthcharge: src/boot/fit.h
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but without any warranty; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* Taken from depthcharge: src/boot/fit.h */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef __LIB_FIT_H__
 #define __LIB_FIT_H__
@@ -24,30 +10,31 @@
 #include <list.h>
 #include <program_loading.h>
 
-struct fit_image_node
-{
+struct fit_image_node {
 	const char *name;
-	const void *data;
+	void *data;
 	uint32_t size;
 	int compression;
 
 	struct list_node list_node;
 };
 
-struct fit_config_node
-{
+struct fit_config_node {
 	const char *name;
-	const char *kernel;
-	struct fit_image_node *kernel_node;
-	const char *fdt;
-	struct fit_image_node *fdt_node;
-	const char *ramdisk;
-	struct fit_image_node *ramdisk_node;
+	struct fit_image_node *kernel;
+	struct fit_image_node *fdt;
+	struct list_node overlays;
+	struct fit_image_node *ramdisk;
 	struct fdt_property compat;
 	int compat_rank;
 	int compat_pos;
 	const char *compat_string;
 
+	struct list_node list_node;
+};
+
+struct fit_overlay_chain {
+	struct fit_image_node *overlay;
 	struct list_node list_node;
 };
 

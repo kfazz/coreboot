@@ -1,39 +1,18 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Sven Schnelle <svens@stackframe.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <arch/bootblock.h>
 #include <device/pci_ops.h>
+#include <southbridge/intel/common/early_spi.h>
 #include "i82801jx.h"
 
-static void enable_spi_prefetch(void)
+void bootblock_early_southbridge_init(void)
 {
-	u8 reg8;
-	pci_devfn_t dev;
+	enable_spi_prefetching_and_caching();
 
-	dev = PCI_DEV(0, 0x1f, 0);
+	i82801jx_setup_bars();
 
-	reg8 = pci_read_config8(dev, 0xdc);
-	reg8 &= ~(3 << 2);
-	reg8 |= (2 << 2); /* Prefetching and Caching Enabled */
-	pci_write_config8(dev, 0xdc, reg8);
-}
+	/* Enable upper 128bytes of CMOS. */
+	RCBA32(0x3400) = (1 << 2);
 
-static void bootblock_southbridge_init(void)
-{
-	enable_spi_prefetch();
-
-	/* Enable RCBA */
-	pci_write_config32(PCI_DEV(0, 0x1f, 0), RCBA,
-			(uintptr_t)DEFAULT_RCBA | 1);
+	i82801jx_lpc_setup();
 }

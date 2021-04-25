@@ -1,18 +1,6 @@
 #!/usr/bin/env bash
 #
-# This file is part of the coreboot project.
-#
-# Copyright (C) 2016 Joe Pillow
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
+# SPDX-License-Identifier: GPL-2.0-only
 
 # On some systems, `parted` and `debugfs` are located in /sbin.
 export PATH="$PATH:/sbin"
@@ -37,6 +25,7 @@ exit_if_dependencies_are_missing() {
 	exit_if_uninstalled "debugfs" "e2fsprogs"
 	exit_if_uninstalled "parted" "parted"
 	exit_if_uninstalled "curl" "curl"
+	exit_if_uninstalled "unzip" "unzip"
 }
 
 get_inventory()
@@ -76,7 +65,7 @@ extract_partition()
 	SIZE=$(( $( echo $ROOTP | cut -f4 -d\ | tr -d "B" ) ))
 
 	dd if=$FILE of=$ROOTFS bs=$_bs skip=$(( $START / $_bs )) \
-		count=$(( $SIZE / $_bs ))  > /dev/null 2>&1
+		count=$(( $SIZE / $_bs ))  > /dev/null
 }
 
 extract_shellball()

@@ -1,21 +1,10 @@
-#
-# This file is part of the coreboot project.
-#
-# Copyright (C) 2015-2017 Advanced Micro Devices, Inc.
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
+# SPDX-License-Identifier: GPL-2.0-only
 
 config BOARD_GOOGLE_BASEBOARD_KAHLEE
 	bool
-	select SOC_AMD_STONEYRIDGE_FT4
+	select SOC_AMD_STONEYRIDGE
+	select AMD_APU_STONEYRIDGE
+	select AMD_APU_PKG_FT4
 	select ALWAYS_LOAD_OPROM
 	select ALWAYS_RUN_OPROM
 	select BOARD_ROMSIZE_KB_16384
@@ -25,12 +14,12 @@ config BOARD_GOOGLE_BASEBOARD_KAHLEE
 	select EC_GOOGLE_CHROMEEC_BOARDID
 	select EC_GOOGLE_CHROMEEC_LPC
 	select HAVE_ACPI_TABLES
-	select GENERIC_SPD_BIN
+	select HAVE_SPD_IN_CBFS
 	select GFXUMA
 	select GOOGLE_SMBIOS_MAINBOARD_VERSION
 	select MAINBOARD_HAS_CHROMEOS
 	select SERIRQ_CONTINUOUS_MODE
-	select STONEYRIDGE_UART
+	select AMD_SOC_CONSOLE_UART
 	select SOC_AMD_SMU_FANLESS
 	select HAVE_ACPI_RESUME
 	select DRIVERS_GENERIC_BH720
@@ -50,7 +39,7 @@ if BOARD_GOOGLE_BASEBOARD_KAHLEE
 
 config MAINBOARD_DIR
 	string
-	default google/kahlee
+	default "google/kahlee"
 
 config VGA_BIOS_FILE
 	string
@@ -64,6 +53,8 @@ config VARIANT_DIR
 	default "careena" if BOARD_GOOGLE_CAREENA
 	default "grunt" if BOARD_GOOGLE_GRUNT
 	default "liara" if BOARD_GOOGLE_LIARA
+	default "nuwani" if BOARD_GOOGLE_NUWANI
+	default "treeya" if BOARD_GOOGLE_TREEYA
 
 config MAINBOARD_PART_NUMBER
 	string
@@ -71,7 +62,7 @@ config MAINBOARD_PART_NUMBER
 
 config DEVICETREE
 	string
-	default "variants/$(CONFIG_VARIANT_DIR)/devicetree.cb"
+	default "variants/\$(CONFIG_VARIANT_DIR)/devicetree.cb"
 
 config MAINBOARD_FAMILY
 	string
@@ -79,7 +70,7 @@ config MAINBOARD_FAMILY
 
 config FMDFILE
 	string
-	default "src/mainboard/$(CONFIG_MAINBOARD_DIR)/variants/baseboard/chromeos.fmd" if CHROMEOS
+	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/variants/baseboard/chromeos.fmd" if CHROMEOS
 	default ""
 	help
 	  The build system creates a default FMAP from ROM_SIZE and CBFS_SIZE,
@@ -101,7 +92,6 @@ config ONBOARD_VGA_IS_PRIMARY
 config VBOOT
 	select EC_GOOGLE_CHROMEEC_SWITCHES
 	select VBOOT_LID_SWITCH
-	select VBOOT_EC_SLOW_UPDATE if VBOOT_EC_SOFTWARE_SYNC
 
 config VBOOT_VBNV_OFFSET
 	hex
@@ -109,14 +99,6 @@ config VBOOT_VBNV_OFFSET
 
 config CHROMEOS
 	select LP_DEFCONFIG_OVERRIDE if PAYLOAD_DEPTHCHARGE
-
-config GBB_HWID
-	string
-	depends on CHROMEOS
-	default "ALEENA TEST 7281" if BOARD_GOOGLE_ALEENA
-	default "CAREENA TEST 8777" if BOARD_GOOGLE_CAREENA
-	default "GRUNT TEST 8296" if BOARD_GOOGLE_GRUNT
-	default "LIARA TEST 0464" if BOARD_GOOGLE_LIARA
 
 config AMD_FWM_POSITION_INDEX
 	int

@@ -19,22 +19,40 @@ config BOARD_SPECIFIC_OPTIONS
 	select MAINBOARD_HAS_LPC_TPM
 	select MAINBOARD_HAS_TPM1
 	select MAINBOARD_HAS_LIBGFXINIT
-	select GFX_GMA_INTERNAL_IS_LVDS
+	select GFX_GMA_PANEL_1_ON_LVDS
 	select INTEL_GMA_HAVE_VBT
 	select MAINBOARD_USES_IFD_GBE_REGION
 
 	# Workaround for EC/KBC IRQ1.
 	select SERIRQ_CONTINUOUS_MODE
 
+config VBOOT
+	select VBOOT_VBNV_CMOS
+	select GBB_FLAG_DISABLE_LID_SHUTDOWN
+	select GBB_FLAG_DISABLE_PD_SOFTWARE_SYNC
+	select GBB_FLAG_DISABLE_EC_SOFTWARE_SYNC
+	select GBB_FLAG_DISABLE_FWMP
+	select HAS_RECOVERY_MRC_CACHE
+
+config VBOOT_SLOTS_RW_A
+	default y
+
+config VBOOT_VBNV_OFFSET
+	hex
+	default 0x2a
+
 config MAINBOARD_DIR
 	string
-	default lenovo/x220
+	default "lenovo/x220"
 
 config VARIANT_DIR
 	string
 	default "x220" if BOARD_LENOVO_X220 || BOARD_LENOVO_X220I
 	default "x1" if BOARD_LENOVO_X1
 
+config FMDFILE
+	string
+	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/vboot-rwa.fmd" if VBOOT
 
 config MAINBOARD_PART_NUMBER
 	string
@@ -44,11 +62,7 @@ config MAINBOARD_PART_NUMBER
 
 config OVERRIDE_DEVICETREE
 	string
-	default "variants/$(CONFIG_VARIANT_DIR)/overridetree.cb"
-
-config MAX_CPUS
-	int
-	default 8
+	default "variants/\$(CONFIG_VARIANT_DIR)/overridetree.cb"
 
 config USBDEBUG_HCD_INDEX
 	int
@@ -69,13 +83,10 @@ config VGA_BIOS_ID
 	default "8086,0116" if BOARD_LENOVO_X220I
 	default "8086,0126"
 
-config MAINBOARD_PCI_SUBSYSTEM_VENDOR_ID
-	hex
-	default 0x17aa
+config PS2K_EISAID
+	default "PNP0303"
 
-config MAINBOARD_PCI_SUBSYSTEM_DEVICE_ID
-	hex
-	default 0x21db if BOARD_LENOVO_X220 || BOARD_LENOVO_X220I
-	default 0x21e8 if BOARD_LENOVO_X1
+config PS2M_EISAID
+	default "LEN0020"
 
 endif # BOARD_LENOVO_X220 || BOARD_LENOVO_X220I || BOARD_LENOVO_X1

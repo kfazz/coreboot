@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2012 secunet Security Networks AG
  *
@@ -33,7 +32,6 @@
 
 #include <storage/ata.h>
 #include <storage/atapi.h>
-
 
 static int atapi_request_sense(atapi_dev_t *const dev)
 {

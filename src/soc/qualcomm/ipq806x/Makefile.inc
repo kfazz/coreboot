@@ -1,17 +1,4 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright 2014 Google Inc.
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+## SPDX-License-Identifier: GPL-2.0-only
 
 ifeq ($(CONFIG_SOC_QC_IPQ806X),y)
 
@@ -42,7 +29,6 @@ romstage-y += gsbi.c
 romstage-y += qup.c
 
 ramstage-y += blobs_init.c
-ramstage-y += cbmem.c
 ramstage-y += clock.c
 ramstage-y += gpio.c
 ramstage-y += lcc.c
@@ -62,14 +48,14 @@ ifeq ($(CONFIG_USE_BLOBS),y)
 # Add MBN header to allow SBL3 to start coreboot bootblock
 $(objcbfs)/bootblock.mbn: $(objcbfs)/bootblock.raw.bin
 	@printf "    ADD MBN    $(subst $(obj)/,,$(@))\n"
-	./util/ipqheader/ipqheader.py $(call loadaddr,bootblock) $< $@.tmp
+	./util/qualcomm/ipqheader.py $(call loadaddr,bootblock) $< $@.tmp
 	@mv $@.tmp $@
 
 # Create a complete bootblock which will start up the system
 $(objcbfs)/bootblock.bin: $(call strip_quotes,$(CONFIG_SBL_BLOB)) \
 			   $(objcbfs)/bootblock.mbn
 	@printf "    MBNCAT     $(subst $(obj)/,,$(@))\n"
-	@util/ipqheader/mbncat.py -o $@.tmp $^
+	@util/qualcomm/mbncat.py -o $@.tmp $^
 	@mv $@.tmp $@
 
 endif

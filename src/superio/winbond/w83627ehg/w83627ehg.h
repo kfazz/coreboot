@@ -1,36 +1,21 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007 AMD
- * Written by Yinghai Lu <yinghai.lu@amd.com> for AMD.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef SUPERIO_WINBOND_W83627EHG_H
 #define SUPERIO_WINBOND_W83627EHG_H
 
-#define W83627EHG_FDC              0   /* Floppy */
-#define W83627EHG_PP               1   /* Parallel port */
-#define W83627EHG_SP1              2   /* Com1 */
-#define W83627EHG_SP2              3   /* Com2 */
-#define W83627EHG_KBC              5   /* PS/2 keyboard & mouse */
-#define W83627EHG_WDTO_PLED        8   /* Watchdog timer timeout, power LED */
-#define W83627EHG_ACPI            10   /* ACPI */
-#define W83627EHG_HWM             11   /* Hardware monitor */
+#define W83627EHG_FDC			0  /* Floppy */
+#define W83627EHG_PP			1  /* Parallel port */
+#define W83627EHG_SP1			2  /* Com1 */
+#define W83627EHG_SP2			3  /* Com2 */
+#define W83627EHG_KBC			5  /* PS/2 keyboard & mouse */
+#define W83627EHG_WDTO_PLED		8  /* Watchdog timer timeout, power LED */
+#define W83627EHG_ACPI			10 /* ACPI */
+#define W83627EHG_HWM			11 /* Hardware monitor */
 
 /* The following are handled using "virtual LDNs" (hence the _V suffix). */
-#define W83627EHG_SFI_V            6   /* Serial flash interface (SFI) */
-#define W83627EHG_GPIO_GAME_MIDI_V 7   /* GPIO1, GPIO6, game port, MIDI */
-#define W83627EHG_GPIO_SUSLED_V    9   /* GPIO2, GPIO3, GPIO4, GPIO5, SUSLED */
+#define W83627EHG_SFI_V			6 /* Serial flash interface (SFI) */
+#define W83627EHG_GPIO_GAME_MIDI_V	7 /* GPIO1, GPIO6, game port, MIDI */
+#define W83627EHG_GPIO_SUSLED_V		9 /* GPIO2, GPIO3, GPIO4, GPIO5, SUSLED */
 
 /*
  * Virtual devices sharing the enables are encoded as follows:

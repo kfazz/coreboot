@@ -1,21 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include "imc.h"
+#include <amdblocks/acpimmio.h>
 #include <device/mmio.h>
-#include <delay.h>
 #include <Porting.h>
 #include <AGESA.h>
 #include <amdlib.h>
@@ -23,24 +10,22 @@
 #include <Proc/Fch/Common/FchCommonCfg.h>
 #include <Proc/Fch/FchPlatform.h>
 
-#define VACPI_MMIO_VBASE ((u8 *)ACPI_MMIO_BASE)
-
 void imc_reg_init(void)
 {
 	/* Init Power Management Block 2 (PM2) Registers.
 	 * Check BKDG for AMD Family 16h for details. */
-	write8(VACPI_MMIO_VBASE + PMIO2_BASE + 0x00, 0x06);
-	write8(VACPI_MMIO_VBASE + PMIO2_BASE + 0x01, 0x06);
-	write8(VACPI_MMIO_VBASE + PMIO2_BASE + 0x02, 0xf7);
-	write8(VACPI_MMIO_VBASE + PMIO2_BASE + 0x03, 0xff);
-	write8(VACPI_MMIO_VBASE + PMIO2_BASE + 0x04, 0xff);
+	pm2_write8(0, 0x06);
+	pm2_write8(1, 0x06);
+	pm2_write8(2, 0xf7);
+	pm2_write8(3, 0xff);
+	pm2_write8(4, 0xff);
 
 #if !CONFIG(SOUTHBRIDGE_AMD_AGESA_YANGTZE)
-	write8(VACPI_MMIO_VBASE + PMIO2_BASE + 0x10, 0x06);
-	write8(VACPI_MMIO_VBASE + PMIO2_BASE + 0x11, 0x06);
-	write8(VACPI_MMIO_VBASE + PMIO2_BASE + 0x12, 0xf7);
-	write8(VACPI_MMIO_VBASE + PMIO2_BASE + 0x13, 0xff);
-	write8(VACPI_MMIO_VBASE + PMIO2_BASE + 0x14, 0xff);
+	pm2_write8(0x10, 0x06);
+	pm2_write8(0x11, 0x06);
+	pm2_write8(0x12, 0xf7);
+	pm2_write8(0x13, 0xff);
+	pm2_write8(0x14, 0xff);
 #endif
 
 #if CONFIG(SOUTHBRIDGE_AMD_AGESA_YANGTZE)
@@ -55,7 +40,6 @@ void imc_reg_init(void)
 #endif
 }
 
-#ifndef __PRE_RAM__
 void enable_imc_thermal_zone(void)
 {
 	AMD_CONFIG_PARAMS StdHeader;
@@ -84,4 +68,3 @@ void enable_imc_thermal_zone(void)
 	WriteECmsg(MSG_SYS_TO_IMC, AccessWidth8, &FunNum, &StdHeader);     // function number
 	WaitForEcLDN9MailboxCmdAck(&StdHeader);
 }
-#endif

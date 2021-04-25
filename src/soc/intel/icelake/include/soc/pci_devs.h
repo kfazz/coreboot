@@ -1,48 +1,34 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _SOC_ICELAKE_PCI_DEVS_H_
 #define _SOC_ICELAKE_PCI_DEVS_H_
 
 #include <device/pci_def.h>
 
-#define _SA_DEVFN(slot)		PCI_DEVFN(SA_DEV_SLOT_ ## slot, 0)
 #define _PCH_DEVFN(slot, func)	PCI_DEVFN(PCH_DEV_SLOT_ ## slot, func)
 
 #if !defined(__SIMPLE_DEVICE__)
 #include <device/device.h>
-#define _SA_DEV(slot)		dev_find_slot(0, _SA_DEVFN(slot))
-#define _PCH_DEV(slot, func)	dev_find_slot(0, _PCH_DEVFN(slot, func))
+#define _PCH_DEV(slot, func)	pcidev_path_on_root_debug(_PCH_DEVFN(slot, func), __func__)
 #else
-#define _SA_DEV(slot)		PCI_DEV(0, SA_DEV_SLOT_ ## slot, 0)
 #define _PCH_DEV(slot, func)	PCI_DEV(0, PCH_DEV_SLOT_ ## slot, func)
 #endif
 
 /* System Agent Devices */
 
 #define SA_DEV_SLOT_ROOT	0x00
-#define  SA_DEVFN_ROOT		_SA_DEVFN(ROOT)
-#define  SA_DEV_ROOT		_SA_DEV(ROOT)
+#define  SA_DEVFN_ROOT		PCI_DEVFN(SA_DEV_SLOT_ROOT, 0)
+#if defined(__SIMPLE_DEVICE__)
+#define  SA_DEV_ROOT		PCI_DEV(0, SA_DEV_SLOT_ROOT, 0)
+#endif
 
 #define SA_DEV_SLOT_IGD		0x02
-#define  SA_DEVFN_IGD		_SA_DEVFN(IGD)
-#define  SA_DEV_IGD		_SA_DEV(IGD)
+#define  SA_DEVFN_IGD		PCI_DEVFN(SA_DEV_SLOT_IGD, 0)
+#define  SA_DEV_IGD		PCI_DEV(0, SA_DEV_SLOT_IGD, 0)
 
 #define SA_DEV_SLOT_DSP		0x04
-#define  SA_DEVFN_DSP		_SA_DEVFN(DSP)
-#define  SA_DEV_DSP		_SA_DEV(DSP)
+#define  SA_DEVFN_DSP		PCI_DEVFN(SA_DEV_SLOT_DSP, 0)
+#define  SA_DEV_DSP		PCI_DEV(0, SA_DEV_SLOT_DSP, 0)
 
 /* PCH Devices */
 #define PCH_DEV_SLOT_THERMAL	0x12
@@ -171,22 +157,36 @@
 #define  PCH_DEV_GSPI0		_PCH_DEV(SIO3, 2)
 #define  PCH_DEV_GSPI1		_PCH_DEV(SIO3, 3)
 
-#define PCH_DEV_SLOT_LPC	0x1f
-#define  PCH_DEVFN_LPC		_PCH_DEVFN(LPC, 0)
-#define  PCH_DEVFN_P2SB		_PCH_DEVFN(LPC, 1)
-#define  PCH_DEVFN_PMC		_PCH_DEVFN(LPC, 2)
-#define  PCH_DEVFN_HDA		_PCH_DEVFN(LPC, 3)
-#define  PCH_DEVFN_SMBUS	_PCH_DEVFN(LPC, 4)
-#define  PCH_DEVFN_SPI		_PCH_DEVFN(LPC, 5)
-#define  PCH_DEVFN_GBE		_PCH_DEVFN(LPC, 6)
-#define  PCH_DEVFN_TRACEHUB	_PCH_DEVFN(LPC, 7)
-#define  PCH_DEV_LPC		_PCH_DEV(LPC, 0)
-#define  PCH_DEV_P2SB		_PCH_DEV(LPC, 1)
-#define  PCH_DEV_PMC		_PCH_DEV(LPC, 2)
-#define  PCH_DEV_HDA		_PCH_DEV(LPC, 3)
-#define  PCH_DEV_SMBUS		_PCH_DEV(LPC, 4)
-#define  PCH_DEV_SPI		_PCH_DEV(LPC, 5)
-#define  PCH_DEV_GBE		_PCH_DEV(LPC, 6)
-#define  PCH_DEV_TRACEHUB	_PCH_DEV(LPC, 7)
+#define PCH_DEV_SLOT_ESPI	0x1f
+#define PCH_DEV_SLOT_LPC	PCH_DEV_SLOT_ESPI
+#define  PCH_DEVFN_ESPI		_PCH_DEVFN(ESPI, 0)
+#define  PCH_DEVFN_P2SB		_PCH_DEVFN(ESPI, 1)
+#define  PCH_DEVFN_PMC		_PCH_DEVFN(ESPI, 2)
+#define  PCH_DEVFN_HDA		_PCH_DEVFN(ESPI, 3)
+#define  PCH_DEVFN_SMBUS	_PCH_DEVFN(ESPI, 4)
+#define  PCH_DEVFN_SPI		_PCH_DEVFN(ESPI, 5)
+#define  PCH_DEVFN_GBE		_PCH_DEVFN(ESPI, 6)
+#define  PCH_DEVFN_TRACEHUB	_PCH_DEVFN(ESPI, 7)
+#define  PCH_DEV_ESPI	_PCH_DEV(ESPI, 0)
+#define  PCH_DEV_LPC		PCH_DEV_ESPI
+#define  PCH_DEV_P2SB		_PCH_DEV(ESPI, 1)
+
+#if !ENV_RAMSTAGE
+/*
+ * PCH_DEV_PMC is intentionally not defined in RAMSTAGE since PMC device gets
+ * hidden from PCI bus after call to FSP-S. This leads to resource allocator
+ * dropping it from the root bus as unused device. All references to PCH_DEV_PMC
+ * would then return NULL and can go unnoticed if not handled properly. Since,
+ * this device does not have any special chip config associated with it, it is
+ * okay to not provide the definition for it in ramstage.
+ */
+#define  PCH_DEV_PMC		_PCH_DEV(ESPI, 2)
+#endif
+
+#define  PCH_DEV_HDA		_PCH_DEV(ESPI, 3)
+#define  PCH_DEV_SMBUS		_PCH_DEV(ESPI, 4)
+#define  PCH_DEV_SPI		_PCH_DEV(ESPI, 5)
+#define  PCH_DEV_GBE		_PCH_DEV(ESPI, 6)
+#define  PCH_DEV_TRACEHUB	_PCH_DEV(ESPI, 7)
 
 #endif

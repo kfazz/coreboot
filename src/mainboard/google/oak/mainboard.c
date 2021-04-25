@@ -1,29 +1,12 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/cache.h>
 #include <boardid.h>
-#include <boot/coreboot_tables.h>
 #include <bootmode.h>
 #include <console/console.h>
 #include <delay.h>
 #include <device/device.h>
 #include <drivers/parade/ps8640/ps8640.h>
 #include <edid.h>
-
-#include <elog.h>
 #include <gpio.h>
 #include <soc/da9212.h>
 #include <soc/ddp.h>
@@ -35,6 +18,7 @@
 #include <soc/pll.h>
 #include <soc/usb.h>
 #include <vendorcode/google/chromeos/chromeos.h>
+#include <framebuffer_info.h>
 
 enum {
 	CODEC_I2C_BUS = 0,
@@ -127,12 +111,10 @@ static void configure_usb(void)
 	if (board_id() + CONFIG_BOARD_ID_ADJUSTMENT > 3) {
 		/* Type C port 0 Over current alert pin */
 		gpio_input_pullup(GPIO(MSDC3_DSL));
-		if (!CONFIG(BOARD_GOOGLE_ROWAN)) {
-			/* Enable USB3 type A port 0 5V load switch */
-			gpio_output(GPIO(CM2MCLK), 1);
-			/* USB3 Type A port 0 power over current alert pin */
-			gpio_input_pullup(GPIO(CMPCLK));
-		}
+		/* Enable USB3 type A port 0 5V load switch */
+		gpio_output(GPIO(CM2MCLK), 1);
+		/* USB3 Type A port 0 power over current alert pin */
+		gpio_input_pullup(GPIO(CMPCLK));
 		/* Type C port 1 over current alert pin */
 		if (board_id() + CONFIG_BOARD_ID_ADJUSTMENT < 7)
 			gpio_input_pullup(GPIO(PCM_SYNC));
@@ -150,10 +132,7 @@ static void configure_usb(void)
 
 static void configure_usb_hub(void)
 {
-	if (CONFIG(BOARD_GOOGLE_ROWAN))
-		return;
-
-	/* set usb hub reset pin (low active) to high */
+	/* set USB hub reset pin (low active) to high */
 	if (board_id() + CONFIG_BOARD_ID_ADJUSTMENT > 4)
 		gpio_output(GPIO(UTXD3), 1);
 }
@@ -203,51 +182,6 @@ static void configure_display(void)
 	udelay(100);
 }
 
-static void configure_backlight_rowan(void)
-{
-	gpio_output(GPIO(DAIPCMOUT), 0);	/* PANEL_LCD_POWER_EN */
-	gpio_output(GPIO(DISP_PWM0), 0);	/* DISP_PWM0 */
-	gpio_output(GPIO(PCM_TX), 0);	/* PANEL_POWER_EN */
-}
-
-static void configure_display_rowan(void)
-{
-	gpio_output(GPIO(UCTS2), 1); /* VDDIO_EN */
-	/* delay 15 ms for panel vddio to stabilize */
-	mdelay(15);
-
-	gpio_output(GPIO(SRCLKENAI2), 1); /* LCD_RESET */
-	udelay(20);
-	gpio_output(GPIO(SRCLKENAI2), 0); /* LCD_RESET */
-	udelay(20);
-	gpio_output(GPIO(SRCLKENAI2), 1); /* LCD_RESET */
-	mdelay(20);
-
-	/* Rowan panel avdd */
-	gpio_output(GPIO(URTS2), 1);
-
-	/* Rowan panel avee */
-	gpio_output(GPIO(URTS0), 1);
-
-	/* panel.delay.prepare */
-	mdelay(20);
-}
-
-static const struct edid rowan_boe_edid = {
-	.panel_bits_per_color = 8,
-	.panel_bits_per_pixel = 24,
-	.mode = {
-		.name = "1536x2048@60Hz",
-		.pixel_clock = 241646,
-		.lvds_dual_channel = 1,
-		.refresh = 60,
-		.ha = 1536, .hbl = 404, .hso = 200, .hspw = 4, .hborder = 0,
-		.va = 2048, .vbl = 28, .vso = 12, .vspw = 2, .vborder = 0,
-		.phsync = '-', .pvsync = '-',
-		.x_mm = 147, .y_mm = 196,
-	},
-};
-
 static int read_edid_from_ps8640(struct edid *edid)
 {
 	u8 i2c_bus, i2c_addr;
@@ -276,37 +210,22 @@ static void display_startup(void)
 	struct edid edid;
 	int ret;
 	u32 mipi_dsi_flags;
-	bool dual_dsi_mode;
 
-	if (CONFIG(BOARD_GOOGLE_ROWAN)) {
-		edid = rowan_boe_edid;
-		dual_dsi_mode = true;
-		mipi_dsi_flags = MIPI_DSI_MODE_VIDEO |
-				 MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
-				 MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_EOT_PACKET |
-				 MIPI_DSI_CLOCK_NON_CONTINUOUS;
-	} else {
-		if (read_edid_from_ps8640(&edid) < 0)
-			return;
+	if (read_edid_from_ps8640(&edid) < 0)
+		return;
 
-		dual_dsi_mode = false;
-		mipi_dsi_flags = MIPI_DSI_MODE_VIDEO |
-				 MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
-	}
-
+	mipi_dsi_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
 	edid_set_framebuffer_bits_per_pixel(&edid, 32, 0);
 
-	mtk_ddp_init(dual_dsi_mode);
-	ret = mtk_dsi_init(mipi_dsi_flags, MIPI_DSI_FMT_RGB888, 4,
-			   dual_dsi_mode, &edid);
+	mtk_ddp_init();
+	ret = mtk_dsi_init(mipi_dsi_flags, MIPI_DSI_FMT_RGB888, 4, &edid, NULL);
 	if (ret < 0) {
 		printk(BIOS_ERR, "dsi init fail\n");
 		return;
 	}
 
-	mtk_ddp_mode_set(&edid, dual_dsi_mode);
-
-	set_vbe_mode_info_valid(&edid, (uintptr_t)0);
+	mtk_ddp_mode_set(&edid);
+	fb_new_framebuffer_info_from_edid(&edid, (uintptr_t)0);
 }
 
 static void mainboard_init(struct device *dev)
@@ -327,13 +246,8 @@ static void mainboard_init(struct device *dev)
 
 	if (display_init_required()) {
 		mtcmos_display_power_on();
-		if (CONFIG(BOARD_GOOGLE_ROWAN)) {
-			configure_backlight_rowan();
-			configure_display_rowan();
-		} else {
-			configure_backlight();
-			configure_display();
-		}
+		configure_backlight();
+		configure_display();
 		display_startup();
 	} else {
 		printk(BIOS_INFO, "Skipping display init.\n");
@@ -350,6 +264,5 @@ static void mainboard_enable(struct device *dev)
 }
 
 struct chip_operations mainboard_ops = {
-	.name = "oak",
 	.enable_dev = mainboard_enable,
 };

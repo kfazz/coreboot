@@ -12,7 +12,7 @@ config BOARD_SPECIFIC_OPTIONS
 	select HAVE_CMOS_DEFAULT
 	select NORTHBRIDGE_INTEL_SANDYBRIDGE
 	select MAINBOARD_HAS_LIBGFXINIT
-	select GFX_GMA_INTERNAL_IS_LVDS
+	select GFX_GMA_PANEL_1_ON_LVDS
 	select SERIRQ_CONTINUOUS_MODE
 	select SOUTHBRIDGE_INTEL_BD82X6X
 	select SYSTEM_TYPE_LAPTOP
@@ -20,7 +20,7 @@ config BOARD_SPECIFIC_OPTIONS
 
 config MAINBOARD_DIR
 	string
-	default lenovo/l520
+	default "lenovo/l520"
 
 config MAINBOARD_PART_NUMBER
 	string
@@ -34,24 +34,18 @@ config VGA_BIOS_ID
 	string
 	default "8086,0126"
 
-config MAINBOARD_PCI_SUBSYSTEM_DEVICE_ID
-	hex
-	default 0x21dd
-
-config MAINBOARD_PCI_SUBSYSTEM_VENDOR_ID
-	hex
-	default 0x17aa
-
 config DRAM_RESET_GATE_GPIO
 	int
 	default 10
 
-config MAX_CPUS
-	int
-	default 8
-
 config USBDEBUG_HCD_INDEX
 	int
 	default 2
+
+config PS2K_EISAID
+	default "PNP0303"
+
+config PS2M_EISAID
+	default "LEN0017"
 
 endif

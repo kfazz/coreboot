@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2016 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #if CONFIG(ACPI_CONSOLE)
 
@@ -21,14 +8,14 @@ Name (UFLG, CONFIG(CONSOLE_SERIAL))
 
 Method (LURT, 1, Serialized)
 {
-	If (LEqual(Arg0, 0)) { /* 0 = 0x3f8 */
-		Store (0x3f8, Local0)
-	} ElseIf (LEqual(Arg0, 1)) { /* 1 = 0x2f8 */
-		Store (0x2f8, Local0)
-	} ElseIf (LEqual(Arg0, 2)) { /* 2 = 0x3e8 */
-		Store (0x3e8, Local0)
-	} ElseIf (LEqual(Arg0, 3)) { /* 3 = 0x2e8 */
-		Store (0x2e8, Local0)
+	If (Arg0 == 0) { /* 0 = 0x3f8 */
+		Local0 = 0x3f8
+	} ElseIf (Arg0 == 1) { /* 1 = 0x2f8 */
+		Local0 = 0x2f8
+	} ElseIf (Arg0 == 2) { /* 2 = 0x3e8 */
+		Local0 = 0x3e8
+	} ElseIf (Arg0 == 3) { /* 3 = 0x2e8 */
+		Local0 = 0x2e8
 	}
 	Return (Local0)
 }
@@ -40,26 +27,26 @@ Method (APRT, 1, Serialized)
 	Name(LENG, 0)
 	Name(ADBG, Buffer(256) {0})
 
-	If (LEqual(ObjectType(Arg0), 1)) { /* Integer */
+	If (ObjectType(Arg0) == 1) { /* Integer */
 		ToHexString(Arg0, Local0)
-		Store(Local0, ADBG)
-	} ElseIf (LEqual(ObjectType(Arg0), 2)) { /* String */
-		Store(Arg0, ADBG)
-	} ElseIf (LEqual(ObjectType(Arg0), 3)) { /* Buffer */
+		ADBG = Local0
+	} ElseIf (ObjectType(Arg0) == 2) { /* String */
+		ADBG = Arg0
+	} ElseIf (ObjectType(Arg0) == 3) { /* Buffer */
 		ToHexString(Arg0, ADBG)
 	} Else {
-		Store("This type of object is not supported", ADBG)
+		ADBG = "This type of object is not supported"
 	}
 
-	While (LNotEqual(DeRefOf(Index(ADBG, INDX)), 0))
+	While (DeRefOf(ADBG[INDX]) != 0)
 	{
-		Increment (INDX)
+		INDX++
 	}
-	Store (INDX, LENG) /* Length of the String */
+	LENG = INDX /* Length of the String */
 
 #if CONFIG(DRIVERS_UART_8250MEM_32)
 	OperationRegion (UBAR, SystemMemory,
-				UART_BASE_0_ADDR(CONFIG_UART_FOR_CONSOLE), 24)
+				CONFIG_CONSOLE_UART_BASE_ADDRESS, 24)
 	Field (UBAR, AnyAcc, NoLock, Preserve)
 	{
 		TDR, 8,	/* Transmit Data Register BAR + 0x000 */
@@ -88,33 +75,33 @@ Method (APRT, 1, Serialized)
 	}
 #endif
 
-	If (LEqual(UFLG, 0)) {
+	If (UFLG == 0) {
 		/* Enable Baud Rate Divisor Latch, Set Word length to 8 bit*/
-		Store (0x83, LCR)
-		Store (0x01, IIR)
-		Store (0x03, MCR)
+		LCR = 0x83
+		IIR = 0x01
+		MCR = 0x03
 
 		/* Configure baud rate to 115200 */
-		Store (0x01, TDR)
-		Store (0x00, IER)
-		Store (0x03, LCR) /* Disable Baud Rate Divisor Latch */
+		TDR = 0x01
+		IER = 0x00
+		LCR = 0x03 /* Disable Baud Rate Divisor Latch */
 
-		Increment (UFLG)
+		UFLG++
 	}
-	Store (0x00, INDX)
-	While (LLess (INDX, LENG))
+	INDX = 0x00
+	While (INDX < LENG)
 	{
 		/* Wait for the transmitter t to be ready */
 		While (1)
 		{
-			And (LSR, 0x20, OPDT)
-			If (LNotEqual(OPDT, 0))
+			OPDT = LSR & 0x20
+			If (OPDT != 0)
 			{
 				Break
 			}
 		}
-		Store (DeRefOf (Index (ADBG, INDX)), TDR)
-		Increment(INDX)
+		TDR = DeRefOf (ADBG[INDX])
+		INDX++
 	}
 } /* End of APRT */
 

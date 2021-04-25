@@ -1,35 +1,19 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <device/pci_ops.h>
-#include <arch/acpi.h>
-#include <arch/acpigen.h>
+#include <acpi/acpi.h>
+#include <acpi/acpigen.h>
 #include <stdint.h>
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
-#include <device/hypertransport.h>
-#include <stdlib.h>
 #include <string.h>
 #include <lib.h>
 #include <cpu/cpu.h>
-#include <cpu/x86/lapic.h>
 #include <cpu/amd/msr.h>
 #include <cpu/amd/mtrr.h>
-#include <northbridge/amd/agesa/nb_common.h>
+#include <northbridge/amd/nb_common.h>
 #include <northbridge/amd/agesa/state_machine.h>
 #include <northbridge/amd/agesa/agesa_helper.h>
 #include <sb_cimx.h>
@@ -42,7 +26,6 @@ static struct device *__f2_dev[FX_DEVS];
 static struct device *__f4_dev[FX_DEVS];
 static unsigned int fx_devs = 0;
 
-
 struct dram_base_mask_t {
 	u32 base; //[47:27] at [28:8]
 	u32 mask; //[47:27] at [28:8] and enable at bit 0
@@ -52,11 +35,7 @@ static struct dram_base_mask_t get_dram_base_mask(u32 nodeid)
 {
 	struct device *dev;
 	struct dram_base_mask_t d;
-#if defined(__PRE_RAM__)
-	dev = PCI_DEV(0, DEV_CDB, 1);
-#else
 	dev = __f1_dev[0];
-#endif	// defined(__PRE_RAM__)
 
 	u32 temp;
 	temp = pci_read_config32(dev, 0x44); //[39:24] at [31:16]
@@ -302,8 +281,9 @@ static void amdfam14_link_read_bases(struct device *dev, u32 nodeid, u32 link)
 static u32 my_find_pci_tolm(struct bus *bus, u32 tolm)
 {
 	struct resource *min;
+	unsigned long mask_match = IORESOURCE_MEM | IORESOURCE_ASSIGNED;
 	min = 0;
-	search_bus_resources(bus, IORESOURCE_MEM, IORESOURCE_MEM, tolm_test,
+	search_bus_resources(bus, mask_match, mask_match, tolm_test,
 			     &min);
 	if (min && tolm > min->base) {
 		tolm = min->base;
@@ -675,7 +655,7 @@ static void cpu_bus_init(struct device *dev)
 
 /* North Bridge Structures */
 
-static void northbridge_fill_ssdt_generator(struct device *device)
+static void northbridge_fill_ssdt_generator(const struct device *device)
 {
 	msr_t msr;
 	char pscope[] = "\\_SB.PCI0";
@@ -716,7 +696,22 @@ static unsigned long acpi_fill_hest(acpi_hest_t *hest)
 	return (unsigned long)current;
 }
 
-static unsigned long agesa_write_acpi_tables(struct device *device,
+static void patch_ssdt_processor_scope(acpi_header_t *ssdt)
+{
+	unsigned int len = ssdt->length - sizeof(acpi_header_t);
+	unsigned int i;
+
+	for (i = sizeof(acpi_header_t); i < len; i++) {
+		/* Search for _PR_ scope and replace it with _SB_ */
+		if (*(uint32_t *)((unsigned long)ssdt + i) == 0x5f52505f)
+			*(uint32_t *)((unsigned long)ssdt + i) = 0x5f42535f;
+	}
+	/* Recalculate checksum */
+	ssdt->checksum = 0;
+	ssdt->checksum = acpi_checksum((void *)ssdt, ssdt->length);
+}
+
+static unsigned long agesa_write_acpi_tables(const struct device *device,
 					     unsigned long current,
 					     acpi_rsdp_t *rsdp)
 {
@@ -780,6 +775,9 @@ static unsigned long agesa_write_acpi_tables(struct device *device,
 	printk(BIOS_DEBUG, "ACPI:  * AGESA SSDT Pstate at %lx\n", current);
 	ssdt = (acpi_header_t *)agesawrapper_getlateinitptr (PICK_PSTATE);
 	if (ssdt != NULL) {
+		hexdump(ssdt, ssdt->length);
+		patch_ssdt_processor_scope(ssdt);
+		hexdump(ssdt, ssdt->length);
 		memcpy((void *)current, ssdt, ssdt->length);
 		ssdt = (acpi_header_t *) current;
 		current += ssdt->length;
@@ -795,7 +793,7 @@ static struct device_operations northbridge_operations = {
 	.read_resources = nb_read_resources,
 	.set_resources = nb_set_resources,
 	.enable_resources = pci_dev_enable_resources,
-	.acpi_fill_ssdt_generator = northbridge_fill_ssdt_generator,
+	.acpi_fill_ssdt = northbridge_fill_ssdt_generator,
 	.write_acpi_tables = agesa_write_acpi_tables,
 	.init = northbridge_init,
 	.enable = 0,.ops_pci = 0,
@@ -817,15 +815,13 @@ struct chip_operations northbridge_amd_agesa_family14_ops = {
 static struct device_operations pci_domain_ops = {
 	.read_resources = domain_read_resources,
 	.set_resources = domain_set_resources,
-	.init = DEVICE_NOOP,
 	.scan_bus = pci_domain_scan_bus,
 	.acpi_name = domain_acpi_name,
 };
 
 static struct device_operations cpu_bus_ops = {
-	.read_resources = DEVICE_NOOP,
-	.set_resources = DEVICE_NOOP,
-	.enable_resources = DEVICE_NOOP,
+	.read_resources = noop_read_resources,
+	.set_resources = noop_set_resources,
 	.init = cpu_bus_init,
 	.scan_bus = cpu_bus_scan,
 };

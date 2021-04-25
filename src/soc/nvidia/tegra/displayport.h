@@ -1,19 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
 /*
- * This file is part of the coreboot project.
- *
  * drivers/video/tegra/dc/dpaux_regs.h
- *
- * Copyright (c) 2014, NVIDIA Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #ifndef __SOC_NVIDIA_TEGRA_DISPLAYPORT_H__
@@ -338,11 +326,9 @@ struct tegra_dc_dp_data {
 	int				enabled;
 };
 
-
 /* DPCD definitions */
 /* you know, all the vendors pick their own set of defines.
  * All of them.
- * FIXME so we can use the ones in include/device/drm_dp_helper.h
  */
 #define NV_DPCD_REV					(0x00000000)
 #define NV_DPCD_REV_MAJOR_SHIFT				(4)

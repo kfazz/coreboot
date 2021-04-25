@@ -1,20 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <cpu/x86/lapic.h>
 #include <console/console.h>
 
-void do_lapic_init(void)
+void lapic_virtual_wire_mode_init(void)
 {
 	/* this is so interrupts work. This is very limited scope --
 	 * linux will do better later, we hope ...
@@ -24,7 +13,7 @@ void do_lapic_init(void)
 	 * see the Intel mp1.4 spec, page A-3
 	 */
 
-	printk(BIOS_INFO, "Setting up local APIC...");
+	printk(BIOS_INFO, "Setting up local APIC...\n");
 
 	/* Enable the local APIC */
 	enable_lapic();
@@ -58,6 +47,6 @@ void do_lapic_init(void)
 			LAPIC_DELIVERY_MODE_NMI)
 		);
 
-	printk(BIOS_DEBUG, " apic_id: 0x%02lx ", lapicid());
+	printk(BIOS_DEBUG, " apic_id: 0x%x ", lapicid());
 	printk(BIOS_INFO, "done.\n");
 }

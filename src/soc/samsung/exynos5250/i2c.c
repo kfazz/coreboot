@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * (C) Copyright 2002
- * David Mueller, ELSOFT AG, d.mueller@elsoft.ch
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <assert.h>
@@ -108,9 +94,6 @@ static struct s3c24x0_i2c_bus i2c_busses[] = {
 	},
 };
 
-
-
-
 static int i2c_int_pending(struct i2c_regs *regs)
 {
 	return read8(&regs->con) & I2cConIntPending;
@@ -159,9 +142,6 @@ static int i2c_wait_for_int(struct i2c_regs *regs)
 	printk(BIOS_ERR, "I2C timeout waiting for I2C interrupt.\n");
 	return 1;
 }
-
-
-
 
 static int i2c_send_stop(struct i2c_regs *regs)
 {
@@ -233,7 +213,7 @@ static int i2c_recv_buf(struct i2c_regs *regs, uint8_t *data, int len)
 	return 0;
 }
 
-int platform_i2c_transfer(unsigned bus, struct i2c_msg *segments,
+int platform_i2c_transfer(unsigned int bus, struct i2c_msg *segments,
 			  int seg_count)
 {
 	struct s3c24x0_i2c_bus *i2c = &i2c_busses[bus];
@@ -263,7 +243,7 @@ int platform_i2c_transfer(unsigned bus, struct i2c_msg *segments,
 	return i2c_send_stop(regs) || res;
 }
 
-void i2c_init(unsigned bus, int speed, int slaveadd)
+void i2c_init(unsigned int bus, int speed, int slaveadd)
 {
 	struct s3c24x0_i2c_bus *i2c = &i2c_busses[bus];
 

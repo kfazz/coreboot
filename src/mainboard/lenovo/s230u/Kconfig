@@ -3,7 +3,7 @@ if BOARD_LENOVO_S230U
 config BOARD_SPECIFIC_OPTIONS
 	def_bool y
 	select SYSTEM_TYPE_LAPTOP
-	select NORTHBRIDGE_INTEL_IVYBRIDGE
+	select NORTHBRIDGE_INTEL_SANDYBRIDGE
 	select USE_NATIVE_RAMINIT
 	select SOUTHBRIDGE_INTEL_C216
 	select EC_COMPAL_ENE932
@@ -14,15 +14,15 @@ config BOARD_SPECIFIC_OPTIONS
 	select HAVE_ACPI_RESUME
 	select INTEL_INT15
 	select MAINBOARD_HAS_LIBGFXINIT
-	select GFX_GMA_INTERNAL_IS_LVDS
+	select GFX_GMA_PANEL_1_ON_LVDS
 	select SERIRQ_CONTINUOUS_MODE
 	select MAINBOARD_HAS_LPC_TPM
 	select MAINBOARD_HAS_TPM1
-	select GENERIC_SPD_BIN
+	select HAVE_SPD_IN_CBFS
 
 config MAINBOARD_DIR
 	string
-	default lenovo/s230u
+	default "lenovo/s230u"
 
 config MAINBOARD_PART_NUMBER
 	string
@@ -31,10 +31,6 @@ config MAINBOARD_PART_NUMBER
 config EC_BASE_ADDRESS
 	hex
 	default 0xff000000
-
-config MAX_CPUS
-	int
-	default 8
 
 config USBDEBUG_HCD_INDEX
 	int
@@ -52,12 +48,10 @@ config VGA_BIOS_ID
 	string
 	default "8086,0166"
 
-config MAINBOARD_PCI_SUBSYSTEM_VENDOR_ID
-	hex
-	default 0x17aa
+config PS2K_EISAID
+	default "PTL0001"
 
-config MAINBOARD_PCI_SUBSYSTEM_DEVICE_ID
-	hex
-	default 0x2205
+config PS2M_EISAID
+	default "LEN0031"
 
 endif # BOARD_LENOVO_S230U

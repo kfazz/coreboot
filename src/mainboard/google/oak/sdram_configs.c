@@ -1,22 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boardid.h>
 #include <console/console.h>
 #include <soc/emi.h>
-#include <stdlib.h>
 
 static const struct mt8173_sdram_params sdram_configs[] = {
 #include "sdram_inf/sdram-lpddr3-H9CCNNN8GTMLAR-2GB.inc"  /* ram_code = 0000 */
@@ -28,9 +14,9 @@ static const struct mt8173_sdram_params sdram_configs[] = {
 #include "sdram_inf/sdram-lpddr3-MT52L512M32D2PF-4GB.inc" /* ram_code = 0110 */
 #include "sdram_inf/sdram-lpddr3-H9CCNNNBJTALAR-4GB.inc"  /* ram_code = 0111 */
 #include "sdram_inf/sdram-lpddr3-MT52L256M32D1PF-2GB.inc" /* ram_code = 1000 */
-#include "sdram_inf/sdram-unused.inc"                     /* ram_code = 1001 */
-#include "sdram_inf/sdram-unused.inc"                     /* ram_code = 1010 */
-#include "sdram_inf/sdram-unused.inc"                     /* ram_code = 1011 */
+#include "sdram_inf/sdram-lpddr3-K4E6E304ED-4GB.inc"      /* ram_code = 1001 */
+#include "sdram_inf/sdram-lpddr3-NT6CL512T32AM-H0-4GB.inc" /* ram_code = 1010 */
+#include "sdram_inf/sdram-lpddr3-K4E6E304EC-EGCG-4GB.inc" /* ram_code = 1011 */
 #include "sdram_inf/sdram-unused.inc"                     /* ram_code = 1100 */
 #include "sdram_inf/sdram-unused.inc"                     /* ram_code = 1101 */
 #include "sdram_inf/sdram-unused.inc"                     /* ram_code = 1110 */

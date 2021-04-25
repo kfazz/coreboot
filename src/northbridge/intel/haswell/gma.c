@@ -1,22 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2012 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <commonlib/helpers.h>
 #include <arch/io.h>
 #include <device/mmio.h>
 #include <device/pci_ops.h>
-#include <cbmem.h>
 #include <console/console.h>
 #include <bootmode.h>
 #include <delay.h>
@@ -28,16 +15,11 @@
 #include <drivers/intel/gma/libgfxinit.h>
 #include <cpu/intel/haswell/haswell.h>
 #include <drivers/intel/gma/opregion.h>
-#include <southbridge/intel/lynxpoint/nvs.h>
-#include <stdlib.h>
-#include <string.h>
+#include <southbridge/intel/lynxpoint/pch.h>
+#include <types.h>
 
 #include "chip.h"
 #include "haswell.h"
-
-#if CONFIG(CHROMEOS)
-#include <vendorcode/google/chromeos/chromeos.h>
-#endif
 
 struct gt_reg {
 	u32 reg;
@@ -97,9 +79,9 @@ static const struct gt_reg haswell_gt_lock[] = {
 	{ 0 },
 };
 
-/* some vga option roms are used for several chipsets but they only have one
- * PCI ID in their header. If we encounter such an option rom, we need to do
- * the mapping ourselves
+/*
+ * Some VGA option roms are used for several chipsets but they only have one PCI ID in their
+ * header. If we encounter such an option rom, we need to do the mapping ourselves.
  */
 
 u32 map_oprom_vendev(u32 vendev)
@@ -122,50 +104,16 @@ u32 map_oprom_vendev(u32 vendev)
 	case 0x8086042a:		/* GT3 Server */
 	case 0x80860a26:		/* GT3 ULT */
 
+	case 0x80860d22:		/* GT3e Desktop */
+	case 0x80860d16:		/* GT1 Mobile 4+3 */
+	case 0x80860d26:		/* GT2 Mobile 4+3, GT3e Mobile */
+	case 0x80860d36:		/* GT3 Mobile 4+3 */
+
 		new_vendev = 0x80860406;	/* GT1 Mobile */
 		break;
 	}
 
 	return new_vendev;
-}
-
-/* GTT is the Global Translation Table for the graphics pipeline.
- * It is used to translate graphics addresses to physical
- * memory addresses. As in the CPU, GTTs map 4K pages.
- * The setgtt function adds a further bit of flexibility:
- * it allows you to set a range (the first two parameters) to point
- * to a physical address (third parameter);the physical address is
- * incremented by a count (fourth parameter) for each GTT in the
- * range.
- * Why do it this way? For ultrafast startup,
- * we can point all the GTT entries to point to one page,
- * and set that page to 0s:
- * memset(physbase, 0, 4096);
- * setgtt(0, 4250, physbase, 0);
- * this takes about 2 ms, and is a win because zeroing
- * the page takes a up to 200 ms.
- * This call sets the GTT to point to a linear range of pages
- * starting at physbase.
- */
-
-#define GTT_PTE_BASE (2 << 20)
-
-void
-set_translation_table(int start, int end, u64 base, int inc)
-{
-	int i;
-
-	for (i = start; i < end; i++){
-		u64 physical_address = base + i*inc;
-		/* swizzle the 32:39 bits to 4:11 */
-		u32 word = physical_address | ((physical_address >> 28) & 0xff0) | 1;
-		/* note: we've confirmed by checking
-		 * the values that mrc does no
-		 * useful setup before we run this.
-		 */
-		gtt_write(GTT_PTE_BASE + i * 4, word);
-		gtt_read(GTT_PTE_BASE + i * 4);
-	}
 }
 
 static struct resource *gtt_res = NULL;
@@ -204,13 +152,14 @@ static inline void gtt_write_regs(const struct gt_reg *gt)
 #define GTT_RETRY 1000
 int gtt_poll(u32 reg, u32 mask, u32 value)
 {
-	unsigned try = GTT_RETRY;
+	unsigned int try = GTT_RETRY;
 	u32 data;
 
 	while (try--) {
 		data = gtt_read(reg);
 		if ((data & mask) == value)
 			return 1;
+
 		udelay(10);
 	}
 
@@ -218,31 +167,10 @@ int gtt_poll(u32 reg, u32 mask, u32 value)
 	return 0;
 }
 
-uintptr_t gma_get_gnvs_aslb(const void *gnvs)
-{
-	const global_nvs_t *gnvs_ptr = gnvs;
-	return (uintptr_t)(gnvs_ptr ? gnvs_ptr->aslb : 0);
-}
-
-void gma_set_gnvs_aslb(void *gnvs, uintptr_t aslb)
-{
-	global_nvs_t *gnvs_ptr = gnvs;
-	if (gnvs_ptr)
-		gnvs_ptr->aslb = aslb;
-}
-
 static void power_well_enable(void)
 {
 	gtt_write(HSW_PWR_WELL_CTL1, HSW_PWR_WELL_ENABLE);
 	gtt_poll(HSW_PWR_WELL_CTL1, HSW_PWR_WELL_STATE, HSW_PWR_WELL_STATE);
-
-	/* In the native graphics case, we've got about 20 ms.
-	 * after we power up the AUX channel until we can talk to it.
-	 * So get that going right now. We can't turn on the panel, yet, just VDD.
-	 */
-	if (CONFIG(MAINBOARD_DO_NATIVE_VGA_INIT)) {
-		gtt_write(PCH_PP_CONTROL, PCH_PP_UNLOCK| EDP_FORCE_VDD | PANEL_POWER_RESET);
-	}
 }
 
 static void gma_pm_init_pre_vbios(struct device *dev)
@@ -268,13 +196,16 @@ static void gma_pm_init_pre_vbios(struct device *dev)
 	gtt_write_regs(haswell_gt_setup);
 
 	/* Wait for Mailbox Ready */
-	gtt_poll(0x138124, (1UL << 31), (0UL << 31));
+	gtt_poll(0x138124, (1 << 31), (0 << 31));
+
 	/* Mailbox Data - RC6 VIDS */
 	gtt_write(0x138128, 0x00000000);
+
 	/* Mailbox Command */
 	gtt_write(0x138124, 0x80000004);
+
 	/* Wait for Mailbox Ready */
-	gtt_poll(0x138124, (1UL << 31), (0UL << 31));
+	gtt_poll(0x138124, (1 << 31), (0 << 31));
 
 	/* Enable PM Interrupts */
 	gtt_write(GEN6_PMIER, GEN6_PM_MBOX_EVENT | GEN6_PM_THERMAL_EVENT |
@@ -299,7 +230,7 @@ static void init_display_planes(void)
 		gtt_write(CURBASE_IVB(pipe), 0x00000000);
 	}
 
-	/* Disable primary plane and set surface base address*/
+	/* Disable primary plane and set surface base address */
 	for (plane = PLANE_A; plane <= PLANE_C; plane++) {
 		gtt_write(DSPCNTR(plane), DISPLAY_PLANE_DISABLE);
 		gtt_write(DSPSURF(plane), 0x00000000);
@@ -311,10 +242,9 @@ static void init_display_planes(void)
 
 static void gma_setup_panel(struct device *dev)
 {
-	struct northbridge_intel_haswell_config *conf = dev->chip_info;
+	struct northbridge_intel_haswell_config *conf = config_of(dev);
+	const struct i915_gpu_panel_config *panel_cfg = &conf->panel_cfg;
 	u32 reg32;
-
-	printk(BIOS_DEBUG, "GT Power Management Init (post VBIOS)\n");
 
 	/* Setup Digital Port Hotplug */
 	reg32 = gtt_read(PCH_PORT_HOTPLUG);
@@ -328,36 +258,60 @@ static void gma_setup_panel(struct device *dev)
 	/* Setup Panel Power On Delays */
 	reg32 = gtt_read(PCH_PP_ON_DELAYS);
 	if (!reg32) {
-		reg32 = (conf->gpu_panel_port_select & 0x3) << 30;
-		reg32 |= (conf->gpu_panel_power_up_delay & 0x1fff) << 16;
-		reg32 |= (conf->gpu_panel_power_backlight_on_delay & 0x1fff);
+		reg32 |= ((panel_cfg->up_delay_ms * 10) & 0x1fff) << 16;
+		reg32 |= (panel_cfg->backlight_on_delay_ms * 10) & 0x1fff;
 		gtt_write(PCH_PP_ON_DELAYS, reg32);
 	}
 
 	/* Setup Panel Power Off Delays */
 	reg32 = gtt_read(PCH_PP_OFF_DELAYS);
 	if (!reg32) {
-		reg32 = (conf->gpu_panel_power_down_delay & 0x1fff) << 16;
-		reg32 |= (conf->gpu_panel_power_backlight_off_delay & 0x1fff);
+		reg32 = ((panel_cfg->down_delay_ms * 10) & 0x1fff) << 16;
+		reg32 |= (panel_cfg->backlight_off_delay_ms * 10) & 0x1fff;
 		gtt_write(PCH_PP_OFF_DELAYS, reg32);
 	}
 
 	/* Setup Panel Power Cycle Delay */
-	if (conf->gpu_panel_power_cycle_delay) {
+	if (panel_cfg->cycle_delay_ms) {
 		reg32 = gtt_read(PCH_PP_DIVISOR);
-		reg32 &= ~0xff;
-		reg32 |= conf->gpu_panel_power_cycle_delay & 0xff;
+		reg32 &= ~0x1f;
+		reg32 |= (DIV_ROUND_UP(panel_cfg->cycle_delay_ms, 100) + 1) & 0x1f;
 		gtt_write(PCH_PP_DIVISOR, reg32);
 	}
 
-	/* Enable Backlight if needed */
-	if (conf->gpu_cpu_backlight) {
-		gtt_write(BLC_PWM_CPU_CTL2, BLC_PWM2_ENABLE);
-		gtt_write(BLC_PWM_CPU_CTL, conf->gpu_cpu_backlight);
-	}
-	if (conf->gpu_pch_backlight) {
-		gtt_write(BLC_PWM_PCH_CTL1, BLM_PCH_PWM_ENABLE);
-		gtt_write(BLC_PWM_PCH_CTL2, conf->gpu_pch_backlight);
+	/* Enforce the PCH PWM function, as so does Linux.
+	   The CPU PWM controls are disabled after reset.  */
+	if (panel_cfg->backlight_pwm_hz) {
+		/* Reference clock is either 24MHz or 135MHz. We can choose
+		   either a 16 or a 128 step increment. Use 16 if we would
+		   have less than 100 steps otherwise. */
+		const unsigned int refclock = CONFIG(INTEL_LYNXPOINT_LP) ? 24*MHz : 135*MHz;
+		const unsigned int hz_limit = refclock / 128 / 100;
+		unsigned int pwm_increment, pwm_period;
+		u32 south_chicken2;
+
+		south_chicken2 = gtt_read(SOUTH_CHICKEN2);
+		if (panel_cfg->backlight_pwm_hz > hz_limit) {
+			pwm_increment = 16;
+			south_chicken2 |= LPT_PWM_GRANULARITY;
+		} else {
+			pwm_increment = 128;
+			south_chicken2 &= ~LPT_PWM_GRANULARITY;
+		}
+		gtt_write(SOUTH_CHICKEN2, south_chicken2);
+
+		pwm_period = refclock / pwm_increment / panel_cfg->backlight_pwm_hz;
+		printk(BIOS_INFO,
+			"GMA: Setting backlight PWM frequency to %uMHz / %u / %u = %uHz\n",
+			refclock / MHz, pwm_increment, pwm_period,
+			DIV_ROUND_CLOSEST(refclock, pwm_increment * pwm_period));
+
+		/* Start with a 50% duty cycle. */
+		gtt_write(BLC_PWM_PCH_CTL2, pwm_period << 16 | pwm_period / 2);
+
+		gtt_write(BLC_PWM_PCH_CTL1,
+			(panel_cfg->backlight_polarity == GPU_BACKLIGHT_POLARITY_LOW) << 29 |
+			BLM_PCH_OVERRIDE_ENABLE | BLM_PCH_PWM_ENABLE);
 	}
 
 	/* Get display,pipeline,and DDI registers into a basic sane state */
@@ -365,11 +319,12 @@ static void gma_setup_panel(struct device *dev)
 
 	init_display_planes();
 
-	/* DDI-A params set:
-	   bit 0: Display detected (RO)
-	   bit 4: DDI A supports 4 lanes and DDI E is not used
-	   bit 7: DDI buffer is idle
-	*/
+	/*
+	 * DDI-A params set:
+	 * bit 0: Display detected (RO)
+	 * bit 4: DDI A supports 4 lanes and DDI E is not used
+	 * bit 7: DDI buffer is idle
+	 */
 	reg32 = DDI_BUF_IS_IDLE | DDI_INIT_DISPLAY_DETECTED;
 	if (!conf->gpu_ddi_e_connected)
 		reg32 |= DDI_A_4_LANES;
@@ -382,14 +337,14 @@ static void gma_setup_panel(struct device *dev)
 	/* Enable the handshake with PCH display when processing reset */
 	gtt_write(NDE_RSTWRN_OPT, RST_PCH_HNDSHK_EN);
 
-	/* undocumented */
+	/* Undocumented */
 	gtt_write(0x42090, 0x04000000);
-	gtt_write(0x9840, 0x00000000);
+	gtt_write(0x9840,  0x00000000);
 	gtt_write(0x42090, 0xa4000000);
 
 	gtt_write(SOUTH_DSPCLK_GATE_D, PCH_LP_PARTITION_LEVEL_DISABLE);
 
-	/* undocumented */
+	/* Undocumented */
 	gtt_write(0x42080, 0x00004000);
 
 	/* Prepare DDI buffers for DP and FDI */
@@ -401,9 +356,10 @@ static void gma_setup_panel(struct device *dev)
 	/* Enable HPD buffer for digital port D and B */
 	gtt_write(PCH_PORT_HOTPLUG, PORTD_HOTPLUG_ENABLE | PORTB_HOTPLUG_ENABLE);
 
-	/* Bits 4:0 - Power cycle delay (default 0x6 --> 500ms)
-	   Bits 31:8 - Reference divider (0x0004af ----> 24MHz)
-	*/
+	/*
+	 * Bits 4:0 - Power cycle delay (default 0x6 --> 500ms)
+	 * Bits 31:8 - Reference divider (0x0004af ----> 24MHz)
+	 */
 	gtt_write(PCH_PP_DIVISOR, 0x0004af06);
 }
 
@@ -448,30 +404,29 @@ static void gma_enable_swsci(void)
 {
 	u16 reg16;
 
-	/* clear DMISCI status */
+	/* Clear DMISCI status */
 	reg16 = inw(get_pmbase() + TCO1_STS);
 	reg16 &= DMISCI_STS;
 	outw(get_pmbase() + TCO1_STS, reg16);
 
-	/* clear and enable ACPI TCO SCI */
+	/* Clear and enable ACPI TCO SCI */
 	enable_tco_sci();
 }
 
 static void gma_func0_init(struct device *dev)
 {
 	int lightup_ok = 0;
-	u32 reg32;
 
-	/* IGD needs to be Bus Master */
-	reg32 = pci_read_config32(dev, PCI_COMMAND);
-	reg32 |= PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY | PCI_COMMAND_IO;
-	pci_write_config32(dev, PCI_COMMAND, reg32);
+	intel_gma_init_igd_opregion();
 
 	/* Init graphics power management */
 	gma_pm_init_pre_vbios(dev);
 
 	/* Pre panel init */
 	gma_setup_panel(dev);
+
+	if (!CONFIG(NO_GFX_INIT))
+		pci_or_config16(dev, PCI_COMMAND, PCI_COMMAND_MASTER);
 
 	int vga_disable = (pci_read_config16(dev, GGC) & 2) >> 1;
 
@@ -486,90 +441,44 @@ static void gma_func0_init(struct device *dev)
 		}
 	}
 
-	if (! lightup_ok) {
+	if (!lightup_ok) {
 		printk(BIOS_SPEW, "FUI did not run; using VBIOS\n");
-		mdelay(CONFIG_PRE_GRAPHICS_DELAY);
 		pci_dev_init(dev);
 	}
 
-	/* Post panel init */
+	printk(BIOS_DEBUG, "GT Power Management Init (post VBIOS)\n");
+
 	gma_pm_init_post_vbios(dev);
 
 	gma_enable_swsci();
-	intel_gma_restore_opregion();
 }
 
-const struct i915_gpu_controller_info *
-intel_gma_get_controller_info(void)
+static void gma_generate_ssdt(const struct device *dev)
 {
-	struct device *dev = pcidev_on_root(0x2, 0);
-	if (!dev) {
-		return NULL;
-	}
-	struct northbridge_intel_haswell_config *chip = dev->chip_info;
-	return &chip->gfx;
+	const struct northbridge_intel_haswell_config *chip = dev->chip_info;
+
+	drivers_intel_gma_displays_ssdt_generate(&chip->gfx);
 }
-
-static void gma_ssdt(struct device *device)
-{
-	const struct i915_gpu_controller_info *gfx = intel_gma_get_controller_info();
-	if (!gfx) {
-		return;
-	}
-
-	drivers_intel_gma_displays_ssdt_generate(gfx);
-}
-
-static unsigned long
-gma_write_acpi_tables(struct device *const dev, unsigned long current,
-		      struct acpi_rsdp *const rsdp)
-{
-	igd_opregion_t *opregion = (igd_opregion_t *)current;
-	global_nvs_t *gnvs;
-
-	if (intel_gma_init_igd_opregion(opregion) != CB_SUCCESS)
-		return current;
-
-	current += sizeof(igd_opregion_t);
-
-	/* GNVS has been already set up */
-	gnvs = cbmem_find(CBMEM_ID_ACPI_GNVS);
-	if (gnvs) {
-		/* IGD OpRegion Base Address */
-		gma_set_gnvs_aslb(gnvs, (uintptr_t)opregion);
-	} else {
-		printk(BIOS_ERR, "Error: GNVS table not found.\n");
-	}
-
-	current = acpi_align_current(current);
-	return current;
-}
-
-static struct pci_operations gma_pci_ops = {
-	.set_subsystem    = pci_dev_set_subsystem,
-};
 
 static struct device_operations gma_func0_ops = {
 	.read_resources		= pci_dev_read_resources,
 	.set_resources		= pci_dev_set_resources,
 	.enable_resources	= pci_dev_enable_resources,
 	.init			= gma_func0_init,
-	.acpi_fill_ssdt_generator = gma_ssdt,
-	.scan_bus		= 0,
-	.enable			= 0,
-	.ops_pci		= &gma_pci_ops,
-	.write_acpi_tables	= gma_write_acpi_tables,
+	.acpi_fill_ssdt		= gma_generate_ssdt,
+	.ops_pci		= &pci_dev_ops_pci,
 };
 
 static const unsigned short pci_device_ids[] = {
 	0x0402, /* Desktop GT1 */
 	0x0412, /* Desktop GT2 */
 	0x0422, /* Desktop GT3 */
+	0x0d22, /* Desktop GT3e */
 	0x0406, /* Mobile GT1 */
 	0x0416, /* Mobile GT2 */
 	0x0426, /* Mobile GT3 */
 	0x0d16, /* Mobile 4+3 GT1 */
-	0x0d26, /* Mobile 4+3 GT2 */
+	0x0d26, /* Mobile 4+3 GT2, Mobile GT3e */
 	0x0d36, /* Mobile 4+3 GT3 */
 	0x0a06, /* ULT GT1 */
 	0x0a16, /* ULT GT2 */
@@ -578,7 +487,7 @@ static const unsigned short pci_device_ids[] = {
 };
 
 static const struct pci_driver pch_lpc __pci_driver = {
-	.ops	 = &gma_func0_ops,
-	.vendor	 = PCI_VENDOR_ID_INTEL,
+	.ops     = &gma_func0_ops,
+	.vendor  = PCI_VENDOR_ID_INTEL,
 	.devices = pci_device_ids,
 };

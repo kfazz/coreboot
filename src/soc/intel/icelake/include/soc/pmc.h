@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _SOC_ICELAKE_PMC_H_
 #define _SOC_ICELAKE_PMC_H_
@@ -111,6 +98,7 @@
 #define   PCH2CPU_TT_EN			(1 << 26)
 
 #define PCH_PWRM_ACPI_TMR_CTL		0x18FC
+#define  ACPI_TIM_DIS			(1 << 1)
 #define GPIO_GPE_CFG			0x1920
 #define  GPE0_DWX_MASK			0xf
 #define  GPE0_DW_SHIFT(x)		(4*(x))
@@ -130,6 +118,8 @@
 #define GBLRST_CAUSE0			0x1924
 #define   GBLRST_CAUSE0_THERMTRIP	(1 << 5)
 #define GBLRST_CAUSE1			0x1928
+
+#define SLP_S0_RES			0x193c
 
 #define CPPMVRIC			0x1B1C
 #define   XTALSDQDIS			(1 << 22)

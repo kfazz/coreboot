@@ -1,36 +1,11 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2010 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <types.h>
 #include <string.h>
 #include <console/console.h>
-#include <arch/acpi.h>
-#include <arch/smp/mpspec.h>
+#include <acpi/acpi.h>
 #include <device/device.h>
-#include <device/pci.h>
 
-#include <southbridge/intel/i82801gx/nvs.h>
 #include "mainboard.h"
-
-void acpi_create_gnvs(global_nvs_t *gnvs)
-{
-	/* Enable COM port(s) */
-	gnvs->cmap = 0x01;
-	gnvs->cmbp = 0x00;
-}
 
 static long acpi_create_ecdt(acpi_ecdt_t * ecdt)
 {
@@ -60,7 +35,7 @@ static long acpi_create_ecdt(acpi_ecdt_t * ecdt)
 	ecdt->ec_control.addrl = 0x66;
 	ecdt->ec_control.addrh = 0;
 
-	ecdt->ec_data.space_id = ACPI_ADDRESS_SPACE_IO;	/* Memory */
+	ecdt->ec_data.space_id = ACPI_ADDRESS_SPACE_IO;
 	ecdt->ec_data.bit_width = 8;
 	ecdt->ec_data.bit_offset = 0;
 	ecdt->ec_data.addrl = 0x62;
@@ -70,7 +45,7 @@ static long acpi_create_ecdt(acpi_ecdt_t * ecdt)
 
 	ecdt->gpe_bit = 23; // SCI interrupt within GPEx_STS
 
-	strncpy((char *)ecdt->ec_id, ec_id, strlen(ec_id));
+	memcpy(ecdt->ec_id, ec_id, sizeof(ec_id));
 
 	header->checksum =
 	    acpi_checksum((void *) ecdt, ecdt_len);
@@ -78,7 +53,7 @@ static long acpi_create_ecdt(acpi_ecdt_t * ecdt)
 	return header->length;
 }
 
-unsigned long mainboard_write_acpi_tables(struct device *device,
+unsigned long mainboard_write_acpi_tables(const struct device *device,
 					  unsigned long start,
 					  acpi_rsdp_t *rsdp)
 {

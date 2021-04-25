@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 The Chromium OS Authors. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 // Thermal Zone
 
@@ -39,10 +26,10 @@ Scope (\_TZ)
 		// Convert from Degrees C to 1/10 Kelvin for ACPI
 		Method (CTOK, 1) {
 			// 10th of Degrees C
-			Multiply (Arg0, 10, Local0)
+			Local0 = Arg0 * 10
 
 			// Convert to Kelvin
-			Add (Local0, 2732, Local0)
+			Local0 += 2732
 
 			Return (Local0)
 		}
@@ -68,23 +55,23 @@ Scope (\_TZ)
 		Method (_TMP, 0, Serialized)
 		{
 			// Get CPU Temperature from the Embedded Controller
-			Store (\_SB.PCI0.LPCB.EC0.CTMP, Local0)
+			Local0 = \_SB.PCI0.LPCB.EC0.CTMP
 
 			// Re-read from EC if the temperature is very high to
 			// avoid OS shutdown if we got a bad reading.
-			If (LGreaterEqual (Local0, \TCRT)) {
-				Store (\_SB.PCI0.LPCB.EC0.CTMP, Local0)
-				If (LGreaterEqual (Local0, \TCRT)) {
+			If (Local0 >= \TCRT) {
+				Local0 = \_SB.PCI0.LPCB.EC0.CTMP
+				If (Local0 >= \TCRT) {
 					// Check if this is an early read
-					If (LLess (CRDC, IRDC)) {
-						Store (0, Local0)
+					If (CRDC < IRDC) {
+						Local0 = 0
 					}
 				}
 			}
 
 			// Keep track of first few reads by the OS
-			If (LLess (CRDC, IRDC)) {
-				Increment (CRDC)
+			If (CRDC < IRDC) {
+				CRDC++
 			}
 
 			Return (CTOK (Local0))

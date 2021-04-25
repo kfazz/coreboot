@@ -1,22 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _BROADWELL_PM_H_
 #define _BROADWELL_PM_H_
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 
 /* ACPI_BASE_ADDRESS / PMBASE */
 
@@ -75,7 +62,7 @@
 
 #define GPE0_REG_MAX		4
 #define GPE0_REG_SIZE		32
-#define GPE0_STS(x)		(0x80 + (x * 4))
+#define GPE0_STS(x)		(0x80 + ((x) * 4))
 #define  GPE_31_0		0	/* 0x80/0x90 = GPE[31:0] */
 #define  GPE_63_32		1	/* 0x84/0x94 = GPE[63:32] */
 #define  GPE_94_64		2	/* 0x88/0x98 = GPE[94:64] */
@@ -91,7 +78,7 @@
 #define   TCOSCI_STS		(1 << 6)
 #define   SWGPE_STS		(1 << 2)
 #define   HOT_PLUG_STS		(1 << 1)
-#define GPE0_EN(x)		(0x90 + (x * 4))
+#define GPE0_EN(x)		(0x90 + ((x) * 4))
 #define   WADT_en		(1 << 18)
 #define   GP27_EN		(1 << 16)
 #define   PME_B0_EN		(1 << 13)
@@ -152,10 +139,7 @@ void disable_all_gpe(void);
 void enable_gpe(uint32_t mask);
 void disable_gpe(uint32_t mask);
 
-/* Return the selected ACPI SCI IRQ */
-int acpi_sci_irq(void);
-
-/* Return non-zero when RTC failure happened. */
-int rtc_failure(void);
+/* STM Support */
+uint16_t get_pmbase(void);
 
 #endif

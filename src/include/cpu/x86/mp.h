@@ -1,23 +1,12 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _X86_MP_H_
 #define _X86_MP_H_
 
 #include <arch/smp/atomic.h>
 #include <cpu/x86/smm.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #define CACHELINE_SIZE 64
 
@@ -136,17 +125,20 @@ enum {
 int mp_run_on_aps(void (*func)(void *), void *arg, int logical_cpu_num,
 		long expire_us);
 
+/*
+ * Runs func on all APs excluding BSP, with a provision to run calls in parallel
+ * or serially per AP.
+ */
+int mp_run_on_all_aps(void (*func)(void *), void *arg, long expire_us, bool run_parallel);
+
 /* Like mp_run_on_aps() but also runs func on BSP. */
-int mp_run_on_all_cpus(void (*func)(void *), void *arg, long expire_us);
+int mp_run_on_all_cpus(void (*func)(void *), void *arg);
 
 /*
  * Park all APs to prepare for OS boot. This is handled automatically
  * by the coreboot infrastructure.
  */
 int mp_park_aps(void);
-
-/* Returns APIC id for coreboot CPU number or < 0 on failure. */
-int mp_get_apic_id(int logical_cpu);
 
 /*
  * SMM helpers to use with initializing CPUs.

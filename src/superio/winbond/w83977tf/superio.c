@@ -1,26 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2000 AG Electronics Ltd.
- * Copyright (C) 2003-2004 Linux Networx
- * Copyright (C) 2004 Tyan
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <device/device.h>
 #include <device/pnp.h>
 #include <superio/conf_mode.h>
 #include <pc80/keyboard.h>
-#include <stdlib.h>
+
 #include "w83977tf.h"
 
 static void w83977tf_init(struct device *dev)
@@ -52,7 +36,9 @@ static struct pnp_info pnp_dev_info[] = {
 	{ NULL, W83977TF_SP2,  PNP_IO0 | PNP_IRQ0, 0x07f8, },
 	{ NULL, W83977TF_KBC,  PNP_IO0 | PNP_IO1 | PNP_IRQ0 | PNP_IRQ1,
 		0x07ff, 0x07ff, },
+#if CONFIG(W83977TF_HAVE_SEPARATE_IR_DEVICE)
 	{ NULL, W83977TF_CIR,  PNP_IO0 | PNP_IRQ0, 0x07f8, },
+#endif
 	{ NULL, W83977TF_GAME_MIDI_GPIO1, PNP_IO0 | PNP_IO1 | PNP_IRQ0,
 		0x07ff, 0x07fe, },
 	{ NULL, W83977TF_ACPI, PNP_IRQ0, },

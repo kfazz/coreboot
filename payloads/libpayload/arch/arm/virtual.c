@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2008 coresystems GmbH
  *
@@ -92,7 +91,7 @@ static void lpae_map_init(void)
 	/* get work block address */
 	work_block = ALIGN_UP((uintptr_t)_end, 2*MiB);
 	assert(work_block);
-	printf("Work block for LPAE mapping is @ 0x%p\n", (void *)work_block);
+	printf("Work block for LPAE mapping is @ %p\n", (void *)work_block);
 
 	/* get the address of the 1st pmd from pgd[0] */
 	pgd = (pgd_t *)((uintptr_t)read_ttbr0() & PGD_MASK);

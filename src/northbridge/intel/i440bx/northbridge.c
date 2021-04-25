@@ -1,15 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <device/pci_ops.h>
@@ -17,9 +6,7 @@
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
-#include <stdlib.h>
 #include <cpu/cpu.h>
-#include "northbridge.h"
 #include "i440bx.h"
 
 static void northbridge_init(struct device *dev)
@@ -32,8 +19,6 @@ static struct device_operations northbridge_operations = {
 	.set_resources    = pci_dev_set_resources,
 	.enable_resources = pci_dev_enable_resources,
 	.init             = northbridge_init,
-	.enable           = 0,
-	.ops_pci          = 0,
 };
 
 static const struct pci_driver northbridge_driver __pci_driver = {
@@ -42,10 +27,12 @@ static const struct pci_driver northbridge_driver __pci_driver = {
 	.device = 0x7190,
 };
 
-static void i440bx_domain_set_resources(struct device *dev)
+static void i440bx_domain_read_resources(struct device *dev)
 {
 	struct device *mc_dev;
 	uint32_t pci_tolm;
+
+	pci_domain_read_resources(dev);
 
 	pci_tolm = find_pci_tolm(dev->link_list);
 	mc_dev = dev->link_list->children;
@@ -77,14 +64,11 @@ static void i440bx_domain_set_resources(struct device *dev)
 		ram_resource(dev, idx++, 0, 640);
 		ram_resource(dev, idx++, 768, tolmk - 768);
 	}
-	assign_resources(dev->link_list);
 }
 
 static struct device_operations pci_domain_ops = {
-	.read_resources		= pci_domain_read_resources,
-	.set_resources		= i440bx_domain_set_resources,
-	.enable_resources	= NULL,
-	.init			= NULL,
+	.read_resources		= i440bx_domain_read_resources,
+	.set_resources		= pci_domain_set_resources,
 	.scan_bus		= pci_domain_scan_bus,
 };
 
@@ -94,11 +78,9 @@ static void cpu_bus_init(struct device *dev)
 }
 
 static struct device_operations cpu_bus_ops = {
-	.read_resources   = DEVICE_NOOP,
-	.set_resources    = DEVICE_NOOP,
-	.enable_resources = DEVICE_NOOP,
+	.read_resources   = noop_read_resources,
+	.set_resources    = noop_set_resources,
 	.init             = cpu_bus_init,
-	.scan_bus         = 0,
 };
 
 static void enable_dev(struct device *dev)

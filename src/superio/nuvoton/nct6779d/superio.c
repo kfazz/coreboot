@@ -1,30 +1,11 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Advanced Micro Devices, Inc.
- * Copyright (C) 2014 Felix Held <felix-coreboot@felixheld.de>
- * Copyright (C) 2014 Edward O'Callaghan <eocallaghan@alterapraxis.com>
- * Copyright (C) 2015 Matt DeVillier <matt.devillier@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <device/device.h>
 #include <device/pnp.h>
 #include <pc80/keyboard.h>
-#include <stdlib.h>
 #include <superio/conf_mode.h>
 
 #include "nct6779d.h"
-
 
 static void nct6779d_init(struct device *dev)
 {
@@ -55,8 +36,8 @@ static struct pnp_info pnp_dev_info[] = {
 	{ NULL, NCT6779D_KBC, PNP_IO0 | PNP_IO1 | PNP_IRQ0 | PNP_IRQ1,
 		0x0fff, 0x0fff, },
 	{ NULL, NCT6779D_CIR, PNP_IO0 | PNP_IRQ0, 0x0ff8, },
-	{ NULL, NCT6779D_ACPI},
-	{ NULL, NCT6779D_HWM_FPLED, PNP_IO0 | PNP_IO1 | PNP_IRQ0,
+	{ NULL, NCT6779D_ACPI, PNP_MSC2,},
+	{ NULL, NCT6779D_HWM_FPLED, PNP_IO0 | PNP_IO1 | PNP_IRQ0 | PNP_MSC0,
 		0x0ffe, 0x0ffe, },
 	{ NULL, NCT6779D_WDT1},
 	{ NULL, NCT6779D_CIRWKUP, PNP_IO0 | PNP_IRQ0, 0x0ff8, },
@@ -69,8 +50,8 @@ static struct pnp_info pnp_dev_info[] = {
 	{ NULL, NCT6779D_GPIO2},
 	{ NULL, NCT6779D_GPIO3},
 	{ NULL, NCT6779D_GPIO4},
-	{ NULL, NCT6779D_GPIO5},
-	{ NULL, NCT6779D_GPIO6},
+	{ NULL, NCT6779D_GPIO5, PNP_MSC4 | PNP_MSC5},
+	{ NULL, NCT6779D_GPIO6, PNP_MSC4 | PNP_MSC5},
 	{ NULL, NCT6779D_GPIO7},
 	{ NULL, NCT6779D_GPIO8},
 };

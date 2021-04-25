@@ -1,17 +1,4 @@
-#
-# This file is part of the coreboot project.
-#
-# Copyright (C) 2015  Damien Zammit <damien@zamaudio.com>
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
+# SPDX-License-Identifier: GPL-2.0-only
 
 if BOARD_FOXCONN_D41S
 
@@ -24,20 +11,15 @@ config BOARD_SPECIFIC_OPTIONS
 	select HAVE_ACPI_TABLES
 	select HAVE_ACPI_RESUME
 	select BOARD_ROMSIZE_KB_1024
-	select MAINBOARD_HAS_NATIVE_VGA_INIT
 	select INTEL_INT15
 	select HAVE_OPTION_TABLE
 	select HAVE_CMOS_DEFAULT
 	select DRIVERS_I2C_CK505
 	select INTEL_GMA_HAVE_VBT
 
-config MAX_CPUS
-	int
-	default 4
-
 config MAINBOARD_DIR
 	string
-	default foxconn/d41s
+	default "foxconn/d41s"
 
 config MAINBOARD_PART_NUMBER
 	string

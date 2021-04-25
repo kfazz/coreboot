@@ -1,21 +1,7 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boardid.h>
 #include <bootblock_common.h>
-#include <delay.h>
 #include <gpio.h>
 #include <device/mmio.h>
 #include <soc/gpio.h>
@@ -43,9 +29,9 @@ static void nor_set_gpio_pinmux(void)
 	 * 3: 16mA
 	 */
 	/* EINT4: 0x10005B20[14:13] */
-	clrsetbits_le16(&mtk_gpio->drv_mode[2].val, 0xf << 12, 2 << 13);
+	clrsetbits16(&mtk_gpio->drv_mode[2].val, 0xf << 12, 2 << 13);
 	/* EINT5~EINT9: 0x10005B30[2:1] */
-	clrsetbits_le16(&mtk_gpio->drv_mode[3].val, 0xf << 0, 2 << 1),
+	clrsetbits16(&mtk_gpio->drv_mode[3].val, 0xf << 0, 2 << 1),
 
 	gpio_set_pull(GPIO(EINT4), GPIO_PULL_ENABLE, GPIO_PULL_UP);
 	gpio_set_pull(GPIO(EINT5), GPIO_PULL_ENABLE, GPIO_PULL_UP);
@@ -65,7 +51,7 @@ static void nor_set_gpio_pinmux(void)
 void bootblock_mainboard_early_init(void)
 {
 	/* Clear UART0 power down signal */
-	clrbits_le32(&mt8173_pericfg->pdn0_set, PERICFG_UART0_PDN);
+	clrbits32(&mt8173_pericfg->pdn0_set, PERICFG_UART0_PDN);
 }
 
 void bootblock_mainboard_init(void)
@@ -87,10 +73,8 @@ void bootblock_mainboard_init(void)
 	/* Init i2c bus 2 Timing register for TPM */
 	mtk_i2c_bus_init(CONFIG_DRIVER_TPM_I2C_BUS);
 
-	if (CONFIG(OAK_HAS_TPM2))
-		gpio_eint_configure(CR50_IRQ, IRQ_TYPE_EDGE_RISING);
-
-	mtk_spi_init(CONFIG_EC_GOOGLE_CHROMEEC_SPI_BUS, SPI_PAD1_MASK, 6*MHz);
+	mtk_spi_init(CONFIG_EC_GOOGLE_CHROMEEC_SPI_BUS, SPI_PAD1_MASK, 6*MHz,
+		     0);
 
 	setup_chromeos_gpios();
 

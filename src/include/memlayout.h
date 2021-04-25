@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* This file contains macro definitions for memlayout.ld linker scripts. */
 
@@ -20,6 +7,8 @@
 
 #include <arch/memlayout.h>
 #include <vb2_constants.h>
+
+#include "fmap_config.h"
 
 /* Macros that the architecture can override. */
 #ifndef ARCH_POINTER_ALIGN_SIZE
@@ -30,21 +19,8 @@
 #define ARCH_CACHELINE_ALIGN_SIZE 64
 #endif
 
-/* Default to data as well as bss. */
-#ifndef ARCH_STAGE_HAS_DATA_SECTION
-#define ARCH_STAGE_HAS_DATA_SECTION 1
-#endif
-
-#ifndef ARCH_STAGE_HAS_BSS_SECTION
-#define ARCH_STAGE_HAS_BSS_SECTION 1
-#endif
-
-/* Default is that currently ramstage, smm, and rmodules have a heap. */
-#ifndef ARCH_STAGE_HAS_HEAP_SECTION
-#define ARCH_STAGE_HAS_HEAP_SECTION (ENV_RAMSTAGE || ENV_SMM || ENV_RMODULE)
-#endif
-
-#define STR(x) #x
+#define STR(x) XSTR(x)
+#define XSTR(x) #x
 
 #define ALIGN_COUNTER(align) \
 	. = ALIGN(align);
@@ -55,24 +31,35 @@
 
 #define SYMBOL(name, addr) \
 	SET_COUNTER(name, addr) \
-	_##name = .;
+	_##name = ABSOLUTE(.);
+
+#define RECORD_SIZE(name) \
+	_##name##_size = ABSOLUTE(_e##name - _##name);
 
 #define REGION(name, addr, size, expected_align) \
 	SYMBOL(name, addr) \
 	_ = ASSERT(. == ALIGN(expected_align), \
 		STR(name must be aligned to expected_align!)); \
-	SYMBOL(e##name, addr + size)
+	SYMBOL(e##name, addr + size) \
+	RECORD_SIZE(name)
 
 #define ALIAS_REGION(name, alias) \
-	_##alias = _##name; \
-	_e##alias = _e##name;
+	_##alias = ABSOLUTE(_##name); \
+	_e##alias = ABSOLUTE(_e##name); \
+	RECORD_SIZE(alias)
+
+#define REGION_START(name, addr) SYMBOL(name, addr)
+
+#define REGION_END(name, addr) \
+	SYMBOL(e##name, addr) \
+	RECORD_SIZE(name)
 
 /* Declare according to SRAM/DRAM ranges in SoC hardware-defined address map. */
-#define SRAM_START(addr) SYMBOL(sram, addr)
+#define SRAM_START(addr) REGION_START(sram, addr)
 
-#define SRAM_END(addr) SYMBOL(esram, addr)
+#define SRAM_END(addr) REGION_END(sram, addr)
 
-#define DRAM_START(addr) SYMBOL(dram, addr)
+#define DRAM_START(addr) REGION_START(dram, addr)
 
 #define TIMESTAMP(addr, size) \
 	REGION(timestamp, addr, size, 8) \
@@ -81,13 +68,24 @@
 #define PRERAM_CBMEM_CONSOLE(addr, size) \
 	REGION(preram_cbmem_console, addr, size, 4)
 
+#define EARLYRAM_STACK(addr, size) \
+	REGION(earlyram_stack, addr, size, ARCH_STACK_ALIGN_SIZE)
+
 /* Use either CBFS_CACHE (unified) or both (PRERAM|POSTRAM)_CBFS_CACHE */
 #define CBFS_CACHE(addr, size) \
 	REGION(cbfs_cache, addr, size, 4) \
 	ALIAS_REGION(cbfs_cache, preram_cbfs_cache) \
 	ALIAS_REGION(cbfs_cache, postram_cbfs_cache)
 
-#if defined(__PRE_RAM__)
+#define FMAP_CACHE(addr, sz) \
+	REGION(fmap_cache, addr, sz, 4) \
+	_ = ASSERT(sz >= FMAP_SIZE, \
+		   STR(FMAP does not fit in FMAP_CACHE! (sz < FMAP_SIZE)));
+
+#define CBFS_MCACHE(addr, sz) \
+	REGION(cbfs_mcache, addr, sz, 4)
+
+#if ENV_ROMSTAGE_OR_BEFORE
 	#define PRERAM_CBFS_CACHE(addr, size) \
 		REGION(preram_cbfs_cache, addr, size, 4) \
 		ALIAS_REGION(preram_cbfs_cache, cbfs_cache)
@@ -105,7 +103,8 @@
 #if ENV_DECOMPRESSOR
 	#define DECOMPRESSOR(addr, sz) \
 		SYMBOL(decompressor, addr) \
-		_edecompressor = _decompressor + sz; \
+		_edecompressor = ABSOLUTE(_decompressor + sz); \
+		RECORD_SIZE(decompressor) \
 		_ = ASSERT(_eprogram - _program <= sz, \
 			STR(decompressor exceeded its allotted size! (sz))); \
 		INCLUDE "decompressor/lib/program.ld"
@@ -125,7 +124,8 @@
 #if ENV_BOOTBLOCK
 	#define BOOTBLOCK(addr, sz) \
 		SYMBOL(bootblock, addr) \
-		_ebootblock = _bootblock + sz; \
+		_ebootblock = ABSOLUTE(_bootblock + sz); \
+		RECORD_SIZE(bootblock) \
 		_ = ASSERT(_eprogram - _program <= sz, \
 			STR(Bootblock exceeded its allotted size! (sz))); \
 		INCLUDE "bootblock/lib/program.ld"
@@ -137,7 +137,8 @@
 #if ENV_ROMSTAGE
 	#define ROMSTAGE(addr, sz) \
 		SYMBOL(romstage, addr) \
-		_eromstage = _romstage + sz; \
+		_eromstage = ABSOLUTE(_romstage + sz); \
+		RECORD_SIZE(romstage) \
 		_ = ASSERT(_eprogram - _program <= sz, \
 			STR(Romstage exceeded its allotted size! (sz))); \
 		INCLUDE "romstage/lib/program.ld"
@@ -149,7 +150,8 @@
 #if ENV_RAMSTAGE
 	#define RAMSTAGE(addr, sz) \
 		SYMBOL(ramstage, addr) \
-		_eramstage = _ramstage + sz; \
+		_eramstage = ABSOLUTE(_ramstage + sz); \
+		RECORD_SIZE(ramstage) \
 		_ = ASSERT(_eprogram - _program <= sz, \
 			STR(Ramstage exceeded its allotted size! (sz))); \
 		INCLUDE "ramstage/lib/program.ld"
@@ -166,14 +168,15 @@
 		STR(vboot2 work buffer size must be equivalent to \
 			VB2_FIRMWARE_WORKBUF_RECOMMENDED_SIZE! (sz)));
 
-#define VBOOT2_TPM_LOG(addr, size) \
-	REGION(vboot2_tpm_log, addr, size, 16) \
-	_ = ASSERT(size >= 2K, "vboot2 tpm log buffer must be at least 2K!");
+#define TPM_TCPA_LOG(addr, size) \
+	REGION(tpm_tcpa_log, addr, size, 16) \
+	_ = ASSERT(size >= 2K, "tpm tcpa log buffer must be at least 2K!");
 
-#if ENV_VERSTAGE
+#if ENV_SEPARATE_VERSTAGE
 	#define VERSTAGE(addr, sz) \
 		SYMBOL(verstage, addr) \
-		_everstage = _verstage + sz; \
+		_everstage = ABSOLUTE(_verstage + sz); \
+		RECORD_SIZE(verstage) \
 		_ = ASSERT(_eprogram - _program <= sz, \
 			STR(Verstage exceeded its allotted size! (sz))); \
 		INCLUDE "verstage/lib/program.ld"
@@ -192,7 +195,8 @@
 #if ENV_POSTCAR
 	#define POSTCAR(addr, sz) \
 		SYMBOL(postcar, addr) \
-		_epostcar = _postcar + sz; \
+		_epostcar = ABSOLUTE(_postcar + sz); \
+		RECORD_SIZE(postcar) \
 		_ = ASSERT(_eprogram - _program <= sz, \
 			STR(Aftercar exceeded its allotted size! (sz))); \
 		INCLUDE "postcar/lib/program.ld"

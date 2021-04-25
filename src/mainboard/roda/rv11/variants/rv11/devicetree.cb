@@ -1,17 +1,4 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2015-2016 secunet Security Networks AG
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+## SPDX-License-Identifier: GPL-2.0-only
 
 chip northbridge/intel/sandybridge
 	# IGD Displays
@@ -19,7 +6,7 @@ chip northbridge/intel/sandybridge
 	register "gfx.did" = "{ 0x80000400, 0x80000300, 0x80000100, }"
 
 	# Enable Panel as eDP and configure power delays
-	register "gpu_panel_port_select" = "1"			# eDP_A
+	register "gpu_panel_port_select" = "PANEL_PORT_DP_A"
 	register "gpu_panel_power_cycle_delay" = "6"		# 500ms
 	register "gpu_panel_power_up_delay" = "2000"		# 200ms
 	register "gpu_panel_power_down_delay" = "500"		# 50ms
@@ -36,13 +23,9 @@ chip northbridge/intel/sandybridge
 			device lapic 0x0 on end
 			device lapic 0xacac off end
 
-			register "c1_acpower" = "1"	# ACPI(C1) = MWAIT(C1)
-			register "c2_acpower" = "4"	# ACPI(C2) = MWAIT(C6)
-			register "c3_acpower" = "0"
-
-			register "c1_battery" = "1"	# ACPI(C1) = MWAIT(C1)
-			register "c2_battery" = "4"	# ACPI(C2) = MWAIT(C6)
-			register "c3_battery" = "0"
+			register "acpi_c1" = "1"	# ACPI(C1) = MWAIT(C1)
+			register "acpi_c2" = "4"	# ACPI(C2) = MWAIT(C6)
+			register "acpi_c3" = "0"
 		end
 	end
 
@@ -66,7 +49,6 @@ chip northbridge/intel/sandybridge
 			register "pcie_port_coalesce" = "0"
 			register "pcie_hotplug_map" = "{ 0, 0, 0, 1, 0, 0, 0, 0 }"
 
-			register "p_cnt_throttling_supported" = "1"
 
 			register "xhci_overcurrent_mapping"	= "0x00080401"
 			register "xhci_switchable_ports"	= "0x0f"

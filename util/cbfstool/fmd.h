@@ -1,17 +1,5 @@
-/*
- * fmd.h, parser frontend and utility functions for flashmap descriptor language
- *
- * Copyright (C) 2015 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* parser frontend and utility functions for flashmap descriptor language */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef FMD_H_
 #define FMD_H_
@@ -31,8 +19,8 @@
  */
 union flashmap_flags {
 	struct {
-		int cbfs: 1;  /* The section contains a CBFS area. */
-		int preserve: 1;  /* Preserve the section before update. */
+		unsigned int cbfs: 1;  /* The section contains a CBFS area. */
+		unsigned int preserve: 1;  /* Preserve the section before update. */
 	} f;
 	int v;
 };

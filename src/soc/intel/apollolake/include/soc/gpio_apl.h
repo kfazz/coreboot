@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
 /*
  * Definitions for the GPIO subsystem on Apollolake
  *
  * Placed in a separate file since some of these definitions can be used from
  * assembly code
- *
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015 - 2017 Intel Corp.
- * (Written by Alexandru Gagniuc <alexandrux.gagniuc@intel.com> for Intel Corp.)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _SOC_APOLLOLAKE_GPIO_H_
@@ -40,7 +27,6 @@
 
 #define GPIO_MAX_NUM_PER_GROUP	32
 
-
 /* Host Software Pad Ownership Register.
  * The pins in the community are divided into 3 groups :
  * GPIO 0 ~ 31, GPIO 32 ~ 63, GPIO 64 ~ 95
@@ -49,6 +35,7 @@
 
 #define PAD_CFG_BASE			0x500
 
+#define GPI_INT_STS_0			0x100
 #define GPI_INT_EN_0			0x110
 
 #define GPI_SMI_STS_0			0x140

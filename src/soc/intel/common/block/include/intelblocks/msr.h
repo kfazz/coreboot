@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef SOC_INTEL_COMMON_MSR_H
 #define SOC_INTEL_COMMON_MSR_H
@@ -37,9 +24,6 @@
 #define  EMULATE_DELAY_OFFSET_VALUE	20
 #define  EMULATE_PM_TMR_EN	(1 << 16)
 #define  EMULATE_DELAY_VALUE	0x13
-#define MSR_FEATURE_CONFIG	0x13c
-#define  FEATURE_CONFIG_RESERVED_MASK	0x3ULL
-#define  FEATURE_CONFIG_LOCK	(1 << 0)
 #define SMM_MCA_CAP_MSR		0x17d
 #define  SMM_CPU_SVRSTR_BIT	57
 #define  SMM_CPU_SVRSTR_MASK	(1 << (SMM_CPU_SVRSTR_BIT - 32))
@@ -64,9 +48,12 @@
 #define MSR_PRMRR_PHYS_MASK		0x1f5
 #define  PRMRR_PHYS_MASK_LOCK		(1 << 10)
 #define  PRMRR_PHYS_MASK_VALID		(1 << 11)
+#define MSR_PRMRR_VALID_CONFIG		0x1fb
 #define MSR_POWER_CTL			0x1fc
 #define  POWER_CTL_C1E_MASK		(1 << 1)
 #define MSR_EVICT_CTL			0x2e0
+#define MSR_LT_CONTROL			0x2e7
+#define  LT_CONTROL_LOCK		(1 << 0)
 #define MSR_SGX_OWNEREPOCH0		0x300
 #define MSR_SGX_OWNEREPOCH1		0x301
 #define SMM_FEATURE_CONTROL_MSR		0x4e0
@@ -116,8 +103,9 @@
 #define MSR_L2_QOS_MASK(reg)		(0xd10 + reg)
 
 /* MTRR_CAP_MSR bits */
-#define SMRR_SUPPORTED	(1<<11)
-#define PRMRR_SUPPORTED	(1<<12)
+#define SMRR_SUPPORTED			(1<<11)
+#define PRMRR_SUPPORTED			(1<<12)
+#define SMRR_LOCK_SUPPORTED		(1<<14)
 
 #define SGX_SUPPORTED	(1<<2)
 /* Intel SDM: Table 36-6.

@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _SOC_GPIO_DEFS_H_
 #define _SOC_GPIO_DEFS_H_
@@ -225,7 +212,11 @@
 #define  GPIO_DRIVER_IRQ_ROUTE_IRQ15   8
 #define HOSTSW_OWN_REG_0	0xd0
 #define PAD_CFG_BASE		0x400
+#define GPI_INT_STS_0		0x100
+#define GPI_INT_EN_0		0x120
 #define GPI_SMI_STS_0		0x180
 #define GPI_SMI_EN_0		0x1a0
+#define GPI_NMI_STS_0		0x1c0
+#define GPI_NMI_EN_0		0x1e0
 
 #endif /* _SOC_GPIO_DEFS_H_ */

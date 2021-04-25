@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 secunet Security Networks AG
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /*
  * ACPI style embedded controller commands
@@ -59,8 +45,8 @@ Field(ERDT, ByteAcc, NoLock, Preserve) { EC_DATA, 8 }
  */
 Method (WAIT_EC_SC, 2)
 {
-	Store (0x7ff, Local0) /* Timeout */
-	While (LAnd (LNotEqual (And (EC_SC, Arg0), Arg1), Decrement (Local0))) {
+	Local0 = 0x7ff /* Timeout */
+	While (((EC_SC & Arg0) != Arg1) && Local0--) {
 		Stall (10)
 	}
 	If (Local0) {
@@ -80,9 +66,9 @@ Method (WAIT_EC_SC, 2)
  */
 Method (SEND_EC_COMMAND, 1)
 {
-	Store (WAIT_EC_SC (EC_IBF, 0), Local0)
-	If (LNot (Local0)) {
-		Store (Arg0, EC_SC)
+	Local0 = WAIT_EC_SC (EC_IBF, 0)
+	If (!Local0) {
+		EC_SC = Arg0
 	}
 	Return (Local0)
 }
@@ -97,9 +83,9 @@ Method (SEND_EC_COMMAND, 1)
  */
 Method (SEND_EC_DATA, 1)
 {
-	Store (WAIT_EC_SC (EC_IBF, 0), Local0)
-	If (LNot (Local0)) {
-		Store (Arg0, EC_DATA)
+	Local0 = WAIT_EC_SC (EC_IBF, 0)
+	If (!Local0) {
+		EC_DATA =  Arg0
 	}
 	Return (Local0)
 }
@@ -114,8 +100,8 @@ Method (SEND_EC_DATA, 1)
  */
 Method (RECV_EC_DATA)
 {
-	Store (WAIT_EC_SC (EC_OBF, EC_OBF), Local0)
-	If (LNot (Local0)) {
+	Local0 = WAIT_EC_SC (EC_OBF, EC_OBF)
+	If (!Local0) {
 		Return (EC_DATA)
 	} Else {
 		Return (Local0)
@@ -131,12 +117,12 @@ Method (RECV_EC_DATA)
 Method (EC_READ, 1)
 {
 	Acquire (EC_MUTEX, 0xffff)
-	Store (SEND_EC_COMMAND (EC_READ_CMD), Local0)
-	If (LNot (Local0)) {
-		Store (SEND_EC_DATA (Arg0), Local0)
+	Local0 = SEND_EC_COMMAND (EC_READ_CMD)
+	If (!Local0) {
+		Local0 = SEND_EC_DATA (Arg0)
 	}
-	If (LNot (Local0)) {
-		Store (RECV_EC_DATA (), Local0)
+	If (!Local0) {
+		Local0 = RECV_EC_DATA ()
 	}
 	Release (EC_MUTEX)
 
@@ -153,12 +139,12 @@ Method (EC_READ, 1)
 Method (EC_WRITE, 2)
 {
 	Acquire (EC_MUTEX, 0xffff)
-	Store (SEND_EC_COMMAND (EC_WRITE_CMD), Local0)
-	If (LNot (Local0)) {
-		Store (SEND_EC_DATA (Arg0), Local0)
+	Local0 = SEND_EC_COMMAND (EC_WRITE_CMD)
+	If (!Local0) {
+		Local0 = SEND_EC_DATA (Arg0)
 	}
-	If (LNot (Local0)) {
-		Store (SEND_EC_DATA (Arg1), Local0)
+	If (!Local0) {
+		Local0 = SEND_EC_DATA (Arg1)
 	}
 	Release (EC_MUTEX)
 

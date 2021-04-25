@@ -1,4 +1,4 @@
-romstage-$(CONFIG_PLATFORM_USES_FSP1_1) += car_stage.S
-romstage-$(CONFIG_PLATFORM_USES_FSP1_1) += romstage.c
-romstage-$(CONFIG_PLATFORM_USES_FSP2_0) += romstage_fsp20.c
+romstage-y += fsp_params.c
+romstage-y += ../../../../cpu/intel/car/romstage.c
+romstage-y += romstage.c
 romstage-y += systemagent.c

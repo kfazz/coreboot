@@ -1,25 +1,12 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <AGESA.h>
 #include <northbridge/amd/agesa/BiosCallOuts.h>
 
 #include <amdlib.h>
+#include <amdblocks/acpimmio.h>
 #include <vendorcode/amd/cimx/sb800/SB800.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 static AGESA_STATUS board_GnbPcieSlotReset (UINT32 Func, UINTN Data, VOID *ConfigPtr);
 static AGESA_STATUS board_BeforeDramInit (UINT32 Func, UINTN Data, VOID *ConfigPtr);
@@ -56,22 +43,12 @@ static AGESA_STATUS board_GnbPcieSlotReset (UINT32 Func, UINTN Data, VOID *Confi
 	PCIe_SLOT_RESET_INFO	*ResetInfo;
 
 	uint32_t	GpioMmioAddr;
-	uint32_t	AcpiMmioAddr;
 	uint8_t	 Data8;
-	uint16_t	Data16;
 
 	FcnData = Data;
 	ResetInfo = ConfigPtr;
-	/* Get SB800 MMIO Base (AcpiMmioAddr) */
-	WriteIo8(0xCD6, 0x27);
-	Data8 = ReadIo8(0xCD7);
-	Data16 = Data8 << 8;
-	WriteIo8(0xCD6, 0x26);
-	Data8 = ReadIo8(0xCD7);
-	Data16 |= Data8;
-	AcpiMmioAddr = (uint32_t)Data16 << 16;
 	Status = AGESA_UNSUPPORTED;
-	GpioMmioAddr = AcpiMmioAddr + GPIO_BASE;
+	GpioMmioAddr = (uintptr_t)acpimmio_gpio_100;
 	switch (ResetInfo->ResetId)
 	{
 	case 46:	/* GPIO50 = SBGPIO_PCIE_RST# affects LAN0, LAN1, PCIe slot */

@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 The Chromium OS Authors. All rights reserved.
- * Copyright (C) 2018 Eltan B.V.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /*
  * The code in this file has been heavily based on the article "Writing a TPM
@@ -24,25 +10,22 @@
  * Infineon slb9635), so this driver provides access to locality 0 only.
  */
 
-#include <stdlib.h>
+#include <commonlib/helpers.h>
 #include <string.h>
 #include <delay.h>
 #include <device/mmio.h>
-#include <arch/acpi.h>
-#include <arch/acpigen.h>
-#include <arch/acpi_device.h>
+#include <acpi/acpi.h>
+#include <acpi/acpigen.h>
+#include <acpi/acpi_device.h>
 #include <device/device.h>
 #include <console/console.h>
 #include <security/tpm/tis.h>
-#include <arch/early_variables.h>
 #include <device/pnp.h>
+#include <drivers/tpm/tpm_ppi.h>
 #include "chip.h"
 
 #define PREFIX "lpc_tpm: "
-/* TCG Physical Presence Interface */
-#define TPM_PPI_UUID	"3dddfaa6-361b-4eb4-a424-8d10089d1653"
-/* TCG Memory Clear Interface */
-#define TPM_MCI_UUID	"376054ed-cc13-4675-901c-4756d7f2d45d"
+
 /* coreboot wrapper for TPM driver (start) */
 #define	TPM_DEBUG(fmt, args...)		\
 	if (CONFIG(DEBUG_TPM)) {		\
@@ -59,7 +42,7 @@
 
 /* the macro accepts the locality value, but only locality 0 is operational */
 #define TIS_REG(LOCALITY, REG) \
-	(void *)(CONFIG_TPM_TIS_BASE_ADDRESS + (LOCALITY << 12) + REG)
+	(void *)(uintptr_t)(CONFIG_TPM_TIS_BASE_ADDRESS + (LOCALITY << 12) + REG)
 
 /* hardware registers' offsets */
 #define TIS_REG_ACCESS                 0x0
@@ -146,10 +129,18 @@ static const struct device_name stmicro_devices[] = {
 	{0xffff}
 };
 
+static const struct device_name swtpm_devices[] = {
+#if CONFIG(TPM2)
+	{0x0001, "SwTPM 2.0" },
+#endif
+	{0xffff}
+};
+
 static const struct vendor_name vendor_names[] = {
 	{0x1114, "Atmel", atmel_devices},
 	{0x15d1, "Infineon", infineon_devices},
 	{0x1050, "Nuvoton", nuvoton_devices},
+	{0x1014, "TPM Emulator", swtpm_devices},
 	{0x104a, "ST Microelectronics", stmicro_devices},
 };
 
@@ -157,7 +148,7 @@ static const struct vendor_name vendor_names[] = {
  * Cached vendor/device ID pair to indicate that the device has been already
  * discovered
  */
-static u32 vendor_dev_id CAR_GLOBAL;
+static u32 vendor_dev_id;
 
 static inline u8 tpm_read_status(int locality)
 {
@@ -397,16 +388,16 @@ static u32 tis_probe(void)
 	u16 vid, did;
 	int i;
 
-	if (car_get_var(vendor_dev_id))
+	if (vendor_dev_id)
 		return 0;  /* Already probed. */
 
 	didvid = tpm_read_did_vid(0);
 	if (!didvid || (didvid == 0xffffffff)) {
-		printf("%s: No TPM device found\n", __FUNCTION__);
+		printf("%s: No TPM device found\n", __func__);
 		return TPM_DRIVER_ERR;
 	}
 
-	car_set_var(vendor_dev_id, didvid);
+	vendor_dev_id = didvid;
 
 	vid = didvid & 0xffff;
 	did = (didvid >> 16) & 0xffff;
@@ -460,7 +451,7 @@ static u32 tis_senddata(const u8 *const data, u32 len)
 	burst = tpm_read_burst_count(locality);
 
 	while (1) {
-		unsigned count;
+		unsigned int count;
 
 		/* Wait till the device is ready to accept more data. */
 		while (!burst) {
@@ -484,7 +475,7 @@ static u32 tis_senddata(const u8 *const data, u32 len)
 		 * changes to zero exactly after the last byte is fed into the
 		 * FIFO.
 		 */
-		count = min(burst, len - offset - 1);
+		count = MIN(burst, len - offset - 1);
 		while (count--)
 			tpm_write_data(data[offset++], locality);
 
@@ -716,8 +707,6 @@ int tis_sendrecv(const uint8_t *sendbuf, size_t send_size,
 	return tis_readresponse(recvbuf, recv_len);
 }
 
-#ifdef __RAMSTAGE__
-
 /*
  * tis_setup_interrupt()
  *
@@ -764,7 +753,7 @@ static void lpc_tpm_read_resources(struct device *dev)
 static void lpc_tpm_set_resources(struct device *dev)
 {
 	tpm_config_t *config = (tpm_config_t *)dev->chip_info;
-	struct resource *res;
+	DEVTREE_CONST struct resource *res;
 
 	for (res = dev->resource_list; res; res = res->next) {
 		if (!(res->flags & IORESOURCE_ASSIGNED))
@@ -778,110 +767,17 @@ static void lpc_tpm_set_resources(struct device *dev)
 			continue;
 		}
 
+#if !DEVTREE_EARLY
 		res->flags |= IORESOURCE_STORED;
 		report_resource_stored(dev, res, " <tpm>");
+#endif
 	}
 }
 
 #if CONFIG(HAVE_ACPI_TABLES)
-
-static void tpm_ppi_func0_cb(void *arg)
-{
-	/* Functions 1-8. */
-	u8 buf[] = {0xff, 0x01};
-	acpigen_write_return_byte_buffer(buf, 2);
-}
-
-static void tpm_ppi_func1_cb(void *arg)
-{
-	if (CONFIG(TPM2))
-		/* Interface version: 2.0 */
-		acpigen_write_return_string("2.0");
-	else
-		/* Interface version: 1.2 */
-		acpigen_write_return_string("1.2");
-}
-
-static void tpm_ppi_func2_cb(void *arg)
-{
-	/* Submit operations: drop on the floor and return success. */
-	acpigen_write_return_byte(0);
-}
-
-static void tpm_ppi_func3_cb(void *arg)
-{
-	/* Pending operation: none. */
-	acpigen_emit_byte(RETURN_OP);
-	acpigen_write_package(2);
-	acpigen_write_byte(0);
-	acpigen_write_byte(0);
-	acpigen_pop_len();
-}
-static void tpm_ppi_func4_cb(void *arg)
-{
-	/* Pre-OS transition method: reboot. */
-	acpigen_write_return_byte(2);
-}
-static void tpm_ppi_func5_cb(void *arg)
-{
-	/* Operation response: no operation executed. */
-	acpigen_emit_byte(RETURN_OP);
-	acpigen_write_package(3);
-	acpigen_write_byte(0);
-	acpigen_write_byte(0);
-	acpigen_write_byte(0);
-	acpigen_pop_len();
-}
-static void tpm_ppi_func6_cb(void *arg)
-{
-	/*
-	 * Set preferred user language: deprecated and must return 3 aka
-	 * "not implemented".
-	 */
-	acpigen_write_return_byte(3);
-}
-static void tpm_ppi_func7_cb(void *arg)
-{
-	/* Submit operations: deny. */
-	acpigen_write_return_byte(3);
-}
-static void tpm_ppi_func8_cb(void *arg)
-{
-	/* All actions are forbidden. */
-	acpigen_write_return_byte(1);
-}
-static void (*tpm_ppi_callbacks[])(void *) = {
-	tpm_ppi_func0_cb,
-	tpm_ppi_func1_cb,
-	tpm_ppi_func2_cb,
-	tpm_ppi_func3_cb,
-	tpm_ppi_func4_cb,
-	tpm_ppi_func5_cb,
-	tpm_ppi_func6_cb,
-	tpm_ppi_func7_cb,
-	tpm_ppi_func8_cb,
-};
-
-static void tpm_mci_func0_cb(void *arg)
-{
-	/* Function 1. */
-	acpigen_write_return_singleton_buffer(0x3);
-}
-static void tpm_mci_func1_cb(void *arg)
-{
-	/* Just return success. */
-	acpigen_write_return_byte(0);
-}
-
-static void (*tpm_mci_callbacks[])(void *) = {
-	tpm_mci_func0_cb,
-	tpm_mci_func1_cb,
-};
-
-static void lpc_tpm_fill_ssdt(struct device *dev)
+static void lpc_tpm_fill_ssdt(const struct device *dev)
 {
 	const char *path = acpi_device_path(dev->bus->dev);
-	u32 arg;
 
 	if (!path) {
 		path = "\\_SB_.PCI0.LPCB";
@@ -892,13 +788,18 @@ static void lpc_tpm_fill_ssdt(struct device *dev)
 	acpigen_write_scope(path);
 	acpigen_write_device(acpi_device_name(dev));
 
-	acpigen_write_name("_HID");
-	acpigen_emit_eisaid("PNP0C31");
+	if (CONFIG(TPM2)) {
+		acpigen_write_name_string("_HID", "MSFT0101");
+		acpigen_write_name_string("_CID", "MSFT0101");
+	} else {
+		acpigen_write_name("_HID");
+		acpigen_emit_eisaid("PNP0C31");
 
-	acpigen_write_name("_CID");
-	acpigen_emit_eisaid("PNP0C31");
+		acpigen_write_name("_CID");
+		acpigen_emit_eisaid("PNP0C31");
+	}
 
-	acpigen_write_name_integer("_UID", 1);
+	acpi_device_write_uid(dev);
 
 	u32 did_vid = tpm_read_did_vid(0);
 	if (did_vid > 0 && did_vid < 0xffffffff)
@@ -940,36 +841,19 @@ static void lpc_tpm_fill_ssdt(struct device *dev)
 		acpi_device_write_interrupt(&tpm_irq);
 	}
 
+
 	acpigen_write_resourcetemplate_footer();
 
-	if (!CONFIG(CHROMEOS)) {
-		/*
-		 * _DSM method
-		 */
-		struct dsm_uuid ids[] = {
-			/* Physical presence interface.
-			 * This is used to submit commands like "Clear TPM" to
-			 * be run at next reboot provided that user confirms
-			 * them. Spec allows user to cancel all commands and/or
-			 * configure BIOS to reject commands. So we pretend that
-			 * user did just this: cancelled everything. If user
-			 * really wants to clear TPM the only option now is to
-			 * do it manually in payload.
-			 */
-			DSM_UUID(TPM_PPI_UUID, &tpm_ppi_callbacks[0],
-				ARRAY_SIZE(tpm_ppi_callbacks), (void *) &arg),
-			/* Memory clearing on boot: just a dummy. */
-			DSM_UUID(TPM_MCI_UUID, &tpm_mci_callbacks[0],
-				ARRAY_SIZE(tpm_mci_callbacks), (void *) &arg),
-		};
+	if (!CONFIG(CHROMEOS))
+		tpm_ppi_acpi_fill_ssdt(dev);
 
-		acpigen_write_dsm_uuid_arr(ids, ARRAY_SIZE(ids));
-	}
 	acpigen_pop_len(); /* Device */
 	acpigen_pop_len(); /* Scope */
 
+#if !DEVTREE_EARLY
 	printk(BIOS_INFO, "%s.%s: %s %s\n", path, acpi_device_name(dev),
 	       dev->chip_ops->name, dev_path(dev));
+#endif
 }
 
 static const char *lpc_tpm_acpi_name(const struct device *dev)
@@ -982,8 +866,8 @@ static struct device_operations lpc_tpm_ops = {
 	.read_resources   = lpc_tpm_read_resources,
 	.set_resources    = lpc_tpm_set_resources,
 #if CONFIG(HAVE_ACPI_TABLES)
-	.acpi_name		= lpc_tpm_acpi_name,
-	.acpi_fill_ssdt_generator = lpc_tpm_fill_ssdt,
+	.acpi_name        = lpc_tpm_acpi_name,
+	.acpi_fill_ssdt   = lpc_tpm_fill_ssdt,
 #endif
 };
 
@@ -993,13 +877,12 @@ static struct pnp_info pnp_dev_info[] = {
 
 static void enable_dev(struct device *dev)
 {
-	pnp_enable_devices(dev, &lpc_tpm_ops,
-			   ARRAY_SIZE(pnp_dev_info), pnp_dev_info);
+	if (CONFIG(TPM1) || CONFIG(TPM2))
+		pnp_enable_devices(dev, &lpc_tpm_ops,
+			ARRAY_SIZE(pnp_dev_info), pnp_dev_info);
 }
 
 struct chip_operations drivers_pc80_tpm_ops = {
 	CHIP_NAME("LPC TPM")
 	.enable_dev = enable_dev
 };
-
-#endif /* __RAMSTAGE__ */

@@ -1,32 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright 2008, Freescale Semiconductor, Inc
- * Andy Fleming
- *
- * Copyright 2013 Google Inc.  All rights reserved.
- * Copyright 2017 Intel Corporation
- *
  * Secure Digital (SD) card specific support code
  * This code is controller independent
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
-#include <assert.h>
 #include <commonlib/sd_mmc_ctrlr.h>
 #include <commonlib/storage.h>
 #include <delay.h>
 #include <endian.h>
+
 #include "sd_mmc.h"
 #include "storage.h"
-#include <timer.h>
 
 int sd_send_if_cond(struct storage_media *media)
 {
@@ -225,7 +209,7 @@ int sd_change_freq(struct storage_media *media)
 	if (!((ctrlr->caps & DRVR_CAP_HS52) && (ctrlr->caps & DRVR_CAP_HS)))
 		goto out;
 
-	/* Give the card time to recover afer the switch operation.  Wait for
+	/* Give the card time to recover after the switch operation.  Wait for
 	 * 9 (>= 8) clock cycles receiving the switch status.
 	 */
 	delay = (9000000 + ctrlr->bus_hz - 1) / ctrlr->bus_hz;
@@ -280,7 +264,6 @@ int sd_set_bus_width(struct storage_media *media)
 	}
 	return 0;
 }
-
 
 int sd_set_partition(struct storage_media *media,
 	unsigned int partition_number)

@@ -1,24 +1,11 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/io.h>
 #include <device/mmio.h>
 #include <device/pci.h>
 #include <console/console.h>
 #include <soc/gpio.h>
-#include <soc/pmc.h>
+#include <soc/pm.h>
 #include <soc/smm.h>
 
 /* GPIO-to-Pad LUTs */
@@ -190,7 +177,7 @@ static void setup_gpio_route(const struct soc_gpio_map *sus,
 			route_reg |= ROUTE_SCI << (2 * (i + 8));
 		}
 	}
-	southcluster_smm_save_param(SMM_SAVE_PARAM_GPIO_ROUTE, route_reg);
+	smm_southcluster_save_param(SMM_SAVE_PARAM_GPIO_ROUTE, route_reg);
 }
 
 static void setup_dirqs(const u8 dirq[GPIO_MAX_DIRQS],

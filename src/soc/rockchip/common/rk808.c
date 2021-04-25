@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Rockchip Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <assert.h>
 #include <bcd.h>
@@ -21,7 +8,6 @@
 #include <rtc.h>
 #include <soc/rk808.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 #if CONFIG_PMIC_BUS < 0
 #error "PMIC_BUS must be set in mainboard's Kconfig."

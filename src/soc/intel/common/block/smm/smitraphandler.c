@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- * Copyright (C) 2015-2017 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/io.h>
 #include <console/console.h>
@@ -38,7 +24,6 @@
 /* Inherited from cpu/x86/smm.h resulting in a different signature */
 int southbridge_io_trap_handler(int smif)
 {
-	global_nvs_t *gnvs = smm_get_gnvs();
 	switch (smif) {
 	case 0x32:
 		printk(BIOS_DEBUG, "OS Init\n");
@@ -75,7 +60,6 @@ void smihandler_southbridge_monitor(
 	u32 data, mask = 0;
 	u8 trap_sts;
 	int i;
-	global_nvs_t *gnvs = smm_get_gnvs();
 
 	/* TRSR - Trap Status Register */
 	trap_sts = pcr_read8(PID_PSTH, PCR_PSTH_TRPST);
@@ -108,6 +92,7 @@ void smihandler_southbridge_monitor(
 			/* Trapped write data */
 			data = pcr_read32(PID_PSTH, PCR_PSTH_TRPD);
 			data &= mask;
+			printk(BIOS_DEBUG, "  iotrap read data = 0x%08x\n", data);
 		}
 	}
 

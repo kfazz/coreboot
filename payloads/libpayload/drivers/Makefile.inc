@@ -1,5 +1,4 @@
 ##
-## This file is part of the libpayload project.
 ##
 ## Copyright (C) 2007 Uwe Hermann <uwe@hermann-uwe.de>
 ## Copyright (C) 2008 Advanced Micro Devices, Inc.
@@ -37,6 +36,8 @@ libc-$(CONFIG_LP_8250_SERIAL_CONSOLE) += serial/8250.c serial/serial.c
 libc-$(CONFIG_LP_S5P_SERIAL_CONSOLE) += serial/s5p.c serial/serial.c
 libc-$(CONFIG_LP_IPQ806X_SERIAL_CONSOLE) += serial/ipq806x.c serial/serial.c
 libc-$(CONFIG_LP_IPQ40XX_SERIAL_CONSOLE) += serial/ipq40xx.c serial/serial.c
+libc-$(CONFIG_LP_QCS405_SERIAL_CONSOLE) += serial/qcs405.c serial/serial.c
+libc-$(CONFIG_LP_QUALCOMM_QUPV3_SERIAL_CONSOLE) += serial/qcom_qupv3_serial.c serial/serial.c
 libc-$(CONFIG_LP_PC_KEYBOARD) += i8042/keyboard.c
 libc-$(CONFIG_LP_PC_MOUSE) += i8042/mouse.c
 libc-$(CONFIG_LP_PC_I8042) += i8042/i8042.c
@@ -53,7 +54,6 @@ ifneq ($(CONFIG_LP_TIMER_GENERIC_HZ),0)
 libc-y += timer/generic.c
 endif
 libc-$(CONFIG_LP_TIMER_RDTSC) += timer/rdtsc.c
-libc-$(CONFIG_LP_TIMER_IMG_PISTACHIO) += timer/img_pistachio.c
 libc-$(CONFIG_LP_TIMER_ARM64_ARCH) += timer/arm64_arch_timer.c
 
 # Video console drivers
@@ -77,6 +77,7 @@ libc-y += video/graphics.c
 libc-$(CONFIG_LP_STORAGE) += storage/storage.c
 libc-$(CONFIG_LP_STORAGE_AHCI) += storage/ahci.c
 libc-$(CONFIG_LP_STORAGE_AHCI) += storage/ahci_common.c
+libc-$(CONFIG_LP_STORAGE_NVME) += storage/nvme.c
 ifeq ($(CONFIG_LP_STORAGE_ATA),y)
 libc-$(CONFIG_LP_STORAGE_ATA) += storage/ata.c
 libc-$(CONFIG_LP_STORAGE_ATA) += storage/ahci_ata.c

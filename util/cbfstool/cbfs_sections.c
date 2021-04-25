@@ -1,19 +1,8 @@
-/*
- * fmap_sections.c, track which sections of the image will contain CBFSes
- *
- * Copyright (C) 2015 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* track which sections of the image will contain CBFSes */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include "cbfs_sections.h"
+#include "common.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -65,6 +54,10 @@ bool fmd_process_flag_cbfs(const struct flashmap_descriptor *node)
 		return false;
 
 	list_node = (struct descriptor_node *)malloc(sizeof(*list_node));
+	if (!list_node) {
+		ERROR("Cannot allocate CBFS flag node!\n");
+		return false;
+	}
 	list_node->val = node;
 	list_node->next = NULL;
 

@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2007 Uwe Hermann <uwe@hermann-uwe.de>
  * Copyright (C) 2008 Advanced Micro Devices, Inc.
@@ -33,6 +32,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <errno.h>
 
 /**
@@ -90,9 +90,9 @@ size_t strlen(const char *str)
  */
 int strcasecmp(const char *s1, const char *s2)
 {
-	int i, res;
+	int res;
 
-	for (i = 0; 1; i++) {
+	for (size_t i = 0; 1; i++) {
 		res = tolower(s1[i]) - tolower(s2[i]);
 		if (res || (s1[i] == '\0'))
 			break;
@@ -111,10 +111,9 @@ int strcasecmp(const char *s1, const char *s2)
  */
 int strncasecmp(const char *s1, const char *s2, size_t maxlen)
 {
-	int i, res;
+	int res = 0;
 
-	res = 0;
-	for (i = 0; i < maxlen; i++) {
+	for (size_t i = 0; i < maxlen; i++) {
 		res = tolower(s1[i]) - tolower(s2[i]);
 		if (res || (s1[i] == '\0'))
 			break;
@@ -134,9 +133,9 @@ int strncasecmp(const char *s1, const char *s2, size_t maxlen)
  */
 int strcmp(const char *s1, const char *s2)
 {
-	int i, res;
+	int res;
 
-	for (i = 0; 1; i++) {
+	for (size_t i = 0; 1; i++) {
 		res = s1[i] - s2[i];
 		if (res || (s1[i] == '\0'))
 			break;
@@ -155,10 +154,9 @@ int strcmp(const char *s1, const char *s2)
  */
 int strncmp(const char *s1, const char *s2, size_t maxlen)
 {
-	int i, res;
+	int res = 0;
 
-	res = 0;
-	for (i = 0; i < maxlen; i++) {
+	for (size_t i = 0; i < maxlen; i++) {
 		res = s1[i] - s2[i];
 		if (res || (s1[i] == '\0'))
 			break;
@@ -178,10 +176,9 @@ int strncmp(const char *s1, const char *s2, size_t maxlen)
 char *strncpy(char *d, const char *s, size_t n)
 {
 	/* Use +1 to get the NUL terminator. */
-	int max = n > strlen(s) + 1 ? strlen(s) + 1 : n;
-	int i;
+	size_t max = n > strlen(s) + 1 ? strlen(s) + 1 : n;
 
-	for (i = 0; i < max; i++)
+	for (size_t i = 0; i < max; i++)
 		d[i] = (char)s[i];
 
 	return d;
@@ -209,13 +206,12 @@ char *strcpy(char *d, const char *s)
 char *strcat(char *d, const char *s)
 {
 	char *p = d + strlen(d);
-	int sl = strlen(s);
-	int i;
+	size_t sl = strlen(s);
 
-	for (i = 0; i < sl; i++)
+	for (size_t i = 0; i < sl; i++)
 		p[i] = s[i];
 
-	p[i] = '\0';
+	p[sl] = '\0';
 	return d;
 }
 
@@ -230,15 +226,13 @@ char *strcat(char *d, const char *s)
 char *strncat(char *d, const char *s, size_t n)
 {
 	char *p = d + strlen(d);
-	int sl = strlen(s);
-	int max = n > sl ? sl : n;
-	// int max = n > strlen(s) ? strlen(s) : n;
-	int i;
+	size_t sl = strlen(s);
+	size_t max = n > sl ? sl : n;
 
-	for (i = 0; i < max; i++)
+	for (size_t i = 0; i < max; i++)
 		p[i] = s[i];
 
-	p[i] = '\0';
+	p[max] = '\0';
 	return d;
 }
 
@@ -248,22 +242,24 @@ char *strncat(char *d, const char *s, size_t n)
  * @param d The destination string.
  * @param s The source string.
  * @param n d will have at most n-1 characters (plus NUL) after invocation.
- * @return A pointer to the destination string.
+ * @return The total length of the concatenated string.
  */
 size_t strlcat(char *d, const char *s, size_t n)
 {
-	int sl = strlen(s);
-	int dl = strlen(d);
+	size_t sl = strlen(s);
+	size_t dl = strlen(d);
+
+	if (n <= dl + 1)
+		return sl + dl;
 
 	char *p = d + dl;
-	int max = n > (sl + dl) ? sl : (n - dl - 1);
-	int i;
+	size_t max = n > (sl + dl) ? sl : (n - dl - 1);
 
-	for (i = 0; i < max; i++)
+	for (size_t i = 0; i < max; i++)
 		p[i] = s[i];
 
-	p[i] = '\0';
-	return max;
+	p[max] = '\0';
+	return sl + dl;
 }
 
 /**
@@ -271,7 +267,7 @@ size_t strlcat(char *d, const char *s, size_t n)
  *
  * @param s The string.
  * @param c The character.
- * @return A pointer to the first occurence of the character in the
+ * @return A pointer to the first occurrence of the character in the
  * string, or NULL if the character was not encountered within the string.
  */
 char *strchr(const char *s, int c)
@@ -291,7 +287,7 @@ char *strchr(const char *s, int c)
  *
  * @param s The string.
  * @param c The character.
- * @return A pointer to the last occurence of the character in the
+ * @return A pointer to the last occurrence of the character in the
  * string, or NULL if the character was not encountered within the string.
  */
 
@@ -315,7 +311,7 @@ char *strrchr(const char *s, int c)
  */
 char *strdup(const char *s)
 {
-	int n = strlen(s);
+	size_t n = strlen(s);
 	char *p = malloc(n + 1);
 
 	if (p != NULL) {
@@ -330,16 +326,18 @@ char *strdup(const char *s)
  *
  * @param h The haystack string.
  * @param n The needle string (substring).
- * @return A pointer to the first occurence of the substring in
+ * @return A pointer to the first occurrence of the substring in
  * the string, or NULL if the substring was not encountered within the string.
  */
 char *strstr(const char *h, const char *n)
 {
-	int hn = strlen(h);
-	int nn = strlen(n);
-	int i;
+	size_t hn = strlen(h);
+	size_t nn = strlen(n);
 
-	for (i = 0; i <= hn - nn; i++)
+	if (hn < nn)
+		return NULL;
+
+	for (size_t i = 0; i <= hn - nn; i++)
 		if (!memcmp(&h[i], n, nn))
 			return (char *)&h[i];
 
@@ -363,7 +361,7 @@ char *strsep(char **stringp, const char *delim)
 	token = walk = *stringp;
 
 	/* Walk, search for delimiters */
-	while(*walk && !strchr(delim, *walk))
+	while (*walk && !strchr(delim, *walk))
 		walk++;
 
 	if (*walk) {
@@ -419,59 +417,43 @@ static int _offset(char ch, int base)
  * @return A signed integer representation of the string
  */
 
-long int strtol(const char *ptr, char **endptr, int base)
+long long int strtoll(const char *orig_ptr, char **endptr, int base)
 {
-	int ret = 0;
-	int negative = 1;
-
-	if (endptr != NULL)
-		*endptr = (char *) ptr;
+	const char *ptr = orig_ptr;
+	int is_negative = 0;
 
 	/* Purge whitespace */
 
-	for( ; *ptr && isspace(*ptr); ptr++);
+	for ( ; *ptr && isspace(*ptr); ptr++);
 
 	if (ptr[0] == '-') {
-		negative = -1;
+		is_negative = 1;
 		ptr++;
 	}
 
-	if (!*ptr)
-		return 0;
+	unsigned long long uval = strtoull(ptr, endptr, base);
 
-	/* Determine the base */
+	/* If the whole string is unparseable, endptr should point to start. */
+	if (endptr && *endptr == ptr)
+		*endptr = (char *)orig_ptr;
 
-	if (base == 0) {
-		if (ptr[0] == '0' && (ptr[1] == 'x' || ptr[1] == 'X'))
-			base = 16;
-		else if (ptr[0] == '0') {
-			base = 8;
-			ptr++;
-		}
-		else
-			base = 10;
-	}
+	if (uval > (unsigned long long)LLONG_MAX + !!is_negative)
+		uval = (unsigned long long)LLONG_MAX + !!is_negative;
 
-	/* Base 16 allows the 0x on front - so skip over it */
+	if (is_negative)
+		return -uval;
+	else
+		return uval;
+}
 
-	if (base == 16) {
-		if (ptr[0] == '0' && (ptr[1] == 'x' || ptr[1] == 'X'))
-			ptr += 2;
-	}
-
-	/* If the first character isn't valid, then don't
-	 * bother */
-
-	if (!*ptr || !_valid(*ptr, base))
-		return 0;
-
-	for( ; *ptr && _valid(*ptr, base); ptr++)
-		ret = (ret * base) + _offset(*ptr, base);
-
-	if (endptr != NULL)
-		*endptr = (char *) ptr;
-
-	return ret * negative;
+long int strtol(const char *ptr, char **endptr, int base)
+{
+	long long int val = strtoll(ptr, endptr, base);
+	if (val > LONG_MAX)
+		return LONG_MAX;
+	if (val < LONG_MIN)
+		return LONG_MIN;
+	return val;
 }
 
 long atol(const char *nptr)
@@ -496,7 +478,7 @@ unsigned long long int strtoull(const char *ptr, char **endptr, int base)
 
 	/* Purge whitespace */
 
-	for( ; *ptr && isspace(*ptr); ptr++);
+	for ( ; *ptr && isspace(*ptr); ptr++);
 
 	if (!*ptr)
 		return 0;
@@ -509,25 +491,20 @@ unsigned long long int strtoull(const char *ptr, char **endptr, int base)
 		else if (ptr[0] == '0') {
 			base = 8;
 			ptr++;
-		}
-		else
+		} else {
 			base = 10;
+		}
 	}
 
 	/* Base 16 allows the 0x on front - so skip over it */
 
 	if (base == 16) {
-		if (ptr[0] == '0' && (ptr[1] == 'x' || ptr[1] == 'X'))
+		if (ptr[0] == '0' && (ptr[1] == 'x' || ptr[1] == 'X') &&
+		    _valid(ptr[2], base))
 			ptr += 2;
 	}
 
-	/* If the first character isn't valid, then don't
-	 * bother */
-
-	if (!*ptr || !_valid(*ptr, base))
-		return 0;
-
-	for( ; *ptr && _valid(*ptr, base); ptr++)
+	for ( ; *ptr && _valid(*ptr, base); ptr++)
 		ret = (ret * base) + _offset(*ptr, base);
 
 	if (endptr != NULL)
@@ -539,10 +516,10 @@ unsigned long long int strtoull(const char *ptr, char **endptr, int base)
 unsigned long int strtoul(const char *ptr, char **endptr, int base)
 {
 	unsigned long long val = strtoull(ptr, endptr, base);
-	if (val > UINT32_MAX) return UINT32_MAX;
+	if (val > ULONG_MAX)
+		return ULONG_MAX;
 	return val;
 }
-
 
 /**
  * Determine the number of leading characters in s that match characters in a
@@ -552,11 +529,11 @@ unsigned long int strtoul(const char *ptr, char **endptr, int base)
  */
 size_t strspn(const char *s, const char *a)
 {
-	int i, j;
-	int al = strlen(a);
+	size_t i;
+	size_t al = strlen(a);
 	for (i = 0; s[i] != 0; i++) {
 		int found = 0;
-		for (j = 0; j < al; j++) {
+		for (size_t j = 0; j < al; j++) {
 			if (s[i] == a[j]) {
 				found = 1;
 				break;
@@ -576,11 +553,11 @@ size_t strspn(const char *s, const char *a)
  */
 size_t strcspn(const char *s, const char *a)
 {
-	int i, j;
-	int al = strlen(a);
+	size_t i;
+	size_t al = strlen(a);
 	for (i = 0; s[i] != 0; i++) {
 		int found = 0;
-		for (j = 0; j < al; j++) {
+		for (size_t j = 0; j < al; j++) {
 			if (s[i] == a[j]) {
 				found = 1;
 				break;
@@ -600,7 +577,7 @@ size_t strcspn(const char *s, const char *a)
  * @param ptr A pointer to a string pointer to keep state of the tokenizer
  * @return Pointer to token
  */
-char* strtok_r(char *str, const char *delim, char **ptr)
+char *strtok_r(char *str, const char *delim, char **ptr)
 {
 	/* start new tokenizing job or continue existing one? */
 	if (str == NULL)
@@ -621,8 +598,6 @@ char* strtok_r(char *str, const char *delim, char **ptr)
 	return start;
 }
 
-static char **strtok_global;
-
 /**
  * Extract first token in string str that is delimited by a character in tokens.
  * Destroys str, eliminates the token delimiter and uses global state.
@@ -630,9 +605,11 @@ static char **strtok_global;
  * @param delim A pointer to an array of characters that delimit the token
  * @return Pointer to token
  */
-char* strtok(char *str, const char *delim)
+char *strtok(char *str, const char *delim)
 {
-	return strtok_r(str, delim, strtok_global);
+	static char *strtok_ptr;
+
+	return strtok_r(str, delim, &strtok_ptr);
 }
 
 /**
@@ -665,12 +642,11 @@ char *strerror(int errnum)
  * @param maxlen Maximum possible length of the string in code points
  * @return Newly allocated ASCII string
  */
-char *utf16le_to_ascii(uint16_t *utf16_string, int maxlen)
+char *utf16le_to_ascii(const uint16_t *utf16_string, size_t maxlen)
 {
 	char *ascii_string = xmalloc(maxlen + 1);  /* +1 for trailing \0 */
 	ascii_string[maxlen] = '\0';
-	int i;
-	for (i = 0; i < maxlen; i++) {
+	for (size_t i = 0; i < maxlen; i++) {
 		uint16_t wchar = utf16_string[i];
 		ascii_string[i] = wchar > 0x7f ? '?' : (char)wchar;
 	}

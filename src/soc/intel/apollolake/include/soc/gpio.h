@@ -1,27 +1,20 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef _SOC_APL_GPIO_H_
 #define _SOC_APL_GPIO_H_
 
-#if CONFIG(SOC_INTEL_GLK)
+#if CONFIG(SOC_INTEL_GEMINILAKE)
 #include <soc/gpio_glk.h>
 #else
 #include <soc/gpio_apl.h>
 #endif
 #include <intelblocks/gpio.h>/* intelblocks/gpio.h depends on definitions in
 				soc/gpio_glk.h and soc/gpio_apl.h */
+
+/*
+ * APL/GLK doesn't support dynamic GPIO PM hence GPIO community
+ * MISCCFG register doesn't have PM bits
+ */
+#define MISCCFG_GPIO_PM_CONFIG_BITS 0
+
 #endif

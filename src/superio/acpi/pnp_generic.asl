@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 secunet Security Networks AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* =================== Generic PnP Device =================== */
 
@@ -20,12 +7,12 @@
  *
  * Controlled by the following preprocessor defines:
  *
- * SUPERIO_CHIP_NAME	The name of the super i/o chip (unique, required)
+ * SUPERIO_CHIP_NAME	The name of the Super I/O chip (unique, required)
  * SUPERIO_PNP_HID	The EisaId string that identifies this device (optional)
- * SUPERIO_PNP_LDN	The logical device number on the super i/o
+ * SUPERIO_PNP_LDN	The logical device number on the Super I/O
  *			chip for this device (required)
  * SUPERIO_PNP_DDN	A string literal that identifies the dos device
- *                      name (DDN) of this device (e.g. "COM1", optional)
+ *			name (DDN) of this device (e.g. "COM1", optional)
  * SUPERIO_PNP_PM_REG	Identifier of a 1-bit register to power down
  *			the logical device (optional)
  * SUPERIO_PNP_PM_VAL	The value for SUPERIO_PNP_PM_REG to power the logical
@@ -86,8 +73,8 @@ Device (SUPERIO_ID(PN, SUPERIO_PNP_LDN)) {
 		PNP_GENERIC_PS0(SUPERIO_PNP_PM_REG, SUPERIO_PNP_PM_VAL, SUPERIO_PNP_PM_LDN)
 	}
 
-	Method (_PS1) {
-		PNP_GENERIC_PS1(SUPERIO_PNP_PM_REG, SUPERIO_PNP_PM_VAL, SUPERIO_PNP_PM_LDN)
+	Method (_PS3) {
+		PNP_GENERIC_PS3(SUPERIO_PNP_PM_REG, SUPERIO_PNP_PM_VAL, SUPERIO_PNP_PM_LDN)
 	}
 #else
 	Method (_PSC) {

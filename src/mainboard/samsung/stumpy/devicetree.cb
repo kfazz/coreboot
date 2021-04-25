@@ -1,7 +1,4 @@
 chip northbridge/intel/sandybridge
-	# IGD Displays
-	register "gfx.ndid" = "3"
-	register "gfx.did" = "{ 0x80000100, 0x80000240, 0x80000410, 0x80000410, 0x00000005 }"
 
 	# Enable DisplayPort 1 Hotplug with 6ms pulse
 	register "gpu_dp_d_hotplug" = "0x06"
@@ -20,17 +17,11 @@ chip northbridge/intel/sandybridge
 			device lapic 0x0 on end
 			device lapic 0xacac off end
 
-			register "c1_battery" = "3"	# ACPI(C1) = MWAIT(C3)
-			register "c2_battery" = "4"	# ACPI(C2) = MWAIT(C6)
-			register "c3_battery" = "5"	# ACPI(C3) = MWAIT(C7)
-
-			register "c1_acpower" = "3"	# ACPI(C1) = MWAIT(C3)
-			register "c2_acpower" = "4"	# ACPI(C2) = MWAIT(C6)
-			register "c3_acpower" = "5"	# ACPI(C3) = MWAIT(C7)
+			register "acpi_c1" = "3"	# ACPI(C1) = MWAIT(C3)
+			register "acpi_c2" = "4"	# ACPI(C2) = MWAIT(C6)
+			register "acpi_c3" = "5"	# ACPI(C3) = MWAIT(C7)
 		end
 	end
-
-	register "pci_mmio_size" = "1024"
 
 	device domain 0 on
 		subsystemid 0x1ae0 0xc000 inherit
@@ -48,8 +39,8 @@ chip northbridge/intel/sandybridge
 			register "sata_port_map" = "0x3"
 
 			register "c2_latency" = "1"
-			register "p_cnt_throttling_supported" = "0"
 
+			register "gen1_dec" = "0x00fc1601"
 			# SuperIO range is 0x700-0x73f
 			register "gen2_dec" = "0x003c0701"
 

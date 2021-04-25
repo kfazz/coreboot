@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2010 coresystems GmbH
  *
@@ -67,6 +66,8 @@
 #define PCI_ROM_ADDRESS1	0x38 // on bridges
 #define PCI_ROM_ADDRESS_MASK	~0x7ff
 
+#define PCI_CLASS_STORAGE_AHCI	0x0106
+#define PCI_CLASS_STORAGE_NVME	0x0108
 #define PCI_CLASS_MEMORY_OTHER	0x0580
 
 #define PCI_VENDOR_ID_INTEL 0x8086
@@ -75,6 +76,7 @@ struct pci_dev {
 	u16 domain;
 	u8 bus, dev, func;
 	u16 vendor_id, device_id;
+	u16 device_class;
 	struct pci_dev *next;
 };
 

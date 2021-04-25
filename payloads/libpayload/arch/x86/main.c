@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2008 Advanced Micro Devices, Inc.
  *
@@ -34,7 +33,7 @@
 unsigned long loader_eax;  /**< The value of EAX passed from the loader */
 unsigned long loader_ebx;  /**< The value of EBX passed from the loader */
 
-unsigned int main_argc;    /**< The argc value to pass to main() */
+int main_argc;    /**< The argc value to pass to main() */
 
 /** The argv value to pass to main() */
 char *main_argv[MAX_ARGC_COUNT];

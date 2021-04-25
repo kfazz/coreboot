@@ -23,7 +23,7 @@ typedef unsigned int wint_t;
 
 /* The devicetree data structures are only mutable in ramstage. All other
    stages have a constant devicetree. */
-#if !ENV_RAMSTAGE
+#if !ENV_PAYLOAD_LOADER
 #define DEVTREE_EARLY 1
 #else
 #define DEVTREE_EARLY 0
@@ -35,19 +35,16 @@ typedef unsigned int wint_t;
 #define DEVTREE_CONST
 #endif
 
-/* Work around non-writable data segment in execute-in-place romstage on x86. */
-#if defined(__PRE_RAM__) && CONFIG(ARCH_X86)
-#define MAYBE_STATIC
+#if ENV_STAGE_HAS_DATA_SECTION
+#define MAYBE_STATIC_NONZERO static
 #else
-#define MAYBE_STATIC static
+#define MAYBE_STATIC_NONZERO
 #endif
 
-#ifndef __ROMCC__
 /* Provide a pointer to address 0 that thwarts any "accessing this is
  * undefined behaviour and do whatever" trickery in compilers.
  * Use when you _really_ need to read32(zeroptr) (ie. read address 0).
  */
 extern char zeroptr[];
-#endif
 
 #endif /* STDDEF_H */

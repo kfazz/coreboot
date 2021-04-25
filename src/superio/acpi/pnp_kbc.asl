@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Christoph Grenz <christophg+cb@grenz-bonn.de>
- * Copyright (C) 2013 secunet Security Networks AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* =================== Keyboard Controller ================== */
 
@@ -22,8 +8,8 @@
  *
  * Controlled by the following preprocessor defines:
  *
- * SUPERIO_CHIP_NAME	The name of the super i/o chip (unique, required)
- * SUPERIO_KBC_LDN	The logical device number on the super i/o
+ * SUPERIO_CHIP_NAME	The name of the Super I/O chip (unique, required)
+ * SUPERIO_KBC_LDN	The logical device number on the Super I/O
  *			chip for this keyboard controller (required)
  * SUPERIO_KBC_PS2M	If defined, PS/2 mouse support is included in
  *			the KBC_LDN. Mouse irq is set at IRQ1 of the

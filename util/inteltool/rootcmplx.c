@@ -1,18 +1,5 @@
-/*
- * inteltool - dump all registers on an Intel CPU + chipset based system.
- *
- * Copyright (C) 2008 by coresystems GmbH
- *  written by Stefan Reinauer <stepan@coresystems.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* inteltool - dump all registers on an Intel CPU + chipset based system */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,6 +29,7 @@ int print_rcba(struct pci_dev *sb)
 	case PCI_DEVICE_ID_INTEL_ICH9M:
 	case PCI_DEVICE_ID_INTEL_ICH9ME:
 	case PCI_DEVICE_ID_INTEL_ICH10:
+	case PCI_DEVICE_ID_INTEL_ICH10DO:
 	case PCI_DEVICE_ID_INTEL_ICH10R:
 	case PCI_DEVICE_ID_INTEL_NM10:
 	case PCI_DEVICE_ID_INTEL_I63XX:
@@ -112,9 +100,13 @@ int print_rcba(struct pci_dev *sb)
 	case PCI_DEVICE_ID_INTEL_C224:
 	case PCI_DEVICE_ID_INTEL_C226:
 	case PCI_DEVICE_ID_INTEL_H81:
-	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_BASE:
-	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_PREM:
-	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_Y_PREM:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_PRE:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_BASE_SKL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_Y_PREM_SKL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_PREM_SKL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_BASE_KBL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_PREM_KBL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_Y_PREM_KBL:
 	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_IHDCP_BASE:
 	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_IHDCP_PREM:
 	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_Y_IHDCP_PREM:
@@ -143,8 +135,8 @@ int print_rcba(struct pci_dev *sb)
 	printf("RCBA = 0x%08x (MEM)\n\n", rcba_phys);
 
 	for (i = 0; i < size; i += 4) {
-		if (*(uint32_t *)(rcba + i))
-			printf("0x%04x: 0x%08x\n", i, *(uint32_t *)(rcba + i));
+		if (read32(rcba + i))
+			printf("0x%04x: 0x%08x\n", i, read32(rcba + i));
 	}
 
 	unmap_physical((void *)rcba, size);

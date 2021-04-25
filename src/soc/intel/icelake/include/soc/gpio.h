@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _SOC_ICELAKE_GPIO_H_
 #define _SOC_ICELAKE_GPIO_H_
@@ -20,5 +7,10 @@
 #include <intelblocks/gpio.h>
 
 #define CROS_GPIO_DEVICE_NAME	"INT3455:00"
+
+/* Enable GPIO community power management configuration */
+#define MISCCFG_GPIO_PM_CONFIG_BITS (MISCCFG_GPSIDEDPCGEN | \
+	MISCCFG_GPRCOMPCDLCGEN | MISCCFG_GPRTCDLCGEN | MISCCFG_GSXSLCGEN \
+	| MISCCFG_GPDPCGEN | MISCCFG_GPDLCGEN)
 
 #endif

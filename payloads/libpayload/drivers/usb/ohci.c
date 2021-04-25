@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2010 Patrick Georgi
  *
@@ -30,6 +29,7 @@
 //#define USB_DEBUG
 
 #include <arch/virtual.h>
+#include <inttypes.h>
 #include <usb/usb.h>
 #include "ohci_private.h"
 #include "ohci.h"
@@ -60,21 +60,21 @@ dump_td (td_t *cur)
 	else
 		usb_debug("|..[]...............................................|\n");
 	usb_debug("|:|============ OHCI TD at [0x%08lx] ==========|:|\n", virt_to_phys(cur));
-	usb_debug("|:| ERRORS = [%ld] | CONFIG = [0x%08lx] |        |:|\n",
+	usb_debug("|:| ERRORS = [%ld] | CONFIG = [0x%08"PRIx32"] |        |:|\n",
 		3 - ((cur->config & (3UL << 26)) >> 26), cur->config);
 	usb_debug("|:+-----------------------------------------------+:|\n");
 	usb_debug("|:|   C   | Condition Code               |   [%02ld] |:|\n", (cur->config & (0xFUL << 28)) >> 28);
 	usb_debug("|:|   O   | Direction/PID                |    [%ld] |:|\n", (cur->config & (3UL << 19)) >> 19);
 	usb_debug("|:|   N   | Buffer Rounding              |    [%ld] |:|\n", (cur->config & (1UL << 18)) >> 18);
-	usb_debug("|:|   F   | Delay Intterrupt             |    [%ld] |:|\n", (cur->config & (7UL << 21)) >> 21);
+	usb_debug("|:|   F   | Delay Interrupt              |    [%ld] |:|\n", (cur->config & (7UL << 21)) >> 21);
 	usb_debug("|:|   I   | Data Toggle                  |    [%ld] |:|\n", (cur->config & (3UL << 24)) >> 24);
 	usb_debug("|:|   G   | Error Count                  |    [%ld] |:|\n", (cur->config & (3UL << 26)) >> 26);
 	usb_debug("|:+-----------------------------------------------+:|\n");
-	usb_debug("|:| Current Buffer Pointer         [0x%08lx]   |:|\n", cur->current_buffer_pointer);
+	usb_debug("|:| Current Buffer Pointer         [0x%08"PRIx32"]   |:|\n", cur->current_buffer_pointer);
 	usb_debug("|:+-----------------------------------------------+:|\n");
-	usb_debug("|:| Next TD                        [0x%08lx]   |:|\n", cur->next_td);
+	usb_debug("|:| Next TD                        [0x%08"PRIx32"]   |:|\n", cur->next_td);
 	usb_debug("|:+-----------------------------------------------+:|\n");
-	usb_debug("|:| Current Buffer End             [0x%08lx]   |:|\n", cur->buffer_end);
+	usb_debug("|:| Current Buffer End             [0x%08"PRIx32"]   |:|\n", cur->buffer_end);
 	usb_debug("|:|-----------------------------------------------|:|\n");
 	usb_debug("|...................................................|\n");
 	usb_debug("+---------------------------------------------------+\n");
@@ -89,9 +89,9 @@ dump_ed (ed_t *cur)
 	usb_debug("+---------------------------------------------------+\n");
 	usb_debug("| Next Endpoint Descriptor       [0x%08lx]       |\n", cur->next_ed & ~0xFUL);
 	usb_debug("+---------------------------------------------------+\n");
-	usb_debug("|        |               @ 0x%08lx :             |\n", cur->config);
+	usb_debug("|        |               @ 0x%08"PRIx32" :             |\n", cur->config);
 	usb_debug("|   C    | Maximum Packet Length           | [%04ld] |\n", ((cur->config & (0x3fffUL << 16)) >> 16));
-	usb_debug("|   O    | Function Address                | [%04ld] |\n", cur->config & 0x7F);
+	usb_debug("|   O    | Function Address                | [%04"PRIx32"] |\n", cur->config & 0x7F);
 	usb_debug("|   N    | Endpoint Number                 |   [%02ld] |\n", (cur->config & (0xFUL << 7)) >> 7);
 	usb_debug("|   F    | Endpoint Direction              |    [%ld] |\n", ((cur->config & (3UL << 11)) >> 11));
 	usb_debug("|   I    | Endpoint Speed                  |    [%ld] |\n", ((cur->config & (1UL << 13)) >> 13));
@@ -212,6 +212,8 @@ ohci_init (unsigned long physical_bar)
 	udelay (10); /* at most 10us for reset to complete. State must be set to Operational within 2ms (5.1.1.4) */
 	OHCI_INST (controller)->opreg->HcFmInterval = interval;
 	OHCI_INST (controller)->hcca = dma_memalign(256, 256);
+	if (!OHCI_INST(controller)->hcca)
+		fatal("Not enough DMA memory for OHCI HCCA.\n");
 	memset((void*)OHCI_INST (controller)->hcca, 0, 256);
 
 	if (dma_initialized()) {
@@ -223,6 +225,8 @@ ohci_init (unsigned long physical_bar)
 	/* Initialize interrupt table. */
 	u32 *const intr_table = OHCI_INST(controller)->hcca->HccaInterruptTable;
 	ed_t *const periodic_ed = dma_memalign(sizeof(ed_t), sizeof(ed_t));
+	if (!periodic_ed)
+		fatal("Not enough DMA memory for OHCI interrupt table.\n");
 	memset((void *)periodic_ed, 0, sizeof(*periodic_ed));
 	for (i = 0; i < 32; ++i)
 		intr_table[i] = virt_to_phys(periodic_ed);
@@ -288,14 +292,13 @@ ohci_stop (hci_t *controller)
 	OHCI_INST (controller)->opreg->HcControl &= ~PeriodicListEnable;
 }
 
+#define OHCI_SLEEP_TIME_US	1000
+
 static int
 wait_for_ed(usbdev_t *dev, ed_t *head, int pages)
 {
 	/* wait for results */
-	/* TOTEST: how long to wait?
-	 *         give 2s per TD (2 pages) plus another 2s for now
-	 */
-	int timeout = pages*1000 + 2000;
+	int timeout = USB_MAX_PROCESSING_TIME_US / OHCI_SLEEP_TIME_US;
 	while (((head->head_pointer & ~3) != head->tail_pointer) &&
 		!(head->head_pointer & 1) &&
 		((((td_t*)phys_to_virt(head->head_pointer & ~3))->config
@@ -311,9 +314,9 @@ wait_for_ed(usbdev_t *dev, ed_t *head, int pages)
 			((td_t*)phys_to_virt(head->head_pointer & ~3))->next_td,
 			head->tail_pointer,
 			(((td_t*)phys_to_virt(head->head_pointer & ~3))->config & TD_CC_MASK) >> TD_CC_SHIFT);
-		mdelay(1);
+		udelay(OHCI_SLEEP_TIME_US);
 	}
-	if (timeout < 0)
+	if (timeout <= 0)
 		usb_debug("Error: ohci: endpoint "
 			"descriptor processing timed out.\n");
 	/* Clear the done queue. */
@@ -378,6 +381,8 @@ ohci_control (usbdev_t *dev, direction_t dir, int drlen, void *setup, int dalen,
 
 	/* First TD. */
 	td_t *const first_td = (td_t *)dma_memalign(sizeof(td_t), sizeof(td_t));
+	if (!first_td)
+		fatal("Not enough DMA memory for OHCI first TD in buffer.\n");
 	memset((void *)first_td, 0, sizeof(*first_td));
 	cur = first_td;
 
@@ -392,6 +397,8 @@ ohci_control (usbdev_t *dev, direction_t dir, int drlen, void *setup, int dalen,
 	while (pages > 0) {
 		/* One more TD. */
 		td_t *const next = (td_t *)dma_memalign(sizeof(td_t), sizeof(td_t));
+		if (!next)
+			fatal("Not enough DMA memory for OHCI new page.\n");
 		memset((void *)next, 0, sizeof(*next));
 		/* Linked to the previous. */
 		cur->next_td = virt_to_phys(next);
@@ -426,6 +433,8 @@ ohci_control (usbdev_t *dev, direction_t dir, int drlen, void *setup, int dalen,
 
 	/* One more TD. */
 	td_t *const next_td = (td_t *)dma_memalign(sizeof(td_t), sizeof(td_t));
+	if (!next_td)
+		fatal("Not enough DMA memory for OHCI additional TD.\n");
 	memset((void *)next_td, 0, sizeof(*next_td));
 	/* Linked to the previous. */
 	cur->next_td = virt_to_phys(next_td);
@@ -441,12 +450,16 @@ ohci_control (usbdev_t *dev, direction_t dir, int drlen, void *setup, int dalen,
 
 	/* Final dummy TD. */
 	td_t *const final_td = (td_t *)dma_memalign(sizeof(td_t), sizeof(td_t));
+	if (!final_td)
+		fatal("Not enough DMA memory for OHCI dummy TD!\n");
 	memset((void *)final_td, 0, sizeof(*final_td));
 	/* Linked to the previous. */
 	cur->next_td = virt_to_phys(final_td);
 
 	/* Data structures */
 	ed_t *head = dma_memalign(sizeof(ed_t), sizeof(ed_t));
+	if (!head)
+		fatal("Not enough DMA memory for OHCI data structures.\n");
 	memset((void*)head, 0, sizeof(*head));
 	head->config = (dev->address << ED_FUNC_SHIFT) |
 		(0 << ED_EP_SHIFT) |
@@ -456,7 +469,7 @@ ohci_control (usbdev_t *dev, direction_t dir, int drlen, void *setup, int dalen,
 	head->tail_pointer = virt_to_phys(final_td);
 	head->head_pointer = virt_to_phys(first_td);
 
-	usb_debug("ohci_control(): doing transfer with %x. first_td at %x\n",
+	usb_debug("%s(): doing transfer with %x. first_td at %"PRIxPTR"\n", __func__,
 		head->config & ED_FUNC_MASK, virt_to_phys(first_td));
 #ifdef USB_DEBUG
 	dump_ed(head);
@@ -494,7 +507,7 @@ ohci_bulk (endpoint_t *ep, int dalen, u8 *src, int finalize)
 	td_t *cur, *next;
 	int remaining = dalen;
 	u8 *data = src;
-	usb_debug("bulk: %x bytes from %x, finalize: %x, maxpacketsize: %x\n", dalen, src, finalize, ep->maxpacketsize);
+	usb_debug("bulk: %x bytes from %p, finalize: %x, maxpacketsize: %x\n", dalen, src, finalize, ep->maxpacketsize);
 
 	if (!dma_coherent(src)) {
 		data = OHCI_INST(ep->dev->controller)->dma_buffer;
@@ -519,6 +532,8 @@ ohci_bulk (endpoint_t *ep, int dalen, u8 *src, int finalize)
 
 	/* First TD. */
 	td_t *const first_td = (td_t *)dma_memalign(sizeof(td_t), sizeof(td_t));
+	if (!first_td)
+		fatal("Not enough DMA memory for OHCI bulk transfer.\n");
 	memset((void *)first_td, 0, sizeof(*first_td));
 	cur = next = first_td;
 
@@ -557,6 +572,8 @@ ohci_bulk (endpoint_t *ep, int dalen, u8 *src, int finalize)
 		}
 		/* One more TD. */
 		next = (td_t *)dma_memalign(sizeof(td_t), sizeof(td_t));
+		if (!next)
+			fatal("Not enough DMA mem for TD bulk transfer.\n");
 		memset((void *)next, 0, sizeof(*next));
 		/* Linked to the previous. */
 		cur->next_td = virt_to_phys(next);
@@ -569,6 +586,8 @@ ohci_bulk (endpoint_t *ep, int dalen, u8 *src, int finalize)
 
 	/* Data structures */
 	ed_t *head = dma_memalign(sizeof(ed_t), sizeof(ed_t));
+	if (!head)
+		fatal("Not enough DMA memory for OHCI bulk transfer's head.\n");
 	memset((void*)head, 0, sizeof(*head));
 	head->config = (ep->dev->address << ED_FUNC_SHIFT) |
 		((ep->endpoint & 0xf) << ED_EP_SHIFT) |
@@ -578,7 +597,7 @@ ohci_bulk (endpoint_t *ep, int dalen, u8 *src, int finalize)
 	head->tail_pointer = virt_to_phys(cur);
 	head->head_pointer = virt_to_phys(first_td) | (ep->toggle?ED_TOGGLE:0);
 
-	usb_debug("doing bulk transfer with %x(%x). first_td at %x, last %x\n",
+	usb_debug("doing bulk transfer with %x(%x). first_td at %"PRIxPTR", last %"PRIxPTR"\n",
 		head->config & ED_FUNC_MASK,
 		(head->config & ED_EP_MASK) >> ED_EP_SHIFT,
 		virt_to_phys(first_td), virt_to_phys(cur));
@@ -608,7 +627,6 @@ ohci_bulk (endpoint_t *ep, int dalen, u8 *src, int finalize)
 
 	return result;
 }
-
 
 struct _intr_queue;
 
@@ -665,6 +683,11 @@ ohci_create_intr_queue(endpoint_t *const ep, const int reqsize,
 
 	intr_queue_t *const intrq =
 		(intr_queue_t *)dma_memalign(sizeof(intrq->ed), sizeof(*intrq));
+	if (!intrq) {
+		usb_debug("Not enough DMA memory for intr queue.\n");
+		free(intrq);
+		return NULL;
+	}
 	memset(intrq, 0, sizeof(*intrq));
 	intrq->data = (u8 *)dma_malloc(reqcount * reqsize);
 	intrq->reqsize = reqsize;
@@ -674,6 +697,8 @@ ohci_create_intr_queue(endpoint_t *const ep, const int reqsize,
 	u8 *cur_data = intrq->data;
 	for (i = 0; i < reqcount; ++i) {
 		intrq_td_t *const td = dma_memalign(sizeof(td->td), sizeof(*td));
+		if (!td)
+			fatal("Not enough DMA mem to transfer descriptor.\n");
 		++intrq->remaining_tds;
 		ohci_fill_intrq_td(td, intrq, cur_data);
 		cur_data += reqsize;
@@ -686,6 +711,8 @@ ohci_create_intr_queue(endpoint_t *const ep, const int reqsize,
 
 	/* Create last, dummy TD. */
 	intrq_td_t *dummy_td = dma_memalign(sizeof(dummy_td->td), sizeof(*dummy_td));
+	if (!dummy_td)
+		fatal("Not enough memory to add dummy TD.\n");
 	memset(dummy_td, 0, sizeof(*dummy_td));
 	dummy_td->intrq = intrq;
 	if (last_td)
@@ -851,7 +878,7 @@ ohci_process_done_queue(ohci_t *const ohci, const int spew_debug)
 			intrq_td_t *const td = INTRQ_TD_FROM_TD(done_td);
 			intr_queue_t *const intrq = td->intrq;
 			/* Check if the corresponding interrupt
-			   queue is still beeing processed. */
+			   queue is still being processed. */
 			if (intrq->destroy) {
 				/* Free this TD, and */
 				free(td);

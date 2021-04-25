@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef _SOC_INTELBLOCKS_GPIO_H_
 #define _SOC_INTELBLOCKS_GPIO_H_
@@ -20,8 +6,26 @@
 #include <soc/gpio.h>
 #include "gpio_defs.h"
 
+/* GPIO community IOSF sideband VNNREQ/ACK handshake */
+#define MISCCFG_GPVNNREQEN	(1 << 7)
+/* GPIO community PGCB clock gating */
+#define MISCCFG_GPPGCBDPCGEN	(1 << 6)
+/* GPIO community IOSF sideband clock gating */
+#define MISCCFG_GPSIDEDPCGEN	(1 << 5)
+/* GPIO community RCOMP clock gating */
+#define MISCCFG_GPRCOMPCDLCGEN	(1 << 4)
+/* GPIO community RTC clock gating */
+#define MISCCFG_GPRTCDLCGEN	(1 << 3)
+/* GFX controller clock gating */
+#define MISCCFG_GSXSLCGEN	(1 << 2)
+/* GPIO community partition clock gating */
+#define MISCCFG_GPDPCGEN	(1 << 1)
+/* GPIO community local clock gating */
+#define MISCCFG_GPDLCGEN	(1 << 0)
+
 #ifndef __ACPI__
 #include <types.h>
+#include <device/device.h>
 
 /*
  * GPIO numbers may not be contiguous and instead will have a different
@@ -78,7 +82,6 @@ struct reset_mapping {
 	uint32_t chipset;
 };
 
-
 /* Structure describes the groups within each community */
 struct pad_group {
 	int		first_pad; /* offset of first pad of the group relative
@@ -105,8 +108,12 @@ struct pad_community {
 	gpio_t		first_pad;   /* first pad in community */
 	gpio_t		last_pad;    /* last pad in community */
 	uint16_t	host_own_reg_0; /* offset to Host Ownership Reg 0 */
-	uint16_t	gpi_smi_sts_reg_0; /* offset to GPI SMI EN Reg 0 */
-	uint16_t	gpi_smi_en_reg_0; /* offset to GPI SMI STS Reg 0 */
+	uint16_t	gpi_int_sts_reg_0; /* offset to GPI Int STS Reg 0 */
+	uint16_t	gpi_int_en_reg_0; /* offset to GPI Int Enable Reg 0 */
+	uint16_t	gpi_smi_sts_reg_0; /* offset to GPI SMI STS Reg 0 */
+	uint16_t	gpi_smi_en_reg_0; /* offset to GPI SMI EN Reg 0 */
+	uint16_t	gpi_nmi_sts_reg_0; /* offset to GPI NMI STS Reg 0 */
+	uint16_t	gpi_nmi_en_reg_0; /* offset to GPI NMI EN Reg 0 */
 	uint16_t	pad_cfg_base; /* offset to first PAD_GFG_DW0 Reg */
 	uint8_t		gpi_status_offset;  /* specifies offset in struct
 						gpi_status */
@@ -206,6 +213,29 @@ uint8_t gpio_get_pad_portid(const gpio_t pad);
  */
 uint32_t soc_gpio_pad_config_fixup(const struct pad_config *cfg,
 						int dw_reg, uint32_t reg_val);
+
+/*
+ * Function to reset/clear the GPI Interrupt Enable & Status registers for
+ * all GPIO pad communities.
+ */
+void gpi_clear_int_cfg(void);
+
+/* The function performs GPIO Power Management programming. */
+void gpio_pm_configure(const uint8_t *misccfg_pm_values, size_t num);
+
+/*
+ * Set gpio ops of the device to gpio block ops.
+ * Shall be called by all SoCs that use intelblocks/gpio.
+ */
+void block_gpio_enable(struct device *dev);
+
+/*
+ * Returns true if any GPIO that uses the specified IRQ is also programmed to
+ * route IRQs to IOAPIC.
+ */
+bool gpio_routes_ioapic_irq(unsigned int irq);
+
+size_t gpio_get_index_in_group(gpio_t pad);
 
 #endif
 #endif /* _SOC_INTELBLOCKS_GPIO_H_ */

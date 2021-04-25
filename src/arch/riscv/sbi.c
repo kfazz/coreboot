@@ -1,26 +1,11 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 HardenedLinux
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <mcall.h>
 #include <stdint.h>
-#include <commonlib/compiler.h>
 #include <arch/exception.h>
 #include <sbi.h>
 #include <vm.h>
 #include <console/uart.h>
-#include <console/console.h>
 #include <commonlib/helpers.h>
 
 static uintptr_t send_ipi(uintptr_t *pmask, intptr_t type)
@@ -63,7 +48,6 @@ static uintptr_t sbi_clear_ipi(void)
 	clear_csr(mip, MIP_SSIP);
 	return 0;
 }
-
 
 /*
  * sbi is triggered by the s-mode ecall

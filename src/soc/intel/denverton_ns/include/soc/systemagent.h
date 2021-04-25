@@ -1,20 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007 - 2008 coresystems GmbH
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2014 - 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _DENVERTON_NS_SYSTEMAGENT_H_
 #define _DENVERTON_NS_SYSTEMAGENT_H_
@@ -47,6 +31,9 @@
 #define TOLUD 0xbc /* Top of Low Used Memory */
 #define MASK_TOLUD 0xFFF00000
 
+#define CAPID0_A	0xe4
+#define  VTD_DISABLE	(1 << 23)
+
 /* SideBand B-UNIT */
 #define B_UNIT 3
 
@@ -72,6 +59,10 @@
 	0x02 /* Bit 1: 1 - reads targeting E-segment are routed to DRAM. */
 #define MCH_BMISC_RESDRAM \
 	0x01 /* Bit 0: 1 - reads targeting E-segment are routed to DRAM. */
+
+#define MCH_VTBAR_OFFSET		0x6c80
+#define  MCH_VTBAR_ENABLE_MASK		0x1
+#define  MCH_VTBAR_MASK			0x7ffffff000
 
 #define MCH_BAR_BIOS_RESET_CPL 0x7078
 #define RST_CPL_BIT (1 << 0)

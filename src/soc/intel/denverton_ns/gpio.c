@@ -1,22 +1,5 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015 - 2017 Intel Corp.
- * (Written by Alexandru Gagniuc <alexandrux.gagniuc@intel.com> for Intel Corp.)
- * Copyright (C) 2018 Online SAS
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <assert.h>
 #include <intelblocks/gpio.h>
 #include <intelblocks/pcr.h>
 #include <soc/pcr.h>
@@ -59,6 +42,8 @@ static const struct pad_community dnv_gpio_communities[] = {
 				     NUM_SC0_GPI_REGS,
 		.pad_cfg_base = R_PCH_PCR_GPIO_SC1_PADCFG_OFFSET,
 		.host_own_reg_0 = R_PCH_PCR_GPIO_SC1_PAD_OWN,
+		.gpi_int_sts_reg_0 = R_PCH_PCR_GPIO_SC1_GPI_IS,
+		.gpi_int_en_reg_0 = R_PCH_PCR_GPIO_SC1_GPI_IE,
 		.gpi_smi_sts_reg_0 = R_PCH_PCR_GPIO_SC1_GPI_GPE_STS,
 		.gpi_smi_en_reg_0 = R_PCH_PCR_GPIO_SC1_GPI_GPE_EN,
 		.max_pads_per_group = GPIO_MAX_NUM_PER_GROUP,
@@ -76,6 +61,8 @@ static const struct pad_community dnv_gpio_communities[] = {
 		.gpi_status_offset = NUM_NC_GPI_REGS + NUM_SC_DFX_GPI_REGS,
 		.pad_cfg_base = R_PCH_PCR_GPIO_SC0_PADCFG_OFFSET,
 		.host_own_reg_0 = R_PCH_PCR_GPIO_SC0_PAD_OWN,
+		.gpi_int_sts_reg_0 = R_PCH_PCR_GPIO_SC0_GPI_IS,
+		.gpi_int_en_reg_0 = R_PCH_PCR_GPIO_SC0_GPI_IE,
 		.gpi_smi_sts_reg_0 = R_PCH_PCR_GPIO_SC0_GPI_GPE_STS,
 		.gpi_smi_en_reg_0 = R_PCH_PCR_GPIO_SC0_GPI_GPE_EN,
 		.max_pads_per_group = GPIO_MAX_NUM_PER_GROUP,
@@ -93,6 +80,8 @@ static const struct pad_community dnv_gpio_communities[] = {
 		.gpi_status_offset = NUM_NC_GPI_REGS,
 		.pad_cfg_base = R_PCH_PCR_GPIO_SC_DFX_PADCFG_OFFSET,
 		.host_own_reg_0 = R_PCH_PCR_GPIO_SC_DFX_HOSTSW_OWN,
+		.gpi_int_sts_reg_0 = R_PCH_PCR_GPIO_SC_DFX_GPI_IS,
+		.gpi_int_en_reg_0 = R_PCH_PCR_GPIO_SC_DFX_GPI_IE,
 		.gpi_smi_sts_reg_0 = R_PCH_PCR_GPIO_SC_DFX_GPI_GPE_STS,
 		.gpi_smi_en_reg_0 = R_PCH_PCR_GPIO_SC_DFX_GPI_GPE_EN,
 		.max_pads_per_group = GPIO_MAX_NUM_PER_GROUP,
@@ -110,6 +99,8 @@ static const struct pad_community dnv_gpio_communities[] = {
 		.gpi_status_offset = 0,
 		.pad_cfg_base = R_PCH_PCR_GPIO_NC_PADCFG_OFFSET,
 		.host_own_reg_0 = R_PCH_PCR_GPIO_NC_PAD_OWN,
+		.gpi_int_sts_reg_0 = R_PCH_PCR_GPIO_NC_GPI_IS,
+		.gpi_int_en_reg_0 = R_PCH_PCR_GPIO_NC_GPI_IE,
 		.gpi_smi_sts_reg_0 = R_PCH_PCR_GPIO_NC_GPI_GPE_STS,
 		.gpi_smi_en_reg_0 = R_PCH_PCR_GPIO_NC_GPI_GPE_EN,
 		.max_pads_per_group = GPIO_MAX_NUM_PER_GROUP,

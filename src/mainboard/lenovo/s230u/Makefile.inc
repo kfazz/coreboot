@@ -1,6 +1,6 @@
+bootblock-y += gpio.c
 romstage-y += gpio.c
 ramstage-y += ec.c
-smm-$(CONFIG_HAVE_SMI_HANDLER) += smihandler.c
 
 # FIXME: SPD images for samsung_8gb and hynix_8gb are missing.
 # It's possible that no mainboards with that variation were manufactured.
@@ -15,3 +15,5 @@ SPD_SOURCES += samsung_2gb			# 0b0111
 SPD_SOURCES += hynix_2gb			# 0b1000
 
 ramstage-$(CONFIG_MAINBOARD_USE_LIBGFXINIT) += gma-mainboard.ads
+bootblock-y += early_init.c
+romstage-y += early_init.c

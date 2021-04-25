@@ -1,16 +1,4 @@
-/*
- * Copyright (C) 2011 Peter Stuge <peter@stuge.se>
- * Copyright (C) 2017-2018 Arthur Heymans <arthur@aheymans.xyz>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <getopt.h>
 #include <stdio.h>
@@ -50,6 +38,7 @@ enum {
 };
 
 enum {
+	BUCTS_UNINITIALIZED = -1,
 	BUCTS_UNSET = 0,
 	BUCTS_SET
 };
@@ -309,7 +298,7 @@ out:
 	return ret;
 }
 
-int main(int argc, char *argv[], const char *envp[])
+int main(int argc, char *argv[])
 {
 	struct pci_access *pacc;
 	struct pci_dev *dev, *sb = NULL;
@@ -318,8 +307,7 @@ int main(int argc, char *argv[], const char *envp[])
 #endif
 	int opt, option_index = 0;
 	int print_state = 0;
-	int change_state = 0;
-	int bucts_state;
+	int bucts_state = BUCTS_UNINITIALIZED;
 
 	static struct option long_options[] = {
 		{"unset", 0, 0, 'u'},
@@ -341,7 +329,7 @@ int main(int argc, char *argv[], const char *envp[])
 				  long_options, &option_index)) != EOF) {
 		switch (opt) {
 		case 'u':
-			if (change_state) {
+			if (bucts_state != BUCTS_UNINITIALIZED) {
 				printf("Invalid setting: multiple set/unset arguments\n");
 				exit(1);
 			}
@@ -350,10 +338,9 @@ int main(int argc, char *argv[], const char *envp[])
 				exit(1);
 			}
 			bucts_state = BUCTS_UNSET;
-			change_state = 1;
 			break;
 		case 's':
-			if (change_state) {
+			if (bucts_state != BUCTS_UNINITIALIZED) {
 				printf("Invalid setting: multiple set/unset arguments\n");
 				exit(1);
 			}
@@ -362,10 +349,9 @@ int main(int argc, char *argv[], const char *envp[])
 				exit(1);
 			}
 			bucts_state = BUCTS_SET;
-			change_state = 1;
 			break;
 		case 'p':
-			if (change_state) {
+			if (bucts_state != BUCTS_UNINITIALIZED) {
 				printf("Print and Set are mutually exclusive!\n");
 				exit(1);
 			}
@@ -430,7 +416,7 @@ int main(int argc, char *argv[], const char *envp[])
 
 	if (print_state)
 		print_status(rcba_addr, has_var_bb);
-	if (change_state) {
+	if (bucts_state != BUCTS_UNINITIALIZED) {
 		set_bucts(rcba_addr, bucts_state);
 		print_status(rcba_addr, has_var_bb);
 	}

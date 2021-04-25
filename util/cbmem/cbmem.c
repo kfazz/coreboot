@@ -1,25 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2012 Google Inc.
- * Copyright (C) 2015 Timothy Pearson <tpearson@raptorengineeringinc.com>, Raptor Engineering
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <inttypes.h>
 #include <getopt.h>
 #include <dirent.h>
 #include <errno.h>
@@ -259,7 +244,7 @@ static int find_cbmem_entry(uint32_t id, uint64_t *addr, size_t *size)
  * passed in memory offset.  Could be called recursively in case a forwarding
  * entry is found.
  *
- * Returns pointer to a memory buffer containg the timestamp table or zero if
+ * Returns pointer to a memory buffer containing the timestamp table or zero if
  * none found.
  */
 
@@ -522,7 +507,7 @@ static void timestamp_set_tick_freq(unsigned long table_tick_freq_mhz)
 	debug("Timestamp tick frequency: %ld MHz\n", tick_freq_mhz);
 }
 
-u64 arch_convert_raw_ts_entry(u64 ts)
+static u64 arch_convert_raw_ts_entry(u64 ts)
 {
 	return ts / tick_freq_mhz;
 }
@@ -544,9 +529,7 @@ static void print_norm(u64 v)
 
 static const char *timestamp_name(uint32_t id)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(timestamp_ids); i++) {
+	for (size_t i = 0; i < ARRAY_SIZE(timestamp_ids); i++) {
 		if (timestamp_ids[i].id == id)
 			return timestamp_ids[i].name;
 	}
@@ -572,7 +555,7 @@ static uint64_t timestamp_print_parseable_entry(uint32_t id, uint64_t stamp,
 	return step_time;
 }
 
-uint64_t timestamp_print_entry(uint32_t id, uint64_t stamp, uint64_t prev_stamp)
+static uint64_t timestamp_print_entry(uint32_t id, uint64_t stamp, uint64_t prev_stamp)
 {
 	const char *name;
 	uint64_t step_time;
@@ -609,7 +592,6 @@ static int compare_timestamp_entries(const void *a, const void *b)
 /* dump the timestamp table */
 static void dump_timestamps(int mach_readable)
 {
-	int i;
 	const struct timestamp_table *tst_p;
 	struct timestamp_table *sorted_tst_p;
 	size_t size;
@@ -657,7 +639,7 @@ static void dump_timestamps(int mach_readable)
 	      sizeof(struct timestamp_entry), compare_timestamp_entries);
 
 	total_time = 0;
-	for (i = 0; i < sorted_tst_p->num_entries; i++) {
+	for (uint32_t i = 0; i < sorted_tst_p->num_entries; i++) {
 		uint64_t stamp;
 		const struct timestamp_entry *tse = &sorted_tst_p->entries[i];
 
@@ -686,7 +668,6 @@ static void dump_timestamps(int mach_readable)
 /* dump the tcpa log table */
 static void dump_tcpa_log(void)
 {
-	int i, j;
 	const struct tcpa_table *tclt_p;
 	size_t size;
 	struct mapping tcpa_mapping;
@@ -711,12 +692,12 @@ static void dump_tcpa_log(void)
 
 	printf("coreboot TCPA log:\n\n");
 
-	for (i = 0; i < tclt_p->num_entries; i++) {
+	for (uint16_t i = 0; i < tclt_p->num_entries; i++) {
 		const struct tcpa_entry *tce = &tclt_p->entries[i];
 
 		printf(" PCR-%u ", tce->pcr);
 
-		for (j = 0; j < tce->digest_length; j++)
+		for (uint32_t j = 0; j < tce->digest_length; j++)
 			printf("%02x", tce->digest[j]);
 
 		printf(" %s [%s]\n", tce->digest_type, tce->name);
@@ -798,16 +779,18 @@ static void dump_console(int one_boot_only)
 	   a banner, store the last match for that stage in cursor and stop. */
 	cursor = 0;
 	if (one_boot_only) {
-#define BANNER_REGEX(stage) "\n\ncoreboot-[^\n]* " stage " starting\\.\\.\\.\n"
+#define BANNER_REGEX(stage) \
+		"\n\ncoreboot-[^\n]* " stage " starting.*\\.\\.\\.\n"
 #define OVERFLOW_REGEX(stage) "\n\\*\\*\\* Pre-CBMEM " stage " console overflow"
-		const char *regex[] = { BANNER_REGEX("bootblock"),
+		const char *regex[] = { BANNER_REGEX("verstage-before-bootblock"),
+					BANNER_REGEX("bootblock"),
+					BANNER_REGEX("verstage"),
 					OVERFLOW_REGEX("romstage"),
 					BANNER_REGEX("romstage"),
 					OVERFLOW_REGEX("ramstage"),
 					BANNER_REGEX("ramstage") };
-		int i;
 
-		for (i = 0; !cursor && i < ARRAY_SIZE(regex); i++) {
+		for (size_t i = 0; !cursor && i < ARRAY_SIZE(regex); i++) {
 			regex_t re;
 			regmatch_t match;
 			assert(!regcomp(&re, regex[i], 0));
@@ -872,9 +855,8 @@ static void dump_cbmem_hex(void)
 	hexdump(unpack_lb64(cbmem.start), unpack_lb64(cbmem.size));
 }
 
-void rawdump(uint64_t base, uint64_t size)
+static void rawdump(uint64_t base, uint64_t size)
 {
-	int i;
 	const uint8_t *m;
 	struct mapping dump_mapping;
 
@@ -882,7 +864,7 @@ void rawdump(uint64_t base, uint64_t size)
 	if (!m)
 		die("Unable to map rawdump memory\n");
 
-	for (i = 0 ; i < size; i++)
+	for (uint64_t i = 0 ; i < size; i++)
 		printf("%c", m[i]);
 
 	unmap_memory(&dump_mapping);
@@ -934,14 +916,13 @@ struct cbmem_id_to_name {
 static const struct cbmem_id_to_name cbmem_ids[] = { CBMEM_ID_TO_NAME_TABLE };
 
 #define MAX_STAGEx 10
-void cbmem_print_entry(int n, uint32_t id, uint64_t base, uint64_t size)
+static void cbmem_print_entry(int n, uint32_t id, uint64_t base, uint64_t size)
 {
-	int i;
 	const char *name;
 	char stage_x[20];
 
 	name = NULL;
-	for (i = 0; i < ARRAY_SIZE(cbmem_ids); i++) {
+	for (size_t i = 0; i < ARRAY_SIZE(cbmem_ids); i++) {
 		if (cbmem_ids[i].id == id) {
 			name = cbmem_ids[i].name;
 			break;
@@ -1389,11 +1370,10 @@ int main(int argc, char** argv)
 
 	parse_cbtable(baseaddr, cb_table_size);
 #else
-	int j;
 	unsigned long long possible_base_addresses[] = { 0, 0xf0000 };
 
 	/* Find and parse coreboot table */
-	for (j = 0; j < ARRAY_SIZE(possible_base_addresses); j++) {
+	for (size_t j = 0; j < ARRAY_SIZE(possible_base_addresses); j++) {
 		if (!parse_cbtable(possible_base_addresses[j], 0))
 			break;
 	}

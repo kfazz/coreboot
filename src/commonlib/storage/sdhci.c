@@ -1,23 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright 2011, Marvell Semiconductor Inc.
- * Lei Wen <leiwen@marvell.com>
- *
- * Copyright 2017 Intel Corporation
- *
  * Secure Digital (SD) Host Controller interface specific code
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
-#include <assert.h>
 #include "bouncebuf.h"
 #include <commonlib/sd_mmc_ctrlr.h>
 #include <commonlib/sdhci.h>
@@ -30,9 +15,9 @@
 #include <timer.h>
 #include <commonlib/stdlib.h>
 
-#define DMA_AVAILABLE	((CONFIG_SDHCI_ADMA_IN_BOOTBLOCK && ENV_BOOTBLOCK) \
-			|| (CONFIG_SDHCI_ADMA_IN_VERSTAGE && ENV_VERSTAGE) \
-			|| (CONFIG_SDHCI_ADMA_IN_ROMSTAGE && ENV_ROMSTAGE) \
+#define DMA_AVAILABLE	((CONFIG(SDHCI_ADMA_IN_BOOTBLOCK) && ENV_BOOTBLOCK) \
+			|| (CONFIG(SDHCI_ADMA_IN_VERSTAGE) && ENV_SEPARATE_VERSTAGE) \
+			|| (CONFIG(SDHCI_ADMA_IN_ROMSTAGE) && ENV_ROMSTAGE) \
 			|| ENV_POSTCAR || ENV_RAMSTAGE)
 
 __weak void *dma_malloc(size_t length_in_bytes)
@@ -150,7 +135,7 @@ static int sdhci_send_command_bounced(struct sd_mmc_ctrlr *ctrlr,
 	sdhci_writel(sdhci_ctrlr, SDHCI_INT_ALL_MASK, SDHCI_INT_STATUS);
 	mask = SDHCI_CMD_INHIBIT | SDHCI_DATA_INHIBIT;
 
-	/* We shouldn't wait for data inihibit for stop commands, even
+	/* We shouldn't wait for data inhibit for stop commands, even
 	   though they might use busy signaling */
 	if (cmd->flags & CMD_FLAG_IGNORE_INHIBIT)
 		mask &= ~SDHCI_DATA_INHIBIT;
@@ -726,7 +711,7 @@ static int sdhci_init(struct sdhci_ctrlr *sdhci_ctrlr)
 	if (ctrlr->initialized)
 		return 0;
 
-	sdhc_debug("SDHCI Controller Base Address: 0x%p\n",
+	sdhc_debug("SDHCI Controller Base Address: %p\n",
 			sdhci_ctrlr->ioaddr);
 
 	rv = sdhci_pre_init(sdhci_ctrlr);

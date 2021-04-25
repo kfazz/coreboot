@@ -1,20 +1,5 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 The ChromiumOS Authors.  All rights reserved.
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/cache.h>
 #include <bootmem.h>
 #include <bootmode.h>
 #include <bootstate.h>
@@ -26,7 +11,6 @@
 #include <soc/cpu.h>
 #include <soc/mc.h>
 #include <soc/nvidia/tegra/apbmisc.h>
-#include <timer.h>
 #include <soc/sdram.h>
 #include <soc/sdram_configs.h>
 
@@ -66,10 +50,7 @@ static void soc_read_resources(struct device *dev)
 
 static struct device_operations soc_ops = {
 	.read_resources   = soc_read_resources,
-	.set_resources    = DEVICE_NOOP,
-	.enable_resources = DEVICE_NOOP,
-	.init             = DEVICE_NOOP,
-	.scan_bus         = NULL,
+	.set_resources    = noop_set_resources,
 };
 
 static void enable_tegra210_dev(struct device *dev)

@@ -1,25 +1,11 @@
-/*
- * Copyright 2013 Google Inc.
- * Copyright 2018 Facebook, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <cbfs.h>
+#include <commonlib/bsd/compression.h>
 #include <console/console.h>
 #include <bootmem.h>
-#include <stdlib.h>
 #include <program_loading.h>
 #include <string.h>
-#include <commonlib/compression.h>
-#include <commonlib/cbfs_serialized.h>
 #include <lib.h>
 #include <fit.h>
 #include <endian.h>
@@ -184,20 +170,14 @@ bool fit_payload_arch(struct prog *payload, struct fit_config_node *config,
 	bool place_anywhere;
 	void *arg = NULL;
 
-	if (!config->fdt || !fdt) {
-		printk(BIOS_CRIT, "CRIT: Providing a valid FDT is mandatory to "
-		       "boot an ARM64 kernel!\n");
-		return false;
-	}
-
-	if (!decompress_kernel_header(config->kernel_node)) {
+	if (!decompress_kernel_header(config->kernel)) {
 		printk(BIOS_CRIT, "CRIT: Payload doesn't look like an ARM64"
 		       " kernel Image.\n");
 		return false;
 	}
 
 	/* Update kernel size from image header, if possible */
-	kernel->size = get_kernel_size(config->kernel_node);
+	kernel->size = get_kernel_size(config->kernel);
 	printk(BIOS_DEBUG, "FIT: Using kernel size of 0x%zx bytes\n",
 	       kernel->size);
 

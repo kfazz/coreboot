@@ -1,17 +1,5 @@
-/*
- * Interface to SPI flash
- *
- * Copyright (C) 2008 Atmel Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* Interface to SPI flash */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _SPI_FLASH_H_
 #define _SPI_FLASH_H_
 
@@ -59,6 +47,10 @@ struct spi_flash_ops {
 			const void *buf);
 	int (*erase)(const struct spi_flash *flash, u32 offset, size_t len);
 	int (*status)(const struct spi_flash *flash, u8 *reg);
+};
+
+/* Current code assumes all callbacks are supplied in this object. */
+struct spi_flash_protection_ops {
 	/*
 	 * Returns 1 if the whole region is software write protected.
 	 * Hardware write protection mechanism aren't accounted.
@@ -66,7 +58,7 @@ struct spi_flash_ops {
 	 * register for example, 0 should be returned.
 	 * Returns 0 on success.
 	 */
-	int (*get_write_protection)(const struct spi_flash *flash,
+	int (*get_write)(const struct spi_flash *flash,
 				    const struct region *region);
 	/*
 	 * Enable the status register write protection, if supported on the
@@ -80,25 +72,36 @@ struct spi_flash_ops {
 	 * @return 0 on success
 	 */
 	int
-	(*set_write_protection)(const struct spi_flash *flash,
+	(*set_write)(const struct spi_flash *flash,
 				const struct region *region,
-				const bool non_volatile,
 				const enum spi_flash_status_reg_lockdown mode);
 
 };
 
+struct spi_flash_part_id;
+
 struct spi_flash {
 	struct spi_slave spi;
 	u8 vendor;
+	union {
+		u8 raw;
+		struct {
+			u8 dual_spi	: 1;
+			u8 _reserved	: 7;
+		};
+	} flags;
 	u16 model;
-	const char *name;
 	u32 size;
 	u32 sector_size;
 	u32 page_size;
 	u8 erase_cmd;
 	u8 status_cmd;
+	u8 pp_cmd; /* Page program command. */
+	u8 wren_cmd; /* Write Enable command. */
 	const struct spi_flash_ops *ops;
-	const void *driver_private;
+	/* If !NULL all protection callbacks exist. */
+	const struct spi_flash_protection_ops *prot_ops;
+	const struct spi_flash_part_id *part;
 };
 
 void lb_spi_flash(struct lb_header *header);
@@ -166,7 +169,6 @@ int spi_flash_is_write_protected(const struct spi_flash *flash,
  *
  * @param flash : A SPI flash device
  * @param region: A subregion of the device's region
- * @param non_volatile: Write status register non-volatile
  * @param mode: Optional lock-down of status register
 
  * @return 0 on success
@@ -174,7 +176,6 @@ int spi_flash_is_write_protected(const struct spi_flash *flash,
 int
 spi_flash_set_write_protected(const struct spi_flash *flash,
 			      const struct region *region,
-			      const bool non_volatile,
 			      const enum spi_flash_status_reg_lockdown mode);
 
 /*
@@ -201,7 +202,7 @@ int chipset_volatile_group_begin(const struct spi_flash *flash);
 int chipset_volatile_group_end(const struct spi_flash *flash);
 
 /* Return spi_flash object reference for the boot device. This is only valid
- * if CONFIG_BOOT_DEVICE_SPI_FLASH is enabled. */
+ * if CONFIG(BOOT_DEVICE_SPI_FLASH) is enabled. */
 const struct spi_flash *boot_device_spi_flash(void);
 
 /* Protect a region of spi flash using its controller, if available. Returns
@@ -223,5 +224,13 @@ int spi_flash_vector_helper(const struct spi_slave *slave,
 	struct spi_op vectors[], size_t count,
 	int (*func)(const struct spi_slave *slave, const void *dout,
 		    size_t bytesout, void *din, size_t bytesin));
+
+/*
+ * Fill in the memory mapped windows used by the SPI flash device. This is useful for payloads
+ * to identify SPI flash to host space mapping.
+ *
+ * Returns number of windows added to the table.
+ */
+uint32_t spi_flash_get_mmap_windows(struct flash_mmap_window *table);
 
 #endif /* _SPI_FLASH_H_ */

@@ -1,25 +1,14 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- * Copyright (C) 2011 The ChromiumOS Authors.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpigen.h>
+#include <acpi/acpigen.h>
 #include <arch/cpu.h>
 #include <console/console.h>
+#include <cpu/intel/msr.h>
+#include <cpu/x86/lapic.h>
 #include <cpu/x86/msr.h>
 #include "common.h"
+
+#define  CPUID_6_ECX_EPB	(1 << 3)
 
 void set_vmx_and_lock(void)
 {
@@ -59,8 +48,13 @@ void set_feature_ctrl_vmx(void)
 
 	if (enable) {
 		msr.lo |= (1 << 2);
-		if (feature_flag & CPUID_SMX)
+		if (feature_flag & CPUID_SMX) {
 			msr.lo |= (1 << 1);
+			if (CONFIG(INTEL_TXT)) {
+				/* Enable GetSec and all GetSec leaves */
+				msr.lo |= (0xff << 8);
+			}
+		}
 	}
 
 	wrmsr(IA32_FEATURE_CONTROL, msr);
@@ -113,7 +107,7 @@ void cpu_init_cppc_config(struct cppc_config *config, u32 version)
 		.space_id   = ACPI_ADDRESS_SPACE_FIXED,
 		.bit_width  = 8,
 		.bit_offset = 0,
-		.access_size = 4,
+		.access_size = ACPI_ACCESS_SIZE_QWORD_ACCESS,
 		.addrl      = 0,
 		.addrh      = 0,
 	};
@@ -121,7 +115,7 @@ void cpu_init_cppc_config(struct cppc_config *config, u32 version)
 		.space_id   = ACPI_ADDRESS_SPACE_MEMORY,
 		.bit_width  = 0,
 		.bit_offset = 0,
-		.access_size = 0,
+		.access_size = ACPI_ACCESS_SIZE_UNDEFINED,
 		.addrl      = 0,
 		.addrh      = 0,
 	};
@@ -135,13 +129,6 @@ void cpu_init_cppc_config(struct cppc_config *config, u32 version)
 	 * ResourceTemplate(){Register(FFixedHW, 0x08, 0x00, 0x771, 0x04,)},
 	 */
 	config->regs[CPPC_HIGHEST_PERF] = msr;
-
-	/*
-	 * Nominal Performance -> Guaranteed Performance:
-	 * ResourceTemplate(){Register(FFixedHW, 0x08, 0x08, 0x771, 0x04,)},
-	 */
-	msr.bit_offset = 8;
-	config->regs[CPPC_NOMINAL_PERF] = msr;
 
 	/*
 	 * Lowest Nonlinear Performance -> Most Efficient Performance:
@@ -163,6 +150,15 @@ void cpu_init_cppc_config(struct cppc_config *config, u32 version)
 	 */
 	msr.bit_offset = 8;
 	config->regs[CPPC_GUARANTEED_PERF] = msr;
+
+	msr.addrl = MSR_PLATFORM_INFO;
+
+	/*
+	 * Nominal Performance -> Maximum Non-Turbo Ratio:
+	 * ResourceTemplate(){Register(FFixedHW, 0x08, 0x08, 0xce, 0x04,)},
+	 */
+	msr.bit_offset = 8;
+	config->regs[CPPC_NOMINAL_PERF] = msr;
 
 	msr.addrl = IA32_HWP_REQUEST;
 
@@ -245,11 +241,23 @@ void cpu_init_cppc_config(struct cppc_config *config, u32 version)
 	if (version >= 2) {
 		/* Autonomous Selection Enable is populated below */
 
-		/* Autonomous Activity Window Register */
-		config->regs[CPPC_AUTO_ACTIVITY_WINDOW] = unsupported;
+		msr.addrl = IA32_HWP_REQUEST;
 
-		/* Energy Performance Preference Register */
-		config->regs[CPPC_PERF_PREF] = unsupported;
+		/*
+		 * Autonomous Activity Window Register
+		 * ResourceTemplate(){Register(FFixedHW, 0x0a, 0x20, 0x774, 0x04,)},
+		 */
+		msr.bit_width = 10;
+		msr.bit_offset = 32;
+		config->regs[CPPC_AUTO_ACTIVITY_WINDOW] = msr;
+
+		/*
+		 * Autonomous Energy Performance Preference Register
+		 * ResourceTemplate(){Register(FFixedHW, 0x08, 0x18, 0x774, 0x04,)},
+		 */
+		msr.bit_width = 8;
+		msr.bit_offset = 24;
+		config->regs[CPPC_PERF_PREF] = msr;
 
 		/* Reference Performance */
 		config->regs[CPPC_REF_PERF] = unsupported;
@@ -269,8 +277,51 @@ void cpu_init_cppc_config(struct cppc_config *config, u32 version)
 		msr.space_id    = ACPI_ADDRESS_SPACE_MEMORY;
 		msr.bit_width   = 32;
 		msr.bit_offset  = 0;
-		msr.access_size = 0;
+		msr.access_size = ACPI_ACCESS_SIZE_UNDEFINED;
 		msr.addrl       = 1;
 		config->regs[CPPC_AUTO_SELECT] = msr;
 	}
+}
+
+void set_aesni_lock(void)
+{
+	msr_t msr;
+
+	if (!CONFIG(SET_MSR_AESNI_LOCK_BIT))
+		return;
+
+	if (!(cpu_get_feature_flags_ecx() & CPUID_AES))
+		return;
+
+	/* Only run once per core as specified in the MSR datasheet */
+	if (intel_ht_sibling())
+		return;
+
+	msr = rdmsr(MSR_FEATURE_CONFIG);
+	if (msr.lo & AESNI_LOCK)
+		return;
+
+	msr_set(MSR_FEATURE_CONFIG, AESNI_LOCK);
+}
+
+void enable_lapic_tpr(void)
+{
+	msr_unset(MSR_PIC_MSG_CONTROL, TPR_UPDATES_DISABLE);
+}
+
+void configure_dca_cap(void)
+{
+	if (cpu_get_feature_flags_ecx() & CPUID_DCA)
+		msr_set(IA32_PLATFORM_DCA_CAP, DCA_TYPE0_EN);
+}
+
+void set_energy_perf_bias(u8 policy)
+{
+	u8 epb = policy & ENERGY_POLICY_MASK;
+
+	if (!(cpuid_ecx(6) & CPUID_6_ECX_EPB))
+		return;
+
+	msr_unset_and_set(IA32_ENERGY_PERF_BIAS, ENERGY_POLICY_MASK, epb);
+	printk(BIOS_DEBUG, "cpu: energy policy set to %u\n", epb);
 }

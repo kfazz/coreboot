@@ -1,49 +1,7 @@
-/*
- * Copyright 2013 Google Inc.
- * Copyright © 2012 Intel Corporation
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- *
- * Authors:
- *    Eugeni Dodonov <eugeni.dodonov@intel.com>
- *
- */
-#include <types.h>
-#include <stdlib.h>
-#include <device/device.h>
-#include <device/pci_def.h>
-#include <device/pci_ops.h>
-#include <console/console.h>
-#include <delay.h>
-#include <arch/acpi.h>
-#include <arch/interrupt.h>
-#include <boot/coreboot_tables.h>
-#include <smbios.h>
-#include <device/pci.h>
-#include <ec/google/chromeec/ec.h>
+/* SPDX-License-Identifier: MIT */
 
-#include <cpu/x86/tsc.h>
-#include <cpu/x86/cache.h>
-#include <cpu/x86/mtrr.h>
-#include <cpu/x86/msr.h>
-#include <edid.h>
+#include <types.h>
+#include <console/console.h>
 #include <drivers/intel/gma/i915.h>
 
 /* HDMI/DVI modes ignore everything but the last 2 items. So we share

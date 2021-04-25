@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef SOC_MEDIATEK_MT8173_PLL_H
 #define SOC_MEDIATEK_MT8173_PLL_H
@@ -292,7 +279,6 @@ enum {
 void mt_pll_post_init(void);
 void mt_pll_set_aud_div(u32 rate);
 void mt_pll_enable_ssusb_clk(void);
-void mt_pll_raise_ca53_freq(u32 freq);
 void mt_mem_pll_set_clk_cfg(void);
 void mt_mem_pll_config_pre(const struct mt8173_sdram_params *sdram_params);
 void mt_mem_pll_config_post(void);

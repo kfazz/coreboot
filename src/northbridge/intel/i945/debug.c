@@ -1,31 +1,16 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2008 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <spd.h>
 #include <device/pci_ops.h>
 #include <device/pci_def.h>
+#include <device/smbus_host.h>
 #include <console/console.h>
 #include "i945.h"
 
 void print_pci_devices(void)
 {
 	pci_devfn_t dev;
-	for (dev = PCI_DEV(0, 0, 0);
-		dev <= PCI_DEV(0, 0x1f, 0x7);
-		dev += PCI_DEV(0, 0, 1)) {
+	for (dev = PCI_DEV(0, 0, 0); dev <= PCI_DEV(0, 0x1f, 0x7); dev += PCI_DEV(0, 0, 1)) {
 		uint32_t id;
 		id = pci_read_config32(dev, PCI_VENDOR_ID);
 		if (((id & 0xffff) == 0x0000) || ((id & 0xffff) == 0xffff) ||
@@ -43,7 +28,8 @@ void dump_pci_device(unsigned int dev)
 {
 	int i;
 
-	printk(BIOS_DEBUG, "PCI: %02x:%02x.%02x\n", (dev >> 20) & 0xff, (dev >> 15) & 0x1f, (dev >> 12) & 7);
+	printk(BIOS_DEBUG, "PCI: %02x:%02x.%02x\n", (dev >> 20) & 0xff, (dev >> 15) & 0x1f,
+		(dev >> 12) & 7);
 
 	for (i = 0; i <= 255; i++) {
 		unsigned char val;
@@ -59,9 +45,7 @@ void dump_pci_device(unsigned int dev)
 void dump_pci_devices(void)
 {
 	pci_devfn_t dev;
-	for (dev = PCI_DEV(0, 0, 0);
-		dev <= PCI_DEV(0, 0x1f, 0x7);
-		dev += PCI_DEV(0, 0, 1)) {
+	for (dev = PCI_DEV(0, 0, 0); dev <= PCI_DEV(0, 0x1f, 0x7); dev += PCI_DEV(0, 0, 1)) {
 		uint32_t id;
 		id = pci_read_config32(dev, PCI_VENDOR_ID);
 		if (((id & 0xffff) == 0x0000) || ((id & 0xffff) == 0xffff) ||
@@ -73,11 +57,13 @@ void dump_pci_devices(void)
 	}
 }
 
-void dump_spd_registers(void)
+void dump_spd_registers(u8 spd_map[4])
 {
-	unsigned int device;
-	device = DIMM0;
-	while (device <= DIMM3) {
+	for (unsigned int d = 0; d < 4; d++) {
+		const unsigned int device = spd_map[d];
+		if (device == 0)
+			continue;
+
 		int status = 0;
 		int i;
 		printk(BIOS_DEBUG, "\ndimm %02x", device);
@@ -92,7 +78,6 @@ void dump_spd_registers(void)
 			}
 			printk(BIOS_DEBUG, "%02x ", status);
 		}
-		device++;
 		printk(BIOS_DEBUG, "\n");
 	}
 }

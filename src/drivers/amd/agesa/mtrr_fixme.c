@@ -1,22 +1,11 @@
-/*
- * This file is part of the coreboot project.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/cpu.h>
+#include <arch/romstage.h>
 #include <cbmem.h>
 #include <console/console.h>
+#include <commonlib/helpers.h>
 #include <cpu/amd/mtrr.h>
 #include <cpu/cpu.h>
-#include <cpu/x86/cache.h>
 #include <cpu/x86/msr.h>
 #include <cpu/x86/mtrr.h>
 #include <northbridge/amd/agesa/agesa_helper.h>
@@ -70,7 +59,7 @@ void recover_postcar_frame(struct postcar_frame *pcf, int s3resume)
 
 	/* Replicate non-UC MTRRs as left behind by AGESA.
 	 */
-	for (i = 0; i < pcf->max_var_mtrrs; i++) {
+	for (i = 0; i < pcf->ctx.max_var_mtrrs; i++) {
 		mask = rdmsr(MTRR_PHYS_MASK(i));
 		base = rdmsr(MTRR_PHYS_BASE(i));
 		u32 size = ~(mask.lo & ~0xfff) + 1;

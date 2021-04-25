@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2009 coresystems GmbH
- * Copyright (C) 2017 Iru Cai
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/io.h>
 #include <console/console.h>
@@ -39,7 +24,7 @@ static int send_kbd_command(u8 command)
 {
 	int timeout;
 
-	timeout = 0x7ff;
+	timeout = 100000; /* 1 second */
 	while ((inb(ec_cmd_port) & KBD_IBF) && --timeout) {
 		udelay(10);
 		if ((timeout & 0xff) == 0)
@@ -59,7 +44,7 @@ static int send_kbd_data(u8 data)
 {
 	int timeout;
 
-	timeout = 0x7ff;
+	timeout = 100000; /* 1 second */
 	while ((inb(ec_cmd_port) & KBD_IBF) && --timeout) { /* wait for IBF = 0 */
 		udelay(10);
 		if ((timeout & 0xff) == 0)

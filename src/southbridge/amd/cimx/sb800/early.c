@@ -1,20 +1,6 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <stdint.h>
-#include <device/pci_ids.h>
+#include <amdblocks/acpimmio.h>
 #include "SBPLATFORM.h"
 #include "sb_cimx.h"
 #include "cfg.h"		/*sb800_cimx_config*/
@@ -42,9 +28,7 @@ void sb_Poweron_Init(void)
  */
 void sb800_clk_output_48Mhz(void)
 {
-	/* AcpiMMioDecodeEn */
-	RWPMIO(SB_PMIOA_REG24, AccWidthUint8, ~(BIT0 + BIT1), BIT0);
 
-	*(volatile u32 *)(ACPI_MMIO_BASE + MISC_BASE + 0x40) &= ~((1 << 0) | (1 << 2)); /* 48Mhz */
-	*(volatile u32 *)(ACPI_MMIO_BASE + MISC_BASE + 0x40) |= 1 << 1; /* 48Mhz */
+	misc_write32(0x40, misc_read32(0x40) & (~5));
+	misc_write32(0x40, misc_read32(0x40) | 2);
 }

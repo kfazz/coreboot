@@ -1,21 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _DRAMC_PI_API_H
 #define _DRAMC_PI_API_H
 
+#include <soc/dramc_common.h>
+#include <soc/dramc_soc.h>
 #include <soc/emi.h>
 #include <console/console.h>
 
@@ -177,11 +166,5 @@ void dramk_check_dq_win(struct dqs_perbit_dly *p, u8 dly_step, u8 last_step, u32
 
 void tx_delay_for_wrleveling(u32 channel, struct dqs_perbit_dly *dqdqs_perbit_dly,
 			     u8 *ave_dqdly_byte, u8 *max_dqsdly_byte);
-
-#if CONFIG(DEBUG_DRAM)
-#define dramc_dbg_msg(_x_...) printk(BIOS_DEBUG, _x_)
-#else
-#define dramc_dbg_msg(_x_...)
-#endif
 
 #endif /* _PI_API_H */

@@ -1,24 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2003 Eric Biederman
- * Copyright (C) 2006-2010 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <stdlib.h>
 #include <arch/io.h>
 #include <boot/coreboot_tables.h>
 #include <console/uart.h>
-#include <trace.h>
 #include "uart8250reg.h"
 
 /* Should support 8250, 16450, 16550, 16550A type UARTs */
@@ -32,30 +16,30 @@
 #define SINGLE_CHAR_TIMEOUT	(50 * 1000)
 #define FIFO_TIMEOUT		(16 * SINGLE_CHAR_TIMEOUT)
 
-static int uart8250_can_tx_byte(unsigned base_port)
+static int uart8250_can_tx_byte(unsigned int base_port)
 {
 	return inb(base_port + UART8250_LSR) & UART8250_LSR_THRE;
 }
 
-static void uart8250_tx_byte(unsigned base_port, unsigned char data)
+static void uart8250_tx_byte(unsigned int base_port, unsigned char data)
 {
 	unsigned long int i = SINGLE_CHAR_TIMEOUT;
 	while (i-- && !uart8250_can_tx_byte(base_port));
 	outb(data, base_port + UART8250_TBR);
 }
 
-static void uart8250_tx_flush(unsigned base_port)
+static void uart8250_tx_flush(unsigned int base_port)
 {
 	unsigned long int i = FIFO_TIMEOUT;
 	while (i-- && !(inb(base_port + UART8250_LSR) & UART8250_LSR_TEMT));
 }
 
-static int uart8250_can_rx_byte(unsigned base_port)
+static int uart8250_can_rx_byte(unsigned int base_port)
 {
 	return inb(base_port + UART8250_LSR) & UART8250_LSR_DR;
 }
 
-static unsigned char uart8250_rx_byte(unsigned base_port)
+static unsigned char uart8250_rx_byte(unsigned int base_port)
 {
 	unsigned long int i = SINGLE_CHAR_TIMEOUT;
 	while (i && !uart8250_can_rx_byte(base_port))
@@ -67,9 +51,8 @@ static unsigned char uart8250_rx_byte(unsigned base_port)
 		return 0x0;
 }
 
-static void uart8250_init(unsigned base_port, unsigned divisor)
+static void uart8250_init(unsigned int base_port, unsigned int divisor)
 {
-	DISABLE_TRACE;
 	/* Disable interrupts */
 	outb(0x0, base_port + UART8250_IER);
 	/* Enable FIFOs */
@@ -87,19 +70,18 @@ static void uart8250_init(unsigned base_port, unsigned divisor)
 
 	/* Set to 3 for 8N1 */
 	outb(CONFIG_TTYS0_LCS, base_port + UART8250_LCR);
-	ENABLE_TRACE;
 }
 
-static const unsigned bases[] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
+static const unsigned int bases[] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
 
-uintptr_t uart_platform_base(int idx)
+uintptr_t uart_platform_base(unsigned int idx)
 {
 	if (idx < ARRAY_SIZE(bases))
 		return bases[idx];
 	return 0;
 }
 
-void uart_init(int idx)
+void uart_init(unsigned int idx)
 {
 	if (!CONFIG(DRIVERS_UART_8250IO_SKIP_INIT)) {
 		unsigned int div;
@@ -109,22 +91,21 @@ void uart_init(int idx)
 	}
 }
 
-void uart_tx_byte(int idx, unsigned char data)
+void uart_tx_byte(unsigned int idx, unsigned char data)
 {
 	uart8250_tx_byte(uart_platform_base(idx), data);
 }
 
-unsigned char uart_rx_byte(int idx)
+unsigned char uart_rx_byte(unsigned int idx)
 {
 	return uart8250_rx_byte(uart_platform_base(idx));
 }
 
-void uart_tx_flush(int idx)
+void uart_tx_flush(unsigned int idx)
 {
 	uart8250_tx_flush(uart_platform_base(idx));
 }
 
-#if ENV_RAMSTAGE
 void uart_fill_lb(void *data)
 {
 	struct lb_serial serial;
@@ -138,4 +119,3 @@ void uart_fill_lb(void *data)
 
 	lb_add_console(LB_TAG_CONSOLE_SERIAL8250, data);
 }
-#endif

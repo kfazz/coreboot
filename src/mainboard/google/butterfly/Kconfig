@@ -18,38 +18,31 @@ config BOARD_SPECIFIC_OPTIONS
 	select SERIRQ_CONTINUOUS_MODE	# Workaround for EC/KBC IRQ1.
 	select HAVE_IFD_BIN
 	select HAVE_ME_BIN
-	select GFX_GMA_INTERNAL_IS_LVDS
+	select GFX_GMA_PANEL_1_ON_LVDS
 	select MAINBOARD_HAS_LIBGFXINIT
+	select SANDYBRIDGE_VBOOT_IN_ROMSTAGE
 
 config VBOOT
 	select VBOOT_VBNV_CMOS
 
 config MAINBOARD_DIR
 	string
-	default google/butterfly
+	default "google/butterfly"
 
 config MAINBOARD_PART_NUMBER
 	string
 	default "Butterfly"
 
-config MAX_CPUS
-	int
-	default 8
-
 config VGA_BIOS_FILE
 	string
 	default "pci8086,0106.rom"
 
-config MAINBOARD_PCI_SUBSYSTEM_VENDOR_ID
-	hex
-	default 0x1ae0
-
-config MAINBOARD_PCI_SUBSYSTEM_DEVICE_ID
-	hex
-	default 0xc000
-
 config MAINBOARD_VENDOR
 	string
 	default "Hewlett-Packard"
+
+config MAINBOARD_SMBIOS_MANUFACTURER
+	string
+	default "GOOGLE"
 
 endif # BOARD_GOOGLE_BUTTERFLY

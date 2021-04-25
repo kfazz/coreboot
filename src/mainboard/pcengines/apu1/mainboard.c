@@ -1,34 +1,23 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Advanced Micro Devices, Inc.
- * Copyright (C) 2013-2014 Sage Electronic Engineering, LLC
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#include <amdblocks/acpimmio.h>
 
 #include <console/console.h>
 #include <device/device.h>
-#include <device/pci.h>
 #include <device/mmio.h>
 #include <device/pci_ops.h>
 #include <device/pci_def.h>
 #include <southbridge/amd/common/amd_pci_util.h>
-#include <southbridge/amd/cimx/cimx_util.h>
 #include <smbios.h>
 #include <string.h>
-#include <southbridge/amd/cimx/sb800/SBPLATFORM.h>
 #include <southbridge/amd/cimx/sb800/pci_devs.h>
+#include <northbridge/amd/agesa/agesa_helper.h>
 #include <northbridge/amd/agesa/family14/pci_devs.h>
 #include <superio/nuvoton/nct5104d/nct5104d.h>
 #include "gpio_ftns.h"
+#include <AGESA.h>
+#include <AMD.h>
+#include <southbridge/amd/cimx/sb800/SBPLATFORM.h>
 
 /***********************************************************
  * These arrays set up the FCH PCI_INTR registers 0xC00/0xC01.
@@ -122,7 +111,7 @@ static const struct pirq_struct mainboard_pirq_data[] = {
 static void pirq_setup(void)
 {
 	pirq_data_ptr = mainboard_pirq_data;
-	pirq_data_size = sizeof(mainboard_pirq_data) / sizeof(struct pirq_struct);
+	pirq_data_size = ARRAY_SIZE(mainboard_pirq_data);
 	intr_data_ptr = mainboard_intr_data;
 	picr_data_ptr = mainboard_picr_data;
 }
@@ -139,16 +128,16 @@ static void config_gpio_mux(void)
 	uart = dev_find_slot_pnp(SIO_PORT, NCT5104D_SP3);
 	gpio = dev_find_slot_pnp(SIO_PORT, NCT5104D_GPIO0);
 	if (uart)
-		uart->enabled = CONFIG_APU1_PINMUX_UART_C;
+		uart->enabled = CONFIG(APU1_PINMUX_UART_C);
 	if (gpio)
-		gpio->enabled = CONFIG_APU1_PINMUX_GPIO0;
+		gpio->enabled = CONFIG(APU1_PINMUX_GPIO0);
 
 	uart = dev_find_slot_pnp(SIO_PORT, NCT5104D_SP4);
 	gpio = dev_find_slot_pnp(SIO_PORT, NCT5104D_GPIO1);
 	if (uart)
-		uart->enabled = CONFIG_APU1_PINMUX_UART_D;
+		uart->enabled = CONFIG(APU1_PINMUX_UART_D);
 	if (gpio)
-		gpio->enabled = CONFIG_APU1_PINMUX_GPIO1;
+		gpio->enabled = CONFIG(APU1_PINMUX_GPIO1);
 }
 
 static void pnp_raw_resource(struct device *dev, u8 reg, u8 val)
@@ -165,38 +154,129 @@ static void config_addon_uart(void)
 	struct device *uart;
 
 	uart = dev_find_slot_pnp(SIO_PORT, NCT5104D_SP3);
-	if (uart && uart->enabled && CONFIG_UART_C_RS485)
+	if (uart && uart->enabled && CONFIG(UART_C_RS485))
 		pnp_raw_resource(uart, 0xf2, 0x12);
 
 	uart = dev_find_slot_pnp(SIO_PORT, NCT5104D_SP4);
-	if (uart && uart->enabled && CONFIG_UART_D_RS485)
+	if (uart && uart->enabled && CONFIG(UART_D_RS485))
 		pnp_raw_resource(uart, 0xf2, 0x12);
 }
 
 /**********************************************
  * Enable the dedicated functions of the board.
  **********************************************/
+#if CONFIG(GENERATE_SMBIOS_TABLES)
+static int mainboard_smbios_type16(DMI_INFO *agesa_dmi, int *handle, unsigned long *current)
+{
+	struct smbios_type16 *t;
+	u32 max_capacity;
+	int len;
+
+	t = (struct smbios_type16 *)*current;
+	len = sizeof(struct smbios_type16);
+	memset(t, 0, len);
+	max_capacity = get_spd_offset() ? 4 : 2; /* 4GB or 2GB variant */
+
+	t->type = SMBIOS_PHYS_MEMORY_ARRAY;
+	t->handle = *handle;
+	t->length = len - 2;
+	t->type = SMBIOS_PHYS_MEMORY_ARRAY;
+	t->use = MEMORY_ARRAY_USE_SYSTEM;
+	t->location = MEMORY_ARRAY_LOCATION_SYSTEM_BOARD;
+	t->memory_error_correction = agesa_dmi->T16.MemoryErrorCorrection;
+	t->maximum_capacity = max_capacity * 1024 * 1024;
+	t->memory_error_information_handle = 0xfffe;
+	t->number_of_memory_devices = 1;
+
+	*current += len;
+
+	return len;
+}
+
+static int mainboard_smbios_type17(DMI_INFO *agesa_dmi, int *handle, unsigned long *current)
+{
+	struct smbios_type17 *t;
+	int len;
+
+	t = (struct smbios_type17 *)*current;
+	memset(t, 0, sizeof(struct smbios_type17));
+
+	t->type = SMBIOS_MEMORY_DEVICE;
+	t->length = sizeof(struct smbios_type17) - 2;
+	t->handle = *handle + 1;
+	t->phys_memory_array_handle = *handle;
+	t->memory_error_information_handle = 0xfffe;
+	t->total_width = agesa_dmi->T17[0][0][0].TotalWidth;
+	t->data_width = agesa_dmi->T17[0][0][0].DataWidth;
+	t->size = agesa_dmi->T17[0][0][0].MemorySize;
+	/* AGESA DMI returns form factor = 0, override it with SPD value */
+	t->form_factor = MEMORY_FORMFACTOR_SODIMM;
+	t->device_set = agesa_dmi->T17[0][0][0].DeviceSet;
+	t->device_locator = smbios_add_string(t->eos, agesa_dmi->T17[0][0][0].DeviceLocator);
+	t->bank_locator = smbios_add_string(t->eos, agesa_dmi->T17[0][0][0].BankLocator);
+	t->memory_type = agesa_dmi->T17[0][0][0].MemoryType;
+	t->type_detail = *(u16 *)&agesa_dmi->T17[0][0][0].TypeDetail;
+	t->speed = agesa_dmi->T17[0][0][0].Speed;
+	t->manufacturer = agesa_dmi->T17[0][0][0].ManufacturerIdCode;
+	t->serial_number = smbios_add_string(t->eos, agesa_dmi->T17[0][0][0].SerialNumber);
+	t->part_number = smbios_add_string(t->eos, agesa_dmi->T17[0][0][0].PartNumber);
+	t->attributes = agesa_dmi->T17[0][0][0].Attributes;
+	t->extended_size = agesa_dmi->T17[0][0][0].ExtSize;
+	t->clock_speed = agesa_dmi->T17[0][0][0].ConfigSpeed;
+	t->minimum_voltage = 1500; /* From SPD: 1.5V */
+	t->maximum_voltage = 1500;
+
+	len = t->length + smbios_string_table_len(t->eos);
+	*current += len;
+
+	return len;
+}
+
+static int mainboard_smbios_data(struct device *dev, int *handle,
+				 unsigned long *current)
+{
+	DMI_INFO *agesa_dmi;
+	int len;
+
+	agesa_dmi = agesawrapper_getlateinitptr(PICK_DMI);
+
+	if (!agesa_dmi)
+		return 0;
+
+	len = mainboard_smbios_type16(agesa_dmi, handle, current);
+	len += mainboard_smbios_type17(agesa_dmi, handle, current);
+
+	*handle += 2;
+
+	return len;
+}
+#endif
+
 static void mainboard_enable(struct device *dev)
 {
+	/* Maintain this text unchanged for manufacture process. */
 	printk(BIOS_INFO, "Mainboard " CONFIG_MAINBOARD_PART_NUMBER " Enable.\n");
 
 	config_gpio_mux();
 	config_addon_uart();
 
-	/* Power off unused clock pins of GPP PCIe devices */
-	u8 *misc_mem_clk_cntrl = (u8 *)(ACPI_MMIO_BASE + MISC_BASE);
-	/* GPP CLK0-2 are connected to the 3 ethernet chips
-	 * GPP CLK3-4 are connected to the miniPCIe slots */
-	write8(misc_mem_clk_cntrl + 0, 0x21);
-	write8(misc_mem_clk_cntrl + 1, 0x43);
+	/* Power off unused clock pins of GPP PCIe devices
+	 * GPP CLK0-2 are connected to the 3 ethernet chips
+	 * GPP CLK3-4 are connected to the miniPCIe slots
+	 */
+	misc_write8(0, 0x21);
+	misc_write8(1, 0x43);
 	/* GPP CLK5 is only connected to test pads -> disable */
-	write8(misc_mem_clk_cntrl + 2, 0x05);
+	misc_write8(2, 0x05);
 	/* disable unconnected GPP CLK6-8 and SLT_GFX_CLK */
-	write8(misc_mem_clk_cntrl + 3, 0x00);
-	write8(misc_mem_clk_cntrl + 4, 0x00);
+	misc_write8(3, 0);
+	misc_write8(4, 0);
 
 	/* Initialize the PIRQ data structures for consumption */
 	pirq_setup();
+#if CONFIG(GENERATE_SMBIOS_TABLES)
+	dev->ops->get_smbios_data = mainboard_smbios_data;
+#endif
 }
 
 /*
@@ -206,18 +286,24 @@ static void mainboard_enable(struct device *dev)
 const char *smbios_mainboard_serial_number(void)
 {
 	static char serial[10];
-	struct device *nic_dev;
+	struct device *dev;
 	uintptr_t bar18;
 	u32 mac_addr = 0;
 	int i;
 
-	nic_dev = dev_find_slot(1, PCI_DEVFN(0, 0));
-	if ((serial[0] != 0) || !nic_dev)
+	/* Already initialized. */
+	if (serial[0] != 0)
+		return serial;
+
+	dev = pcidev_on_root(4, 0);
+	if (dev)
+		dev = pcidev_path_behind(dev->link_list, PCI_DEVFN(0, 0));
+	if (!dev)
 		return serial;
 
 	/* Read in the last 3 bytes of NIC's MAC address. */
-	bar18 = pci_read_config32(nic_dev, 0x18);
-	bar18 &= 0xFFFFFC00;
+	bar18 = pci_read_config32(dev, PCI_BASE_ADDRESS_2);
+	bar18 &= 0xFFFFFFF0;
 	for (i = 3; i < 6; i++) {
 		mac_addr <<= 8;
 		mac_addr |= read8((u8 *)bar18 + i);
@@ -278,8 +364,7 @@ const char *smbios_system_sku(void)
 
 static void mainboard_final(void *chip_info)
 {
-	u32 mmio_base;
-
+	/* Maintain this text unchanged for manufacture process. */
 	printk(BIOS_INFO, "Mainboard " CONFIG_MAINBOARD_PART_NUMBER " Final.\n");
 
 	/*
@@ -287,10 +372,9 @@ static void mainboard_final(void *chip_info)
 	 * LED2/D6/GPIO_190 should be 1
 	 * LED3/D5/GPIO_191 should be 1
 	 */
-	mmio_base = find_gpio_base();
-	configure_gpio(mmio_base, GPIO_189, GPIO_FTN_1, GPIO_OUTPUT | GPIO_DATA_LOW);
-	configure_gpio(mmio_base, GPIO_190, GPIO_FTN_1, GPIO_OUTPUT | GPIO_DATA_HIGH);
-	configure_gpio(mmio_base, GPIO_191, GPIO_FTN_1, GPIO_OUTPUT | GPIO_DATA_HIGH);
+	configure_gpio(GPIO_189, GPIO_FTN_1, GPIO_OUTPUT | GPIO_DATA_LOW);
+	configure_gpio(GPIO_190, GPIO_FTN_1, GPIO_OUTPUT | GPIO_DATA_HIGH);
+	configure_gpio(GPIO_191, GPIO_FTN_1, GPIO_OUTPUT | GPIO_DATA_HIGH);
 	usb_oc_setup();
 }
 

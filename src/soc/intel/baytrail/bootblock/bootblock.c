@@ -1,59 +1,91 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <arch/bootblock.h>
+#include <arch/io.h>
 #include <device/pci_ops.h>
-#include <cpu/x86/cache.h>
-#include <cpu/x86/msr.h>
-#include <cpu/x86/mtrr.h>
 #include <soc/iosf.h>
-#include <cpu/intel/microcode/microcode.c>
+#include <soc/iomap.h>
+#include <soc/gpio.h>
+#include <soc/lpc.h>
+#include <soc/spi.h>
+#include <soc/pm.h>
 
-static void set_var_mtrr(int reg, uint32_t base, uint32_t size, int type)
+static void program_base_addresses(void)
 {
-	msr_t basem, maskm;
-	basem.lo = base | type;
-	basem.hi = 0;
-	wrmsr(MTRR_PHYS_BASE(reg), basem);
-	maskm.lo = ~(size - 1) | MTRR_PHYS_MASK_VALID;
-	maskm.hi = (1 << (CONFIG_CPU_ADDR_BITS - 32)) - 1;
-	wrmsr(MTRR_PHYS_MASK(reg), maskm);
+	uint32_t reg;
+	const uint32_t lpc_dev = PCI_DEV(0, LPC_DEV, LPC_FUNC);
+
+	/* Memory Mapped IO registers. */
+	reg = PMC_BASE_ADDRESS | 2;
+	pci_write_config32(lpc_dev, PBASE, reg);
+	reg = IO_BASE_ADDRESS | 2;
+	pci_write_config32(lpc_dev, IOBASE, reg);
+	reg = ILB_BASE_ADDRESS | 2;
+	pci_write_config32(lpc_dev, IBASE, reg);
+	reg = SPI_BASE_ADDRESS | 2;
+	pci_write_config32(lpc_dev, SBASE, reg);
+	reg = MPHY_BASE_ADDRESS | 2;
+	pci_write_config32(lpc_dev, MPBASE, reg);
+	reg = PUNIT_BASE_ADDRESS | 2;
+	pci_write_config32(lpc_dev, PUBASE, reg);
+	reg = RCBA_BASE_ADDRESS | 1;
+	pci_write_config32(lpc_dev, RCBA, reg);
+
+	/* IO Port Registers. */
+	reg = ACPI_BASE_ADDRESS | 2;
+	pci_write_config32(lpc_dev, ABASE, reg);
+	reg = GPIO_BASE_ADDRESS | 2;
+	pci_write_config32(lpc_dev, GBASE, reg);
 }
 
-static void enable_rom_caching(void)
+static void tco_disable(void)
 {
-	msr_t msr;
+	uint32_t reg;
 
-	disable_cache();
-	/* Why only top 4MiB ? */
-	set_var_mtrr(1, 0xffc00000, 4*1024*1024, MTRR_TYPE_WRPROT);
-	enable_cache();
+	reg = inl(ACPI_BASE_ADDRESS + TCO1_CNT);
+	reg |= TCO_TMR_HALT;
+	outl(reg, ACPI_BASE_ADDRESS + TCO1_CNT);
+}
 
-	/* Enable Variable MTRRs */
-	msr.hi = 0x00000000;
-	msr.lo = 0x00000800;
-	wrmsr(MTRR_DEF_TYPE_MSR, msr);
+static void spi_init(void)
+{
+	void *scs = (void *)(SPI_BASE_ADDRESS + SCS);
+	void *bcr = (void *)(SPI_BASE_ADDRESS + BCR);
+	uint32_t reg;
+
+	/* Disable generating SMI when setting WPD bit. */
+	write32(scs, read32(scs) & ~SMIWPEN);
+	/*
+	 * Enable caching and prefetching in the SPI controller. Disable
+	 * the SMM-only BIOS write and set WPD bit.
+	 */
+	reg = (read32(bcr) & ~SRC_MASK) | SRC_CACHE_PREFETCH | BCR_WPD;
+	reg &= ~EISS;
+	write32(bcr, reg);
+}
+
+static void byt_config_com1_and_enable(void)
+{
+	uint32_t reg;
+
+	/* Enable the UART hardware for COM1. */
+	reg = 1;
+	pci_write_config32(PCI_DEV(0, LPC_DEV, 0), UART_CONT, reg);
+
+	/* Set up the pads to select the UART function */
+	score_select_func(UART_RXD_PAD, 1);
+	score_select_func(UART_TXD_PAD, 1);
 }
 
 static void setup_mmconfig(void)
 {
 	uint32_t reg;
 
-	/* Set up the MMCONF range. The register lives in the BUNIT. The
-	 * IO variant of the config access needs to be used initially to
-	 * properly configure as the IOSF access registers live in PCI
-	 * config space. */
+	/*
+	 * Set up the MMCONF range. The register lives in the BUNIT. The IO variant of the
+	 * config access needs to be used initially to properly configure as the IOSF access
+	 * registers live in PCI config space.
+	 */
 	reg = 0;
 	/* Clear the extended register. */
 	pci_io_write_config32(IOSF_PCI_DEV, MCRX_REG, reg);
@@ -64,12 +96,19 @@ static void setup_mmconfig(void)
 	pci_io_write_config32(IOSF_PCI_DEV, MCR_REG, reg);
 }
 
-static void bootblock_cpu_init(void)
+/* The distinction between nb/sb/cpu is not applicable here so
+   just pick the one that is called first. */
+void bootblock_early_northbridge_init(void)
 {
-	/* Allow memory-mapped PCI config access. */
+	/* Allow memory-mapped PCI config access */
 	setup_mmconfig();
 
-	/* Load microcode before any caching. */
-	intel_update_microcode_from_cbfs();
-	enable_rom_caching();
+	/* Early chipset initialization */
+	program_base_addresses();
+	tco_disable();
+
+	if (CONFIG(ENABLE_BUILTIN_COM1))
+		byt_config_com1_and_enable();
+
+	spi_init();
 }

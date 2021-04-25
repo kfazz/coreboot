@@ -136,8 +136,9 @@
 /* Enable parity detection on secondary interface */
 #define  PCI_BRIDGE_CTL_PARITY	0x01
 #define  PCI_BRIDGE_CTL_SERR	0x02	/* The same for SERR forwarding */
-#define  PCI_BRIDGE_CTL_NO_ISA	0x04	/* Disable bridging of ISA ports */
+#define  PCI_BRIDGE_CTL_ISA	0x04	/* Disable bridging of ISA ports */
 #define  PCI_BRIDGE_CTL_VGA	0x08	/* Forward VGA addresses */
+#define  PCI_BRIDGE_CTL_VGA16	0x10	/* Enable 16-bit i/o port decoding */
 #define  PCI_BRIDGE_CTL_MASTER_ABORT 0x20  /* Report master aborts */
 #define  PCI_BRIDGE_CTL_BUS_RESET 0x40	/* Secondary bus reset */
 /* Fast Back2Back enabled on secondary interface */
@@ -304,7 +305,6 @@
 #define  PCI_MSIX_PBA_OFFSET	~0x7	/* Offset into specified BAR */
 #define PCI_CAP_MSIX_SIZEOF	12	/* size of MSIX registers */
 
-
 /* CompactPCI Hotswap Register */
 
 #define PCI_CHSWP_CSR		2	/* Control and Status Register */
@@ -386,12 +386,6 @@
 #define PCI_EXP_DEVCAP		4	/* Device capabilities */
 #define  PCI_EXP_DEVCAP_PAYLOAD	0x07	/* Max_Payload_Size */
 #define  PCI_EXP_DEVCAP_PHANTOM	0x18	/* Phantom functions */
-#define PCI_EXP_DEV_CAP2_OFFSET	0x24	/* Device Capabilities 2 offset */
-/* LTR mechanism supported.Bit 11 of Device Cap 2 Register */
-#define  LTR_MECHANISM_SUPPORT	(1 << 11)
-#define PCI_EXP_DEV_CTL_STS2_CAP_OFFSET	0x28	/* Device Control 2  offset */
-/* LTR mechanism enable. Bit 10 of Device Control 2 Register */
-#define  LTR_MECHANISM_EN	(1 << 10)
 #define  PCI_EXP_DEVCAP_EXT_TAG	0x20	/* Extended tags */
 #define  PCI_EXP_DEVCAP_L0S	0x1c0	/* L0s Acceptable Latency */
 #define  PCI_EXP_DEVCAP_L1	0xe00	/* L1 Acceptable Latency */
@@ -425,6 +419,7 @@
 #define  PCI_EXP_LNKCAP_L0SEL	0x7000	/* L0s Exit Latency */
 #define  PCI_EXP_LNKCAP_L1EL	0x38000	/* L1 Exit Latency */
 #define  PCI_EXP_CLK_PM		0x40000	/* Clock Power Management */
+#define  PCI_EXP_LNKCAP_PORT	0xff000000 /* Port Number */
 #define PCI_EXP_LNKCTL		16	/* Link Control */
 #define  PCI_EXP_LNKCTL_RL	0x20	/* Retrain Link */
 #define  PCI_EXP_LNKCTL_CCC	0x40	/* Common Clock COnfiguration */
@@ -433,6 +428,7 @@
 #define  PCI_EXP_LNKSTA_LT	0x800	/* Link Training */
 #define  PCI_EXP_LNKSTA_SLC	0x1000	/* Slot Clock Configuration */
 #define PCI_EXP_SLTCAP		20	/* Slot Capabilities */
+#define  PCI_EXP_SLTCAP_HPC	0x0040	/* Hot-Plug Capable */
 #define PCI_EXP_SLTCTL		24	/* Slot Control */
 #define PCI_EXP_SLTSTA		26	/* Slot Status */
 #define PCI_EXP_RTCTL		28	/* Root Control */
@@ -443,6 +439,10 @@
 #define  PCI_EXP_RTCTL_CRSSVE	0x10	/* CRS Software Visibility Enable */
 #define PCI_EXP_RTCAP		30	/* Root Capabilities */
 #define PCI_EXP_RTSTA		32	/* Root Status */
+#define PCI_EXP_DEVCAP2		36	/* Device capabilities 2 */
+#define  PCI_EXP_DEVCAP2_LTR	0x0800	/* LTR supported */
+#define PCI_EXP_DEVCTL2		40	/* Device Control 2 */
+#define  PCI_EXP_DEV2_LTR	0x0400	/* LTR enabled */
 
 /* Extended Capabilities (PCI-X 2.0 and Express) */
 #define PCI_EXT_CAP_ID(header)		(header & 0x0000ffff)
@@ -518,6 +518,9 @@
 #define PCI_PWR_CAP		12	/* Capability */
 #define  PCI_PWR_CAP_BUDGET(x)	((x) & 1)	/* Included in system budget */
 
+/* Latency Tolerance Reporting */
+#define PCI_LTR_MAX_SNOOP	4
+#define PCI_LTR_MAX_NOSNOOP	6
 
 /*
  * The PCI interface treats multi-function devices as independent

@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2012 secunet Security Networks AG
  *
@@ -33,7 +32,6 @@
 #include <stdio.h>
 
 #include <storage/ata.h>
-
 
 /** Reads non-sector-aligned blocks of 512 bytes. */
 static ssize_t ata_read_unaligned(ata_dev_t *const dev,

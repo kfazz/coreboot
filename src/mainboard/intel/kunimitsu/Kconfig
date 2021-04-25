@@ -19,19 +19,7 @@ config BOARD_SPECIFIC_OPTIONS
 	select MAINBOARD_HAS_CHROMEOS
 	select MAINBOARD_HAS_LPC_TPM
 	select SOC_INTEL_SKYLAKE
-
-choice
-	prompt "FSP driver"
-	default KUNIMITSU_USES_FSP1_1
-
-config KUNIMITSU_USES_FSP1_1
-	bool "FSP driver 1.1"
-
-config KUNIMITSU_USES_FSP2_0
-	bool "FSP driver 2.0"
-	select MAINBOARD_USES_FSP2_0
-
-endchoice
+	select HAVE_SPD_IN_CBFS
 
 config VBOOT
 	select EC_GOOGLE_CHROMEEC_SWITCHES
@@ -53,10 +41,6 @@ config MAINBOARD_FAMILY
 	string
 	default "Intel_Kunimitsu"
 
-config MAX_CPUS
-	int
-	default 8
-
 config TPM_PIRQ
 	hex
 	default 0x18  # GPP_E0_IRQ
@@ -69,12 +53,11 @@ config INCLUDE_NHLT_BLOBS
 	select NHLT_NAU88L25
 	select NHLT_SSM4567
 
-config GBB_HWID
-	string
-	depends on CHROMEOS
-	default "KUNIMITSU TEST 8819"
-
 config UART_FOR_CONSOLE
 	int
 	default 2
+
+config USE_PM_ACPI_TIMER
+	default n
+
 endif

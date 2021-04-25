@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boardid.h>
 #include <boot/coreboot_tables.h>
@@ -24,8 +11,7 @@
 #include <timer.h>
 #include <vendorcode/google/chromeos/chromeos.h>
 
-#define REC_POL ACTIVE_LOW
-#define WP_POL  ACTIVE_LOW
+#define PP_SW   41
 
 static int get_rec_sw_gpio_pin(void)
 {
@@ -68,10 +54,7 @@ static int read_gpio(gpio_t gpio_num)
 void fill_lb_gpios(struct lb_gpios *gpios)
 {
 	struct lb_gpio chromeos_gpios[] = {
-		{get_rec_sw_gpio_pin(), REC_POL,
-			read_gpio(get_rec_sw_gpio_pin()), "recovery"},
-		{get_wp_status_gpio_pin(), WP_POL,
-			read_gpio(get_wp_status_gpio_pin()), "write protect"},
+		{PP_SW, ACTIVE_LOW, read_gpio(PP_SW), "presence"},
 		{-1, ACTIVE_LOW, 1, "power"},
 		{-1, ACTIVE_LOW, 0, "lid"},
 	};
@@ -116,7 +99,7 @@ static enum switch_state get_switch_state(void)
 		return saved_state;
 
 	rec_sw = get_rec_sw_gpio_pin();
-	sampled_value = read_gpio(rec_sw) ^ !REC_POL;
+	sampled_value = !read_gpio(rec_sw);
 
 	if (!sampled_value) {
 		saved_state = no_req;
@@ -130,7 +113,7 @@ static enum switch_state get_switch_state(void)
 	stopwatch_init_msecs_expire(&sw, WIPEOUT_MODE_DELAY_MS);
 
 	do {
-		sampled_value = read_gpio(rec_sw) ^ !REC_POL;
+		sampled_value = !read_gpio(rec_sw);
 		if (!sampled_value)
 			break;
 	} while (!stopwatch_expired(&sw));
@@ -140,7 +123,7 @@ static enum switch_state get_switch_state(void)
 		printk(BIOS_INFO, "wipeout requested, checking recovery\n");
 		stopwatch_init_msecs_expire(&sw, RECOVERY_MODE_EXTRA_DELAY_MS);
 		do {
-			sampled_value = read_gpio(rec_sw) ^ !REC_POL;
+			sampled_value = !read_gpio(rec_sw);
 			if (!sampled_value)
 				break;
 		} while (!stopwatch_expired(&sw));
@@ -172,5 +155,5 @@ int get_wipeout_mode_switch(void)
 
 int get_write_protect_state(void)
 {
-	return read_gpio(get_wp_status_gpio_pin()) ^ !WP_POL;
+	return !read_gpio(get_wp_status_gpio_pin());
 }

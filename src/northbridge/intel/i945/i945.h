@@ -1,31 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2008 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef NORTHBRIDGE_INTEL_I945_H
 #define NORTHBRIDGE_INTEL_I945_H
 
-/* Northbridge BARs */
 #define DEFAULT_X60BAR		0xfed13000
-#ifndef __ACPI__
-#define DEFAULT_MCHBAR		((u8 *)0xfed14000)	/* 16 KB */
-#define DEFAULT_DMIBAR		((u8 *)0xfed18000)	/* 4 KB */
-#else
-#define DEFAULT_MCHBAR		0xfed14000	/* 16 KB */
-#define DEFAULT_DMIBAR		0xfed18000	/* 4 KB */
-#endif
-#define DEFAULT_EPBAR		0xfed19000	/* 4 KB */
 
 #include <southbridge/intel/i82801gx/i82801gx.h>
 
@@ -44,6 +22,7 @@
 #define INT15_5F35_CL_DISPLAY_LCD2		(1 << 7)
 
 /* Device 0:0.0 PCI configuration space (Host Bridge) */
+#define HOST_BRIDGE	PCI_DEV(0, 0, 0)
 
 #define EPBAR		0x40
 #define MCHBAR		0x44
@@ -83,10 +62,7 @@
 /* Device 0:1.0 PCI configuration space (PCI Express) */
 
 #define PCISTS1		0x06	/* 16bit */
-#define SBUSN1		0x19	/*  8bit */
-#define SUBUSN1		0x1a	/*  8bit */
 #define SSTS1		0x1e	/* 16bit */
-#define BCTRL1		0x3e	/* 16bit */
 #define PEG_CAP		0xa2	/* 16bit */
 #define DSTS		0xaa	/* 16bit */
 #define SLOTCAP		0xb4	/* 32bit */
@@ -102,22 +78,19 @@
 #define PEGCC		0x208	/* 32bit */
 #define PEGSTS		0x214	/* 32bit */
 
-
 /* Device 0:2.0 PCI configuration space (Graphics Device) */
+#define IGD_DEV		PCI_DEV(0, 2, 0)
 
 #define GMADR		0x18
 #define GTTADR		0x1c
 #define BSM		0x5c
 #define GCFC		0xf0	/* Graphics Clock Frequency & Gating Control */
 
-
 /*
  * MCHBAR
  */
 
-#define MCHBAR8(x) (*((volatile u8 *)(DEFAULT_MCHBAR + (x))))
-#define MCHBAR16(x) (*((volatile u16 *)(DEFAULT_MCHBAR + (x))))
-#define MCHBAR32(x) (*((volatile u32 *)(DEFAULT_MCHBAR + (x))))
+#include <northbridge/intel/common/fixed_bars.h>
 
 /* Chipset Control Registers */
 #define FSBPMC3		0x40	/* 32bit */
@@ -299,10 +272,6 @@
  * EPBAR - Egress Port Root Complex Register Block
  */
 
-#define EPBAR8(x) (*((volatile u8 *)(DEFAULT_EPBAR + (x))))
-#define EPBAR16(x) (*((volatile u16 *)(DEFAULT_EPBAR + (x))))
-#define EPBAR32(x) (*((volatile u32 *)(DEFAULT_EPBAR + (x))))
-
 #define EPPVCCAP1	0x004	/* 32bit */
 #define EPPVCCAP2	0x008	/* 32bit */
 
@@ -329,10 +298,6 @@
 /*
  * DMIBAR
  */
-
-#define DMIBAR8(x) (*((volatile u8 *)(DEFAULT_DMIBAR + (x))))
-#define DMIBAR16(x) (*((volatile u16 *)(DEFAULT_DMIBAR + (x))))
-#define DMIBAR32(x) (*((volatile u32 *)(DEFAULT_DMIBAR + (x))))
 
 #define DMIVCECH	0x000	/* 32bit */
 #define DMIPVCCAP1	0x004	/* 32bit */
@@ -364,8 +329,6 @@
 
 #define DMIDRCCFG	0xeb4	/* 32bit */
 
-static inline void barrier(void) { asm("" ::: "memory"); }
-
 int i945_silicon_revision(void);
 void i945_early_initialization(void);
 void i945_late_initialization(int s3resume);
@@ -374,11 +337,21 @@ void i945_late_initialization(int s3resume);
 void print_pci_devices(void);
 void dump_pci_device(unsigned int dev);
 void dump_pci_devices(void);
-void dump_spd_registers(void);
+void dump_spd_registers(u8 spd_map[4]);
 void sdram_dump_mchbar_registers(void);
 
 u32 decode_igd_memory_size(u32 gms);
 u32 decode_tseg_size(const u8 esmramc);
+
+/* Romstage mainboard callbacks */
+/* Optional: Override the default LPC config. */
+void mainboard_lpc_decode(void);
+/* Optional: mainboard specific init after console init and before raminit. */
+void mainboard_pre_raminit_config(int s3_resume);
+/* Mainboard specific RCBA init. Happens after raminit. */
+void mainboard_late_rcba_config(void);
+/* Optional: mainboard callback to get SPD map */
+void mainboard_get_spd_map(u8 spd_map[4]);
 
 #endif /* __ACPI__ */
 

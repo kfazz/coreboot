@@ -1,24 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * (C) Copyright 2010-2015 NVIDIA Corporation <www.nvidia.com>
- *  Copyright (C) 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __NVIDIA_TEGRA210_DMA_H__
 #define __NVIDIA_TEGRA210_DMA_H__
 
-#include <inttypes.h>
 #include <soc/addressmap.h>
+#include <types.h>
 
 /*
  * The DMA engine operates on 4 bytes at a time, so make sure any data

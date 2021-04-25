@@ -1,7 +1,4 @@
-/* Copyright (c) 2010 The Chromium OS Authors. All rights reserved.
- * Use of this source code is governed by a BSD-style license that can be
- * found in the LICENSE file.
- */
+/* SPDX-License-Identifier: BSD-3-Clause */
 
 #ifndef TCG_TSS_INTERNAL_H_
 #define TCG_TSS_INTERNAL_H_
@@ -17,7 +14,6 @@
 #define kTpmReadInfoLength 12
 #define kEncAuthLength 20
 #define kPcrDigestLength 20
-
 
 /*
  * Conversion functions.  to_tpm_TYPE puts a value of type TYPE into a TPM

@@ -1,21 +1,5 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015 - 2017 Intel Corp.
- * (Written by Alexandru Gagniuc <alexandrux.gagniuc@intel.com> for Intel Corp.)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <assert.h>
 #include <intelblocks/gpio.h>
 #include <intelblocks/pcr.h>
 #include <soc/pcr_ids.h>
@@ -58,6 +42,8 @@ static const struct pad_community apl_gpio_communities[] = {
 		.gpi_status_offset = 0,
 		.pad_cfg_base = PAD_CFG_BASE,
 		.host_own_reg_0 = HOSTSW_OWN_REG_0,
+		.gpi_int_sts_reg_0 = GPI_INT_STS_0,
+		.gpi_int_en_reg_0 = GPI_INT_EN_0,
 		.gpi_smi_sts_reg_0 = GPI_SMI_STS_0,
 		.gpi_smi_en_reg_0 = GPI_SMI_EN_0,
 		.max_pads_per_group = GPIO_MAX_NUM_PER_GROUP,
@@ -75,6 +61,8 @@ static const struct pad_community apl_gpio_communities[] = {
 		.gpi_status_offset = NUM_SW_GPI_REGS,
 		.pad_cfg_base = PAD_CFG_BASE,
 		.host_own_reg_0 = HOSTSW_OWN_REG_0,
+		.gpi_int_sts_reg_0 = GPI_INT_STS_0,
+		.gpi_int_en_reg_0 = GPI_INT_EN_0,
 		.gpi_smi_sts_reg_0 = GPI_SMI_STS_0,
 		.gpi_smi_en_reg_0 = GPI_SMI_EN_0,
 		.max_pads_per_group = GPIO_MAX_NUM_PER_GROUP,
@@ -92,6 +80,8 @@ static const struct pad_community apl_gpio_communities[] = {
 		.gpi_status_offset = NUM_W_GPI_REGS + NUM_SW_GPI_REGS,
 		.pad_cfg_base = PAD_CFG_BASE,
 		.host_own_reg_0 = HOSTSW_OWN_REG_0,
+		.gpi_int_sts_reg_0 = GPI_INT_STS_0,
+		.gpi_int_en_reg_0 = GPI_INT_EN_0,
 		.gpi_smi_sts_reg_0 = GPI_SMI_STS_0,
 		.gpi_smi_en_reg_0 = GPI_SMI_EN_0,
 		.max_pads_per_group = GPIO_MAX_NUM_PER_GROUP,
@@ -110,6 +100,8 @@ static const struct pad_community apl_gpio_communities[] = {
 			+ NUM_SW_GPI_REGS,
 		.pad_cfg_base = PAD_CFG_BASE,
 		.host_own_reg_0 = HOSTSW_OWN_REG_0,
+		.gpi_int_sts_reg_0 = GPI_INT_STS_0,
+		.gpi_int_en_reg_0 = GPI_INT_EN_0,
 		.gpi_smi_sts_reg_0 = GPI_SMI_STS_0,
 		.gpi_smi_en_reg_0 = GPI_SMI_EN_0,
 		.max_pads_per_group = GPIO_MAX_NUM_PER_GROUP,

@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _BROADWELL_DEVICE_NVS_H_
 #define _BROADWELL_DEVICE_NVS_H_
@@ -28,10 +15,10 @@
 #define SIO_NVS_SDIO		7
 #define SIO_NVS_ADSP		8
 
-typedef struct {
+struct __packed device_nvs {
 	u8	enable[9];
 	u32	bar0[9];
 	u32	bar1[9];
-} __packed device_nvs_t;
+};
 
 #endif

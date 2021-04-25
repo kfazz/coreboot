@@ -149,6 +149,8 @@ typedef enum {
   AMD_IDENTIFY_DIMMS         = 0x00033000,                  ///< AmdIdentifyDimm general service handle
   AMD_GET_2D_DATA_EYE        = 0x00034000,                  ///< AmdGet2DDataEye general service handle
   AMD_S3FINAL_RESTORE        = 0x00035000,                  ///< AmdS3FinalRestore entry point handle
+  AMD_INIT_RTB               = 0x00036000, /* reserved */
+
   AMD_HEAP_ALLOCATE_BUFFER   = 0x00038000,
   AMD_HEAP_DEALLOCATE_BUFFER = 0x00039000,
   FCH_INIT_RESET             = 0x00040000,
@@ -157,8 +159,8 @@ typedef enum {
   FCH_INIT_LATE              = 0x00043000,
   FCH_INIT_S3_EARLY_RESTORE  = 0x00044000,
   FCH_INIT_S3_LATE_RESTORE   = 0x00045000,
-  AMD_SET_VALUE              = 0x00081000,
-  AMD_GET_VALUE              = 0x00082000,
+  AMD_SET_VALUE_invalid      = 0x00081000,
+  AMD_GET_VALUE_invalid      = 0x00082000,
 } AGESA_STRUCT_NAME;
 
   /*  ResetType constant values */

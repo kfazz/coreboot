@@ -1,21 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- * Copyright (C) 2012 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <x86emu/x86emu.h>
 #include <arch/interrupt.h>
+#include <console/console.h>
+
 #include "int15.h"
 
 static int active_lfp, pfit, display, panel_type;
@@ -34,7 +22,7 @@ int intel_vga_int15_handler(void)
 		 *  bit 2 = Graphics Stretching
 		 *  bit 1 = Text Stretching
 		 *  bit 0 = Centering (do not set with bit1 or bit2)
-		 *  0     = video bios default
+		 *  0     = video BIOS default
 		 */
 		X86_AX = 0x005f;
 		X86_CX = pfit;
@@ -109,7 +97,6 @@ int intel_vga_int15_handler(void)
 	}
 	return res;
 }
-
 
 void install_intel_vga_int15_handler(int active_lfp_, int pfit_, int display_, int panel_type_)
 {

@@ -1,17 +1,5 @@
-/*
- * inteltool - dump all registers on an Intel CPU + chipset based system.
- *
- * Copyright (C) 2008-2010 by coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* inteltool - dump all registers on an Intel CPU + chipset based system */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -34,6 +22,10 @@
 #define MTRR_CAP_MSR		0xfe
 #define PRMRR_SUPPORTED		(1 << 12)
 #define SGX_SUPPORTED		(1 << 2)
+#define IA32_TME_ACTIVATE	0x982
+#define TME_SUPPORTED		(1 << 13)
+#define TME_LOCKED		(1)
+#define TME_ENABLED		(1 << 1)
 
 int fd_msr;
 
@@ -78,7 +70,7 @@ inline cpuid_result_t cpuid_ext(int op, unsigned int ecx)
 #ifndef __DARWIN__
 int msr_readerror = 0;
 
-msr_t rdmsr(int addr)
+static msr_t rdmsr(int addr)
 {
 	uint32_t buf[2];
 	msr_t msr = { 0xffffffff, 0xffffffff };
@@ -110,7 +102,7 @@ msr_t rdmsr(int addr)
 
 static int open_and_seek(int cpu, unsigned long msr, int mode, int *fd)
 {
-	char dev[512];
+	char dev[32];
 	char temp_string[50];
 
 	snprintf(dev, sizeof(dev), "/dev/cpu/%d/msr", cpu);
@@ -132,7 +124,7 @@ static int open_and_seek(int cpu, unsigned long msr, int mode, int *fd)
 	return 0;
 }
 
-msr_t rdmsr_from_cpu(int cpu, unsigned long addr)
+static msr_t rdmsr_from_cpu(int cpu, unsigned long addr)
 {
 	int fd;
 	msr_t msr = { 0xffffffff, 0xffffffff };
@@ -155,12 +147,17 @@ msr_t rdmsr_from_cpu(int cpu, unsigned long addr)
 	return msr;
 }
 
-int get_number_of_cpus(void)
+static int get_number_of_cpus(void)
 {
 	return sysconf(_SC_NPROCESSORS_ONLN);
 }
 
-int is_sgx_supported(int cpunum)
+static int get_number_of_cores(void)
+{
+	return sysconf(_SC_NPROCESSORS_CONF);
+}
+
+static int is_sgx_supported(int cpunum)
 {
 	cpuid_result_t cpuid_regs;
 	msr_t msr;
@@ -172,14 +169,14 @@ int is_sgx_supported(int cpunum)
 	return ((cpuid_regs.ebx & SGX_SUPPORTED) && (msr.lo & PRMRR_SUPPORTED));
 }
 
-int is_sgx_enabled(int cpunum)
+static int is_sgx_enabled(int cpunum)
 {
 	msr_t data;
 	data = rdmsr_from_cpu(cpunum, IA32_FEATURE_CONTROL);
 	return (data.lo & SGX_GLOBAL_ENABLED);
 }
 
-int is_sgx_locked(int cpunum)
+static int is_sgx_locked(int cpunum)
 {
 	msr_t data;
 	data = rdmsr_from_cpu(cpunum, IA32_FEATURE_CONTROL);
@@ -219,9 +216,58 @@ int print_sgx(void)
 	return error;
 }
 
+static int is_tme_supported()
+{
+	cpuid_result_t cpuid_regs;
+
+	/*
+	 * CPUID leaf 0x7 subleaf 0x0 to detect TME support
+	 * https://software.intel.com/sites/default/files/managed/a5/16/Multi-Key
+	 * -Total-Memory-Encryption-Spec.pdf
+	 */
+
+	cpuid_regs = cpuid_ext(0x7, 0x0);
+        return (cpuid_regs.ecx & TME_SUPPORTED);
+}
+
+static msr_t read_tme_activate_msr(){
+	return rdmsr_from_cpu(0, IA32_TME_ACTIVATE);
+}
+
+static int is_tme_locked()
+{
+	msr_t data = read_tme_activate_msr();
+	return (data.lo & TME_LOCKED);
+}
+
+static int is_tme_enabled()
+{
+	msr_t data = read_tme_activate_msr();
+	return (data.lo & TME_ENABLED);
+}
+
+void print_tme(void)
+{
+#ifndef __DARWIN__
+	int tme_supported = is_tme_supported();
+
+	printf("\n============= Dumping INTEL TME status =============\n");
+
+	printf("TME supported : %s\n", tme_supported ? "YES" : "NO");
+
+	if (tme_supported) {
+		printf("TME locked    : %s\n", is_tme_locked() ? "YES" : "NO");
+		printf("TME enabled   : %s\n", is_tme_enabled() ? "YES" : "NO");
+	}
+	printf("====================================================\n");
+#else
+	printf("Not Implemented\n");
+#endif
+}
+
 int print_intel_core_msrs(void)
 {
-	unsigned int i, core, id;
+	unsigned int i, core, id, core_num = get_number_of_cores();
 	msr_t msr;
 
 #define IA32_PLATFORM_ID		0x0017
@@ -1529,6 +1575,663 @@ int print_intel_core_msrs(void)
 		{ 0x416, "MSR_MC5_ADDR" },
 	};
 
+/*
+ * Intel 64 and IA-32 Architectures Software Developers Manual Conbined Volumes
+ * Page 4668
+ *
+ * The following two tables are for the Kaby Lake processors
+ * 06_9EH.
+ *
+ */
+
+	static const msr_entry_t model96ex_global_msrs[] = {
+		{ 0x0017, "IA32_PLATFORM_ID"},
+		{ 0x0080, "MSR_TRACE_HUB_STH_ACPIBAR_BASE"},
+		{ 0x00CE, "MSR_PLATFORM_INFO"},
+		{ 0x0198, "IA32_PERF_STATUS"},
+		{ 0x01A2, "MSR_TEMPERATURE_TARGET"},
+		{ 0x01AD, "MSR_TURBO_RATIO_LIMIT"},
+		{ 0x0284, "IA32_MC4_CTL2"},
+		{ 0x02F4, "MSR_UNCORE_PRMRR_PHYS_BASE"},
+		{ 0x02F5, "MSR_UNCORE_PRMRR_PHYS_MASK"},
+		{ 0x0394, "MSR_UNC_PERF_FIXED_CTRL"},
+		{ 0x0395, "MSR_UNC_PERF_FIXED_CTR"},
+		{ 0x060A, "MSR_PKGC3_IRTL"},
+		{ 0x060B, "MSR_PKGC6_IRTL"},
+		{ 0x060D, "MSR_PKG_C2_RESIDENCY"},
+		{ 0x0610, "MSR_PKG_POWER_LIMIT"},
+		{ 0x0614, "MSR_PKG_POWER_INFO"},
+		{ 0x0620, "MSR_RING_RATIO_LIMIT"},
+		{ 0x0638, "MSR_PP0_POWER_LIMIT"},
+		{ 0x064F, "MSR_CORE_PERF_LIMIT_REASONS"},
+		{ 0x0652, "MSR_PKG_HDC_CONFIG"},
+		{ 0x065C, "MSR_PLATFORM_POWER_LIMIT"},
+		{ 0x06B0, "MSR_GRAPHICS_PERF_LIMIT_REASONS"},
+		{ 0x06B1, "MSR_RING_PERF_LIMIT_REASONS"},
+		{ 0x0770, "IA32_PM_ENABLE"},
+		{ 0x0DB0, "IA32_PKG_HDC_CTL"},
+		{ 0x03B0, "MSR_UNC_ARB_PERFCTR0"},
+		{ 0x03B1, "MSR_UNC_ARB_PERFCTR1"},
+		{ 0x03B2, "MSR_UNC_ARB_PERFEVTSEL0"},
+		{ 0x03B3, "MSR_UNC_ARB_PERFEVTSEL1"},
+		{ 0x0700, "MSR_UNC_CBO_0_PERFCTR0"},
+		{ 0x0701, "MSR_UNC_CBO_0_PERFCTR1"},
+		{ 0x0706, "MSR_UNC_CBO_0_PERFEVTSEL0"},
+		{ 0x0707, "MSR_UNC_CBO_0_PERFEVTSEL1"},
+		{ 0x0710, "MSR_UNC_CBO_1_PERFCTR0"},
+		{ 0x0711, "MSR_UNC_CBO_1_PERFCTR1"},
+		{ 0x0716, "MSR_UNC_CBO_1_PERFEVTSEL0"},
+		{ 0x0717, "MSR_UNC_CBO_1_PERFEVTSEL1"},
+		{ 0x0720, "MSR_UNC_CBO_2_PERFCTR0"},
+		{ 0x0721, "MSR_UNC_CBO_2_PERFCTR1"},
+		{ 0x0726, "MSR_UNC_CBO_2_PERFEVTSEL0"},
+		{ 0x0727, "MSR_UNC_CBO_2_PERFEVTSEL1"},
+		{ 0x0730, "MSR_UNC_CBO_3_PERFCTR0"},
+		{ 0x0731, "MSR_UNC_CBO_3_PERFCTR1"},
+		{ 0x0736, "MSR_UNC_CBO_3_PERFEVTSEL0"},
+		{ 0x0737, "MSR_UNC_CBO_3_PERFEVTSEL1"},
+		{ 0x0E01, "MSR_UNC_PERF_GLOBAL_CTRL"},
+		{ 0x0E02, "MSR_UNC_PERF_GLOBAL_STATUS"},
+	};
+
+	static const msr_entry_t model96ex_per_core_msrs[] = {
+		/* Per core MSRs for Sandy Bridge and above */
+		{ 0x0000, "IA32_P5_MC_ADDR"},
+		{ 0x0001, "IA32_P5_MC_TYPE"},
+		{ 0x0006, "IA32_MONITOR_FILTER_SIZE"},
+		{ 0x0010, "IA32_TIME_STAMP_COUNTER"},
+		{ 0x001B, "IA32_APIC_BASE"},
+		{ 0x0034, "MSR_SMI_COUNT"},
+		{ 0x003A, "IA32_FEATURE_CONTROL"},
+		{ 0x008B, "IA32_BIOS_SIGN_ID"},
+		{ 0x00C1, "IA32_PMC0" },
+		{ 0x00C2, "IA32_PMC1" },
+		{ 0x00C3, "IA32_PMC2" },
+		{ 0x00C4, "IA32_PMC3" },
+		{ 0x00E2, "MSR_PKG_CST_CONFIG_CONTROL" },
+		{ 0x00E4, "MSR_PMG_IO_CAPTURE_BASE"},
+		{ 0x00E7, "IA32_MPERF"},
+		{ 0x00E8, "IA32_APERF"},
+		{ 0x00FE, "IA32_MTRRCAP"},
+		{ 0x013C, "MSR_FEATURE_CONFIG"},
+		{ 0x0174, "IA32_SYSENTER_CS"},
+		{ 0x0175, "IA32_SYSENTER_ESP"},
+		{ 0x0176, "IA32_SYSENTER_EIP"},
+		{ 0x0179, "IA32_MCG_CAP"},
+		{ 0x017A, "IA32_MCG_STATUS"},
+		{ 0x0186, "IA32_PERFEVTSEL0"},
+		{ 0x0187, "IA32_PERFEVTSEL1"},
+		{ 0x0188, "IA32_PERFEVTSEL2"},
+		{ 0x0189, "IA32_PERFEVTSEL3"},
+		{ 0x0199, "IA32_PERF_CTL"},
+		{ 0x019A, "IA32_CLOCK_MODULATION"},
+		{ 0x019B, "IA32_THERM_INTERRUPT"},
+		{ 0x019C, "IA32_THERM_STATUS"},
+		{ 0x01A0, "IA32_MISC_ENABLE"},
+		{ 0x01A4, "IA32_MISC_FEATURE_CONTROL"},
+		{ 0x01A6, "MSR_OFFCORE_RSP_0"},
+		{ 0x01A7, "MSR_OFFCORE_RSP_1"},
+		{ 0x01C8, "MSR_LBR_SELECT"},
+		{ 0x01C9, "MSR_LASTBRANCH_TOS"},
+		{ 0x01D9, "IA32_DEBUGCTL"},
+		{ 0x01DD, "MSR_LER_FROM_LIP"},
+		{ 0x01DE, "MSR_LER_TO_LIP"},
+		{ 0x01F2, "IA32_SMRR_PHYSBASE"},
+		{ 0x01F3, "IA32_SMRR_PHYSMASK"},
+		{ 0x01F4, "MSR_PRMRR_PHYS_BASE"},
+		{ 0x01F5, "MSR_PRMRR_PHYS_MASK"},
+		{ 0x01FB, "MSR_PRMRR_VALID_CONFIG"},
+		{ 0x01FC, "MSR_POWER_CTL"},
+		{ 0x0200, "IA32_MTRR_PHYSBASE0"},
+		{ 0x0201, "IA32_MTRR_PHYSBASE0"},
+		{ 0x0202, "IA32_MTRR_PHYSBASE1"},
+		{ 0x0203, "IA32_MTRR_PHYSBASE1"},
+		{ 0x0204, "IA32_MTRR_PHYSBASE2"},
+		{ 0x0205, "IA32_MTRR_PHYSBASE2"},
+		{ 0x0206, "IA32_MTRR_PHYSBASE3"},
+		{ 0x0207, "IA32_MTRR_PHYSBASE3"},
+		{ 0x0208, "IA32_MTRR_PHYSBASE4"},
+		{ 0x0209, "IA32_MTRR_PHYSBASE4"},
+		{ 0x020A, "IA32_MTRR_PHYSBASE5"},
+		{ 0x020B, "IA32_MTRR_PHYSBASE5"},
+		{ 0x020C, "IA32_MTRR_PHYSBASE6"},
+		{ 0x020D, "IA32_MTRR_PHYSBASE6"},
+		{ 0x020E, "IA32_MTRR_PHYSBASE7"},
+		{ 0x020F, "IA32_MTRR_PHYSBASE7"},
+		{ 0x0210, "IA32_MTRR_PHYSBASE8"},
+		{ 0x0211, "IA32_MTRR_PHYSBASE8"},
+		{ 0x0212, "IA32_MTRR_PHYSBASE9"},
+		{ 0x0213, "IA32_MTRR_PHYSBASE9"},
+		{ 0x0250, "IA32_MTRR_FIX64K_00000"},
+		{ 0x0258, "IA32_MTRR_FIX16K_80000"},
+		{ 0x0259, "IA32_MTRR_FIX16K_A0000"},
+		{ 0x0268, "IA32_MTRR_FIX4K_C0000"},
+		{ 0x0269, "IA32_MTRR_FIX4K_C8000"},
+		{ 0x026A, "IA32_MTRR_FIX4K_D0000"},
+		{ 0x026B, "IA32_MTRR_FIX4K_D8000"},
+		{ 0x026C, "IA32_MTRR_FIX4K_E0000"},
+		{ 0x026D, "IA32_MTRR_FIX4K_E8000"},
+		{ 0x026E, "IA32_MTRR_FIX4K_F0000"},
+		{ 0x026F, "IA32_MTRR_FIX4K_F8000"},
+		{ 0x0277, "IA32_PAT"},
+		{ 0x0280, "IA32_MC0_CTL2"},
+		{ 0x0281, "IA32_MC1_CTL2"},
+		{ 0x0282, "IA32_MC2_CTL2"},
+		{ 0x0283, "IA32_MC3_CTL2"},
+		{ 0x02FF, "IA32_MTRR_DEF_TYPE"},
+		{ 0x0309, "IA32_FIXED_CTR0"},
+		{ 0x030A, "IA32_FIXED_CTR1"},
+		{ 0x030B, "IA32_FIXED_CTR2"},
+		{ 0x0345, "IA32_PERF_CAPABILITIES"},
+		{ 0x038D, "IA32_FIXED_CTR_CTRL"},
+		{ 0x038E, "IA32_PERF_GLOBAL_STATUS"},
+		{ 0x038F, "IA32_PERF_GLOBAL_CTRL"},
+		{ 0x0390, "IA32_PERF_GLOBAL_STATUS_RESET"},
+		{ 0x0391, "IA32_PERF_GLOBAL_STATUS_SET"},
+		{ 0x03F1, "MSR_PEBS_ENABLE"},
+		{ 0x03F6, "MSR_PEBS_LD_LAT"},
+		{ 0x03F7, "MSR_PEBS_FRONTEND"},
+		{ 0x03FC, "MSR_CORE_C3_RESIDENCY"},
+		{ 0x03FD, "MSR_CORE_C6_RESIDENCY"},
+		{ 0x03FE, "MSR_CORE_C7_RESIDENCY"},
+		{ 0x0400, "IA32_MC0_CTL" },
+		{ 0x0401, "IA32_MC0_STATUS" },
+		{ 0x0402, "IA32_MC0_ADDR" },
+		{ 0x0403, "IA32_MC0_MISC" },
+		{ 0x0404, "IA32_MC1_CTL" },
+		{ 0x0405, "IA32_MC1_STATUS" },
+		{ 0x0406, "IA32_MC1_ADDR" },
+		{ 0x0407, "IA32_MC1_MISC" },
+		{ 0x0408, "IA32_MC2_CTL" },
+		{ 0x0409, "IA32_MC2_STATUS" },
+		{ 0x040a, "IA32_MC2_ADDR" },
+		{ 0x040c, "IA32_MC3_CTL" },
+		{ 0x040d, "IA32_MC3_STATUS" },
+		{ 0x040e, "IA32_MC3_ADDR" },
+		{ 0x0410, "IA32_MC4_CTL" },
+		{ 0x0411, "IA32_MC4_STATUS" },
+		{ 0x0480, "IA32_VMX_BASIC" },
+		{ 0x0481, "IA32_VMX_PINBASED_CTLS" },
+		{ 0x0482, "IA32_VMX_PROCBASED_CTLS" },
+		{ 0x0483, "IA32_VMX_EXIT_CTLS" },
+		{ 0x0484, "IA32_VMX_ENTRY_CTLS" },
+		{ 0x0485, "IA32_VMX_MISC" },
+		{ 0x0486, "IA32_VMX_CR0_FIXED0" },
+		{ 0x0487, "IA32_VMX_CR0_FIXED1" },
+		{ 0x0488, "IA32_VMX_CR4_FIXED0" },
+		{ 0x0489, "IA32_VMX_CR4_FIXED1" },
+		{ 0x048a, "IA32_VMX_VMCS_ENUM" },
+		{ 0x048b, "IA32_VMX_PROCBASED_CTLS2" },
+		{ 0x048c, "IA32_VMX_EPT_VPID_ENUM" },
+		{ 0x048d, "IA32_VMX_TRUE_PINBASED_CTLS" },
+		{ 0x048e, "IA32_VMX_TRUE_PROCBASED_CTLS" },
+		{ 0x048f, "IA32_VMX_TRUE_EXIT_CTLS" },
+		{ 0x0490, "IA32_VMX_TRUE_ENTRY_CTLS" },
+		{ 0x04C1, "IA32_A_PMC0"},
+		{ 0x04C2, "IA32_A_PMC1"},
+		{ 0x04C3, "IA32_A_PMC2"},
+		{ 0x04C4, "IA32_A_PMC3"},
+		{ 0x0500, "IA32_SGX_SVN_STATUS"},
+		{ 0x0560, "IA32_RTIT_OUTPUT_BASE"},
+		{ 0x0561, "IA32_RTIT_OUTPUT_MASK_PTRS"},
+		{ 0x0570, "IA32_RTIT_CTL"},
+		{ 0x0571, "IA32_RTIT_STATUS"},
+		{ 0x0572, "IA32_RTIT_CR3_MATCH"},
+		{ 0x0580, "IA32_RTIT_ADDR0_A"},
+		{ 0x0581, "IA32_RTIT_ADDR0_B"},
+		{ 0x0582, "IA32_RTIT_ADDR1_A"},
+		{ 0x0583, "IA32_RTIT_ADDR1_B"},
+		{ 0x0600, "IA32_DS_AREA" },
+		{ 0x064E, "MSR_PPERF"},
+		{ 0x0653, "MSR_CORE_HDC_RESIDENCY"},
+		{ 0x0690, "MSR_LASTBRANCH_16_FROM_IP" },
+		{ 0x0691, "MSR_LASTBRANCH_17_FROM_IP" },
+		{ 0x0692, "MSR_LASTBRANCH_18_FROM_IP" },
+		{ 0x0693, "MSR_LASTBRANCH_19_FROM_IP" },
+		{ 0x0694, "MSR_LASTBRANCH_20_FROM_IP" },
+		{ 0x0695, "MSR_LASTBRANCH_21_FROM_IP" },
+		{ 0x0696, "MSR_LASTBRANCH_22_FROM_IP" },
+		{ 0x0697, "MSR_LASTBRANCH_23_FROM_IP" },
+		{ 0x0698, "MSR_LASTBRANCH_24_FROM_IP" },
+		{ 0x0699, "MSR_LASTBRANCH_25_FROM_IP" },
+		{ 0x069A, "MSR_LASTBRANCH_26_FROM_IP" },
+		{ 0x069B, "MSR_LASTBRANCH_27_FROM_IP" },
+		{ 0x069C, "MSR_LASTBRANCH_28_FROM_IP" },
+		{ 0x069D, "MSR_LASTBRANCH_29_FROM_IP" },
+		{ 0x069E, "MSR_LASTBRANCH_30_FROM_IP" },
+		{ 0x069F, "MSR_LASTBRANCH_31_FROM_IP" },
+		{ 0x06d0, "MSR_LASTBRANCH_16_TO_IP" },
+		{ 0x06d1, "MSR_LASTBRANCH_17_TO_IP" },
+		{ 0x06d2, "MSR_LASTBRANCH_18_TO_IP" },
+		{ 0x06d3, "MSR_LASTBRANCH_19_TO_IP" },
+		{ 0x06d4, "MSR_LASTBRANCH_20_TO_IP" },
+		{ 0x06d5, "MSR_LASTBRANCH_21_TO_IP" },
+		{ 0x06d6, "MSR_LASTBRANCH_22_TO_IP" },
+		{ 0x06d7, "MSR_LASTBRANCH_23_TO_IP" },
+		{ 0x06d8, "MSR_LASTBRANCH_24_TO_IP" },
+		{ 0x06d9, "MSR_LASTBRANCH_25_TO_IP" },
+		{ 0x06da, "MSR_LASTBRANCH_26_TO_IP" },
+		{ 0x06db, "MSR_LASTBRANCH_27_TO_IP" },
+		{ 0x06dc, "MSR_LASTBRANCH_28_TO_IP" },
+		{ 0x06dd, "MSR_LASTBRANCH_29_TO_IP" },
+		{ 0x06de, "MSR_LASTBRANCH_30_TO_IP" },
+		{ 0x06df, "MSR_LASTBRANCH_31_TO_IP" },
+		{ 0x06E0, "IA32_TSC_DEADLINE"},
+		{ 0x0771, "IA32_HWP_CAPABILITIES"},
+		{ 0x0773, "IA32_HWP_INTERRUPT"},
+		{ 0x0774, "IA32_HWP_REQUEST"},
+		{ 0x0777, "IA32_HWP_STATUS"},
+		{ 0x0D90, "IA32_BNDCFGS"},
+		{ 0x0DA0, "IA32_XSS"},
+		{ 0x0DB1, "IA32_PM_CTL1"},
+		{ 0x0DB2, "IA32_THREAD_STALL"},
+		{ 0x0DC0, "IA32_LBR_INFO_0"},
+		{ 0x0DC1, "IA32_LBR_INFO_1"},
+		{ 0x0DC2, "IA32_LBR_INFO_2"},
+		{ 0x0DC3, "IA32_LBR_INFO_3"},
+		{ 0x0DC4, "IA32_LBR_INFO_4"},
+		{ 0x0DC5, "IA32_LBR_INFO_5"},
+		{ 0x0DC6, "IA32_LBR_INFO_6"},
+		{ 0x0DC7, "IA32_LBR_INFO_7"},
+		{ 0x0DC8, "IA32_LBR_INFO_8"},
+		{ 0x0DC9, "IA32_LBR_INFO_9"},
+		{ 0x0DCA, "IA32_LBR_INFO_10"},
+		{ 0x0DCB, "IA32_LBR_INFO_11"},
+		{ 0x0DCC, "IA32_LBR_INFO_12"},
+		{ 0x0DCD, "IA32_LBR_INFO_13"},
+		{ 0x0DCE, "IA32_LBR_INFO_14"},
+		{ 0x0DCF, "IA32_LBR_INFO_15"},
+		{ 0x0DD0, "IA32_LBR_INFO_16"},
+		{ 0x0DD1, "IA32_LBR_INFO_17"},
+		{ 0x0DD2, "IA32_LBR_INFO_18"},
+		{ 0x0DD3, "IA32_LBR_INFO_19"},
+		{ 0x0DD4, "IA32_LBR_INFO_20"},
+		{ 0x0DD5, "IA32_LBR_INFO_21"},
+		{ 0x0DD6, "IA32_LBR_INFO_22"},
+		{ 0x0DD7, "IA32_LBR_INFO_23"},
+		{ 0x0DD8, "IA32_LBR_INFO_24"},
+		{ 0x0DD9, "IA32_LBR_INFO_25"},
+		{ 0x0DDA, "IA32_LBR_INFO_26"},
+		{ 0x0DDB, "IA32_LBR_INFO_27"},
+		{ 0x0DDC, "IA32_LBR_INFO_28"},
+		{ 0x0DDD, "IA32_LBR_INFO_29"},
+		{ 0x0DDE, "IA32_LBR_INFO_30"},
+		{ 0x0DDF, "IA32_LBR_INFO_31"},
+	};
+
+/*
+ * Intel® 64 and IA-32 Architecture Software Developer’s Manual
+ * Volume 4: Model-Specific Registers
+ * Order Number: 335592-070US
+ * page 2-265 ... 2-286
+ * page 2-297 ... 2-308
+ *
+ * The following two tables are for the Intel(R) Xeon(R) Processor Scalable
+ * Family based on Skylake microarchitecture, 2nd generation Intel(R) Xeon(R)
+ * Processor Scalable Family based on Cascade Lake product, and future Cooper
+ * Lake product
+ * family 6 model 85 (06_55h)
+ */
+	static const msr_entry_t model565x_global_msrs[] = {
+		{ 0x004e, "MSR_PPIN_CTL" },
+		{ 0x004f, "MSR_PPIN" },
+		{ 0x00ce, "MSR_PLATFORM_INFO" },
+		{ 0x0198, "IA32_PERF_STATUS" },
+		{ 0x019c, "IA32_THERM_STATUS" },
+		{ 0x01a2, "MSR_TEMPERATURE_TARGET" },
+		{ 0x01ad, "MSR_TURBO_RATIO_LIMIT" },
+		{ 0x01ae, "MSR_TURBO_RATIO_LIMIT_CORES" },
+		{ 0x0284, "IA32_MC4_CTL2" },
+		{ 0x0285, "IA32_MC5_CTL2" },
+		{ 0x0286, "IA32_MC6_CTL2" },
+		{ 0x0287, "IA32_MC7_CTL2" },
+		{ 0x0288, "IA32_MC8_CTL2" },
+		{ 0x0289, "IA32_MC9_CTL2" },
+		{ 0x028a, "IA32_MC10_CTL2" },
+		{ 0x028b, "IA32_MC11_CTL2" },
+		{ 0x028c, "IA32_MC12_CTL2" },
+		{ 0x028d, "IA32_MC13_CTL2" },
+		{ 0x028e, "IA32_MC14_CTL2" },
+		{ 0x028f, "IA32_MC15_CTL2" },
+		{ 0x0290, "IA32_MC16_CTL2" },
+		{ 0x0291, "IA32_MC17_CTL2" },
+		{ 0x0292, "IA32_MC18_CTL2" },
+		{ 0x0293, "IA32_MC19_CTL2" },
+		{ 0x0300, "MSR_SGXOWNEREPOCH0" },
+		{ 0x0301, "MSR_SGXOWNEREPOCH1" },
+		{ 0x0410, "IA32_MC4_CTL" },
+		{ 0x0411, "IA32_MC4_STATUS" },
+		{ 0x0412, "IA32_MC4_ADDR" },
+		{ 0x0413, "IA32_MC4_MISC" },
+		{ 0x0414, "IA32_MC5_CTL" },
+		{ 0x0415, "IA32_MC5_STATUS" },
+		{ 0x0416, "IA32_MC5_ADDR" },
+		{ 0x0417, "IA32_MC5_MISC" },
+		{ 0x0418, "IA32_MC6_CTL" },
+		{ 0x0419, "IA32_MC6_STATUS" },
+		{ 0x041a, "IA32_MC6_ADDR" },
+		{ 0x041b, "IA32_MC6_MISC" },
+		{ 0x041c, "IA32_MC7_CTL" },
+		{ 0x041d, "IA32_MC7_STATUS" },
+		{ 0x041e, "IA32_MC7_ADDR" },
+		{ 0x041f, "IA32_MC7_MISC" },
+		{ 0x0420, "IA32_MC8_CTL" },
+		{ 0x0421, "IA32_MC8_STATUS" },
+		{ 0x0422, "IA32_MC8_ADDR" },
+		{ 0x0423, "IA32_MC8_MISC" },
+		{ 0x0424, "IA32_MC9_CTL" },
+		{ 0x0425, "IA32_MC9_STATUS" },
+		{ 0x0426, "IA32_MC9_ADDR" },
+		{ 0x0427, "IA32_MC9_MISC" },
+		{ 0x0428, "IA32_MC10_CTL" },
+		{ 0x0429, "IA32_MC10_STATUS" },
+		{ 0x042a, "IA32_MC10_ADDR" },
+		{ 0x042b, "IA32_MC10_MISC" },
+		{ 0x042c, "IA32_MC11_CTL" },
+		{ 0x042d, "IA32_MC11_STATUS" },
+		{ 0x042e, "IA32_MC11_ADDR" },
+		{ 0x042f, "IA32_MC11_MISC" },
+		{ 0x0430, "IA32_MC12_CTL" },
+		{ 0x0431, "IA32_MC12_STATUS" },
+		{ 0x0432, "IA32_MC12_ADDR" },
+		{ 0x0433, "IA32_MC12_MISC" },
+		{ 0x0434, "IA32_MC13_CTL" },
+		{ 0x0435, "IA32_MC13_STATUS" },
+		{ 0x0436, "IA32_MC13_ADDR" },
+		{ 0x0437, "IA32_MC13_MISC" },
+		{ 0x0438, "IA32_MC14_CTL" },
+		{ 0x0439, "IA32_MC14_STATUS" },
+		{ 0x043a, "IA32_MC14_ADDR" },
+		{ 0x043b, "IA32_MC14_MISC" },
+		{ 0x043c, "IA32_MC15_CTL" },
+		{ 0x043d, "IA32_MC15_STATUS" },
+		{ 0x043e, "IA32_MC15_ADDR" },
+		{ 0x043f, "IA32_MC15_MISC" },
+		{ 0x0440, "IA32_MC16_CTL" },
+		{ 0x0441, "IA32_MC16_STATUS" },
+		{ 0x0442, "IA32_MC16_ADDR" },
+		{ 0x0443, "IA32_MC16_MISC" },
+		{ 0x0444, "IA32_MC17_CTL" },
+		{ 0x0445, "IA32_MC17_STATUS" },
+		{ 0x0446, "IA32_MC17_ADDR" },
+		{ 0x0447, "IA32_MC17_MISC" },
+		{ 0x0448, "IA32_MC18_CTL" },
+		{ 0x0449, "IA32_MC18_STATUS" },
+		{ 0x044a, "IA32_MC18_ADDR" },
+		{ 0x044b, "IA32_MC18_MISC" },
+		{ 0x044c, "IA32_MC19_CTL" },
+		{ 0x044b, "IA32_MC19_STATUS" },
+		{ 0x044e, "IA32_MC19_ADDR" },
+		{ 0x044f, "IA32_MC19_MISC" },
+		{ 0x0606, "MSR_RAPL_POWER_UNIT" },
+		{ 0x0618, "MSR_DRAM_POWER_LIMIT" },
+		{ 0x0619, "MSR_DRAM_ENERGY_STATUS" },
+		{ 0x061b, "MSR_DRAM_PERF_STATUS" },
+		{ 0x061c, "MSR_DRAM_POWER_INFO" },
+		{ 0x0620, "MSR_UNCORE_RATIO_LIMIT" },
+		{ 0x0639, "MSR_PP0_ENERGY_STATUS" },
+		{ 0x0638, "MSR_PP0_POWER_LIMIT" },
+		{ 0x064d, "MSR_PLATFORM_ENERGY_COUNTER" },
+		{ 0x064f, "MSR_CORE_PERF_LIMIT_REASONS" },
+		{ 0x0652, "MSR_PKG_HDC_CONFIG" },
+		{ 0x0655, "MSR_PKG_HDC_SHALLOW_RESIDENCY" },
+		{ 0x0656, "MSR_PKG_HDC_DEEP_RESIDENCY" },
+		{ 0x0658, "MSR_WEIGHTED_CORE_C0" },
+		{ 0x0659, "MSR_ANY_CORE_C0" },
+		{ 0x065a, "MSR_ANY_GFXE_C0" },
+		{ 0x065b, "MSR_CORE_GFXE_OVERLAP_C0" },
+		{ 0x065c, "MSR_PLATFORM_POWER_LIMIT" },
+		{ 0x06b0, "MSR_GRAPHICS_PERF_LIMIT_REASONS" },
+		{ 0x06b1, "MSR_RING_PERF_LIMIT_REASONS" },
+		{ 0x0770, "IA32_PM_ENABLE" },
+		{ 0x0db0, "IA32_PKG_HDC_CTL" },
+		{ 0x0c90, "IA32_L3_QOS_MASK_0" },
+		{ 0x0c91, "IA32_L3_QOS_MASK_1" },
+		{ 0x0c92, "IA32_L3_QOS_MASK_2" },
+		{ 0x0c93, "IA32_L3_QOS_MASK_3" },
+		{ 0x0c94, "IA32_L3_QOS_MASK_4" },
+		{ 0x0c95, "IA32_L3_QOS_MASK_5" },
+		{ 0x0c96, "IA32_L3_QOS_MASK_6" },
+		{ 0x0c97, "IA32_L3_QOS_MASK_7" },
+		{ 0x0c98, "IA32_L3_QOS_MASK_8" },
+		{ 0x0c99, "IA32_L3_QOS_MASK_9" },
+		{ 0x0c9a, "IA32_L3_QOS_MASK_10" },
+		{ 0x0c9b, "IA32_L3_QOS_MASK_11" },
+		{ 0x0c9c, "IA32_L3_QOS_MASK_12" },
+		{ 0x0c9d, "IA32_L3_QOS_MASK_13" },
+		{ 0x0c9e, "IA32_L3_QOS_MASK_14" },
+		{ 0x0c9f, "IA32_L3_QOS_MASK_15" },
+	};
+
+	static const msr_entry_t model565x_per_core_msrs[] = {
+		{ 0x0000, "IA32_P5_MC_ADDR" },
+		{ 0x0001, "IA32_P5_MC_TYPE" },
+		{ 0x0006, "IA32_MONITOR_FILTER_SIZE" },
+		{ 0x0010, "IA32_TIME_STAMP_COUNTER" },
+		{ 0x0017, "IA32_PLATFORM_ID" },
+		{ 0x001b, "IA32_APIC_BASE" },
+		{ 0x0034, "MSR_SMI_COUNT" },
+		{ 0x003a, "IA32_FEATURE_CONTROL" },
+		{ 0x008b, "IA32_BIOS_SIGN_ID" },
+		{ 0x00c1, "IA32_PMC0" },
+		{ 0x00c2, "IA32_PMC1" },
+		{ 0x00c3, "IA32_PMC2" },
+		{ 0x00c4, "IA32_PMC3" },
+		{ 0x00e2, "MSR_PKG_CST_CONFIG_CONTROL" },
+		{ 0x00e4, "MSR_PMG_IO_CAPTURE_BASE" },
+		{ 0x00e7, "IA32_MPERF" },
+		{ 0x00e8, "IA32_APERF" },
+		{ 0x00fe, "IA32_MTRRCAP" },
+		{ 0x013c, "MSR_FEATURE_CONFIG" },
+		{ 0x0174, "IA32_SYSENTER_CS" },
+		{ 0x0175, "IA32_SYSENTER_ESP" },
+		{ 0x0176, "IA32_SYSENTER_EIP" },
+		{ 0x0179, "IA32_MCG_CAP" },
+		{ 0x017a, "IA32_MCG_STATUS" },
+		{ 0x017d, "MSR_SMM_MCA_CAP" },
+		{ 0x0186, "IA32_PERFEVTSEL0" },
+		{ 0x0187, "IA32_PERFEVTSEL1" },
+		{ 0x0188, "IA32_PERFEVTSEL2" },
+		{ 0x0189, "IA32_PERFEVTSEL3" },
+		{ 0x019b, "IA32_THERM_INTERRUPT" },
+		{ 0x0199, "IA32_PERF_CTL" },
+		{ 0x019a, "IA32_CLOCK_MODULATION" },
+		{ 0x01a0, "IA32_MISC_ENABLE" },
+		{ 0x01a4, "IA32_MISC_FEATURE_CONTROL" },
+		{ 0x01a6, "MSR_OFFCORE_RSP_0" },
+		{ 0x01a7, "MSR_OFFCORE_RSP_1" },
+		{ 0x01c8, "MSR_LBR_SELECT" },
+		{ 0x01c9, "MSR_LASTBRANCH_TOS" },
+		{ 0x01d9, "IA32_DEBUGCTL" },
+		{ 0x01dd, "MSR_LER_FROM_LIP" },
+		{ 0x01de, "MSR_LER_TO_LIP" },
+		{ 0x01f2, "IA32_SMRR_PHYSBASE" },
+		{ 0x01f3, "IA32_SMRR_PHYSMASK" },
+		{ 0x01fc, "MSR_POWER_CTL" },
+		{ 0x0200, "IA32_MTRR_PHYSBASE0" },
+		{ 0x0201, "IA32_MTRR_PHYSBASE0" },
+		{ 0x0202, "IA32_MTRR_PHYSBASE1" },
+		{ 0x0203, "IA32_MTRR_PHYSBASE1" },
+		{ 0x0204, "IA32_MTRR_PHYSBASE2" },
+		{ 0x0205, "IA32_MTRR_PHYSBASE2" },
+		{ 0x0206, "IA32_MTRR_PHYSBASE3" },
+		{ 0x0207, "IA32_MTRR_PHYSBASE3" },
+		{ 0x0208, "IA32_MTRR_PHYSBASE4" },
+		{ 0x0209, "IA32_MTRR_PHYSBASE4" },
+		{ 0x020a, "IA32_MTRR_PHYSBASE5" },
+		{ 0x020b, "IA32_MTRR_PHYSBASE5" },
+		{ 0x020c, "IA32_MTRR_PHYSBASE6" },
+		{ 0x020d, "IA32_MTRR_PHYSBASE6" },
+		{ 0x020e, "IA32_MTRR_PHYSBASE7" },
+		{ 0x020f, "IA32_MTRR_PHYSBASE7" },
+		{ 0x0210, "IA32_MTRR_PHYSBASE8" },
+		{ 0x0211, "IA32_MTRR_PHYSBASE8" },
+		{ 0x0212, "IA32_MTRR_PHYSBASE9" },
+		{ 0x0213, "IA32_MTRR_PHYSBASE9" },
+		{ 0x0250, "IA32_MTRR_FIX64K_00000" },
+		{ 0x0258, "IA32_MTRR_FIX16K_80000" },
+		{ 0x0259, "IA32_MTRR_FIX16K_A0000" },
+		{ 0x0268, "IA32_MTRR_FIX4K_C0000" },
+		{ 0x0269, "IA32_MTRR_FIX4K_C8000" },
+		{ 0x026a, "IA32_MTRR_FIX4K_D0000" },
+		{ 0x026b, "IA32_MTRR_FIX4K_D8000" },
+		{ 0x026c, "IA32_MTRR_FIX4K_E0000" },
+		{ 0x026d, "IA32_MTRR_FIX4K_E8000" },
+		{ 0x026e, "IA32_MTRR_FIX4K_F0000" },
+		{ 0x026f, "IA32_MTRR_FIX4K_F8000" },
+		{ 0x0277, "IA32_PAT" },
+		{ 0x0280, "IA32_MC0_CTL2" },
+		{ 0x0281, "IA32_MC1_CTL2" },
+		{ 0x0282, "IA32_MC2_CTL2" },
+		{ 0x0283, "IA32_MC3_CTL2" },
+		{ 0x02ff, "IA32_MTRR_DEF_TYPE" },
+		{ 0x0309, "IA32_FIXED_CTR0" },
+		{ 0x030a, "IA32_FIXED_CTR1" },
+		{ 0x030b, "IA32_FIXED_CTR2" },
+		{ 0x0345, "IA32_PERF_CAPABILITIES" },
+		{ 0x038d, "IA32_FIXED_CTR_CTRL" },
+		{ 0x038e, "IA32_PERF_GLOBAL_STATUS" },
+		{ 0x038f, "IA32_PERF_GLOBAL_CTRL" },
+		{ 0x0390, "IA32_PERF_GLOBAL_STATUS_RESET" },
+		{ 0x0391, "IA32_PERF_GLOBAL_STATUS_SET" },
+		{ 0x0392, "IA32_PERF_GLOBAL_INUSE" },
+		{ 0x03f1, "MSR_PEBS_ENABLE" },
+		{ 0x03f6, "MSR_PEBS_LD_LAT" },
+		{ 0x03f7, "MSR_PEBS_FRONTEND" },
+		{ 0x03fc, "MSR_CORE_C3_RESIDENCY" },
+		{ 0x03fd, "MSR_CORE_C6_RESIDENCY" },
+		{ 0x03fe, "MSR_CORE_C7_RESIDENCY" },
+		{ 0x0400, "IA32_MC0_CTL" },
+		{ 0x0401, "IA32_MC0_STATUS" },
+		{ 0x0402, "IA32_MC0_ADDR" },
+		{ 0x0403, "IA32_MC0_MISC" },
+		{ 0x0404, "IA32_MC1_CTL" },
+		{ 0x0405, "IA32_MC1_STATUS" },
+		{ 0x0406, "IA32_MC1_ADDR" },
+		{ 0x0407, "IA32_MC1_MISC" },
+		{ 0x0408, "IA32_MC2_CTL" },
+		{ 0x0409, "IA32_MC2_STATUS" },
+		{ 0x040a, "IA32_MC2_ADDR" },
+		{ 0x040b, "IA32_MC2_MISC" },
+		{ 0x040c, "IA32_MC3_CTL" },
+		{ 0x040d, "IA32_MC3_STATUS" },
+		{ 0x040e, "IA32_MC3_ADDR" },
+		{ 0x040f, "IA32_MC3_MISC" },
+		{ 0x0480, "IA32_VMX_BASIC" },
+		{ 0x0481, "IA32_VMX_PINBASED_CTLS" },
+		{ 0x0482, "IA32_VMX_PROCBASED_CTLS" },
+		{ 0x0483, "IA32_VMX_EXIT_CTLS" },
+		{ 0x0484, "IA32_VMX_ENTRY_CTLS" },
+		{ 0x0485, "IA32_VMX_MISC" },
+		{ 0x0486, "IA32_VMX_CR0_FIXED0" },
+		{ 0x0487, "IA32_VMX_CR0_FIXED1" },
+		{ 0x0488, "IA32_VMX_CR4_FIXED0" },
+		{ 0x0489, "IA32_VMX_CR4_FIXED1" },
+		{ 0x048a, "IA32_VMX_VMCS_ENUM" },
+		{ 0x048b, "IA32_VMX_PROCBASED_CTLS2" },
+		{ 0x048c, "IA32_VMX_EPT_VPID_ENUM" },
+		{ 0x048d, "IA32_VMX_TRUE_PINBASED_CTLS" },
+		{ 0x048e, "IA32_VMX_TRUE_PROCBASED_CTLS" },
+		{ 0x048f, "IA32_VMX_TRUE_EXIT_CTLS" },
+		{ 0x0490, "IA32_VMX_TRUE_ENTRY_CTLS" },
+		{ 0x04c1, "IA32_A_PMC0" },
+		{ 0x04c2, "IA32_A_PMC1" },
+		{ 0x04c3, "IA32_A_PMC2" },
+		{ 0x04c4, "IA32_A_PMC3" },
+		{ 0x04c5, "IA32_A_PMC4" },
+		{ 0x04c6, "IA32_A_PMC5" },
+		{ 0x04c7, "IA32_A_PMC6" },
+		{ 0x04c8, "IA32_A_PMC7" },
+		{ 0x0500, "IA32_SGX_SVN_STATUS" },
+		{ 0x0560, "IA32_RTIT_OUTPUT_BASE" },
+		{ 0x0561, "IA32_RTIT_OUTPUT_MASK_PTRS" },
+		{ 0x0570, "IA32_RTIT_CTL" },
+		{ 0x0571, "IA32_RTIT_STATUS" },
+		{ 0x0572, "IA32_RTIT_CR3_MATCH" },
+		{ 0x0580, "IA32_RTIT_ADDR0_A" },
+		{ 0x0581, "IA32_RTIT_ADDR0_B" },
+		{ 0x0582, "IA32_RTIT_ADDR1_A" },
+		{ 0x0583, "IA32_RTIT_ADDR1_B" },
+		{ 0x0600, "IA32_DS_AREA" },
+		{ 0x064e, "MSR_PPERF" },
+		{ 0x0653, "MSR_CORE_HDC_RESIDENCY" },
+		{ 0x0690, "MSR_LASTBRANCH_16_FROM_IP" },
+		{ 0x0691, "MSR_LASTBRANCH_17_FROM_IP" },
+		{ 0x0692, "MSR_LASTBRANCH_18_FROM_IP" },
+		{ 0x0693, "MSR_LASTBRANCH_19_FROM_IP" },
+		{ 0x0694, "MSR_LASTBRANCH_20_FROM_IP" },
+		{ 0x0695, "MSR_LASTBRANCH_21_FROM_IP" },
+		{ 0x0696, "MSR_LASTBRANCH_22_FROM_IP" },
+		{ 0x0697, "MSR_LASTBRANCH_23_FROM_IP" },
+		{ 0x0698, "MSR_LASTBRANCH_24_FROM_IP" },
+		{ 0x0699, "MSR_LASTBRANCH_25_FROM_IP" },
+		{ 0x069a, "MSR_LASTBRANCH_26_FROM_IP" },
+		{ 0x069b, "MSR_LASTBRANCH_27_FROM_IP" },
+		{ 0x069c, "MSR_LASTBRANCH_28_FROM_IP" },
+		{ 0x069d, "MSR_LASTBRANCH_29_FROM_IP" },
+		{ 0x069e, "MSR_LASTBRANCH_30_FROM_IP" },
+		{ 0x069f, "MSR_LASTBRANCH_31_FROM_IP" },
+		{ 0x06d0, "MSR_LASTBRANCH_16_TO_IP" },
+		{ 0x06d1, "MSR_LASTBRANCH_17_TO_IP" },
+		{ 0x06d2, "MSR_LASTBRANCH_18_TO_IP" },
+		{ 0x06d3, "MSR_LASTBRANCH_19_TO_IP" },
+		{ 0x06d4, "MSR_LASTBRANCH_20_TO_IP" },
+		{ 0x06d5, "MSR_LASTBRANCH_21_TO_IP" },
+		{ 0x06d6, "MSR_LASTBRANCH_22_TO_IP" },
+		{ 0x06d7, "MSR_LASTBRANCH_23_TO_IP" },
+		{ 0x06d8, "MSR_LASTBRANCH_24_TO_IP" },
+		{ 0x06d9, "MSR_LASTBRANCH_25_TO_IP" },
+		{ 0x06da, "MSR_LASTBRANCH_26_TO_IP" },
+		{ 0x06db, "MSR_LASTBRANCH_27_TO_IP" },
+		{ 0x06dc, "MSR_LASTBRANCH_28_TO_IP" },
+		{ 0x06dd, "MSR_LASTBRANCH_29_TO_IP" },
+		{ 0x06de, "MSR_LASTBRANCH_30_TO_IP" },
+		{ 0x06df, "MSR_LASTBRANCH_31_TO_IP" },
+		{ 0x06e0, "IA32_TSC_DEADLINE" },
+		{ 0x0771, "IA32_HWP_CAPABILITIES" },
+		{ 0x0773, "IA32_HWP_INTERRUPT" },
+		{ 0x0774, "IA32_HWP_REQUEST" },
+		{ 0x0777, "IA32_HWP_STATUS" },
+		{ 0x0c8d, "IA32_QM_EVTSEL" },
+		{ 0x0c8f, "IA32_PQR_ASSOC" },
+		{ 0x0d90, "IA32_BNDCFGS" },
+		{ 0x0da0, "IA32_XSS" },
+		{ 0x0db1, "IA32_PM_CTL1" },
+		{ 0x0db2, "IA32_THREAD_STALL" },
+		{ 0x0dc0, "MSR_LBR_INFO_0" },
+		{ 0x0dc1, "MSR_LBR_INFO_1" },
+		{ 0x0dc2, "MSR_LBR_INFO_2" },
+		{ 0x0dc3, "MSR_LBR_INFO_3" },
+		{ 0x0dc4, "MSR_LBR_INFO_4" },
+		{ 0x0dc5, "MSR_LBR_INFO_5" },
+		{ 0x0dc6, "MSR_LBR_INFO_6" },
+		{ 0x0dc7, "MSR_LBR_INFO_7" },
+		{ 0x0dc8, "MSR_LBR_INFO_8" },
+		{ 0x0dc9, "MSR_LBR_INFO_9" },
+		{ 0x0dca, "MSR_LBR_INFO_10" },
+		{ 0x0dcb, "MSR_LBR_INFO_11" },
+		{ 0x0dcc, "MSR_LBR_INFO_12" },
+		{ 0x0dcd, "MSR_LBR_INFO_13" },
+		{ 0x0dce, "MSR_LBR_INFO_14" },
+		{ 0x0dcf, "MSR_LBR_INFO_15" },
+		{ 0x0dd0, "MSR_LBR_INFO_16" },
+		{ 0x0dd1, "MSR_LBR_INFO_17" },
+		{ 0x0dd2, "MSR_LBR_INFO_18" },
+		{ 0x0dd3, "MSR_LBR_INFO_19" },
+		{ 0x0dd4, "MSR_LBR_INFO_20" },
+		{ 0x0dd5, "MSR_LBR_INFO_21" },
+		{ 0x0dd6, "MSR_LBR_INFO_22" },
+		{ 0x0dd7, "MSR_LBR_INFO_23" },
+		{ 0x0dd8, "MSR_LBR_INFO_24" },
+		{ 0x0dd9, "MSR_LBR_INFO_25" },
+		{ 0x0ddA, "MSR_LBR_INFO_26" },
+		{ 0x0ddB, "MSR_LBR_INFO_27" },
+		{ 0x0ddc, "MSR_LBR_INFO_28" },
+		{ 0x0ddd, "MSR_LBR_INFO_29" },
+		{ 0x0dde, "MSR_LBR_INFO_30" },
+		{ 0x0ddf, "MSR_LBR_INFO_31" },
+	};
+
 	typedef struct {
 		unsigned int model;
 		const msr_entry_t *global_msrs;
@@ -1547,6 +2250,8 @@ int print_intel_core_msrs(void)
 		{ 0x00f60, modelf6x_global_msrs, ARRAY_SIZE(modelf6x_global_msrs), modelf6x_per_core_msrs, ARRAY_SIZE(modelf6x_per_core_msrs) },
 		{ 0x106c0, model6_atom_global_msrs, ARRAY_SIZE(model6_atom_global_msrs), model6_atom_per_core_msrs, ARRAY_SIZE(model6_atom_per_core_msrs) },
 		{ 0x20650, model20650_global_msrs, ARRAY_SIZE(model20650_global_msrs), model20650_per_core_msrs, ARRAY_SIZE(model20650_per_core_msrs) },
+		{ 0x906e0, model96ex_global_msrs, ARRAY_SIZE(model96ex_global_msrs), model96ex_per_core_msrs, ARRAY_SIZE(model96ex_per_core_msrs) },
+		{ 0x50650, model565x_global_msrs, ARRAY_SIZE(model565x_global_msrs), model565x_per_core_msrs, ARRAY_SIZE(model565x_per_core_msrs) },
 
 		{ CPUID_BAYTRAIL, silvermont_global_msrs, ARRAY_SIZE(silvermont_global_msrs), silvermont_per_core_msrs, ARRAY_SIZE(silvermont_per_core_msrs) }, /* Baytrail */
 
@@ -1590,7 +2295,7 @@ int print_intel_core_msrs(void)
 
 	close(fd_msr);
 
-	for (core = 0; core < 8; core++) {
+	for (core = 0; core < core_num; core++) {
 #ifndef __DARWIN__
 		char msrfilename[64];
 		memset(msrfilename, 0, 64);

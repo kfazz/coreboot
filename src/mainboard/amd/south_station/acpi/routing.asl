@@ -1,26 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
-
-/*
-#include <arch/acpi.h>
-DefinitionBlock ("DSDT.AML", "DSDT", 0x01, OEM_ID, ACPI_TABLE_CREATOR, 0x00010001
-		)
-	{
-		#include "routing.asl"
-	}
-*/
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* Routing is in System Bus scope */
 Scope(\_SB) {
@@ -311,14 +289,14 @@ Scope(\_SB) {
 		Package(){0x0000FFFF, 3, 0, 16 },
 	})
 
-	Name(PSa, Package(){
+	Name(PSA, Package(){
 		/* PCIe slot - Hooked to PCIe slot 10 */
 		Package(){0x0000FFFF, 0, INTD, 0 },
 		Package(){0x0000FFFF, 1, INTA, 0 },
 		Package(){0x0000FFFF, 2, INTB, 0 },
 		Package(){0x0000FFFF, 3, INTC, 0 },
 	})
-	Name(APSa, Package(){
+	Name(APSA, Package(){
 		/* PCIe slot - Hooked to PCIe slot 10 */
 		Package(){0x0000FFFF, 0, 0, 18 },
 		Package(){0x0000FFFF, 1, 0, 19 },

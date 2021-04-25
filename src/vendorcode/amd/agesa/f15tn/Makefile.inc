@@ -1,8 +1,5 @@
 #*****************************************************************************
 #
-# Copyright (c) 2012, Advanced Micro Devices, Inc.
-# All rights reserved.
-#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #     * Redistributions of source code must retain the above copyright
@@ -40,14 +37,9 @@ AGESA_INC += -I$(src)/mainboard/$(MAINBOARDDIR)	# OptionsIds.h
 
 BUILDOPTS_INCLUDES = -I$(AGESA_ROOT)/Config $(AGESA_INC) $(AGESA_AUTOINCLUDES)
 
-CFLAGS_x86_32 += -march=k8-sse3 -mtune=k8-sse3 -fno-zero-initialized-in-bss -fno-strict-aliasing
-CFLAGS_x86_64 += -march=k8-sse3 -mtune=k8-sse3 -fno-zero-initialized-in-bss -fno-strict-aliasing
-
 # These are invalid, coreboot proper should not require
 # use of AGESA internal header files.
 CPPFLAGS_x86_ANY =
-CPPFLAGS_x86_ANY += -I$(AGESA_ROOT)/Proc/CPU			# heapManager.h
-CPPFLAGS_x86_ANY += -I$(AGESA_ROOT)/Proc/CPU/Family
 
 CPPFLAGS_x86_ANY += -I$(AGESA_ROOT)/Proc/Fch			# FchPlatform.h
 CPPFLAGS_x86_ANY += -I$(AGESA_ROOT)/Proc/Fch/Common		# FchCommonCfg.h

@@ -1,32 +1,19 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2019 Google LLC
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi_device.h>
-#include <arch/acpigen.h>
+#include <acpi/acpi_device.h>
+#include <acpi/acpigen.h>
 #include <console/console.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
 #include "chip.h"
 
-static void ish_fill_ssdt_generator(struct device *dev)
+static void ish_fill_ssdt_generator(const struct device *dev)
 {
 	struct drivers_intel_ish_config *config = dev->chip_info;
 	struct device *root = dev->bus->dev;
 	struct acpi_dp *dsd;
 
-	if (!dev->enabled || !config || !config->firmware_name)
+	if (!config || !config->firmware_name)
 		return;
 
 	acpigen_write_scope(acpi_device_path(root));
@@ -42,10 +29,9 @@ static void ish_fill_ssdt_generator(struct device *dev)
 }
 
 static struct device_operations intel_ish_ops = {
-	.read_resources			= DEVICE_NOOP,
-	.set_resources			= DEVICE_NOOP,
-	.enable_resources		= DEVICE_NOOP,
-	.acpi_fill_ssdt_generator	= ish_fill_ssdt_generator,
+	.read_resources		= noop_read_resources,
+	.set_resources		= noop_set_resources,
+	.acpi_fill_ssdt		= ish_fill_ssdt_generator,
 };
 
 static void intel_ish_enable(struct device *dev)
@@ -66,6 +52,8 @@ static const struct device_operations pci_ish_device_ops = {
 
 static const unsigned short pci_device_ids[] = {
 	PCI_DEVICE_ID_INTEL_CNL_ISHB,
+	PCI_DEVICE_ID_INTEL_CML_ISHB,
+	PCI_DEVICE_ID_INTEL_TGL_ISHB,
 	0
 };
 

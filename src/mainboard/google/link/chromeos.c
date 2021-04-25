@@ -1,66 +1,27 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <string.h>
 #include <bootmode.h>
+#include <boot/coreboot_tables.h>
 #include <southbridge/intel/bd82x6x/pch.h>
 #include <southbridge/intel/common/gpio.h>
 #include <vendorcode/google/chromeos/chromeos.h>
 
-#ifndef __PRE_RAM__
-#include <boot/coreboot_tables.h>
-
-#define GPIO_COUNT	6
-
 void fill_lb_gpios(struct lb_gpios *gpios)
 {
-	gpios->size = sizeof(*gpios) + (GPIO_COUNT * sizeof(struct lb_gpio));
-	gpios->count = GPIO_COUNT;
+	struct lb_gpio chromeos_gpios[] = {
+		/* Lid: the "switch" comes from the EC */
+		{-1, ACTIVE_HIGH, get_lid_switch(), "lid"},
 
-	/* Write Protect: GPIO57 = PCH_SPI_WP_D */
-	gpios->gpios[0].port = 57;
-	gpios->gpios[0].polarity = ACTIVE_HIGH;
-	gpios->gpios[0].value = get_write_protect_state();
-	strncpy((char *)gpios->gpios[0].name,"write protect",
-							GPIO_MAX_NAME_LENGTH);
-	/* Recovery: the "switch" comes from the EC */
-	gpios->gpios[1].port = -1; /* Indicate that this is a pseudo GPIO */
-	gpios->gpios[1].polarity = ACTIVE_HIGH;
-	gpios->gpios[1].value = get_recovery_mode_switch();
-	strncpy((char *)gpios->gpios[1].name,"recovery", GPIO_MAX_NAME_LENGTH);
+		/* Power Button: hard-coded as not pressed; we'll detect later
+		 * presses via SMI. */
+		{-1, ACTIVE_HIGH, 0, "power"},
 
-	/* Lid: the "switch" comes from the EC */
-	gpios->gpios[2].port = -1;
-	gpios->gpios[2].polarity = ACTIVE_HIGH;
-	gpios->gpios[2].value = get_lid_switch();
-	strncpy((char *)gpios->gpios[2].name,"lid", GPIO_MAX_NAME_LENGTH);
-
-	/* Power Button: hard-coded as not pressed; we'll detect later presses
-	 * via SMI. */
-	gpios->gpios[3].port = -1;
-	gpios->gpios[3].polarity = ACTIVE_HIGH;
-	gpios->gpios[3].value = 0;
-	strncpy((char *)gpios->gpios[3].name,"power", GPIO_MAX_NAME_LENGTH);
-
-	/* Did we load the VGA Option ROM? */
-	gpios->gpios[5].port = -1; /* Indicate that this is a pseudo GPIO */
-	gpios->gpios[5].polarity = ACTIVE_HIGH;
-	gpios->gpios[5].value = gfx_get_init_done();
-	strncpy((char *)gpios->gpios[5].name,"oprom", GPIO_MAX_NAME_LENGTH);
+		/* Did we load the VGA Option ROM? */
+		/* -1 indicates that this is a pseudo GPIO */
+		{-1, ACTIVE_HIGH, gfx_get_init_done(), "oprom"},
+	};
+	lb_add_gpios(gpios, chromeos_gpios, ARRAY_SIZE(chromeos_gpios));
 }
-#endif
 
 int get_write_protect_state(void)
 {

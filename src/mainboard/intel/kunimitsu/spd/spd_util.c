@@ -1,28 +1,12 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2016 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
-#include <arch/byteorder.h>
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <cbfs.h>
 #include <console/console.h>
 #include <stdint.h>
 #include <string.h>
-#include <soc/pei_data.h>
-#include <soc/pei_wrapper.h>
 #include "boardid.h"
 #include "spd.h"
 
-void mainboard_fill_dq_map_data(void *dq_map_ptr)
+void mainboard_fill_dq_map_data(void *dq_map_ch0, void *dq_map_ch1)
 {
 	/* DQ byte map */
 	const u8 dq_map[2][12] = {
@@ -30,16 +14,18 @@ void mainboard_fill_dq_map_data(void *dq_map_ptr)
 		    0x0F, 0x00, 0xFF, 0x00, 0xFF, 0x00 },
 		  { 0x0F, 0xF0, 0x00, 0xF0, 0x0F, 0xF0,
 		    0x0F, 0x00, 0xFF, 0x00, 0xFF, 0x00 } };
-	memcpy(dq_map_ptr, dq_map, sizeof(dq_map));
+	memcpy(dq_map_ch0, dq_map[0], sizeof(dq_map[0]));
+	memcpy(dq_map_ch1, dq_map[1], sizeof(dq_map[1]));
 }
 
-void mainboard_fill_dqs_map_data(void *dqs_map_ptr)
+void mainboard_fill_dqs_map_data(void *dqs_map_ch0, void *dqs_map_ch1)
 {
 	/* DQS CPU<>DRAM map */
 	const u8 dqs_map[2][8] = {
 		{ 0, 1, 3, 2, 6, 5, 4, 7 },
 		{ 2, 3, 0, 1, 6, 7, 4, 5 } };
-	memcpy(dqs_map_ptr, dqs_map, sizeof(dqs_map));
+	memcpy(dqs_map_ch0, dqs_map[0], sizeof(dqs_map[0]));
+	memcpy(dqs_map_ch1, dqs_map[1], sizeof(dqs_map[1]));
 }
 
 void mainboard_fill_rcomp_res_data(void *rcomp_ptr)
@@ -56,13 +42,12 @@ void mainboard_fill_rcomp_strength_data(void *rcomp_strength_ptr)
 
 	mem_cfg_id = get_spd_index();
 	/* Rcomp target */
-	static const u16 RcompTarget[RCOMP_TARGET_PARAMS] = {
+	static const u16 RcompTarget[5] = {
 		100, 40, 40, 23, 40 };
 
 	/* Strengthen the Rcomp Target Ctrl for 8GB K4E6E304EE -EGCF */
-	static const u16 StrengthendRcompTarget[RCOMP_TARGET_PARAMS] = {
+	static const u16 StrengthendRcompTarget[5] = {
 		100, 40, 40, 21, 40 };
-
 
 	if (mem_cfg_id == K4E6E304EE_MEM_ID) {
 		memcpy(rcomp_strength_ptr, StrengthendRcompTarget,
@@ -83,8 +68,7 @@ uintptr_t mainboard_get_spd_data(void)
 	printk(BIOS_INFO, "SPD index %d\n", spd_index);
 
 	/* Load SPD data from CBFS */
-	spd_file = cbfs_boot_map_with_leak("spd.bin", CBFS_TYPE_SPD,
-		&spd_file_len);
+	spd_file = cbfs_map("spd.bin", &spd_file_len);
 	if (!spd_file)
 		die("SPD data not found.");
 

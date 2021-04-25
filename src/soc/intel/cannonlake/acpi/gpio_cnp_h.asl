@@ -1,21 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <soc/gpio_defs_cnp_h.h>
+#include <soc/intel/common/block/acpi/acpi/gpio_op.asl>
 #include <soc/irq.h>
 #include <soc/pcr_ids.h>
-#include "gpio_op.asl"
 
 Device (GPIO)
 {
@@ -80,25 +67,25 @@ Device (GPIO)
 Method (GADD, 1, NotSerialized)
 {
 	/* GPIO Community 0 */
-	If (LAnd (LGreaterEqual (Arg0, GPP_A0), LLessEqual (Arg0, GPP_B23)))
+	If (LAnd (LGreaterEqual (Arg0, GPP_A0), LLessEqual (Arg0, GSPI1_CLK_LOOPBK)))
 	{
 		Store (PID_GPIOCOM0, Local0)
 		Subtract (Arg0, GPP_A0, Local1)
 	}
 	/* GPIO Community 1 */
-	If (LAnd (LGreaterEqual (Arg0, GPP_C0), LLessEqual (Arg0, GPP_G7)))
+	If (LAnd (LGreaterEqual (Arg0, GPP_C0), LLessEqual (Arg0, vSSP2_RXD)))
 	{
 		Store (PID_GPIOCOM1, Local0)
 		Subtract (Arg0, GPP_C0, Local1)
 	}
 	/* GPIO Community 3*/
-	If (LAnd (LGreaterEqual (Arg0, GPP_K0), LLessEqual (Arg0, GPP_F23)))
+	If (LAnd (LGreaterEqual (Arg0, GPP_K0), LLessEqual (Arg0, SPI0_CLK_LOOPBK)))
 	{
 		Store (PID_GPIOCOM3, Local0)
 		Subtract (Arg0, GPP_K0, Local1)
 	}
 	/* GPIO Community 4*/
-	If (LAnd (LGreaterEqual (Arg0, GPP_I0), LLessEqual (Arg0, GPP_J11)))
+	If (LAnd (LGreaterEqual (Arg0, HDACPU_SDI), LLessEqual (Arg0, GPP_J11)))
 	{
 		Store (PID_GPIOCOM4, Local0)
 		Subtract (Arg0, GPP_I0, Local1)

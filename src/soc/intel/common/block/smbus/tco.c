@@ -1,17 +1,6 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#define __SIMPLE_DEVICE__
 
 #include <arch/io.h>
 #include <device/pci_ops.h>
@@ -19,6 +8,7 @@
 #include <device/pci.h>
 #include <device/pci_def.h>
 #include <intelblocks/pcr.h>
+#include <intelblocks/pmclib.h>
 #include <intelblocks/tco.h>
 #include <soc/iomap.h>
 #include <soc/pci_devs.h>
@@ -34,6 +24,7 @@
 #define TCOBASE		0x50
 #define TCOCTL		0x54
 #define  TCO_BASE_EN		(1 << 8)
+#define  TCO_BASE_LOCK		(1 << 0)
 
 /* Get base address of TCO I/O registers. */
 static uint16_t tco_get_bar(void)
@@ -62,6 +53,10 @@ void tco_write_reg(uint16_t tco_reg, uint16_t value)
 void tco_lockdown(void)
 {
 	uint16_t tcocnt;
+	const pci_devfn_t dev = PCH_DEV_SMBUS;
+
+	/* TCO base address lockdown */
+	pci_or_config32(dev, TCOCTL, TCO_BASE_LOCK);
 
 	/* TCO Lock down */
 	tcocnt = tco_read_reg(TCO1_CNT);
@@ -74,13 +69,13 @@ uint32_t tco_reset_status(void)
 	uint16_t tco1_sts;
 	uint16_t tco2_sts;
 
-	/* TCO Status 2 register */
-	tco2_sts = tco_read_reg(TCO2_STS);
-	tco2_sts |= TCO_STS_SECOND_TO;
-	tco_write_reg(TCO2_STS, tco2_sts);
-
 	/* TCO Status 1 register */
 	tco1_sts = tco_read_reg(TCO1_STS);
+	tco_write_reg(TCO1_STS, tco1_sts);
+
+	/* TCO Status 2 register */
+	tco2_sts = tco_read_reg(TCO2_STS);
+	tco_write_reg(TCO2_STS, tco2_sts | TCO_STS_SECOND_TO);
 
 	return (tco2_sts << 16) | tco1_sts;
 }
@@ -96,18 +91,24 @@ static void tco_timer_disable(void)
 	tco_write_reg(TCO1_CNT, tcocnt);
 }
 
+/* Enable and initialize TCO intruder SMI */
+static void tco_intruder_smi_enable(void)
+{
+	uint16_t tcocnt;
+
+	/* Make TCO issue an SMI on INTRD_DET assertion */
+	tcocnt = tco_read_reg(TCO2_CNT);
+	tcocnt &= ~TCO_INTRD_SEL_MASK;
+	tcocnt |= TCO_INTRD_SEL_SMI;
+	tco_write_reg(TCO2_CNT, tcocnt);
+}
+
 /* Enable TCO BAR using SMBUS TCO base to access TCO related register */
 static void tco_enable_bar(void)
 {
 	uint32_t reg32;
 	uint16_t tcobase;
-#if defined(__SIMPLE_DEVICE__)
-	int devfn = PCH_DEVFN_SMBUS;
-	pci_devfn_t dev = PCI_DEV(0, PCI_SLOT(devfn), PCI_FUNC(devfn));
-#else
-	struct device *dev;
-	dev = PCH_DEV_SMBUS;
-#endif
+	const pci_devfn_t dev = PCH_DEV_SMBUS;
 
 	/* Disable TCO in SMBUS Device first before changing Base Address */
 	reg32 = pci_read_config32(dev, TCOCTL);
@@ -137,4 +138,8 @@ void tco_configure(void)
 		tco_enable_bar();
 
 	tco_timer_disable();
+
+	/* Enable intruder interrupt if TCO interrupts are enabled*/
+	if (CONFIG(SOC_INTEL_COMMON_BLOCK_SMM_TCO_ENABLE))
+		tco_intruder_smi_enable();
 }

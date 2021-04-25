@@ -1,32 +1,13 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __MAINBOARD_GOOGLE_OAK_GPIO_H__
 #define __MAINBOARD_GOOGLE_OAK_GPIO_H__
 #include <soc/gpio.h>
 
-#if CONFIG(BOARD_GOOGLE_ROWAN)
-#define LID		GPIO(KPROW1)
-#define RAM_ID_1	GPIO(DSI_TE)
-#define RAM_ID_2	GPIO(RDP1_A)
-#else
 #define LID		((board_id() + CONFIG_BOARD_ID_ADJUSTMENT < 7) ? \
 			GPIO(EINT12) : GPIO(SPI_CK))
 #define RAM_ID_1	GPIO(RCN_A)
 #define RAM_ID_2	GPIO(RCP_A)
-#endif
 
 /* Board ID related GPIOS. */
 #define BOARD_ID_0	GPIO(RDN3_A)

@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2015 Google Inc.
  *
@@ -81,7 +80,7 @@ static int chipidea_hw_init(struct usbdev_ctrl *this, void *_opreg,
 	memcpy(&this->device_descriptor, dd, sizeof(*dd));
 
 	if (p->qhlist == NULL)
-		die("failed to allocate memory for usb device mode");
+		die("failed to allocate memory for USB device mode");
 
 	memset(p->qhlist, 0, sizeof(struct qh) * CI_QHELEMENTS);
 
@@ -102,7 +101,7 @@ static int chipidea_hw_init(struct usbdev_ctrl *this, void *_opreg,
 	p->qhlist[1].config = QH_MPS(64) | QH_NO_AUTO_ZLT | QH_IOS;
 
 	do {
-		debug("waiting for usb phy clk valid: %x\n",
+		debug("waiting for USB phy clk valid: %x\n",
 			readl(&p->opreg->susp_ctrl));
 		mdelay(1);
 	} while ((readl(&p->opreg->susp_ctrl) & (1 << 7)) == 0);
@@ -140,7 +139,7 @@ static void chipidea_halt_ep(struct usbdev_ctrl *this, int ep, int in_dir)
 	writel(1 << ep_to_bits(ep, in_dir), &p->opreg->epflush);
 	while (readl(&p->opreg->epflush))
 		;
-	clrbits_le32(&p->opreg->epctrl[ep], 1 << (7 + (in_dir ? 16 : 0)));
+	clrbits32(&p->opreg->epctrl[ep], 1 << (7 + (in_dir ? 16 : 0)));
 
 	while (!SIMPLEQ_EMPTY(&p->job_queue[ep][in_dir])) {
 		struct job *job = SIMPLEQ_FIRST(&p->job_queue[ep][in_dir]);
@@ -161,7 +160,7 @@ static void chipidea_start_ep(struct usbdev_ctrl *this,
 	in_dir = in_dir ? 1 : 0;
 	debug("enabling %d-%d (type %d)\n", ep, in_dir, ep_type);
 	/* enable endpoint, reset data toggle */
-	setbits_le32(&p->opreg->epctrl[ep],
+	setbits32(&p->opreg->epctrl[ep],
 		((1 << 7) | (1 << 6) | (ep_type << 2)) << (in_dir*16));
 	p->ep_busy[ep][in_dir] = 0;
 	this->ep_mps[ep][in_dir] = mps;
@@ -300,7 +299,6 @@ static void start_setup(struct usbdev_ctrl *this, int ep)
 
 	udc_handle_setup(this, ep, &dr);
 }
-
 
 static void chipidea_enqueue_packet(struct usbdev_ctrl *this, int endpoint,
 	int in_dir, void *data, int len, int zlp, int autofree)
@@ -456,17 +454,17 @@ static void chipidea_stall(struct usbdev_ctrl *this,
 	in_dir = in_dir ? 1 : 0;
 	if (set) {
 		if (in_dir)
-			setbits_le32(ctrl, 1 << 16);
+			setbits32(ctrl, 1 << 16);
 		else
-			setbits_le32(ctrl, 1 << 0);
+			setbits32(ctrl, 1 << 0);
 	} else {
 		/* reset STALL bit, reset data toggle */
 		if (in_dir) {
-			setbits_le32(ctrl, 1 << 22);
-			clrbits_le32(ctrl, 1 << 16);
+			setbits32(ctrl, 1 << 22);
+			clrbits32(ctrl, 1 << 16);
 		} else {
-			setbits_le32(ctrl, 1 << 6);
-			clrbits_le32(ctrl, 1 << 0);
+			setbits32(ctrl, 1 << 6);
+			clrbits32(ctrl, 1 << 0);
 		}
 	}
 	this->ep_halted[ep][in_dir] = set;

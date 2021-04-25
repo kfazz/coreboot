@@ -1,43 +1,16 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- * Copyright (C) 2011 Sven Schnelle <svens@stackframe.org>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <device/pci_def.h>
 #include <arch/io.h>
 #include <device/device.h>
 #include <ec/lenovo/pmh7/pmh7.h>
 #include <ec/lenovo/h8/h8.h>
 #include <ec/acpi/ec.h>
 #include <northbridge/intel/i945/i945.h>
+#include <southbridge/intel/i82801gx/chip.h>
 #include <drivers/intel/gma/int15.h>
-#include <arch/acpigen.h>
+#include <acpi/acpigen.h>
 
 #define PANEL INT15_5F35_CL_DISPLAY_DEFAULT
-
-static acpi_cstate_t cst_entries[] = {
-	{ 1,  1, 1000, { 0x7f, 1, 2, 0, 1, 0 } },
-	{ 2,  1,  500, { 0x01, 8, 0, 0, DEFAULT_PMBASE + LV2, 0 } },
-	{ 2, 17,  250, { 0x01, 8, 0, 0, DEFAULT_PMBASE + LV3, 0 } },
-};
-
-int get_cst_entries(acpi_cstate_t **entries)
-{
-	*entries = cst_entries;
-	return ARRAY_SIZE(cst_entries);
-}
 
 static void mainboard_init(struct device *dev)
 {

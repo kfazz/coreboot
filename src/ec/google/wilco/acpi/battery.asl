@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 Google LLC
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 Mutex (BATM, 0)
 
@@ -274,17 +260,22 @@ Device (BAT0)
 
 	Method (_STA, 0, Serialized)
 	{
-		Return (ESTA (_UID))
+		Return (ESTA (^_UID))
 	}
 
 	Method (_BST, 0, Serialized)
 	{
-		Return (EBST (_UID, PBST))
+		Return (EBST (^_UID, PBST))
 	}
 
 	Method (_BIF, 0, Serialized)
 	{
-		Return (EBIF (_UID, PBIF))
+		Return (EBIF (^_UID, PBIF))
+	}
+
+	Method (_BIX, 0, Serialized)
+	{
+		Return (EBIX (^_UID, PBIX))
 	}
 }
 
@@ -353,5 +344,10 @@ Device (BAT1)
 	Method (_BIF, 0, Serialized)
 	{
 		Return (EBIF (^_UID, PBIF))
+	}
+
+	Method (_BIX, 0, Serialized)
+	{
+		Return (EBIX (^_UID, PBIX))
 	}
 }

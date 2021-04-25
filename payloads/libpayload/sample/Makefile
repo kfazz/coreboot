@@ -1,5 +1,4 @@
 ##
-## This file is part of the libpayload project.
 ##
 ## Copyright (C) 2008 Advanced Micro Devices, Inc.
 ##
@@ -28,19 +27,19 @@
 ##
 
 # Sample libpayload Makefile.
-include ../.xcompile
 include ../.config
+include ../build/xcompile
 
-ARCH-$(CONFIG_LP_ARCH_ARMV)    := arm
-ARCH-$(CONFIG_LP_ARCH_POWERPC) := powerpc
-ARCH-$(CONFIG_LP_ARCH_X86)     := i386
+ARCH-$(CONFIG_LP_ARCH_ARM)   := arm
+ARCH-$(CONFIG_LP_ARCH_X86)   := x86_32
+ARCH-$(CONFIG_LP_ARCH_ARM64) := arm64
 
 CC := $(CC_$(ARCH-y))
 AS := $(AS_$(ARCH-y))
 LIBPAYLOAD_DIR := ../install/libpayload
 XCC := CC="$(CC)" $(LIBPAYLOAD_DIR)/bin/lpgcc
 XAS := AS="$(AS)" $(LIBPAYLOAD_DIR)/bin/lpas
-CFLAGS := -Wall -Werror -Os
+CFLAGS := -fno-builtin -Wall -Werror -Os
 TARGET := hello
 OBJS := $(TARGET).o
 

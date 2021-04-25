@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2013 secunet Security Networks AG
  *
@@ -227,7 +226,7 @@ xhci_set_address (hci_t *controller, usb_speed speed, int hubport, int hubaddr)
 	}
 
 	dev->endpoints[0].maxpacketsize = usb_decode_mps0(speed, buf[7]);
-	if (dev->endpoints[0].maxpacketsize != 8) {
+	if (dev->endpoints[0].maxpacketsize != speed_to_default_mps(speed)) {
 		memset((void *)ic->dev.ep0, 0x00, ctxsize);
 		*ic->add = (1 << 1); /* EP0 Context */
 		EC_SET(MPS, ic->dev.ep0, dev->endpoints[0].maxpacketsize);
@@ -267,7 +266,7 @@ _free_ic_return:
 static int
 xhci_finish_hub_config(usbdev_t *const dev, inputctx_t *const ic)
 {
-	int type = dev->speed == SUPER_SPEED ? 0x2a : 0x29; /* similar enough */
+	int type = is_usb_speed_ss(dev->speed) ? 0x2a : 0x29; /* similar enough */
 	hub_descriptor_t desc;
 
 	if (get_descriptor(dev, gen_bmRequestType(device_to_host, class_type,

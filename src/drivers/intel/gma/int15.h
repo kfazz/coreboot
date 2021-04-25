@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
 int intel_vga_int15_handler(void);
 
 enum {
@@ -24,7 +26,6 @@ enum {
 	GMA_INT15_ACTIVE_LFP_SVDO_LVDS	= 0x02,
 	GMA_INT15_ACTIVE_LFP_EDP	= 0x03,
 };
-
 
 #if CONFIG(VGA_ROM_RUN)
 /* Install custom int15 handler for VGA OPROM */

@@ -1,44 +1,67 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/early_variables.h>
+#include <acpi/acpi_pm.h>
 #include <arch/io.h>
+#include <bootmode.h>
 #include <device/mmio.h>
 #include <cbmem.h>
+#include <cpu/x86/smm.h>
 #include <console/console.h>
 #include <halt.h>
 #include <intelblocks/pmclib.h>
 #include <intelblocks/gpio.h>
 #include <intelblocks/tco.h>
+#include <option.h>
+#include <security/vboot/vboot_common.h>
 #include <soc/pm.h>
+#include <stdint.h>
 #include <string.h>
 #include <timer.h>
-#include <security/vboot/vboot_common.h>
 
-static struct chipset_power_state power_state CAR_GLOBAL;
+static struct chipset_power_state power_state;
+
+/* List of Minimum Assertion durations in microseconds */
+enum min_assert_dur {
+	MinAssertDur0s		= 0,
+	MinAssertDur60us	= 60,
+	MinAssertDur1ms		= 1000,
+	MinAssertDur50ms	= 50000,
+	MinAssertDur98ms	= 98000,
+	MinAssertDur500ms	= 500000,
+	MinAssertDur1s		= 1000000,
+	MinAssertDur2s		= 2000000,
+	MinAssertDur3s		= 3000000,
+	MinAssertDur4s		= 4000000,
+};
+
+/* Signal Assertion duration values */
+struct cfg_assert_dur {
+	/* Minimum assertion duration of SLP_A signal */
+	enum min_assert_dur slp_a;
+
+	/* Minimum assertion duration of SLP_4 signal */
+	enum min_assert_dur slp_s4;
+
+	/* Minimum assertion duration of SLP_3 signal */
+	enum min_assert_dur slp_s3;
+
+	/* PCH PM Power Cycle duration */
+	enum min_assert_dur pm_pwr_cyc_dur;
+};
+
+/* Default value of PchPmPwrCycDur */
+#define PCH_PM_PWR_CYC_DUR	0
 
 struct chipset_power_state *pmc_get_power_state(void)
 {
 	struct chipset_power_state *ptr = NULL;
 
 	if (cbmem_possibly_online())
-		ptr = cbmem_find(CBMEM_ID_POWER_STATE);
+		ptr = acpi_get_pm_state();
 
 	/* cbmem is online but ptr is not populated yet */
 	if (ptr == NULL && !(ENV_RAMSTAGE || ENV_POSTCAR))
-		return car_get_var_ptr(&power_state);
+		return &power_state;
 
 	return ptr;
 }
@@ -46,16 +69,14 @@ struct chipset_power_state *pmc_get_power_state(void)
 static void migrate_power_state(int is_recovery)
 {
 	struct chipset_power_state *ps_cbmem;
-	struct chipset_power_state *ps_car;
 
-	ps_car = car_get_var_ptr(&power_state);
 	ps_cbmem = cbmem_add(CBMEM_ID_POWER_STATE, sizeof(*ps_cbmem));
 
 	if (ps_cbmem == NULL) {
 		printk(BIOS_DEBUG, "Not adding power state to cbmem!\n");
 		return;
 	}
-	memcpy(ps_cbmem, ps_car, sizeof(*ps_cbmem));
+	memcpy(ps_cbmem, &power_state, sizeof(*ps_cbmem));
 }
 ROMSTAGE_CBMEM_INIT_HOOK(migrate_power_state)
 
@@ -80,18 +101,6 @@ static void print_num_status_bits(int num_bits, uint32_t status,
 __weak uint32_t soc_get_smi_status(uint32_t generic_sts)
 {
 	return generic_sts;
-}
-
-/*
- * Set PMC register to know which state system should be after
- * power reapplied
- */
-__weak void pmc_soc_restore_power_failure(void)
-{
-	/*
-	 * SoC code should set PMC config register in order to set
-	 * MAINBOARD_POWER_ON bit as per EDS.
-	 */
 }
 
 int acpi_get_sleep_type(void)
@@ -433,41 +442,28 @@ int pmc_fill_power_state(struct chipset_power_state *ps)
 }
 
 #if CONFIG(PMC_GLOBAL_RESET_ENABLE_LOCK)
-/*
- * If possible, lock 0xcf9. Once the register is locked, it can't be changed.
- * This lock is reset on cold boot, hard reset, soft reset and Sx.
- */
-void pmc_global_reset_lock(void)
+void pmc_global_reset_disable_and_lock(void)
 {
-	/* Read PMC base address from soc */
-	uintptr_t etr = soc_read_pmc_base() + ETR;
+	uint32_t *etr = soc_pmc_etr_addr();
 	uint32_t reg;
 
-	reg = read32((void *)etr);
-	if (reg & CF9_LOCK)
-		return;
-	reg |= CF9_LOCK;
-	write32((void *)etr, reg);
+	reg = read32(etr);
+	reg = (reg & ~CF9_GLB_RST) | CF9_LOCK;
+	write32(etr, reg);
 }
 
-/*
- * Enable or disable global reset. If global reset is enabled, hard reset and
- * soft reset will trigger global reset, where both host and TXE are reset.
- * This is cleared on cold boot, hard reset, soft reset and Sx.
- */
 void pmc_global_reset_enable(bool enable)
 {
-	/* Read PMC base address from soc */
-	uintptr_t etr = soc_read_pmc_base() + ETR;
+	uint32_t *etr = soc_pmc_etr_addr();
 	uint32_t reg;
 
-	reg = read32((void *)etr);
+	reg = read32(etr);
 	reg = enable ? reg | CF9_GLB_RST : reg & ~CF9_GLB_RST;
-	write32((void *)etr, reg);
+	write32(etr, reg);
 }
 #endif // CONFIG_PMC_GLOBAL_RESET_ENABLE_LOCK
 
-int vboot_platform_is_resuming(void)
+int platform_is_resuming(void)
 {
 	if (!(inw(ACPI_BASE_ADDRESS + PM1_STS) & WAK_STS))
 		return 0;
@@ -475,7 +471,7 @@ int vboot_platform_is_resuming(void)
 	return acpi_sleep_from_pm1(pmc_read_pm1_control()) == ACPI_S3;
 }
 
-/* Read and clear GPE status (defined in arch/acpi.h) */
+/* Read and clear GPE status (defined in acpi/acpi.h) */
 int acpi_get_gpe(int gpe)
 {
 	int bank;
@@ -581,4 +577,144 @@ void pmc_gpe_init(void)
 
 	/* Set the routes in the GPIO communities as well. */
 	gpio_route_gpe(dw0, dw1, dw2);
+}
+
+void pmc_set_power_failure_state(const bool target_on)
+{
+	bool on;
+
+	const int state = get_int_option("power_on_after_fail",
+					 CONFIG_MAINBOARD_POWER_FAILURE_STATE);
+
+	switch (state) {
+	case MAINBOARD_POWER_STATE_OFF:
+		printk(BIOS_INFO, "Set power off after power failure.\n");
+		on = false;
+		break;
+	case MAINBOARD_POWER_STATE_ON:
+		printk(BIOS_INFO, "Set power on after power failure.\n");
+		on = true;
+		break;
+	case MAINBOARD_POWER_STATE_PREVIOUS:
+		printk(BIOS_INFO, "Keep power state after power failure.\n");
+		on = target_on;
+		break;
+	default:
+		printk(BIOS_WARNING, "WARNING: Unknown power-failure state: %d\n", state);
+		on = false;
+		break;
+	}
+
+	pmc_soc_set_afterg3_en(on);
+}
+
+/* This function returns the highest assertion duration of the SLP_Sx assertion widths */
+static enum min_assert_dur get_high_assert_width(const struct cfg_assert_dur *cfg_assert_dur)
+{
+	enum min_assert_dur max_assert_dur = cfg_assert_dur->slp_s4;
+
+	if (max_assert_dur < cfg_assert_dur->slp_s3)
+		max_assert_dur = cfg_assert_dur->slp_s3;
+
+	if (max_assert_dur < cfg_assert_dur->slp_a)
+		max_assert_dur = cfg_assert_dur->slp_a;
+
+	return max_assert_dur;
+}
+
+/* This function converts assertion durations from register-encoded to microseconds */
+static void get_min_assert_dur(uint8_t slp_s4_min_assert, uint8_t slp_s3_min_assert,
+		uint8_t slp_a_min_assert, uint8_t pm_pwr_cyc_dur,
+		struct cfg_assert_dur *cfg_assert_dur)
+{
+	/*
+	 * Ensure slp_x_dur_list[] elements in the devicetree config are in sync with
+	 * FSP encoded values.
+	 */
+
+	/* slp_s4_assert_dur_list : 1s, 1s(default), 2s, 3s, 4s */
+	const enum min_assert_dur slp_s4_assert_dur_list[] = {
+		MinAssertDur1s, MinAssertDur1s, MinAssertDur2s, MinAssertDur3s, MinAssertDur4s
+	};
+
+	/* slp_s3_assert_dur_list: 50ms, 60us, 1ms, 50ms (Default), 2s */
+	const enum min_assert_dur slp_s3_assert_dur_list[] = {
+		MinAssertDur50ms, MinAssertDur60us, MinAssertDur1ms, MinAssertDur50ms,
+										MinAssertDur2s
+	};
+
+	/* slp_a_assert_dur_list: 2s, 0s, 4s, 98ms, 2s(Default) */
+	const enum min_assert_dur slp_a_assert_dur_list[] = {
+		MinAssertDur2s, MinAssertDur0s, MinAssertDur4s, MinAssertDur98ms, MinAssertDur2s
+	};
+
+	/* pm_pwr_cyc_dur_list: 4s(Default), 1s, 2s, 3s, 4s */
+	const enum min_assert_dur pm_pwr_cyc_dur_list[] = {
+		MinAssertDur4s, MinAssertDur1s, MinAssertDur2s, MinAssertDur3s, MinAssertDur4s
+	};
+
+	/* Get signal assertion width */
+	if (slp_s4_min_assert < ARRAY_SIZE(slp_s4_assert_dur_list))
+		cfg_assert_dur->slp_s4 = slp_s4_assert_dur_list[slp_s4_min_assert];
+
+	if (slp_s3_min_assert < ARRAY_SIZE(slp_s3_assert_dur_list))
+		cfg_assert_dur->slp_s3 = slp_s3_assert_dur_list[slp_s3_min_assert];
+
+	if (slp_a_min_assert < ARRAY_SIZE(slp_a_assert_dur_list))
+		cfg_assert_dur->slp_a = slp_a_assert_dur_list[slp_a_min_assert];
+
+	if (pm_pwr_cyc_dur < ARRAY_SIZE(pm_pwr_cyc_dur_list))
+		cfg_assert_dur->pm_pwr_cyc_dur = pm_pwr_cyc_dur_list[pm_pwr_cyc_dur];
+}
+
+/*
+ * This function ensures that the duration programmed in the PchPmPwrCycDur will never be
+ * smaller than the SLP_Sx assertion widths.
+ * If the pm_pwr_cyc_dur is less than any of the SLP_Sx assertion widths then it returns the
+ * default value PCH_PM_PWR_CYC_DUR.
+ */
+uint8_t get_pm_pwr_cyc_dur(uint8_t slp_s4_min_assert, uint8_t slp_s3_min_assert,
+		uint8_t slp_a_min_assert, uint8_t pm_pwr_cyc_dur)
+{
+	/* Set default values for the minimum assertion duration */
+	struct cfg_assert_dur cfg_assert_dur = {
+		.slp_a		= MinAssertDur2s,
+		.slp_s4		= MinAssertDur1s,
+		.slp_s3		= MinAssertDur50ms,
+		.pm_pwr_cyc_dur	= MinAssertDur4s
+	};
+
+	enum min_assert_dur high_assert_width;
+
+	/* Convert assertion durations from register-encoded to microseconds */
+	get_min_assert_dur(slp_s4_min_assert, slp_s3_min_assert, slp_a_min_assert,
+		pm_pwr_cyc_dur,	&cfg_assert_dur);
+
+	/* Get the highest assertion duration among PCH EDS specified signals for pwr_cyc_dur */
+	high_assert_width = get_high_assert_width(&cfg_assert_dur);
+
+	if (cfg_assert_dur.pm_pwr_cyc_dur >= high_assert_width)
+		return pm_pwr_cyc_dur;
+
+	printk(BIOS_DEBUG,
+			"Set PmPwrCycDur to 4s as configured PmPwrCycDur (%d) violates PCH EDS "
+			"spec\n", pm_pwr_cyc_dur);
+
+	return PCH_PM_PWR_CYC_DUR;
+}
+
+#if CONFIG(PMC_LOW_POWER_MODE_PROGRAM)
+void pmc_disable_acpi_timer(void)
+{
+	uint8_t *pmcbase = pmc_mmio_regs();
+
+	setbits8(pmcbase + PCH_PWRM_ACPI_TMR_CTL, ACPI_TIM_DIS);
+}
+#endif /* PMC_LOW_POWER_MODE_PROGRAM */
+
+void pmc_set_acpi_mode(void)
+{
+	if (!CONFIG(NO_SMM) && !acpi_is_wakeup_s3()) {
+		apm_control(APM_CNT_ACPI_DISABLE);
+	}
 }

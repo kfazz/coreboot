@@ -1,17 +1,4 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2011 Advanced Micro Devices, Inc.
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+# SPDX-License-Identifier: GPL-2.0-only
 
 config SOUTHBRIDGE_AMD_CIMX_SB800
 	bool
@@ -21,12 +8,11 @@ config SOUTHBRIDGE_AMD_CIMX_SB800
 	select AMD_SB_CIMX
 	select HAVE_CF9_RESET
 	select HAVE_CF9_RESET_PREPARE
+	select SOC_AMD_COMMON
+	select SOC_AMD_COMMON_BLOCK_ACPIMMIO
+	select SOC_AMD_COMMON_BLOCK_PCI_MMCONF
 
 if SOUTHBRIDGE_AMD_CIMX_SB800
-config BOOTBLOCK_SOUTHBRIDGE_INIT
-	string
-	default "southbridge/amd/cimx/sb800/bootblock.c"
-
 config ENABLE_IDE_COMBINED_MODE
 	bool "Enable SATA IDE combined mode"
 	default n

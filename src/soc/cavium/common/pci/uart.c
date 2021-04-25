@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2019 9Elements GmbH <patrick.rudolph@9elements.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/device.h>
 #include <soc/uart.h>
@@ -37,4 +23,8 @@ static const struct pci_driver soc_cavium_uart __pci_driver = {
 	.ops    = &device_ops,
 	.vendor = PCI_VENDOR_CAVIUM,
 	.device = PCI_DEVICE_ID_CAVIUM_THUNDERX_UART,
+};
+
+struct chip_operations soc_cavium_common_pci_ops = {
+	CHIP_NAME("Cavium ThunderX UART")
 };

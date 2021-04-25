@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <device/device.h>
@@ -21,6 +7,7 @@
 #include "pch.h"
 #include <device/pci_ehci.h>
 #include <device/pci_ops.h>
+#include "chip.h"
 
 static void usb_xhci_init(struct device *dev)
 {
@@ -33,9 +20,7 @@ static void usb_xhci_init(struct device *dev)
 		pci_write_config32(dev, XOCM, config->xhci_overcurrent_mapping);
 
 	/* lock overcurrent map */
-	reg32 = pci_read_config32(dev, 0x44);
-	reg32 |= 1;
-	pci_write_config32(dev, 0x44, reg32);
+	pci_or_config32(dev, 0x44, 1);
 
 	pci_write_config32(dev, XUSB2PRM, config->xhci_switchable_ports);
 	pci_write_config32(dev, USB3PRM, config->superspeed_capable_ports);
@@ -56,17 +41,12 @@ static const char *xhci_acpi_name(const struct device *dev)
 	return "XHC";
 }
 
-static struct pci_operations xhci_pci_ops = {
-	.set_subsystem		= pci_dev_set_subsystem,
-};
-
 static struct device_operations usb_xhci_ops = {
 	.read_resources		= pci_dev_read_resources,
 	.set_resources		= pci_dev_set_resources,
 	.enable_resources	= pci_dev_enable_resources,
 	.init			= usb_xhci_init,
-	.scan_bus		= 0,
-	.ops_pci		= &xhci_pci_ops,
+	.ops_pci		= &pci_dev_ops_pci,
 	.acpi_name		= xhci_acpi_name,
 };
 

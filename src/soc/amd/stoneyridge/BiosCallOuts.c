@@ -1,31 +1,16 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011, 2017 Advanced Micro Devices, Inc.
- * Copyright (C) 2013 Sage Electronic Engineering, LLC
- * Copyright (C) 2017 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/device.h>
 #include <device/pci_def.h>
 #include <amdblocks/BiosCallOuts.h>
+#include <console/console.h>
 #include <soc/southbridge.h>
 #include <soc/pci_devs.h>
-#include <stdlib.h>
-
 #include <amdblocks/agesawrapper.h>
 #include <amdblocks/dimm_spd.h>
-#include "chip.h"
 #include <amdblocks/car.h>
+
+#include "chip.h"
 
 void __weak platform_FchParams_reset(FCH_RESET_DATA_BLOCK *FchParams_reset) {}
 

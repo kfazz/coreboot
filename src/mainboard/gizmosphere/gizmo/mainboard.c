@@ -1,49 +1,49 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Advanced Micro Devices, Inc.
- * Copyright (C) 2013 Sage Electronic Engineering, LLC
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <amdblocks/acpimmio.h>
 #include <device/mmio.h>
 #include <console/console.h>
 #include <delay.h>
 #include <device/device.h>
-#include <device/pci_def.h>
+#include <southbridge/amd/common/amd_pci_util.h>
 #include <device/pci_ops.h>
-#include <southbridge/amd/sb800/sb800.h>
-#include <southbridge/amd/cimx/sb800/SBPLATFORM.h>
+
+static const u8 mainboard_intr_data[] = {
+	[0x00] = 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,  /* INTA# - INTH# */
+	[0x08] = 0x00, 0x00, 0x00, 0x00, 0x1F, 0x1F, 0x1F, 0x1F,  /* Misc-nil, 0, 1, 2,  INT from Serial irq */
+	[0x10] = 0x09, 0x1F, 0x1F, 0x10, 0x1F, 0x12, 0x1F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x12, 0x11, 0x12, 0x11, 0x12, 0x11, 0x12, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x11, 0x13, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x10, 0x11, 0x12, 0x13
+};
+
+/* PIRQ Setup */
+static void pirq_setup(void)
+{
+	intr_data_ptr = mainboard_intr_data;
+}
 
 /**********************************************
  * Enable the dedicated functions of the board.
  **********************************************/
 static void mainboard_enable(struct device *dev)
 {
-	printk(BIOS_INFO, "Mainboard " CONFIG_MAINBOARD_PART_NUMBER " Enable.\n");
+	pirq_setup();
 
 	/* enable GPP CLK0 thru CLK1 */
 	/* disable GPP CLK2 thru SLT_GFX_CLK */
-	u8 *misc_mem_clk_cntrl = (u8 *)(ACPI_MMIO_BASE + MISC_BASE);
-	write8(misc_mem_clk_cntrl + 0, 0xFF);
-	write8(misc_mem_clk_cntrl + 1, 0x00);
-	write8(misc_mem_clk_cntrl + 2, 0x00);
-	write8(misc_mem_clk_cntrl + 3, 0x00);
-	write8(misc_mem_clk_cntrl + 4, 0x00);
+	misc_write8(0, 0xFF);
+	misc_write8(1, 0);
+	misc_write8(2, 0);
+	misc_write8(3, 0);
+	misc_write8(4, 0);
 
 	/*
 	 * Force the onboard SATA port to GEN2 speed.
 	 * The offboard SATA port can remain at GEN3.
 	 */
-	RWMEM(ACPI_MMIO_BASE + PMIO_BASE + SB_PMIOA_REGDA, AccWidthUint8, 0xFB, 0x04);
+	pm_write8(0xda, (pm_read8(0xda) & 0xfb) | 0x04);
 }
 
 static void mainboard_final(void *chip_info)
@@ -57,7 +57,7 @@ static void mainboard_final(void *chip_info)
 	ABAR &= 0xFFFFFC00;
 	memptr = (u8 *)(ABAR + 0x100 + 0x80 + 0x2C); /* we're on the 2nd port */
 	*memptr = 0x21; /* force to GEN2 and start re-negotiate */
-	mdelay (1);
+	mdelay(1);
 	*memptr = 0x20;
 }
 

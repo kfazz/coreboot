@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- * Copyright 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/io.h>
 #include <console/console.h>
@@ -34,7 +20,7 @@ int mainboard_io_trap_handler(int smif)
        switch (smif) {
        case 0x99:
                printk(BIOS_DEBUG, "Sample\n");
-               smm_get_gnvs()->smif = 0;
+               gnvs->smif = 0;
                break;
        default:
                return 0;
@@ -46,6 +32,6 @@ int mainboard_io_trap_handler(int smif)
         * For now, we force the return value to 0 and log all traps to
         * see what's going on.
         */
-       //smm_get_gnvs()->smif = 0;
+       //gnvs->smif = 0;
        return 1;
 }

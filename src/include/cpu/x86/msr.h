@@ -16,6 +16,7 @@
 /* Page attribute type MSR */
 #define TSC_MSR				0x10
 #define IA32_PLATFORM_ID		0x17
+#define IA32_APIC_BASE_MSR_INDEX	0x1B
 #define IA32_FEATURE_CONTROL		0x3a
 #define  FEATURE_CONTROL_LOCK_BIT	(1 << 0)
 #define  FEATURE_ENABLE_VMX		(1 << 2)
@@ -30,6 +31,10 @@
 #define IA32_BIOS_SIGN_ID		0x8b
 #define IA32_MPERF			0xe7
 #define IA32_APERF			0xe8
+/* STM */
+#define IA32_SMM_MONITOR_CTL_MSR	0x9B
+#define SMBASE_RO_MSR			0x98
+#define  IA32_SMM_MONITOR_VALID		(1 << 0)
 #define IA32_MCG_CAP			0x179
 #define  MCG_CTL_P			(1 << 3)
 #define  MCA_BANKS_MASK			0xff
@@ -37,12 +42,18 @@
 #define IA32_PERF_CTL			0x199
 #define IA32_THERM_INTERRUPT		0x19b
 #define IA32_MISC_ENABLE		0x1a0
+#define  FAST_STRINGS_ENABLE_BIT	(1 << 0)
+#define  SPEED_STEP_ENABLE_BIT		(1 << 16)
 #define IA32_ENERGY_PERF_BIAS		0x1b0
 #define  ENERGY_POLICY_PERFORMANCE	0
 #define  ENERGY_POLICY_NORMAL		6
 #define  ENERGY_POLICY_POWERSAVE	15
+#define  ENERGY_POLICY_MASK		0xf
 #define IA32_PACKAGE_THERM_INTERRUPT	0x1b2
+#define SMRR_PHYSBASE_MSR		0x1F2
+#define SMRR_PHYSMASK_MSR		0x1F3
 #define IA32_PLATFORM_DCA_CAP		0x1f8
+#define  DCA_TYPE0_EN			(1 << 0)
 #define IA32_PAT			0x277
 #define IA32_MC0_CTL			0x400
 #define IA32_MC0_STATUS			0x401
@@ -63,6 +74,9 @@
 #define  MCA_STATUS_LO_ERRCODE_EXT_SH	16
 #define  MCA_STATUS_LO_ERRCODE_EXT_MASK	(0x3f << MCA_STATUS_LO_ERRCODE_EXT_SH)
 #define  MCA_STATUS_LO_ERRCODE_MASK	(0xffff << 0)
+#define IA32_VMX_BASIC_MSR              0x480
+#define  VMX_BASIC_HI_DUAL_MONITOR      (1UL << (49 - 32))
+#define IA32_VMX_MISC_MSR               0x485
 #define MC0_ADDR			0x402
 #define MC0_MISC			0x403
 #define MC0_CTL_MASK			0xC0010044
@@ -77,23 +91,11 @@
 #define IA32_L3_MASK_1			0xc91
 #define IA32_L3_MASK_2			0xc92
 
+#define IA32_CR_SF_QOS_MASK_1           0x1891
+#define IA32_CR_SF_QOS_MASK_2           0x1892
+
 #ifndef __ASSEMBLER__
 #include <types.h>
-#if defined(__ROMCC__)
-
-typedef __builtin_msr_t msr_t;
-
-static msr_t rdmsr(unsigned long index)
-{
-	return __builtin_rdmsr(index);
-}
-
-static void wrmsr(unsigned long index, msr_t msr)
-{
-	__builtin_wrmsr(index, msr.lo, msr.hi);
-}
-
-#else
 
 typedef struct msr_struct {
 	unsigned int lo;
@@ -152,7 +154,6 @@ static __always_inline void wrmsr(unsigned int index, msr_t msr)
 }
 
 #endif /* CONFIG_SOC_SETS_MSRS */
-#endif /* __ROMCC__ */
 
 /* Helpers for interpreting MC[i]_STATUS */
 
@@ -297,6 +298,47 @@ static inline enum mca_err_code_types mca_err_type(msr_t reg)
 	if (error & MCA_ERRCODE_TLB_DETECT)
 		return MCA_ERRTYPE_TLB;
 	return MCA_ERRTYPE_UNKNOWN;
+}
+
+/**
+ * Helper for (un)setting MSR bitmasks
+ *
+ * @param[in] reg	The MSR.
+ * @param[in] unset	Bitmask with ones to the bits to unset from the MSR.
+ * @param[in] set	Bitmask with ones to the bits to set from the MSR.
+ */
+static inline void msr_unset_and_set(unsigned int reg, uint64_t unset, uint64_t set)
+{
+	msr_t msr;
+
+	msr = rdmsr(reg);
+	msr.lo &= (unsigned int)~unset;
+	msr.hi &= (unsigned int)~(unset >> 32);
+	msr.lo |= (unsigned int)set;
+	msr.hi |= (unsigned int)(set >> 32);
+	wrmsr(reg, msr);
+}
+
+/**
+ * Helper for setting MSR bitmasks
+ *
+ * @param[in] reg	The MSR.
+ * @param[in] set	Bitmask with ones to the bits to set from the MSR.
+ */
+static inline void msr_set(unsigned int reg, uint64_t set)
+{
+	msr_unset_and_set(reg, 0, set);
+}
+
+/**
+ * Helper for unsetting MSR bitmasks
+ *
+ * @param[in] reg	The MSR.
+ * @param[in] unset	Bitmask with ones to the bits to unset from the MSR.
+ */
+static inline void msr_unset(unsigned int reg, uint64_t unset)
+{
+	msr_unset_and_set(reg, unset, 0);
 }
 
 #endif /* __ASSEMBLER__ */

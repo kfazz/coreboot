@@ -32,11 +32,10 @@
  *     IBM Corporation - initial implementation
  *****************************************************************************/
 
+#include <boot/coreboot_tables.h>
+#include <framebuffer_info.h>
 #include <string.h>
 #include <types.h>
-#if CONFIG(FRAMEBUFFER_SET_VESA_MODE)
-#include <boot/coreboot_tables.h>
-#endif
 
 #include <endian.h>
 
@@ -52,12 +51,21 @@
 #include "interrupt.h"
 #include "device.h"
 
-#include <cbfs.h>
-
 #include <delay.h>
-#include "../../src/lib/jpeg.h"
 
 #include <vbe.h>
+
+// these structs only store a subset of the VBE defined fields
+// only those needed.
+typedef struct {
+	char signature[4];
+	u16 version;
+	u8 *oem_string_ptr;
+	u32 capabilities;
+	u16 video_mode_list[256];	// lets hope we never have more than
+					// 256 video modes...
+	u16 total_memory;
+} vbe_info_t;
 
 // pointer to VBEInfoBuffer, set by vbe_prepare
 u8 *vbe_info_buffer = 0;
@@ -155,11 +163,6 @@ vbe_info(vbe_info_t * info)
 }
 
 static int mode_info_valid;
-
-static int vbe_mode_info_valid(void)
-{
-	return mode_info_valid;
-}
 
 // VBE Function 01h
 static u8
@@ -705,7 +708,14 @@ vbe_get_info(void)
 }
 #endif
 
-vbe_mode_info_t mode_info;
+static vbe_mode_info_t mode_info;
+
+const vbe_mode_info_t *vbe_mode_info(void)
+{
+	if (!mode_info_valid || !mode_info.vesa.phys_base_ptr)
+		return NULL;
+	return &mode_info;
+}
 
 void vbe_set_graphics(void)
 {
@@ -734,60 +744,24 @@ void vbe_set_graphics(void)
 	vbe_get_mode_info(&mode_info);
 	vbe_set_mode(&mode_info);
 
-#if CONFIG(BOOTSPLASH)
-	unsigned char *framebuffer =
-		(unsigned char *) le32_to_cpu(mode_info.vesa.phys_base_ptr);
-	DEBUG_PRINTF_VBE("FRAMEBUFFER: 0x%p\n", framebuffer);
+	const struct lb_framebuffer fb = {
+		.physical_address    = mode_info.vesa.phys_base_ptr,
+		.x_resolution        = le16_to_cpu(mode_info.vesa.x_resolution),
+		.y_resolution        = le16_to_cpu(mode_info.vesa.y_resolution),
+		.bytes_per_line      = le16_to_cpu(mode_info.vesa.bytes_per_scanline),
+		.bits_per_pixel      = mode_info.vesa.bits_per_pixel,
+		.red_mask_pos        = mode_info.vesa.red_mask_pos,
+		.red_mask_size       = mode_info.vesa.red_mask_size,
+		.green_mask_pos      = mode_info.vesa.green_mask_pos,
+		.green_mask_size     = mode_info.vesa.green_mask_size,
+		.blue_mask_pos       = mode_info.vesa.blue_mask_pos,
+		.blue_mask_size      = mode_info.vesa.blue_mask_size,
+		.reserved_mask_pos   = mode_info.vesa.reserved_mask_pos,
+		.reserved_mask_size  = mode_info.vesa.reserved_mask_size,
+		.orientation         = LB_FB_ORIENTATION_NORMAL,
+	};
 
-	struct jpeg_decdata *decdata;
-
-	/* Switching Intel IGD to 1MB video memory will break this. Who
-	 * cares. */
-	// int imagesize = 1024*768*2;
-
-	unsigned char *jpeg = cbfs_boot_map_with_leak("bootsplash.jpg",
-							CBFS_TYPE_BOOTSPLASH,
-							NULL);
-	if (!jpeg) {
-		DEBUG_PRINTF_VBE("Could not find bootsplash.jpg\n");
-		return;
-	}
-	DEBUG_PRINTF_VBE("Splash at %p ...\n", jpeg);
-	dump(jpeg, 64);
-
-	decdata = malloc(sizeof(*decdata));
-	int ret = 0;
-	DEBUG_PRINTF_VBE("Decompressing boot splash screen...\n");
-	ret = jpeg_decode(jpeg, framebuffer, 1024, 768, 16, decdata);
-	DEBUG_PRINTF_VBE("returns %x\n", ret);
-#endif
-}
-
-int fill_lb_framebuffer(struct lb_framebuffer *framebuffer)
-{
-	if (!vbe_mode_info_valid())
-		return -1;
-
-	framebuffer->physical_address = le32_to_cpu(mode_info.vesa.phys_base_ptr);
-
-	framebuffer->x_resolution = le16_to_cpu(mode_info.vesa.x_resolution);
-	framebuffer->y_resolution = le16_to_cpu(mode_info.vesa.y_resolution);
-	framebuffer->bytes_per_line = le16_to_cpu(mode_info.vesa.bytes_per_scanline);
-	framebuffer->bits_per_pixel = mode_info.vesa.bits_per_pixel;
-
-	framebuffer->red_mask_pos = mode_info.vesa.red_mask_pos;
-	framebuffer->red_mask_size = mode_info.vesa.red_mask_size;
-
-	framebuffer->green_mask_pos = mode_info.vesa.green_mask_pos;
-	framebuffer->green_mask_size = mode_info.vesa.green_mask_size;
-
-	framebuffer->blue_mask_pos = mode_info.vesa.blue_mask_pos;
-	framebuffer->blue_mask_size = mode_info.vesa.blue_mask_size;
-
-	framebuffer->reserved_mask_pos = mode_info.vesa.reserved_mask_pos;
-	framebuffer->reserved_mask_size = mode_info.vesa.reserved_mask_size;
-
-	return 0;
+	fb_add_framebuffer_info_ex(&fb);
 }
 
 void vbe_textmode_console(void)

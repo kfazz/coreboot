@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2010 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef HUDSON_SMBUS_H
 #define HUDSON_SMBUS_H
@@ -39,8 +26,8 @@
 #define RC_INDXC		1
 #define RC_INDXP		3
 
-#define AB_INDX			0xCD8
-#define AB_DATA			(AB_INDX+4)
+#define AB_INDX			0xcd8
+#define AB_DATA			(AB_INDX + 4)
 
 /* Between 1-10 seconds, We should never timeout normally
  * Longer than this is just painful when a timeout condition occurs.
@@ -67,6 +54,5 @@ int do_smbus_send_byte(u32 smbus_io_base, u32 device, u8 val);
 void alink_rc_indx(u32 reg_space, u32 reg_addr, u32 port, u32 mask, u32 val);
 void alink_ab_indx(u32 reg_space, u32 reg_addr, u32 mask, u32 val);
 void alink_ax_indx(u32 space /*c or p? */ , u32 axindc, u32 mask, u32 val);
-
 
 #endif

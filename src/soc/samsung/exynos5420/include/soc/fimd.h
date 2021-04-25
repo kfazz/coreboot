@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Samsung Electronics
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* Register map for Exynos5 FIMD */
 
@@ -136,7 +123,8 @@ check_member(exynos5_disp_ctrl, trigcon, 0x1a4);
 #define OSD_RIGHTBOTX_F_OFFSET		11
 #define OSD_RIGHTBOTY_F_OFFSET		0
 
-#define FIMD_CTRL ((struct exynos_fb *)0x14400000)
+#define FIMD_CTRL_ADDR			0x14400000
+#define FIMD_CTRL			((struct exynos_fb *)FIMD_CTRL_ADDR)
 
 /* from u-boot fb.h. It needs to be merged with these dp structs maybe. */
 enum {

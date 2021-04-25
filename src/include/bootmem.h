@@ -1,24 +1,11 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef BOOTMEM_H
 #define BOOTMEM_H
 
-#include <memrange.h>
-#include <stdint.h>
 #include <boot/coreboot_tables.h>
+#include <memrange.h>
+#include <types.h>
 
 /**
  * Bootmem types match to LB_MEM tags, except for the following:
@@ -30,6 +17,8 @@
  * Start at 0x10000 to make sure that the caller doesn't provide LB_MEM tags.
  */
 enum bootmem_type {
+	BM_MEM_INVALID = 0,	/* Invalid type (used in optional arguments). */
+
 	BM_MEM_FIRST = 0x10000,	/* First entry in this list */
 	BM_MEM_RAM,		/* Memory anyone can use */
 	BM_MEM_RESERVED,	/* Don't use this memory region */
@@ -37,7 +26,8 @@ enum bootmem_type {
 	BM_MEM_NVS,		/* ACPI NVS Memory */
 	BM_MEM_UNUSABLE,	/* Unusable address space */
 	BM_MEM_VENDOR_RSVD,	/* Vendor Reserved */
-	BM_MEM_BL31,		/* Arm64 BL31 exectuable */
+	BM_MEM_OPENSBI,		/* Risc-V OpenSBI */
+	BM_MEM_BL31,		/* Arm64 BL31 executable */
 	BM_MEM_TABLE,		/* Ram configuration tables are kept in */
 	/* Tags below this point are ignored for the OS table. */
 	BM_MEM_OS_CUTOFF = BM_MEM_TABLE,

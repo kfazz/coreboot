@@ -1,23 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Tobias Diedrich <ranma+coreboot@tdiedrich.de>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef DCP847SKE_SUPERIO_H
 #define DCP847SKE_SUPERIO_H
 
 #include <arch/io.h>
+#include <superio/hwm5_conf.h>
 
 #define NUVOTON_PORT 0x4e
 #define HWM_PORT     0x0a30
@@ -44,11 +31,6 @@
 
 #define SUPERIO_WRITE_INITVAL(val) SUPERIO_WRITE((val) >> 8, (val) & 0xff)
 
-#define HWM_WRITE(reg, data) do { \
-	outb((reg), HWM_PORT + 5); \
-	outb((data), HWM_PORT + 6); \
-} while (0)
-
-#define HWM_WRITE_INITVAL(val) HWM_WRITE((val) >> 8, (val) & 0xff)
+#define HWM_WRITE_INITVAL(val) pnp_write_hwm5_index(HWM_PORT, (val) >> 8, (val) & 0xff)
 
 #endif /* DCP847SKE_SUPERIO_H */

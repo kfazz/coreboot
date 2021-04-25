@@ -1,38 +1,27 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <amdblocks/acpimmio.h>
 #include <device/mmio.h>
 #include <device/pci_ops.h>
 #include <console/console.h>
 #include <device/device.h>
-#include <device/pci.h>
 #include <device/pci_def.h>
+#include <gpio.h>
 #include <southbridge/amd/pi/hudson/hudson.h>
 #include <southbridge/amd/pi/hudson/pci_devs.h>
 #include <southbridge/amd/pi/hudson/amd_pci_int_defs.h>
+#include <northbridge/amd/agesa/agesa_helper.h>
 #include <northbridge/amd/pi/00730F01/pci_devs.h>
 #include <southbridge/amd/common/amd_pci_util.h>
 #include <superio/nuvoton/nct5104d/nct5104d.h>
 #include <smbios.h>
 #include <string.h>
+#include <AGESA.h>
 #include "gpio_ftns.h"
 
 #define SPD_SIZE  128
 #define PM_RTC_CONTROL	    0x56
 #define PM_S_STATE_CONTROL  0xBA
-
 
 /***********************************************************
  * These arrays set up the FCH PCI_INTR registers 0xC00/0xC01.
@@ -75,16 +64,16 @@ static const u8 mainboard_intr_data[FCH_INT_TABLE_SIZE] = {
 	/* Misc-nil,0,1,2, INT from Serial irq */
 	[0x08] = 0x00,0x00,0x00,0x00,0x1F,0x1F,0x1F,0x1F,
 	/* SCI, SMBUS0, ASF, HDA, FC, RSVD, PerMon, SD */
-	[0x10] = 0x09,0x1F,0x1F,0x1F,0x1F,0x1f,0x1F,0x10,
+	[0x10] = 0x09,0x1F,0x1F,0x1F,0x1F,0x1F,0x1F,0x10,
 	[0x18] = 0x1F,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 	/* IMC INT0 - 5 */
 	[0x20] = 0x05,0x1F,0x1F,0x1F,0x1F,0x1F,0x00,0x00,
 	[0x28] = 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 	/* USB Devs 18/19/20/22 INTA-C */
-	[0x30] = 0x12,0x1f,0x12,0x1F,0x12,0x1F,0x1F,0x00,
+	[0x30] = 0x12,0x1F,0x12,0x1F,0x12,0x1F,0x1F,0x00,
 	[0x38] = 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 	/* SATA */
-	[0x40] = 0x1f,0x13,0x00,0x00,0x00,0x00,0x00,0x00,
+	[0x40] = 0x1F,0x13,0x00,0x00,0x00,0x00,0x00,0x00,
 	[0x48] = 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 	[0x50] = 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 	[0x58] = 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
@@ -125,7 +114,7 @@ static const struct pirq_struct mainboard_pirq_data[] = {
 static void pirq_setup(void)
 {
 	pirq_data_ptr = mainboard_pirq_data;
-	pirq_data_size = sizeof(mainboard_pirq_data) / sizeof(struct pirq_struct);
+	pirq_data_size = ARRAY_SIZE(mainboard_pirq_data);
 	intr_data_ptr = mainboard_intr_data;
 	picr_data_ptr = mainboard_picr_data;
 }
@@ -157,9 +146,101 @@ static void config_gpio_mux(void)
 /**********************************************
  * enable the dedicated function in mainboard.
  **********************************************/
+#if CONFIG(GENERATE_SMBIOS_TABLES)
+static int mainboard_smbios_type16(DMI_INFO *agesa_dmi, int *handle,
+				 unsigned long *current)
+{
+	struct smbios_type16 *t;
+	u32 max_capacity;
+	int len = 0;
+
+	t = (struct smbios_type16 *)*current;
+	len = sizeof(struct smbios_type16);
+	memset(t, 0, len);
+	max_capacity = get_spd_offset() ? 4 : 2; /* 4GB or 2GB variant */
+
+	t->type = SMBIOS_PHYS_MEMORY_ARRAY;
+	t->handle = *handle;
+	t->length = len - 2;
+	t->type = SMBIOS_PHYS_MEMORY_ARRAY;
+	t->use = MEMORY_ARRAY_USE_SYSTEM;
+	t->location = MEMORY_ARRAY_LOCATION_SYSTEM_BOARD;
+	t->memory_error_correction = agesa_dmi->T16.MemoryErrorCorrection;
+	t->maximum_capacity = max_capacity * 1024 * 1024;
+	t->memory_error_information_handle = 0xfffe;
+	t->number_of_memory_devices = 1;
+
+	*current += len;
+
+	return len;
+}
+
+static int mainboard_smbios_type17(DMI_INFO *agesa_dmi, int *handle,
+				 unsigned long *current)
+{
+	struct smbios_type17 *t;
+	int len;
+
+	t = (struct smbios_type17 *)*current;
+	memset(t, 0, sizeof(struct smbios_type17));
+
+	t->type = SMBIOS_MEMORY_DEVICE;
+	t->length = sizeof(struct smbios_type17) - 2;
+	t->handle = *handle + 1;
+	t->phys_memory_array_handle = *handle;
+	t->memory_error_information_handle = 0xfffe;
+	t->total_width = agesa_dmi->T17[0][0][0].TotalWidth;
+	t->data_width = agesa_dmi->T17[0][0][0].DataWidth;
+	t->size = agesa_dmi->T17[0][0][0].MemorySize;
+	t->form_factor = agesa_dmi->T17[0][0][0].FormFactor;
+	t->device_set = agesa_dmi->T17[0][0][0].DeviceSet;
+	t->device_locator = smbios_add_string(t->eos,
+				agesa_dmi->T17[0][0][0].DeviceLocator);
+	t->bank_locator = smbios_add_string(t->eos,
+				agesa_dmi->T17[0][0][0].BankLocator);
+	t->memory_type = agesa_dmi->T17[0][0][0].MemoryType;
+	t->type_detail = *(u16 *)&agesa_dmi->T17[0][0][0].TypeDetail;
+	t->speed = agesa_dmi->T17[0][0][0].Speed;
+	t->manufacturer = agesa_dmi->T17[0][0][0].ManufacturerIdCode;
+	t->serial_number = smbios_add_string(t->eos,
+				agesa_dmi->T17[0][0][0].SerialNumber);
+	t->part_number = smbios_add_string(t->eos,
+				agesa_dmi->T17[0][0][0].PartNumber);
+	t->attributes = agesa_dmi->T17[0][0][0].Attributes;
+	t->extended_size = agesa_dmi->T17[0][0][0].ExtSize;
+	t->clock_speed = agesa_dmi->T17[0][0][0].ConfigSpeed;
+	t->minimum_voltage = 1500; /* From SPD: 1.5V */
+	t->maximum_voltage = 1500;
+
+	len = t->length + smbios_string_table_len(t->eos);
+	*current += len;
+
+	return len;
+}
+
+static int mainboard_smbios_data(struct device *dev, int *handle,
+				 unsigned long *current)
+{
+	DMI_INFO *agesa_dmi;
+	int len = 0;
+
+	agesa_dmi = agesawrapper_getlateinitptr(PICK_DMI);
+
+	if (!agesa_dmi)
+		return len;
+
+	len += mainboard_smbios_type16(agesa_dmi, handle, current);
+	len += mainboard_smbios_type17(agesa_dmi, handle, current);
+
+	*handle += 2;
+
+	return len;
+}
+#endif
 
 static void mainboard_enable(struct device *dev)
 {
+	/* Maintain this text unchanged for manufacture process. */
 	printk(BIOS_INFO, "Mainboard " CONFIG_MAINBOARD_PART_NUMBER " Enable.\n");
 
 	config_gpio_mux();
@@ -176,6 +257,9 @@ static void mainboard_enable(struct device *dev)
 
 	/* Initialize the PIRQ data structures for consumption */
 	pirq_setup();
+#if CONFIG(GENERATE_SMBIOS_TABLES)
+	dev->ops->get_smbios_data = mainboard_smbios_data;
+#endif
 }
 
 static void mainboard_final(void *chip_info)
@@ -183,8 +267,8 @@ static void mainboard_final(void *chip_info)
 	//
 	// Turn off LED 2 and LED 3
 	//
-	write_gpio(GPIO_58, 1);
-	write_gpio(GPIO_59, 1);
+	gpio_set(GPIO_58, 1);
+	gpio_set(GPIO_59, 1);
 }
 
 /*
@@ -197,27 +281,20 @@ const char *smbios_mainboard_serial_number(void)
 	struct device *dev;
 	uintptr_t bar10;
 	u32 mac_addr = 0;
-	u32 bus_no;
 	int i;
 
-	/*
-	 * In case we have PCIe module connected to mPCIe2 slot, BDF 1:0.0 may
-	 * not be a NIC, because mPCIe2 slot is routed to the very first PCIe
-	 * bridge and the first NIC is connected to the second PCIe bridge.
-	 * Read secondary bus number from the PCIe bridge where the first NIC is
-	 * connected.
-	 */
-	dev = pcidev_on_root(2, 2);
-	if ((serial[0] != 0) || !dev)
+	/* Already initialized. */
+	if (serial[0] != 0)
 		return serial;
 
-	bus_no = dev->link_list->secondary;
-	dev = dev_find_slot(bus_no, PCI_DEVFN(0, 0));
+	dev = pcidev_on_root(2, 2);
+	if (dev)
+		dev = pcidev_path_behind(dev->link_list, PCI_DEVFN(0, 0));
 	if (!dev)
 		return serial;
 
 	/* Read in the last 3 bytes of NIC's MAC address. */
-	bar10 = pci_read_config32(dev, 0x10);
+	bar10 = pci_read_config32(dev, PCI_BASE_ADDRESS_0);
 	bar10 &= 0xFFFE0000;
 	bar10 += 0x5400;
 	for (i = 3; i < 6; i++) {

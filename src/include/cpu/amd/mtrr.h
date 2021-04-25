@@ -38,9 +38,10 @@
 #define TOP_MEM_MASK			0x007fffff
 #define TOP_MEM_MASK_KB			(TOP_MEM_MASK >> 10)
 
-#if !defined(__PRE_RAM__) && !defined(__ASSEMBLER__)
+#if !defined(__ASSEMBLER__)
 
 #include <cpu/x86/msr.h>
+#include <stdint.h>
 
 void amd_setup_mtrrs(void);
 struct device;

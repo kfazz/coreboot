@@ -1,28 +1,15 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2015-2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _SOC_RAMSTAGE_H_
 #define _SOC_RAMSTAGE_H_
 
-#include <chip.h>
 #include <device/device.h>
 #include <fsp/api.h>
 #include <fsp/util.h>
 
-void mainboard_silicon_init_params(FSP_S_CONFIG *params);
+#include "../../chip.h"
+
+void mainboard_silicon_init_params(FSPS_UPD *supd);
 void soc_init_pre_device(void *chip_info);
 
 #endif

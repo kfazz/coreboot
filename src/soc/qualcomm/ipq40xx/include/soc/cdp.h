@@ -1,39 +1,11 @@
-/*
- * Copyright (c) 2012 The Linux Foundation. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above
- *       copyright notice, this list of conditions and the following
- *       disclaimer in the documentation and/or other materials provided
- *       with the distribution.
- *     * Neither the name of The Linux Foundation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-
+/* SPDX-License-Identifier: BSD-3-Clause */
 
 #ifndef _IPQ40XX_CDP_H_
 #define _IPQ40XX_CDP_H_
 
 #include <types.h>
 
-unsigned smem_get_board_machtype(void);
+unsigned int smem_get_board_machtype(void);
 
 typedef enum {
 	PHY_INTERFACE_MODE_MII,
@@ -116,17 +88,17 @@ typedef struct {
 } spinorflash_params_t;
 
 typedef struct {
-	unsigned count;
+	unsigned int count;
 	uint8_t addr[7];
 } ipq_gmac_phy_addr_t;
 
 typedef struct {
-	unsigned base;
+	unsigned int base;
 	int unit;
-	unsigned is_macsec;
-	unsigned mac_pwr0;
-	unsigned mac_pwr1;
-	unsigned mac_conn_to_phy;
+	unsigned int is_macsec;
+	unsigned int mac_pwr0;
+	unsigned int mac_pwr1;
+	unsigned int mac_conn_to_phy;
 	phy_interface_t phy;
 	ipq_gmac_phy_addr_t phy_addr;
 } ipq_gmac_board_cfg_t;
@@ -169,7 +141,7 @@ static inline int gmac_cfg_is_valid(ipq_gmac_board_cfg_t *cfg)
 }
 #endif
 
-unsigned int get_board_index(unsigned machid);
-void ipq_configure_gpio(const gpio_func_data_t *gpio, unsigned count);
+unsigned int get_board_index(unsigned int machid);
+void ipq_configure_gpio(const gpio_func_data_t *gpio, unsigned int count);
 
 #endif	/* _IPQ40XX_CDP_H_ */

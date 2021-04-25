@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2016 Raptor Engineering, LLC
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <memlayout.h>
 
@@ -26,5 +12,7 @@ SECTIONS
 	ROMSTAGE(0x20000, 128K)
 	STACK(0x40000, 0x3ff00)
 	PRERAM_CBMEM_CONSOLE(0x80000, 8K)
+	FMAP_CACHE(0x82000, 2K)
+	CBFS_MCACHE(0x82800, 8K)
 	RAMSTAGE(0x100000, 16M)
 }

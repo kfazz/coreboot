@@ -1,21 +1,7 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/device.h>
 #include <device/pci.h>
-#include <device/pci_ops.h>
 #include <console/console.h>
 #include <device/cardbus.h>
 
@@ -51,13 +37,4 @@ static const struct pci_driver ti_pcixx12_driver __pci_driver = {
 	.ops    = &ti_pcixx12_ops,
 	.vendor = 0x104c,
 	.device = 0x8039,
-};
-
-static void southbridge_init(struct device *dev)
-{
-}
-
-struct chip_operations southbridge_ti_pcixx12_ops = {
-	CHIP_NAME("Texas Instruments PCIxx12 Cardbus Controller")
-	.enable_dev    = southbridge_init,
 };

@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015 secunet Security Networks AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <drivers/pc80/pc/ps2_controller.asl>
 
@@ -27,7 +14,6 @@ Device (EC0)
 	OperationRegion(ERAM, EmbeddedControl, 0, 0xFF)
 	Field (ERAM, ByteAcc, NoLock, Preserve)
 	{
-		Offset(0x00),		// [Configuration Space 0x0]
 		Offset(0x02),		// [Configuration Space 0x2]
 		B0ST, 16,		// Battery 0 State
 		B0FC, 16,		// Battery 0 Last Full Charge Capacity

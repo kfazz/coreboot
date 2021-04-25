@@ -1,32 +1,24 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <baseboard/variants.h>
 #include <chip.h>
+#include <console/console.h>
+#include <delay.h>
 #include <device/device.h>
 #include <ec/ec.h>
 #include <ec/google/chromeec/ec.h>
 #include <gpio.h>
-#include <variant/gpio.h>
+#include <intelblocks/power_limit.h>
 #include <smbios.h>
 #include <soc/gpio.h>
 #include <soc/pci_devs.h>
 #include <soc/nhlt.h>
 #include <string.h>
+#include <timer.h>
 #include <vendorcode/google/chromeos/chromeos.h>
+
+#include <variant/gpio.h>
 
 #define FIZZ_SKU_ID_I7_U42  0x4
 #define FIZZ_SKU_ID_I5_U42  0x5
@@ -107,12 +99,13 @@ static uint8_t board_sku_id(void)
  * | n  (U22)    |  29 |   .9n   |   .9n   | x(43) |
  * +-------------+-----+---------+---------+-------+
  */
-static void mainboard_set_power_limits(config_t *conf)
+static void mainboard_set_power_limits(struct soc_power_limits_config *conf)
 {
 	enum usb_chg_type type;
 	u32 watts;
+	u16 volts_mv, current_ma;
 	u32 pl2, psyspl2;
-	int rv = google_chromeec_get_usb_pd_power_info(&type, &watts);
+	int rv = google_chromeec_get_usb_pd_power_info(&type, &current_ma, &volts_mv);
 	uint8_t sku = board_sku_id();
 	const uint32_t u42_mask = (1 << FIZZ_SKU_ID_I7_U42) |
 				  (1 << FIZZ_SKU_ID_I5_U42) |
@@ -133,6 +126,7 @@ static void mainboard_set_power_limits(config_t *conf)
 			psyspl2 = FIZZ_PSYSPL2_U42;
 	} else {
 		/* Detected TypeC.  Base on max value of adapter */
+		watts = ((u32)volts_mv * current_ma) / 1000000;
 		psyspl2 = watts;
 		conf->tdp_psyspl3 = SET_PSYSPL2(psyspl2);
 		/* set max possible time window */
@@ -179,7 +173,7 @@ static uint8_t board_oem_id(void)
 
 const char *smbios_system_sku(void)
 {
-	static char sku_str[5]; /* sku{0..7} */
+	static char sku_str[7]; /* sku{0..255} */
 
 	snprintf(sku_str, sizeof(sku_str), "sku%d", board_oem_id());
 
@@ -192,7 +186,7 @@ static void mainboard_init(struct device *dev)
 }
 
 static unsigned long mainboard_write_acpi_tables(
-	struct device *device, unsigned long current, acpi_rsdp_t *rsdp)
+	const struct device *device, unsigned long current, acpi_rsdp_t *rsdp)
 {
 	const char *oem_id = NULL;
 	const char *oem_table_id = NULL;
@@ -221,16 +215,67 @@ static unsigned long mainboard_write_acpi_tables(
 
 static void mainboard_enable(struct device *dev)
 {
-	struct device *root = SA_DEV_ROOT;
-	config_t *conf = root->chip_info;
+	struct soc_power_limits_config *soc_conf;
+	config_t *conf = config_of_soc();
 
-	mainboard_set_power_limits(conf);
+	soc_conf = &conf->power_limits_config;
+	mainboard_set_power_limits(soc_conf);
 
 	dev->ops->init = mainboard_init;
-	dev->ops->acpi_inject_dsdt_generator = chromeos_dsdt_generator;
+	dev->ops->acpi_inject_dsdt = chromeos_dsdt_generator;
 	dev->ops->write_acpi_tables = mainboard_write_acpi_tables;
 }
 
+#define GPIO_HDMI_HPD		GPP_E13
+#define GPIO_DP_HPD		GPP_E14
+
+/* TODO: This can be moved to common directory */
+static void wait_for_hpd(gpio_t gpio, long timeout)
+{
+	struct stopwatch sw;
+
+	printk(BIOS_INFO, "Waiting for HPD\n");
+	gpio_input(gpio);
+
+	stopwatch_init_msecs_expire(&sw, timeout);
+	while (!gpio_get(gpio)) {
+		if (stopwatch_expired(&sw)) {
+			printk(BIOS_WARNING,
+			       "HPD not ready after %ldms. Abort.\n", timeout);
+			return;
+		}
+		mdelay(200);
+	}
+	printk(BIOS_INFO, "HPD ready after %lu ms\n",
+	       stopwatch_duration_msecs(&sw));
+}
+
+void __weak variant_chip_display_init(void)
+{
+	static const long display_timeout_ms = 3000;
+
+	/* This is reconfigured back to whatever FSP-S expects by
+	   gpio_configure_pads. */
+	gpio_input(GPIO_HDMI_HPD);
+	if (display_init_required() && !gpio_get(GPIO_HDMI_HPD)) {
+		/* This has to be done before FSP-S runs. */
+		if (google_chromeec_wait_for_displayport(display_timeout_ms))
+			wait_for_hpd(GPIO_DP_HPD, display_timeout_ms);
+	}
+}
+
+static void mainboard_chip_init(void *chip_info)
+{
+	const struct pad_config *pads;
+	size_t num;
+
+	variant_chip_display_init();
+
+	pads = variant_gpio_table(&num);
+	gpio_configure_pads(pads, num);
+}
+
 struct chip_operations mainboard_ops = {
+	.init = mainboard_chip_init,
 	.enable_dev = mainboard_enable,
 };

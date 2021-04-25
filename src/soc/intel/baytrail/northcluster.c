@@ -1,31 +1,18 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <cpu/x86/smm.h>
+#include <acpi/acpi.h>
+#include <acpi/acpigen.h>
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
-#include <vendorcode/google/chromeos/chromeos.h>
-#include <arch/acpi.h>
-#include <stddef.h>
+#include <stdint.h>
 #include <soc/iomap.h>
 #include <soc/iosf.h>
 #include <soc/pci_devs.h>
 #include <soc/ramstage.h>
 
-/* Host Memory Map:
+/*
+ * Host Memory Map:
  *
  * +--------------------------+ BMBOUND_HI
  * |     Usable DRAM          |
@@ -64,7 +51,7 @@
 
 uint32_t nc_read_top_of_low_memory(void)
 {
-	MAYBE_STATIC uint32_t tolm = 0;
+	static uint32_t tolm;
 
 	if (tolm)
 		return tolm;
@@ -77,7 +64,7 @@ uint32_t nc_read_top_of_low_memory(void)
 static void nc_read_resources(struct device *dev)
 {
 	unsigned long mmconf;
-	unsigned long bmbound;
+	unsigned long bmbound_k;
 	unsigned long bmbound_hi;
 	unsigned long smmrrh;
 	unsigned long smmrrl;
@@ -111,38 +98,40 @@ static void nc_read_resources(struct device *dev)
 		reserved_ram_resource(dev, index++, smmrrl, smmrrh - smmrrl);
 
 	/* All address space between bmbound and smmrrh is unusable. */
-	bmbound = RES_IN_KiB(nc_read_top_of_low_memory());
-	mmio_resource(dev, index++, smmrrh, bmbound - smmrrh);
+	bmbound_k = RES_IN_KiB(nc_read_top_of_low_memory());
+	mmio_resource(dev, index++, smmrrh, bmbound_k - smmrrh);
 
-	/* The BMBOUND_HI register matches register bits of 31:24 with address
-	 * bits of 35:28. Therefore, shift register to align properly. */
+	/*
+	 * The BMBOUND_HI register matches register bits of 31:24 with address
+	 * bits of 35:28. Therefore, shift register to align properly.
+	 */
 	bmbound_hi = iosf_bunit_read(BUNIT_BMBOUND_HI) & ~((1 << 24) - 1);
 	bmbound_hi = RES_IN_KiB(bmbound_hi) << 4;
 	if (bmbound_hi > four_gig_kib)
-		ram_resource(dev, index++, four_gig_kib,
-		             bmbound_hi - four_gig_kib);
+		ram_resource(dev, index++, four_gig_kib, bmbound_hi - four_gig_kib);
 
-	/* Reserve everything between A segment and 1MB:
+	/*
+	 * Reserve everything between A segment and 1MB:
 	 *
 	 * 0xa0000 - 0xbffff: legacy VGA
 	 * 0xc0000 - 0xfffff: RAM
 	 */
 	mmio_resource(dev, index++, (0xa0000 >> 10), (0xc0000 - 0xa0000) >> 10);
-	reserved_ram_resource(dev, index++, (0xc0000 >> 10),
-	                      (0x100000 - 0xc0000) >> 10);
+	reserved_ram_resource(dev, index++, (0xc0000 >> 10), (0x100000 - 0xc0000) >> 10);
+}
 
-	if (CONFIG(CHROMEOS))
-		chromeos_reserve_ram_oops(dev, index++);
+static void nc_generate_ssdt(const struct device *dev)
+{
+	generate_cpu_entries(dev);
+
+	acpigen_write_scope("\\");
+	acpigen_write_name_dword("TOLM", nc_read_top_of_low_memory());
+	acpigen_pop_len();
 }
 
 static struct device_operations nc_ops = {
 	.read_resources   = nc_read_resources,
-	.acpi_fill_ssdt_generator = generate_cpu_entries,
-	.set_resources    = NULL,
-	.enable_resources = NULL,
-	.init             = NULL,
-	.enable           = NULL,
-	.scan_bus         = NULL,
+	.acpi_fill_ssdt   = nc_generate_ssdt,
 	.ops_pci          = &soc_pci_ops,
 };
 

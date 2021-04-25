@@ -1,44 +1,31 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 Google LLC
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <baseboard/gpio.h>
 #include <baseboard/variants.h>
 #include <commonlib/helpers.h>
 
 static const struct pad_config gpio_table[] = {
-	/* A0  : SAR0_INT_ODL */
-	PAD_CFG_GPI_APIC(GPP_A0, NONE, DEEP, LEVEL, NONE),
+	/* A0  : GPP_A0 ==> NC */
+	PAD_NC(GPP_A0, NONE),
 	/* A1  : ESPI_IO0 */
 	/* A2  : ESPI_IO1 */
 	/* A3  : ESPI_IO2 */
 	/* A4  : ESPI_IO3 */
 	/* A5  : ESPI_CS# */
-	/* A6  : SAR1_INT_ODL */
-	PAD_CFG_GPI_APIC(GPP_A6, NONE, DEEP, LEVEL, NONE),
+	/* A6  : GPP_A6 ==> NC */
+	PAD_NC(GPP_A6, NONE),
 	/* A7  : PP3300_SOC_A */
 	PAD_NC(GPP_A7, NONE),
-	/* A8  : EMR_GARAGE_DET ==> NC */
+	/* A8  : GPP_A8 ==> NC */
 	PAD_NC(GPP_A8, NONE),
 	/* A9  : ESPI_CLK */
-	/* A10 : PEN_RESET_ODL */
+	/* A10  : GPP_A10 ==> NC */
 	PAD_NC(GPP_A10, NONE),
-	/* A11 : PCH_SPI_FPMCU_CS_L */
-	PAD_CFG_NF(GPP_A11, NONE, DEEP, NF2),
-	/* A12 : FPMCU_RST_ODL */
-	PAD_CFG_GPO(GPP_A12, 1, DEEP),
+	/* A11  : GPP_A11 ==> NC */
+	PAD_NC(GPP_A11, NONE),
+	/* A12  : GPP_A12 ==> NC */
+	PAD_NC(GPP_A12, NONE),
 	/* A13 : SUSWARN_L */
 	PAD_CFG_NF(GPP_A13, NONE, DEEP, NF1),
 	/* A14 : ESPI_RST_L */
@@ -52,21 +39,14 @@ static const struct pad_config gpio_table[] = {
 	PAD_CFG_GPO(GPP_A18, 1, DEEP),
 	/* A19 : WWAN_RADIO_DISABLE_1V8_ODL */
 	PAD_CFG_GPO(GPP_A19, 1, DEEP),
-	/* A20 : M2_INT_L */
-	PAD_CFG_GPI_APIC(GPP_A20, NONE, DEEP, LEVEL, NONE),
-	/*
-	 * A21 : TRACKPAD_INT_ODL (wake)
-	 * TODO Combine into single gpio, when ITSS IPCx configuration
-	 * is fixed in FSP.
-	 */
-	PAD_CFG_GPI_SCI(GPP_A21, NONE, DEEP, EDGE_SINGLE, INVERT),
+	/* A20 : WLAN_INT_L */
+	PAD_CFG_GPI_APIC(GPP_A20, NONE, PLTRST, LEVEL, INVERT),
+	/* A21 : TRACKPAD_INT_ODL */
+	PAD_CFG_GPI_IRQ_WAKE(GPP_A21, NONE, DEEP, LEVEL, INVERT),
 	/* A22 : FPMCU_PCH_BOOT0 */
 	PAD_CFG_GPO(GPP_A22, 0, DEEP),
-	/* A23 : FPMCU_PCH_INT_ODL
-	 * TODO Configure it back to invert mode, when
-	 * ITSS IPCx configuration is fixed in FSP.
-	*/
-	PAD_CFG_GPI_APIC(GPP_A23, NONE, PLTRST, LEVEL, NONE),
+	/* A23 : FPMCU_PCH_INT_ODL */
+	PAD_CFG_GPI_IRQ_WAKE(GPP_A23, NONE, PLTRST, LEVEL, INVERT),
 
 	/* B0  : CORE_VID0 */
 	PAD_CFG_NF(GPP_B0, NONE, DEEP, NF1),
@@ -106,8 +86,8 @@ static const struct pad_config gpio_table[] = {
 	PAD_CFG_NF(GPP_B17, NONE, DEEP, NF1),
 	/* B18 : H1_SLAVE_SPI_MOSI_R */
 	PAD_CFG_NF(GPP_B18, NONE, DEEP, NF1),
-	/* B19 : GPP_B19 ==> NC */
-	PAD_NC(GPP_B19, NONE),
+	/* B19 : Set to NF1 to match FSP setting it to NF1, i.e., GSPI1_CS0# */
+	PAD_CFG_NF(GPP_B19, NONE, DEEP, NF1),
 	/* B20 : PCH_SPI_FPMCU_CLK_R */
 	PAD_CFG_NF(GPP_B20, NONE, DEEP, NF1),
 	/* B21 : PCH_SPI_FPMCU_MISO */
@@ -138,24 +118,17 @@ static const struct pad_config gpio_table[] = {
 	/* C9  : UART_PCH_TX_DEBUG_RX */
 	PAD_CFG_NF(GPP_C9, NONE, DEEP, NF1),
 	/* C10 : GPP_10 ==> GPP_C10_TP */
-	PAD_NC(GPP_C10, DN_20K),
-	/* C11 : GPP_11 ==> GPP_C11_TP */
-	PAD_NC(GPP_C11, DN_20K),
+	PAD_NC(GPP_C10, NONE),
+	/* C11 : GPP_11 ==> EN_FP_RAILS */
+	PAD_CFG_GPO(GPP_C11, 0, DEEP),
 	/* C12 : GPP_C12 ==> NC */
 	PAD_NC(GPP_C12, NONE),
-	/* C13 : EC_PCH_INT_L
-	 * TODO Configure it back to invert mode, when
-	 * ITSS IPCx configuration is fixed in FSP.
-	 */
-	PAD_CFG_GPI_APIC(GPP_C13, NONE, DEEP, LEVEL, NONE),
+	/* C13 : EC_PCH_INT_L */
+	PAD_CFG_GPI_APIC(GPP_C13, NONE, PLTRST, LEVEL, INVERT),
 	/* C14 : BT_DISABLE_L */
 	PAD_CFG_GPO(GPP_C14, 1, DEEP),
-	/* C15 : WWAN_DPR_SAR_ODL
-	 *
-	 * TODO: Driver doesn't use this pin as of now. In case driver starts
-	 * using this pin, expose this pin to driver.
-	 */
-	PAD_CFG_GPO(GPP_C15, 1, DEEP),
+	/* C15 : NC */
+	PAD_NC(GPP_C15, NONE),
 	/* C16 : PCH_I2C_TRACKPAD_SDA */
 	PAD_CFG_NF(GPP_C16, NONE, DEEP, NF1),
 	/* C17 : PCH_I2C_TRACKPAD_SCL */
@@ -166,12 +139,8 @@ static const struct pad_config gpio_table[] = {
 	PAD_CFG_NF(GPP_C19, NONE, DEEP, NF1),
 	/* C20 : PCH_WP_OD */
 	PAD_CFG_GPI(GPP_C20, NONE, DEEP),
-	/*
-	 * C21 : H1_PCH_INT_ODL
-	 * TODO Configure it back to invert mode, when
-	 * ITSS IPCx configuration is fixed in FSP.
-	 */
-	PAD_CFG_GPI_APIC(GPP_C21, NONE, DEEP, LEVEL, NONE),
+	/* C21 : H1_PCH_INT_ODL */
+	PAD_CFG_GPI_APIC(GPP_C21, NONE, PLTRST, LEVEL, INVERT),
 	/* C22 : EC_IN_RW_OD */
 	PAD_CFG_GPI(GPP_C22, NONE, DEEP),
 	/* C23 : WLAN_PE_RST# */
@@ -195,8 +164,8 @@ static const struct pad_config gpio_table[] = {
 	PAD_NC(GPP_D7, NONE),
 	/* D8  : WWAN_CONFIG_3 */
 	PAD_NC(GPP_D8, NONE),
-	/* D9  : GPP_D9 ==> NC */
-	PAD_NC(GPP_D9, NONE),
+	/* D9  : GPP_D9 ==> EN_PP3300_DX_TOUCHSCREEN */
+	PAD_CFG_GPO(GPP_D9, 0, DEEP),
 	/* D10 : GPP_D10 ==> NC */
 	PAD_NC(GPP_D10, NONE),
 	/* D11 : GPP_D11 ==> NC */
@@ -210,7 +179,7 @@ static const struct pad_config gpio_table[] = {
 	/* D15 : TOUCHSCREEN_RST_L */
 	PAD_CFG_GPO(GPP_D15, 0, DEEP),
 	/* D16 : USI_INT */
-	PAD_CFG_GPI_APIC(GPP_D16, NONE, DEEP, LEVEL, NONE),
+	PAD_CFG_GPI_APIC(GPP_D16, NONE, PLTRST, LEVEL, NONE),
 	/* D17 : PCH_HP_SDW_CLK */
 	PAD_NC(GPP_D17, NONE),
 	/* D18 : PCH_HP_SDW_DAT */
@@ -219,12 +188,8 @@ static const struct pad_config gpio_table[] = {
 	PAD_CFG_NF(GPP_D19, NONE, DEEP, NF1),
 	/* D20 : DMIC_DATA_0_SNDW4_DATA */
 	PAD_CFG_NF(GPP_D20, NONE, DEEP, NF1),
-	/*
-	 * D21 : TRACKPAD_INT_ODL
-	 * TODO Combine into single gpio with invert mode, when ITSS
-	 * IPCx configuration is fixed in FSP.
-	 */
-	PAD_CFG_GPI_APIC(GPP_D21, NONE, PLTRST, LEVEL, NONE),
+	/* D21 : GPP_D21 ==> NC */
+	PAD_NC(GPP_D21, NONE),
 	/* D22 : GPP_D22 ==> NC */
 	PAD_NC(GPP_D22, NONE),
 	/* D23 : SPP_MCLK */
@@ -232,8 +197,8 @@ static const struct pad_config gpio_table[] = {
 
 	/* E0  : GPP_E0 ==> NC */
 	PAD_NC(GPP_E0, NONE),
-	/* E1  : SATAGP1 */
-	PAD_CFG_NF(GPP_E1, NONE, DEEP, NF2),
+	/* E1  : M2_SSD_PEDET */
+	PAD_CFG_NF(GPP_E1, NONE, DEEP, NF1),
 	/* E2  : GPP_E2 ==> NC */
 	PAD_NC(GPP_E2, NONE),
 	/* E3  : GPP_E3 ==> NC */
@@ -241,7 +206,7 @@ static const struct pad_config gpio_table[] = {
 	/* E4  : M2_SSD_PE_WAKE_ODL */
 	PAD_CFG_GPI(GPP_E4, NONE, DEEP),
 	/* E5  : SATA_DEVSLP1 */
-	PAD_CFG_NF(GPP_E5, NONE, DEEP, NF1),
+	PAD_CFG_NF(GPP_E5, NONE, PLTRST, NF1),
 	/* E6  : M2_SSD_RST_L */
 	PAD_NC(GPP_E6, NONE),
 	/* E7  : GPP_E7 ==> NC */
@@ -284,7 +249,7 @@ static const struct pad_config gpio_table[] = {
 	/* F1  : WWAN_RESET_1V8_ODL */
 	PAD_CFG_GPO(GPP_F1, 1, DEEP),
 	/* F2  : MEM_CH_SEL */
-	PAD_CFG_GPI(GPP_F2, DN_20K, PLTRST),
+	PAD_CFG_GPI(GPP_F2, NONE, PLTRST),
 	/* F3  : GPP_F3 ==> NC */
 	PAD_NC(GPP_F3, NONE),
 	/* F4  : CNV_BRI_DT */
@@ -329,34 +294,35 @@ static const struct pad_config gpio_table[] = {
 	PAD_NC(GPP_F23, NONE),
 
 	/* G0  : SD_CMD */
-	PAD_CFG_NF(GPP_G0, NONE, DEEP, NF1),
+	PAD_CFG_NF(GPP_G0, NATIVE, DEEP, NF1),
 	/* G1  : SD_DATA0 */
-	PAD_CFG_NF(GPP_G1, NONE, DEEP, NF1),
+	PAD_CFG_NF(GPP_G1, NATIVE, DEEP, NF1),
 	/* G2  : SD_DATA1 */
-	PAD_CFG_NF(GPP_G2, NONE, DEEP, NF1),
+	PAD_CFG_NF(GPP_G2, NATIVE, DEEP, NF1),
 	/* G3  : SD_DATA2 */
-	PAD_CFG_NF(GPP_G3, NONE, DEEP, NF1),
+	PAD_CFG_NF(GPP_G3, NATIVE, DEEP, NF1),
 	/* G4  : SD_DATA3 */
-	PAD_CFG_NF(GPP_G4, NONE, DEEP, NF1),
+	PAD_CFG_NF(GPP_G4, NATIVE, DEEP, NF1),
 	/* G5  : SD_CD# */
-	PAD_CFG_NF(GPP_G5, NONE, DEEP, NF1),
+	PAD_CFG_NF(GPP_G5, NONE, PLTRST, NF1),
 	/* G6  : SD_CLK */
 	PAD_CFG_NF(GPP_G6, NONE, DEEP, NF1),
-	/* G7  : SD_WP => NC */
-	PAD_NC(GPP_G7, DN_20K),
-
+	/* G7  : SD_WP
+	 * As per schematics SD host controller SD_WP pin is not connected to
+	 * uSD card connector. In order to overcome gpio default state, ensures
+	 * to configure gpio pin as NF1 with internal 20K pull down.
+	 */
+	PAD_CFG_NF(GPP_G7, DN_20K, DEEP, NF1),
 	/*
 	 * H0  : HP_INT_L
-	 * TODO Configure it back to invert mode, when
-	 * ITSS IPCx configuration is fixed in FSP.
 	 */
-	PAD_CFG_GPI_APIC(GPP_H0, NONE, PLTRST, LEVEL, NONE),
+	PAD_CFG_GPI_INT(GPP_H0, NONE, PLTRST, EDGE_BOTH),
 	/* H1  : CNV_RF_RESET_L */
 	PAD_CFG_NF(GPP_H1, NONE, DEEP, NF3),
 	/* H2  : CNV_CLKREQ0 */
 	PAD_CFG_NF(GPP_H2, NONE, DEEP, NF3),
-	/* H3  : SPKR_PA_EN */
-	PAD_CFG_GPO(GPP_H3, 0, DEEP),
+	/* H3 : GPP_H3 ==> NC */
+	PAD_NC(GPP_H3, NONE),
 	/* H4  : PCH_I2C_PEN_SDA */
 	PAD_NC(GPP_H4, NONE),
 	/* H5  : PCH_I2C_PEN_SCL */
@@ -398,56 +364,52 @@ static const struct pad_config gpio_table[] = {
 	/* H23 : GPP_H23_STRAP */
 	PAD_NC(GPP_H23, NONE),
 
-	/* GPD2: LAN_WAKE# ==> EC_PCH_WAKE_OD */
+	/* GPD2: LAN_WAKE# ==> EC_PCH_WAKE_ODL */
 	PAD_CFG_NF(GPD2, NONE, DEEP, NF1),
 
 	/* SD card detect VGPIO */
 	PAD_CFG_GPI_GPIO_DRIVER(vSD3_CD_B, NONE, DEEP),
+
+	/* CNV_WCEN  : Disable Wireless Charging */
+	PAD_CFG_GPO(CNV_WCEN, 0, DEEP),
 };
 
-const struct pad_config *__weak variant_gpio_table(size_t *num)
+const struct pad_config *base_gpio_table(size_t *num)
 {
 	*num = ARRAY_SIZE(gpio_table);
 	return gpio_table;
 }
 
-/* GPIOs needed prior to ramstage. */
-static const struct pad_config early_gpio_table[] = {
-	/* B15 : H1_SLAVE_SPI_CS_L */
-	PAD_CFG_NF(GPP_B15, NONE, DEEP, NF1),
-	/* B16 : H1_SLAVE_SPI_CLK */
-	PAD_CFG_NF(GPP_B16, NONE, DEEP, NF1),
-	/* B17 : H1_SLAVE_SPI_MISO_R */
-	PAD_CFG_NF(GPP_B17, NONE, DEEP, NF1),
-	/* B18 : H1_SLAVE_SPI_MOSI_R */
-	PAD_CFG_NF(GPP_B18, NONE, DEEP, NF1),
-	/* PCH_WP_OD */
-	PAD_CFG_GPI(GPP_C20, NONE, DEEP),
-	/*
-	 * C21 : H1_PCH_INT_ODL
-	 * TODO Configure it back to invert mode, when
-	 * ITSS IPCx configuration is fixed in FSP.
-	 */
-	PAD_CFG_GPI_APIC(GPP_C21, NONE, DEEP, LEVEL, NONE),
-	/* C23 : WLAN_PE_RST# */
-	PAD_CFG_GPO(GPP_C23, 1, DEEP),
-	/* F2  : MEM_CH_SEL */
-	PAD_CFG_GPI(GPP_F2, DN_20K, PLTRST),
-	/* F11 : PCH_MEM_STRAP2 */
-	PAD_CFG_GPI(GPP_F11, NONE, PLTRST),
-	/* F20 : PCH_MEM_STRAP0 */
-	PAD_CFG_GPI(GPP_F20, NONE, PLTRST),
-	/* F21 : PCH_MEM_STRAP1 */
-	PAD_CFG_GPI(GPP_F21, NONE, PLTRST),
-	/* F22 : PCH_MEM_STRAP3 */
-	PAD_CFG_GPI(GPP_F22, NONE, PLTRST),
-
+/*
+ * Default GPIO settings before entering non-S5 sleep states.
+ * Configure A12: FPMCU_RST_ODL as GPO before entering sleep.
+ * This guarantees that A12's native3 function is disabled.
+ * See https://review.coreboot.org/c/coreboot/+/32111 .
+ */
+static const struct pad_config default_sleep_gpio_table[] = {
+	PAD_CFG_GPO(GPP_A12, 1, DEEP), /* FPMCU_RST_ODL */
 };
 
-const struct pad_config *__weak variant_early_gpio_table(size_t *num)
+/*
+ * GPIO settings before entering S5, which are same as
+ * default_sleep_gpio_table but also,
+ * turn off EN_PP3300_WWAN and FPMCU.
+ */
+static const struct pad_config s5_sleep_gpio_table[] = {
+	PAD_CFG_GPO(GPP_A12, 0, DEEP), /* FPMCU_RST_ODL */
+	PAD_CFG_GPO(GPP_C11, 0, DEEP), /* PCH_FP_PWR_EN */
+	PAD_CFG_GPO(GPP_A18, 0, DEEP), /* EN_PP3300_WWAN */
+};
+
+const struct pad_config *__weak variant_sleep_gpio_table(
+	u8 slp_typ, size_t *num)
 {
-	*num = ARRAY_SIZE(early_gpio_table);
-	return early_gpio_table;
+	if (slp_typ == ACPI_S5) {
+		*num = ARRAY_SIZE(s5_sleep_gpio_table);
+		return s5_sleep_gpio_table;
+	}
+	*num = ARRAY_SIZE(default_sleep_gpio_table);
+	return default_sleep_gpio_table;
 }
 
 static const struct cros_gpio cros_gpios[] = {
@@ -459,4 +421,18 @@ const struct cros_gpio *__weak variant_cros_gpios(size_t *num)
 {
 	*num = ARRAY_SIZE(cros_gpios);
 	return cros_gpios;
+}
+
+/* Weak implementation of overrides */
+const struct pad_config *__weak override_gpio_table(size_t *num)
+{
+	*num = 0;
+	return NULL;
+}
+
+/* Weak implementation of early gpio */
+const struct pad_config *__weak variant_early_gpio_table(size_t *num)
+{
+	*num = 0;
+	return NULL;
 }

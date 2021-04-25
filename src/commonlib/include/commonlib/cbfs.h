@@ -1,22 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _COMMONLIB_CBFS_H_
 #define _COMMONLIB_CBFS_H_
 
-#include <commonlib/cbfs_serialized.h>
+#include <commonlib/bsd/cbfs_private.h>
 #include <commonlib/region.h>
 #include <vb2_api.h>
 
@@ -24,9 +11,10 @@
 struct cbfsf {
 	struct region_device metadata;
 	struct region_device data;
+	union cbfs_mdata mdata;
 };
 
-/* Locate file by name and optional type. Returns 0 on succcess else < 0 on
+/* Locate file by name and optional type. Returns 0 on success else < 0 on
  * error.*/
 int cbfs_locate(struct cbfsf *fh, const struct region_device *cbfs,
 		const char *name, uint32_t *type);
@@ -34,14 +22,13 @@ int cbfs_locate(struct cbfsf *fh, const struct region_device *cbfs,
 static inline void cbfs_file_data(struct region_device *data,
 					const struct cbfsf *file)
 {
-	rdev_chain(data, &file->data, 0, region_device_sz(&file->data));
+	rdev_chain_full(data, &file->data);
 }
 
 static inline void cbfs_file_metadata(struct region_device *metadata,
 					const struct cbfsf *file)
 {
-	rdev_chain(metadata, &file->metadata, 0,
-			region_device_sz(&file->metadata));
+	rdev_chain_full(metadata, &file->metadata);
 }
 
 /*

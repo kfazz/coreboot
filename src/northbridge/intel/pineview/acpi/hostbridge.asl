@@ -1,25 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/ioapic.h>
 
 Name(_HID,EISAID("PNP0A08"))	// PCIe
 Name(_CID,EISAID("PNP0A03"))	// PCI
 
-Name(_ADR, 0)
 Name(_BBN, 0)
 
 Device (MCHC)
@@ -39,7 +24,7 @@ Device (MCHC)
 		,	13,
 		MHBR,	22,	/* MCHBAR */
 
-		Offset (0x60),	/* PCIec BAR */
+		Offset (0x60),	/* PCIe BAR */
 		PXEN,	 1,	/* Enable */
 		PXSZ,	 2,	/* BAR size */
 		,	23,
@@ -47,10 +32,10 @@ Device (MCHC)
 
 		Offset (0x68),	/* DMIBAR */
 		DMEN,	 1,	/* Enable */
-		,	11,	/*
+		,	11,
 		DMBR,	20,	/* DMIBAR */
 
-		// ...
+		/* ... */
 
 		Offset (0x90),	/* PAM0 */
 		,	 4,
@@ -88,18 +73,14 @@ Device (MCHC)
 		,	 2,
 
 		Offset (0xa0),	/* Top of Memory */
-		TOM,	8,
+		TOM,	 8,
 
 		Offset (0xb0),	/* Top of Low Used Memory */
 		,	 4,
 		TLUD,	12,
-
 	}
-
 }
 
-
-/* Current Resource Settings */
 Name (MCRS, ResourceTemplate()
 {
 	/* Bus Numbers */
@@ -214,6 +195,7 @@ Name (MCRS, ResourceTemplate()
 			0x00005000,,, TPMR)
 })
 
+/* Current Resource Settings */
 Method (_CRS, 0, Serialized)
 {
 	/* Find PCI resource area in MCRS */
@@ -221,12 +203,13 @@ Method (_CRS, 0, Serialized)
 	CreateDwordField(MCRS, ^PM01._MAX, PMAX)
 	CreateDwordField(MCRS, ^PM01._LEN, PLEN)
 
-	/* Fix up PCI memory region:
+	/*
+	 * Fix up PCI memory region:
 	 * Enter actual TOLUD. The TOLUD register contains bits 27-31 of
 	 * the top of memory address.
 	 */
-	ShiftLeft (^MCHC.TLUD, 27, PMIN)
-	Add(Subtract(PMAX, PMIN), 1, PLEN)
+	PMIN = ^MCHC.TLUD << 27
+	PLEN = PMAX - PMIN + 1
 
 	Return (MCRS)
 }

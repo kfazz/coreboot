@@ -1,20 +1,7 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* Intel Cougar Point PCH support */
+#include <southbridge/intel/bd82x6x/pch.h>
 
 Scope(\)
 {
@@ -76,8 +63,7 @@ Scope(\)
 	OperationRegion(GPIO, SystemIO, DEFAULT_GPIOBASE, 0x6c)
 	Field(GPIO, ByteAcc, NoLock, Preserve)
 	{
-		Offset(0x00),	// GPIO Use Select
-		GU00, 8,
+		GU00, 8,	// GPIO Use Select
 		GU01, 8,
 		GU02, 8,
 		GU03, 8,
@@ -195,7 +181,7 @@ Scope(\)
 
 
 	// ICH7 Root Complex Register Block. Memory Mapped through RCBA)
-	OperationRegion(RCRB, SystemMemory, DEFAULT_RCBA, 0x4000)
+	OperationRegion(RCRB, SystemMemory, CONFIG_FIXED_RCBA_MMIO_BASE, CONFIG_RCBA_LENGTH)
 	Field(RCRB, DWordAcc, Lock, Preserve)
 	{
 		Offset(0x0000), // Backbone
@@ -250,7 +236,7 @@ Scope(\)
 #include "sata.asl"
 
 // SMBus 0:1f.3
-#include "smbus.asl"
+#include <southbridge/intel/common/acpi/smbus.asl>
 
 Method (_OSC, 4)
 {

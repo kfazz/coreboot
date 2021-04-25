@@ -29,16 +29,12 @@ SMC8416 PIO support added by Andrew Bettison (andrewb@zip.com.au) on 4/3/02
 
 #include <arch/io.h>
 #include <console/ne2k.h>
-#include <delay.h>
 #include <device/device.h>
 #include <device/pci.h>
-#include <device/pci_ids.h>
 #include <device/pci_ops.h>
-#include <stdlib.h>
 #include <ip_checksum.h>
 
 #include "ns8390.h"
-
 
 #define ETH_ALEN		6	/* Size of Ethernet address */
 #define ETH_HLEN		14	/* Size of ethernet header */
@@ -50,7 +46,6 @@ SMC8416 PIO support added by Andrew Bettison (andrewb@zip.com.au) on 4/3/02
 #define MEM_SIZE MEM_32768
 #define TX_START 64
 #define RX_START (64 + D8390_TXBUF_SIZE)
-
 
 static unsigned int get_count(unsigned int eth_nic_base)
 {
@@ -149,7 +144,6 @@ static void str2mac(const char *str, unsigned char *mac)
 	} while (c != '\0');
 }
 
-
 static void ns8390_tx_header(unsigned int eth_nic_base, int pktlen)
 {
 	unsigned short chksum;
@@ -198,7 +192,8 @@ static void ns8390_tx_header(unsigned int eth_nic_base, int pktlen)
 	eth_pio_write(hdr, (TX_START << 8), sizeof(hdr), eth_nic_base);
 }
 
-void ne2k_transmit(unsigned int eth_nic_base) {
+void ne2k_transmit(unsigned int eth_nic_base)
+{
 	unsigned int pktsize;
 	unsigned int len = get_count(eth_nic_base);
 
@@ -226,8 +221,6 @@ void ne2k_transmit(unsigned int eth_nic_base) {
 
 	set_count(eth_nic_base, 0);
 }
-
-#if !ENV_RAMSTAGE
 
 static void ns8390_reset(unsigned int eth_nic_base)
 {
@@ -268,24 +261,23 @@ static void ns8390_reset(unsigned int eth_nic_base)
 	set_count(eth_nic_base, 0);
 }
 
-int ne2k_init(unsigned int eth_nic_base) {
-
-#ifdef __SIMPLE_DEVICE__
+int ne2k_init(unsigned int eth_nic_base)
+{
 	pci_devfn_t dev;
-#else
-	struct device *dev;
-#endif
 	unsigned char c;
 
-	/* Power management controller */
-	dev = pci_locate_device(PCI_ID(0x10ec,
-				       0x8029), 0);
+	/* FIXME: This console is not enabled for bootblock. */
+	if (!ENV_ROMSTAGE)
+		return 0;
 
+	/* For this to work, mainboard code must have configured
+	   PCI bridges prior to calling console_init(). */
+	dev = pci_locate_device(PCI_ID(0x10ec, 0x8029), 0);
 	if (dev == PCI_DEV_INVALID)
 		return 0;
 
-	pci_write_config32(dev, 0x10, eth_nic_base | 1);
-	pci_write_config8(dev, 0x4, 0x1);
+	pci_s_write_config32(dev, 0x10, eth_nic_base | 1);
+	pci_s_write_config8(dev, 0x4, 0x1);
 
 	c = inb(eth_nic_base + NE_ASIC_OFFSET + NE_RESET);
 	outb(c, eth_nic_base + NE_ASIC_OFFSET + NE_RESET);
@@ -302,9 +294,6 @@ int ne2k_init(unsigned int eth_nic_base) {
 	ns8390_reset(eth_nic_base);
 	return 1;
 }
-
-#else
-int ne2k_init(unsigned int eth_nic_base) { return 0; } // dummy symbol for ramstage
 
 static void read_resources(struct device *dev)
 {
@@ -325,8 +314,6 @@ static struct device_operations ne2k_ops  = {
 	.read_resources   = read_resources,
 	.set_resources    = pci_dev_set_resources,
 	.enable_resources = pci_dev_enable_resources,
-	.init             = 0,
-	.scan_bus         = 0,
 };
 
 static const struct pci_driver ne2k_driver __pci_driver = {
@@ -334,5 +321,3 @@ static const struct pci_driver ne2k_driver __pci_driver = {
 	.vendor = 0x10ec,
 	.device = 0x8029,
 };
-
-#endif /* !ENV_RAMSTAGE */

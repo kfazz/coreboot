@@ -1,15 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <cbfs.h>
 #include <fmap.h>
@@ -18,7 +7,6 @@
 #include <device/pci_ops.h>
 #include <console/console.h>
 #include <device/device.h>
-#include <device/pci.h>
 #include <smbios.h>
 #include <soc/pch.h>
 #include <variant/onboard.h>
@@ -35,7 +23,8 @@ int variant_smbios_data(struct device *dev, int *handle, unsigned long *current)
 		BOARD_TOUCHSCREEN_I2C_BUS,	/* segment */
 		BOARD_TOUCHSCREEN_I2C_ADDR,	/* bus */
 		0,				/* device */
-		0);				/* function */
+		0,				/* function */
+		SMBIOS_DEVICE_TYPE_OTHER);	/* device type */
 
 	return len;
 }
@@ -130,7 +119,7 @@ static void program_mac_address(u16 io_base)
 	u32 high_dword = 0xD0BA00A0;	/* high dword of mac address */
 	u32 low_dword = 0x0000AD0B;	/* low word of mac address as a dword */
 
-	if (CONFIG(CHROMEOS)) {
+	if (CONFIG(VPD)) {
 		struct region_device rdev;
 
 		if (fmap_locate_area_as_rdev("RO_VPD", &rdev) == 0) {
@@ -140,9 +129,7 @@ static void program_mac_address(u16 io_base)
 				search_length = region_device_sz(&rdev);
 		}
 	} else {
-		search_address = cbfs_boot_map_with_leak("vpd.bin",
-							CBFS_TYPE_RAW,
-							&search_length);
+		search_address = cbfs_map("vpd.bin", &search_length);
 	}
 
 	if (search_address == NULL)
@@ -179,7 +166,7 @@ void lan_init(void)
 		/*
 		 * Battery life time - LAN PCIe should enter ASPM L1 to save
 		 * power when LAN connection is idle.
-		 * enable CLKREQ: LAN pci config space 0x81h=01
+		 * enable CLKREQ: LAN PCI config space 0x81h=01
 		 */
 		pci_write_config8(ethernet_dev, 0x81, 0x01);
 	}

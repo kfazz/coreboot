@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2003-2004 Eric Biederman
- * Copyright (C) 2005-2010 coresystems GmbH
- * Copyright (C) 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <bootmem.h>
@@ -59,6 +44,8 @@ static uint32_t bootmem_to_lb_tag(const enum bootmem_type tag)
 		return LB_MEM_UNUSABLE;
 	case BM_MEM_VENDOR_RSVD:
 		return LB_MEM_VENDOR_RSVD;
+	case BM_MEM_OPENSBI:
+		return LB_MEM_RESERVED;
 	case BM_MEM_BL31:
 		return LB_MEM_RESERVED;
 	case BM_MEM_TABLE:
@@ -147,6 +134,7 @@ static const struct range_strings type_strings[] = {
 	{ BM_MEM_UNUSABLE, "UNUSABLE" },
 	{ BM_MEM_VENDOR_RSVD, "VENDOR RESERVED" },
 	{ BM_MEM_BL31, "BL31" },
+	{ BM_MEM_OPENSBI, "OPENSBI" },
 	{ BM_MEM_TABLE, "CONFIGURATION TABLES" },
 	{ BM_MEM_RAMSTAGE, "RAMSTAGE" },
 	{ BM_MEM_PAYLOAD, "PAYLOAD" },
@@ -235,7 +223,7 @@ void *bootmem_allocate_buffer(size_t size)
 	resource_t end;
 
 	if (!bootmem_is_initialized()) {
-		printk(BIOS_ERR, "%s: lib unitialized!\n", __func__);
+		printk(BIOS_ERR, "%s: lib uninitialized!\n", __func__);
 		return NULL;
 	}
 
@@ -243,13 +231,13 @@ void *bootmem_allocate_buffer(size_t size)
 	size = ALIGN(size, 4096);
 	region = NULL;
 	memranges_each_entry(r, &bootmem) {
+		if (range_entry_base(r) >= max_addr)
+			break;
+
 		if (range_entry_size(r) < size)
 			continue;
 
 		if (range_entry_tag(r) != BM_MEM_RAM)
-			continue;
-
-		if (range_entry_base(r) >= max_addr)
 			continue;
 
 		end = range_entry_end(r);
@@ -271,7 +259,7 @@ void *bootmem_allocate_buffer(size_t size)
 		end = max_addr;
 	begin = end - size;
 
-	/* Mark buffer as unusuable for future buffer use. */
+	/* Mark buffer as unusable for future buffer use. */
 	bootmem_add_range(begin, size, BM_MEM_PAYLOAD);
 
 	return (void *)(uintptr_t)begin;

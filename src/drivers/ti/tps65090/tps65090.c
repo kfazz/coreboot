@@ -1,37 +1,4 @@
-/*
- * Copyright 2012, Google Inc.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *
- *    * Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
- *    * Redistributions in binary form must reproduce the above
- *      copyright notice, this list of conditions and the following
- *      disclaimer in the documentation and/or other materials provided
- *      with the distribution.
- *    * Neither the name of Google Inc. nor the names of its
- *      contributors may be used to endorse or promote products derived
- *      from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- */
+/* SPDX-License-Identifier: BSD-3-Clause or GPL-2.0-only */
 
 #include <delay.h>
 #include <types.h>
@@ -125,48 +92,6 @@ static int tps65090_fet_set(unsigned int bus, enum fet_id fet_id, int set)
 	return FET_ERR_NOT_READY;
 }
 
-/* FIXME(dhendrix): add timer API */
-#if 0
-int tps65090_fet_enable(unsigned int bus, enum fet_id fet_id)
-{
-	int loops;
-	unsigned long start;
-	int ret = 0;
-
-	start = get_timer(0);
-	for (loops = 0; ; loops++) {
-		ret = tps65090_fet_set(bus, fet_id, 1);
-		if (!ret)
-			break;
-
-		if (get_timer(start) > 100)
-			break;
-
-		/* Turn it off and try again until we time out */
-		tps65090_fet_set(bus, fet_id, 0);
-	}
-
-	if (ret) {
-		printk(BIOS_DEBUG, "%s: FET%d failed to power on: time=%lums, "
-				"loops=%d\n", __func__, fet_id,
-				get_timer(start), loops);
-	} else if (loops) {
-		printk(BIOS_DEBUG, "%s: FET%d powered on after %lums, "
-				"loops=%d\n", __func__, fet_id,
-				get_timer(start), loops);
-	}
-	/*
-	 * Unfortunately, there are some conditions where the power
-	 * good bit will be 0, but the fet still comes up. One such
-	 * case occurs with the lcd backlight. We'll just return 0 here
-	 * and assume that the fet will eventually come up.
-	 */
-	if (ret == FET_ERR_NOT_READY)
-		ret = 0;
-
-	return ret;
-}
-#endif
 int tps65090_fet_enable(unsigned int bus, enum fet_id fet_id)
 {
 	int loops;

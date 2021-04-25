@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Sage Electronic Engineering, LLC.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef AMD_PCI_UTIL_H
 #define AMD_PCI_UTIL_H
@@ -22,8 +9,6 @@
 /* FCH index/data registers */
 #define PCI_INTR_INDEX	0xc00
 #define PCI_INTR_DATA	0xc01
-
-#ifndef __PRE_RAM__
 
 struct pirq_struct {
 	u8 devfn;
@@ -39,6 +24,5 @@ u8 read_pci_int_idx(u8 index, int mode);
 void write_pci_int_idx(u8 index, int mode, u8 data);
 void write_pci_cfg_irqs(void);
 void write_pci_int_table (void);
-#endif /* __PRE_RAM */
 
 #endif /* AMD_PCI_UTIL_H */

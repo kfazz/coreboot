@@ -1,22 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <boot/coreboot_tables.h>
 #include <device/device.h>
-#include <elog.h>
 #include <gpio.h>
 #include <soc/addressmap.h>
 #include <soc/clock.h>
@@ -62,9 +48,9 @@ static void set_clock_sources(void)
 	clock_configure_irregular_source(host1x, PLLP, 408000, 4);
 
 	/* Use PLLD_OUT0 as clock source for disp1 */
-	clrsetbits_le32(&clk_rst->clk_src_disp1,
-			CLK_SOURCE_MASK | CLK_DIVISOR_MASK,
-			2 /*PLLD_OUT0 */ << CLK_SOURCE_SHIFT);
+	clrsetbits32(&clk_rst->clk_src_disp1,
+		     CLK_SOURCE_MASK | CLK_DIVISOR_MASK,
+		     2 /*PLLD_OUT0 */ << CLK_SOURCE_SHIFT);
 
 }
 
@@ -248,7 +234,6 @@ static void mainboard_enable(struct device *dev)
 }
 
 struct chip_operations mainboard_ops = {
-	.name	= "nyan_blaze",
 	.enable_dev = mainboard_enable,
 };
 
@@ -257,7 +242,7 @@ void lb_board(struct lb_header *header)
 	struct lb_range *dma;
 
 	dma = (struct lb_range *)lb_new_record(header);
-	dma->tag = LB_TAB_DMA;
+	dma->tag = LB_TAG_DMA;
 	dma->size = sizeof(*dma);
 	dma->range_start = (uintptr_t)_dma_coherent;
 	dma->range_size = REGION_SIZE(dma_coherent);

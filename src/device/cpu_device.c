@@ -1,23 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Advanced Micro Devices, Inc.
- * Copyright (C) 2012 Kyösti Mälkki <kyosti.malkki@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/device.h>
 #include <console/console.h>
 
-struct device *add_cpu_device(struct bus *cpu_bus, unsigned apic_id,
+struct device *add_cpu_device(struct bus *cpu_bus, unsigned int apic_id,
 			      int enabled)
 {
 	struct device_path cpu_path;
@@ -42,8 +28,9 @@ struct device *add_cpu_device(struct bus *cpu_bus, unsigned apic_id,
 	return cpu;
 }
 
-void set_cpu_topology(struct device *cpu, unsigned node, unsigned package,
-		      unsigned core, unsigned thread)
+void set_cpu_topology(struct device *cpu, unsigned int node,
+		      unsigned int package, unsigned int core,
+		      unsigned int thread)
 {
 	cpu->path.apic.node_id = node;
 	cpu->path.apic.package_id = package;

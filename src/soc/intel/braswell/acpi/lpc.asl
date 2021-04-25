@@ -1,20 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- * Copyright (C) 2013 Google Inc.
- * Copyright (C) 2018 Eltan B.V.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* Intel LPC Bus Device  - 0:1f.0 */
 
@@ -42,10 +26,20 @@ Device (LPCB)
 	Device (FWH)		/* Firmware Hub */
 	{
 		Name (_HID, EISAID("INT0800"))
-		Name (_CRS, ResourceTemplate()
+		Name (RBUF, ResourceTemplate()
 		{
-			Memory32Fixed(ReadOnly, 0xff000000, 0x01000000)
+			Memory32Fixed(ReadOnly, 0, 0, FBAR)
 		})
+
+		Method (_CRS)
+		{
+			CreateDwordField (^RBUF, ^FBAR._BAS, FBAS)
+			CreateDwordField (^RBUF, ^FBAR._LEN, FLEN)
+			Multiply(CONFIG_COREBOOT_ROMSIZE_KB, 1024, Local0)
+			Store(Local0, FLEN)
+			Add(Subtract(0xffffffff, Local0), 1, FBAS)
+			Return (^RBUF)
+		}
 	}
 
 #if !CONFIG(DISABLE_HPET)
@@ -61,7 +55,7 @@ Device (LPCB)
 
 		Name(_CRS, ResourceTemplate()
 		{
-			Memory32Fixed(ReadOnly, 0xfed00000, 0x400)
+			Memory32Fixed(ReadOnly, CONFIG_HPET_ADDRESS, 0x400)
 		})
 	}
 #endif
@@ -124,10 +118,6 @@ Device (LPCB)
 		Name (_CRS, ResourceTemplate()
 		{
 			IO (Decode16, 0x70, 0x70, 1, 8)
-/*
- * Disable as Windows doesn't like it, and systems don't seem to use it.
- *			IRQNoFlags() { 8 }
- */
 		})
 	}
 

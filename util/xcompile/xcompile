@@ -1,20 +1,6 @@
 #!/usr/bin/env bash
 #
-# This file is part of the coreboot project.
-#
-# Copyright (C) 2007-2010 coresystems GmbH
-# Copyright (C) 2012 Google Inc
-# Copyright (C) 2016 Raptor Engineering, LLC
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
+# SPDX-License-Identifier: GPL-2.0-only
 
 # Usage: [--debug] [path to xgcc/bin directory]
 
@@ -65,17 +51,33 @@ program_exists() {
 
 
 if [ "$("${XGCCPATH}/iasl" 2>/dev/null | grep -c ACPI)" -gt 0 ]; then
-	IASL=${XGCCPATH}iasl
+	IASL=${XGCCPATH}/iasl
 elif [ "$(iasl 2>/dev/null | grep -c ACPI)" -gt 0 ]; then
 	IASL=iasl
 fi
 
-if program_exists gcc; then
+if program_exists "${XGCCPATH}/gcc"; then
+	HOSTCC="${XGCCPATH}/gcc"
+elif program_exists gcc; then
 	HOSTCC=gcc
 elif program_exists cc; then
 	HOSTCC=cc
 else
 	die "no host compiler found"
+fi
+
+# Look for a C++ compiler (for kconfig's qconf), but don't fail if there is
+# none, just set the compiler to false(1) which will break early enough if
+# used while being less confusing than errors about "g not found" when
+# "$HOSTCXX -g" evaluates to "-g" and make drops the leading dash.
+if program_exists "${XGCCPATH}/g++"; then
+	HOSTCXX="${XGCCPATH}/g++"
+elif program_exists g++; then
+	HOSTCXX=g++
+elif program_exists c++; then
+	HOSTCXX=c++
+else
+	HOSTCXX=false
 fi
 
 # try to find the core count using various methods
@@ -98,8 +100,10 @@ fi
 
 cat <<EOF
 # platform agnostic and host tools
+XGCCPATH:=${XGCCPATH}
 IASL:=${IASL}
 HOSTCC?=${HOSTCC}
+HOSTCXX?=${HOSTCXX}
 CPUS?=${CORES}
 
 EOF
@@ -147,11 +151,11 @@ testas() {
 	[ "$obj_arch" = "$full_arch" ] || return 1
 
 	unset ASFLAGS LDFLAGS
-	unset CFLAGS_GCC CFLAGS_CLANG
+	unset FLAGS_GCC CFLAGS_GCC CFLAGS_CLANG
 
 	if [ -n "$use_dash_twidth" ]; then
 		ASFLAGS="--$twidth"
-		CFLAGS_GCC="-m$twidth"
+		FLAGS_GCC="-m$twidth"
 		CFLAGS_CLANG="-m$twidth"
 		LDFLAGS="-b $full_arch"
 
@@ -161,8 +165,8 @@ testas() {
 	[ -n "$use_dash_twidth" ] && case "$full_arch" in
 		"elf32-i386" )
 			LDFLAGS="$LDFLAGS -melf_i386"
-			CFLAGS_GCC="$CFLAGS_GCC -Wl,-b,elf32-i386 -Wl,-melf_i386"
-			CFLAGS_CLANG="$CFLAGS_GCC -Wl,-b,elf32-i386 -Wl,-melf_i386"
+			FLAGS_GCC="$FLAGS_GCC -Wl,-b,elf32-i386 -Wl,-melf_i386"
+			CFLAGS_CLANG="$CFLAGS_CLANG -Wl,-b,elf32-i386 -Wl,-melf_i386"
 			;;
 	esac
 
@@ -172,42 +176,36 @@ testas() {
 detect_special_flags() {
 	local architecture="$1"
 	# Check for an operational -m32/-m64
-	testcc "$GCC"      "$CFLAGS_GCC -m$TWIDTH " &&
-		CFLAGS_GCC="$CFLAGS_GCC -m$TWIDTH "
+	testcc "$GCC"     "$FLAGS_GCC -m$TWIDTH " &&
+		FLAGS_GCC="$FLAGS_GCC -m$TWIDTH "
 
 	# Use bfd linker instead of gold if available:
-	testcc "$GCC"      "$CFLAGS_GCC -fuse-ld=bfd" &&
-		CFLAGS_GCC="$CFLAGS_GCC -fuse-ld=bfd" && LINKER_SUFFIX='.bfd'
+	testcc "$GCC"     "$FLAGS_GCC -fuse-ld=bfd" &&
+		FLAGS_GCC="$FLAGS_GCC -fuse-ld=bfd" && LINKER_SUFFIX='.bfd'
 
-	testcc "$GCC"      "$CFLAGS_GCC -fno-stack-protector" &&
-		CFLAGS_GCC="$CFLAGS_GCC -fno-stack-protector"
-	testcc "$GCC"      "$CFLAGS_GCC -Wl,--build-id=none" &&
-		CFLAGS_GCC="$CFLAGS_GCC -Wl,--build-id=none"
+	testcc "$GCC"     "$FLAGS_GCC -fno-stack-protector" &&
+		FLAGS_GCC="$FLAGS_GCC -fno-stack-protector"
+	testcc "$GCC"     "$FLAGS_GCC -Wl,--build-id=none" &&
+		FLAGS_GCC="$FLAGS_GCC -Wl,--build-id=none"
 
+	testcc "$GCC"      "$CFLAGS_GCC -Wno-address-of-packed-member $FLAGS_GCC" &&
+		CFLAGS_GCC="$CFLAGS_GCC -Wno-address-of-packed-member"
 	case "$architecture" in
 	x86)
 		;;
 	x64)
 		;;
 	arm64)
-		testld "$GCC" "$CFLAGS_GCC" "${GCCPREFIX}ld${LINKER_SUFFIX}" \
+		testld "$GCC" "$FLAGS_GCC" "${GCCPREFIX}ld${LINKER_SUFFIX}" \
 		  "$LDFLAGS --fix-cortex-a53-843419" && \
 		  LDFLAGS_ARM64_A53_ERRATUM_843419+=" --fix-cortex-a53-843419"
-		;;
-	mipsel)
-		testcc "$GCC" "$CFLAGS_GCC -mno-abicalls -fno-pic" && \
-		  CFLAGS_GCC+=" -mno-abicalls -fno-pic"
-
-		# Enforce little endian mode.
-		testcc "$GCC" "$CFLAGS_GCC -EL" && \
-		  CFLAGS_GCC+=" -EL"
 		;;
 	esac
 }
 
 detect_compiler_runtime() {
 	test -z "$GCC" || \
-	CC_RT_GCC="$(${GCC} ${CFLAGS_GCC} -print-libgcc-file-name)"
+	CC_RT_GCC="$(${GCC} ${CFLAGS_GCC} ${FLAGS_GCC} -print-libgcc-file-name)"
 	if [ ${CLANG_RUNTIME} = "libgcc" ]; then
 		CC_RT_CLANG=${CC_RT_GCC}
 	else
@@ -224,36 +222,12 @@ SUBARCH_SUPPORTED+=${TSUPP-${TARCH}}
 
 # GCC
 GCC_CC_${TARCH}:=${GCC}
-GCC_CFLAGS_${TARCH}:=${CFLAGS_GCC}
+GCC_CFLAGS_${TARCH}:=${CFLAGS_GCC} ${FLAGS_GCC}
+# Generally available for GCC's cc1:
+GCC_CFLAGS_${TARCH}+=-fno-delete-null-pointer-checks -Wlogical-op
+GCC_ADAFLAGS_${TARCH}:=${FLAGS_GCC}
 GCC_COMPILER_RT_${TARCH}:=${CC_RT_GCC}
 GCC_COMPILER_RT_FLAGS_${TARCH}:=${CC_RT_EXTRA_GCC}
-EOF
-
-# Generally the x86 should build for i686 -- no sse/mmx
-# instructions since SMM modules are compiled using these
-# flags. Note that this doesn't prevent a project using
-# xcompile to explicitly specify -mmsse, etc flags.
-# The Quark processor doesn't support the instructions
-# introduced with the Pentium 6 architecture, so allow it
-# to use i586 instead.
-if [ "${TARCH}" = "x86_64" ]; then
-cat <<EOF
-	GCC_CFLAGS_${TARCH} += -march=nocona -malign-data=abi
-EOF
-fi
-
-if [ "${TARCH}" = "x86_32" ]; then
-cat <<EOF
-
-ifneq (\$(CONFIG_USE_MARCH_586)\$(CONFIG_LP_USE_MARCH_586),)
-	GCC_CFLAGS_${TARCH} += -march=i586
-else
-	GCC_CFLAGS_${TARCH} += -march=i686
-endif
-EOF
-fi
-
-cat <<EOF
 
 # Clang
 CLANG_CC_${TARCH}:=${CLANG}
@@ -265,6 +239,7 @@ CLANG_CFLAGS_${TARCH}+=-Wno-shift-overflow -Wno-address-of-packed-member -Wno-in
 CLANG_COMPILER_RT_${TARCH}:=${CC_RT_CLANG}
 CLANG_COMPILER_RT_FLAGS_${TARCH}:=${CC_RT_EXTRA_CLANG}
 
+# GCC/Clang Common
 ifeq (\$(CONFIG_COMPILER_GCC)\$(CONFIG_LP_COMPILER_GCC),y)
 	CC_${TARCH}:=\$(GCC_CC_${TARCH})
 	CFLAGS_${TARCH}:=\$(GCC_CFLAGS_${TARCH})
@@ -276,6 +251,33 @@ else
 	COMPILER_RT_${TARCH}:=\$(CLANG_COMPILER_RT_${TARCH})
 	COMPILER_RT_FLAGS_${TARCH}:=\$(CLANG_COMPILER_RT_FLAGS_${TARCH})
 endif
+EOF
+
+# Generally the x86 should build for i686 -- no sse/mmx
+# instructions since SMM modules are compiled using these
+# flags. Note that this doesn't prevent a project using
+# xcompile to explicitly specify -mmsse, etc flags.
+# The Quark processor doesn't support the instructions
+# introduced with the Pentium 6 architecture, so allow it
+# to use i586 instead.
+if [ "${TARCH}" = "x86_64" ]; then
+cat <<EOF
+	CFLAGS_${TARCH} += -march=nocona -malign-data=abi
+EOF
+fi
+
+if [ "${TARCH}" = "x86_32" ]; then
+cat <<EOF
+
+ifneq (\$(CONFIG_USE_MARCH_586)\$(CONFIG_LP_USE_MARCH_586),)
+	CFLAGS_${TARCH} += -march=i586
+else
+	CFLAGS_${TARCH} += -march=i686
+endif
+EOF
+fi
+
+cat <<EOF
 
 CPP_${TARCH}:=${GCCPREFIX}cpp
 AS_${TARCH}:=${GCCPREFIX}as ${ASFLAGS}
@@ -294,12 +296,17 @@ EOF
 	fi # if [ "${TARCH}" = "arm64" ]...
 
 	cat <<EOF
-NM_${TARCH}:=${GCCPREFIX}nm
+ifeq (\$(CONFIG_COMPILER_GCC)\$(CONFIG_LP_COMPILER_GCC),y)
+	NM_${TARCH}:=${GCCPREFIX}gcc-nm
+	AR_${TARCH}:=${GCCPREFIX}gcc-ar
+else
+	NM_${TARCH}:=${GCCPREFIX}nm
+	AR_${TARCH}:=${GCCPREFIX}ar
+endif
 OBJCOPY_${TARCH}:=${GCCPREFIX}objcopy
 OBJDUMP_${TARCH}:=${GCCPREFIX}objdump
 READELF_${TARCH}:=${GCCPREFIX}readelf
 STRIP_${TARCH}:=${GCCPREFIX}strip
-AR_${TARCH}:=${GCCPREFIX}ar
 GNATBIND_${TARCH}:=${GCCPREFIX}gnatbind
 CROSS_COMPILE_${TARCH}:=${GCCPREFIX}
 
@@ -309,7 +316,7 @@ EOF
 }
 
 # Architecture definitions
-SUPPORTED_ARCHITECTURES="arm arm64 mipsel riscv x64 x86 ppc64"
+SUPPORTED_ARCHITECTURES="arm arm64 riscv x64 x86 ppc64"
 
 # TARCH: local name for the architecture
 # (used as CC_${TARCH} in the build system)
@@ -360,16 +367,6 @@ arch_config_x86() {
 	TWIDTH="32"
 	TABI="elf"
 	CC_RT_EXTRA_GCC="--wrap __divdi3 --wrap __udivdi3 --wrap __moddi3 --wrap __umoddi3"
-}
-
-arch_config_mipsel() {
-	TARCH="mips"
-	TBFDARCHS="tradlittlemips littlemips"
-	TCLIST="mipsel"
-	TWIDTH="32"
-	TSUPP="mips mipsel"
-	TABI="elf"
-	TENDIAN="EL"
 }
 
 arch_config_ppc64() {
@@ -431,7 +428,7 @@ test_architecture() {
 					"" "$endian" ||
 				testas "$gccprefix" "$TWIDTH" "$TBFDARCH" \
 					"TRUE" "$endian" ; } && \
-				testcc "${gccprefix}gcc" "$CFLAGS_GCC" && \
+				testcc "${gccprefix}gcc" "$CFLAGS_GCC" "$FLAGS_GCC" && \
 				GCCPREFIX="$gccprefix" && \
 				break 3
 			done
@@ -452,7 +449,7 @@ test_architecture() {
 		# but that's more of a clang limitation. Let's be optimistic
 		# that this will change in the future.
 		CLANG="${clang_prefix}clang"
-		CFLAGS_CLANG="-target ${clang_arch}-${TABI} --rtlib=${CLANG_RUNTIME} $CFLAGS_CLANG -ccc-gcc-name ${GCC}"
+		CFLAGS_CLANG="-target ${clang_arch}-${TABI} $CFLAGS_CLANG -ccc-gcc-name ${GCC}"
 	fi
 }
 

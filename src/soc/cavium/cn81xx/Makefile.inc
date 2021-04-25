@@ -1,17 +1,4 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright 2017-present Facebook, Inc.
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+## SPDX-License-Identifier: GPL-2.0-only
 
 ifeq ($(CONFIG_SOC_CAVIUM_CN81XX),y)
 
@@ -35,7 +22,6 @@ verstage-y += gpio.c
 verstage-y += timer.c
 verstage-y += spi.c
 verstage-y += uart.c
-verstage-y += cbmem.c
 
 ################################################################################
 # romstage
@@ -65,7 +51,6 @@ ramstage-y += soc.c
 ramstage-y += cpu.c
 ramstage-y += cpu_secondary.S
 ramstage-y += ecam0.c
-ramstage-y += cbmem.c
 
 ramstage-$(CONFIG_ARM64_USE_ARM_TRUSTED_FIRMWARE) += bl31_plat_params.c
 

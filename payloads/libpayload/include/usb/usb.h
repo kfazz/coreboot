@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2008 coresystems GmbH
  *
@@ -70,6 +69,24 @@ typedef enum {
 
 /* SetAddress() recovery interval (USB 2.0 specification 9.2.6.3 */
 #define SET_ADDRESS_MDELAY 2
+
+/*
+ * USB sets an upper limit of 5 seconds for any transfer to be completed.
+ *
+ * Data originally from EHCI driver:
+ *	Tested with some USB2.0 flash sticks:
+ *	TUR turn around took  about 2.2s for the slowest (13fe:3800), maximum
+ *	of 250ms for the others.
+ *
+ * SET ADDRESS on xHCI controllers.
+ *	The USB specification indicates that devices must complete processing
+ *	of a SET ADDRESS request within 50 ms.  However, some hubs were found
+ *	to take more than 100 ms to complete a SET ADDRESS request on a
+ *	downstream port.
+ */
+#define USB_MAX_PROCESSING_TIME_US (5 * 1000 * 1000)
+
+#define USB_FULL_LOW_SPEED_FRAME_US 1000
 
 typedef struct {
 	unsigned char bDescLength;
@@ -192,13 +209,14 @@ typedef enum {
 	LOW_SPEED = 1,
 	HIGH_SPEED = 2,
 	SUPER_SPEED = 3,
+	SUPER_SPEED_PLUS = 4,
 } usb_speed;
 
 struct usbdev {
 	hci_t *controller;
 	endpoint_t endpoints[32];
 	int num_endp;
-	int address;		// usb address
+	int address;		// USB address
 	int hub;		// hub, device is attached to
 	int port;		// port where device is attached
 	usb_speed speed;
@@ -244,7 +262,7 @@ struct usbdev_hc {
 	u8* (*poll_intr_queue) (void *queue);
 	void *instance;
 
-	/* set_address():		Tell the usb device its address (xHCI
+	/* set_address():		Tell the USB device its address (xHCI
 					controllers want to do this by
 					themselves). Also, allocate the usbdev
 					structure, initialize enpoint 0
@@ -275,6 +293,7 @@ int get_descriptor (usbdev_t *dev, int rtype, int descType, int descIdx,
 int set_configuration (usbdev_t *dev);
 int clear_feature (usbdev_t *dev, int endp, int feature, int rtype);
 int clear_stall (endpoint_t *ep);
+_Bool is_usb_speed_ss(usb_speed speed);
 
 void usb_nop_init (usbdev_t *dev);
 void usb_hub_init (usbdev_t *dev);
@@ -298,6 +317,7 @@ void usb_detach_device(hci_t *controller, int devno);
 int usb_attach_device(hci_t *controller, int hubaddress, int port,
 		      usb_speed speed);
 
+u32 pci_quirk_check(pcidev_t controller);
 u32 usb_quirk_check(u16 vendor, u16 device);
 int usb_interface_check(u16 vendor, u16 device);
 
@@ -310,10 +330,11 @@ int usb_interface_check(u16 vendor, u16 device);
 #define USB_QUIRK_MSC_FORCE_TRANS_CBI_I		(1 <<  6)
 #define USB_QUIRK_MSC_NO_TEST_UNIT_READY	(1 <<  7)
 #define USB_QUIRK_MSC_SHORT_INQUIRY		(1 <<  8)
+#define USB_QUIRK_HUB_NO_USBSTS_PCD		(1 <<  9)
 #define USB_QUIRK_TEST				(1 << 31)
 #define USB_QUIRK_NONE				 0
 
-static inline void usb_debug(const char *fmt, ...)
+static inline void __attribute__((format(printf, 1, 2))) usb_debug(const char *fmt, ...)
 {
 #ifdef USB_DEBUG
 	va_list ap;
@@ -322,6 +343,13 @@ static inline void usb_debug(const char *fmt, ...)
 	va_end(ap);
 #endif
 }
+
+/**
+ * To be implemented by libpayload-client. It's called by the USB
+ * stack just before iterating over known devices to poll them for
+ * status change.
+ */
+void __attribute__((weak)) usb_poll_prepare (void);
 
 /**
  * To be implemented by libpayload-client. It's called by the USB stack

@@ -1,34 +1,23 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2007-2010 coresystems GmbH
-## (Written by Stefan Reinauer <stepan@coresystems.de> for coresystems GmbH)
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+## SPDX-License-Identifier: GPL-2.0-only
 
 menu "Devices"
 
 config HAVE_VGA_TEXT_FRAMEBUFFER
 	bool
+	depends on !NO_GFX_INIT
 	help
 	  Selected by graphics drivers that support legacy VGA text mode.
 
 config HAVE_VBE_LINEAR_FRAMEBUFFER
 	bool
+	depends on !NO_GFX_INIT
 	help
 	  Selected by graphics drivers that can set up a VBE linear-framebuffer
 	  mode.
 
 config HAVE_LINEAR_FRAMEBUFFER
 	bool
+	depends on !NO_GFX_INIT
 	help
 	  Selected by graphics drivers that can set up a generic linear
 	  framebuffer.
@@ -38,6 +27,11 @@ config HAVE_FSP_GOP
 	help
 	  Selected by drivers that support to run a blob that implements
 	  the Graphics Output Protocol (GOP).
+
+config MAINBOARD_NO_FSP_GOP
+	bool
+	help
+	  Selected by mainboards that do not have any graphics ports connected to the SoC.
 
 config MAINBOARD_HAS_NATIVE_VGA_INIT
 	def_bool n
@@ -52,6 +46,12 @@ config MAINBOARD_FORCE_NATIVE_VGA_INIT
 	  Selected by mainboards / chipsets whose graphics driver can't or
 	  shouldn't be disabled.
 
+config VGA_ROM_RUN_DEFAULT
+	def_bool n
+	help
+	  Selected by mainboards whose graphics initialization depends on VGA OpROM.
+	  coreboot needs to load/execute legacy VGA OpROM in order to initialize GFX.
+
 config MAINBOARD_HAS_LIBGFXINIT
 	def_bool n
 	help
@@ -60,8 +60,11 @@ config MAINBOARD_HAS_LIBGFXINIT
 
 choice
 	prompt "Graphics initialization"
-	default NO_GFX_INIT if VGA_BIOS && PAYLOAD_SEABIOS
-	default VGA_ROM_RUN if VGA_BIOS
+	default NO_GFX_INIT if VGA_ROM_RUN_DEFAULT && PAYLOAD_SEABIOS
+	default VGA_ROM_RUN if VGA_ROM_RUN_DEFAULT
+	default MAINBOARD_DO_NATIVE_VGA_INIT
+	default MAINBOARD_USE_LIBGFXINIT
+	default RUN_FSP_GOP if INTEL_GMA_HAVE_VBT
 
 config MAINBOARD_DO_NATIVE_VGA_INIT
 	bool "Use native graphics init"
@@ -76,7 +79,6 @@ config MAINBOARD_USE_LIBGFXINIT
 	depends on MAINBOARD_HAS_LIBGFXINIT
 	select HAVE_VGA_TEXT_FRAMEBUFFER
 	select HAVE_LINEAR_FRAMEBUFFER
-	select RAMSTAGE_LIBHWBASE
 	select VGA if VGA_TEXT_FRAMEBUFFER
 	help
 	  Use the SPARK library `libgfxinit` for the native graphics
@@ -98,7 +100,7 @@ config VGA_ROM_RUN
 
 config RUN_FSP_GOP
 	bool "Run a GOP driver"
-	depends on HAVE_FSP_GOP
+	depends on HAVE_FSP_GOP && !MAINBOARD_NO_FSP_GOP
 	select HAVE_LINEAR_FRAMEBUFFER
 	help
 	  Some platforms (e.g. Intel Braswell and Skylake/Kaby Lake) support
@@ -114,6 +116,26 @@ config NO_GFX_INIT
 	  initialize graphics or if pre-boot graphics are not required.
 
 endchoice
+
+config PRE_GRAPHICS_DELAY_MS
+	int "Graphics initialization delay in ms"
+	default 0
+	depends on VGA_ROM_RUN
+	help
+	  On some systems, coreboot boots so fast that connected monitors
+	  (mostly TVs) won't be able to wake up fast enough to talk to the
+	  VBIOS. On those systems we need to wait for a bit before executing
+	  the VBIOS.
+
+config ONBOARD_VGA_IS_PRIMARY
+	bool "Use onboard VGA as primary video device"
+	default n
+	depends on PCI
+	help
+	  This option lets you select which VGA device will be used
+	  to decode legacy VGA cycles. Not all chipsets implement this
+	  however. If not selected, the last adapter found will be used,
+	  else the onboard adapter is used.
 
 config S3_VGA_ROM_RUN
 	bool "Re-run VGA Option ROMs on S3 resume"
@@ -256,6 +278,7 @@ menu "Display"
 config FRAMEBUFFER_SET_VESA_MODE
 	prompt "Set framebuffer graphics resolution"
 	bool
+	default y if CHROMEOS
 	depends on PCI_OPTION_ROM_RUN_YABEL || PCI_OPTION_ROM_RUN_REALMODE
 	select HAVE_VBE_LINEAR_FRAMEBUFFER
 	help
@@ -392,22 +415,17 @@ config FRAMEBUFFER_VESA_MODE
 	default 0x11A if FRAMEBUFFER_VESA_MODE_11A
 	default 0x11B if FRAMEBUFFER_VESA_MODE_11B
 	default 0x118 if FRAMEBUFFER_VESA_MODE_USER
-
-config BOOTSPLASH
-	prompt "Show graphical bootsplash"
-	bool
-	help
-	  This option shows a graphical bootsplash screen. The graphics are
-	  loaded from the CBFS file bootsplash.jpg.
-
-	  You can either specify the location and file name of the
-	  image in the 'General' section or add it manually to CBFS, using,
-	  for example, cbfstool.
-
 endif # FRAMEBUFFER_SET_VESA_MODE
+
+config WANT_LINEAR_FRAMEBUFFER
+	bool
+	default y if CHROMEOS
+	default y if PAYLOAD_TIANOCORE
 
 choice
 	prompt "Framebuffer mode"
+	default VBE_LINEAR_FRAMEBUFFER if HAVE_VBE_LINEAR_FRAMEBUFFER && WANT_LINEAR_FRAMEBUFFER
+	default GENERIC_LINEAR_FRAMEBUFFER if HAVE_LINEAR_FRAMEBUFFER && WANT_LINEAR_FRAMEBUFFER
 	default VGA_TEXT_FRAMEBUFFER
 
 config VGA_TEXT_FRAMEBUFFER
@@ -445,6 +463,18 @@ config LINEAR_FRAMEBUFFER
 	def_bool y
 	depends on VBE_LINEAR_FRAMEBUFFER || GENERIC_LINEAR_FRAMEBUFFER
 
+config BOOTSPLASH
+	prompt "Show graphical bootsplash"
+	bool
+	depends on LINEAR_FRAMEBUFFER
+	help
+	  This option shows a graphical bootsplash screen. The graphics are
+	  loaded from the CBFS file bootsplash.jpg.
+
+	  You can either specify the location and file name of the
+	  image in the 'General' section or add it manually to CBFS, using,
+	  for example, cbfstool.
+
 config LINEAR_FRAMEBUFFER_MAX_WIDTH
 	int "Maximum width in pixels"
 	depends on LINEAR_FRAMEBUFFER && MAINBOARD_USE_LIBGFXINIT
@@ -463,10 +493,6 @@ config LINEAR_FRAMEBUFFER_MAX_HEIGHT
 
 endmenu # "Display"
 
-config SMBUS_HAS_AUX_CHANNELS
-	bool
-	default n
-
 config PCI
 	bool
 	default n
@@ -481,10 +507,6 @@ config MMCONF_SUPPORT
 	bool
 	default !NO_MMCONF_SUPPORT
 
-config HYPERTRANSPORT_PLUGIN_SUPPORT
-	bool
-	default n
-
 config PCIX_PLUGIN_SUPPORT
 	bool
 	default y
@@ -497,9 +519,77 @@ config AZALIA_PLUGIN_SUPPORT
 	bool
 	default n
 
+config AZALIA_MAX_CODECS
+	int
+	depends on AZALIA_PLUGIN_SUPPORT
+	default 3
+	range 1 15
+	help
+	  The maximum number of codecs supported on a single HD Audio controller.
+
+config AZALIA_LOCK_DOWN_R_WO_GCAP
+	def_bool n
+	depends on AZALIA_PLUGIN_SUPPORT
+	help
+	  The GCAP register is implemented as R/WO (Read / Write Once) on some
+	  HD Audio controllers, such as Intel 6-series PCHs. Select this option
+	  to lock down the GCAP register after deasserting the controller reset
+	  bit. Locking is done by reading GCAP and writing back the read value.
+
 config PCIEXP_PLUGIN_SUPPORT
 	bool
 	default y
+
+config MMCONF_BASE_ADDRESS
+	hex
+	depends on MMCONF_SUPPORT
+
+config MMCONF_BUS_NUMBER
+	int
+	depends on MMCONF_SUPPORT
+
+config MMCONF_LENGTH
+	hex
+	depends on MMCONF_SUPPORT
+	default 0x04000000 if MMCONF_BUS_NUMBER = 64
+	default 0x08000000 if MMCONF_BUS_NUMBER = 128
+	default 0x10000000 if MMCONF_BUS_NUMBER = 256
+	default 0x0
+
+config PCI_ALLOW_BUS_MASTER
+	bool "Allow coreboot to set optional PCI bus master bits"
+	default y
+	help
+	  For security reasons, bus mastering should be enabled as late as
+	  possible. In coreboot, it's usually not necessary and payloads
+	  should only enable it for devices they use. Since not all payloads
+	  enable bus mastering properly yet, this option gives some sort of
+	  "backwards compatibility" and is enabled by default to keep the
+	  traditional behaviour for now. This is currently necessary, for
+	  instance, for libpayload based payloads as the drivers don't enable
+	  bus mastering for PCI bridges.
+
+if PCI_ALLOW_BUS_MASTER
+
+config PCI_SET_BUS_MASTER_PCI_BRIDGES
+	bool "PCI bridges"
+	default y
+	help
+	  Let coreboot configure bus mastering for PCI bridges. Enabling bus
+	  mastering for a PCI bridge also allows it to forward requests from
+	  downstream devices. Currently, payloads ignore this and only enable
+	  bus mastering for the downstream device. Hence, this option is needed
+	  for compatibility until payloads are fixed.
+
+config PCI_ALLOW_BUS_MASTER_ANY_DEVICE
+	bool "Any devices"
+	default y
+	select PCI_SET_BUS_MASTER_PCI_BRIDGES
+	help
+	  Allow coreboot to enable PCI bus mastering for any device. The actual
+	  selection of devices depends on the various PCI drivers in coreboot.
+
+endif # PCI_ALLOW_BUS_MASTER
 
 endif # PCI
 
@@ -533,6 +623,68 @@ config PCIEXP_L1_SUB_STATE
 	default n
 	help
 	  Detect and enable ASPM on PCIe links.
+
+config PCIEXP_HOTPLUG
+	prompt "Enable PCIe Hotplug Support"
+	bool
+	default n
+	help
+	  Allocate resources for PCIe hotplug bridges
+
+if PCIEXP_HOTPLUG
+
+config PCIEXP_HOTPLUG_BUSES
+	int "PCI Express Hotplug Buses"
+	default  8 if MMCONF_SUPPORT && MMCONF_BUS_NUMBER <=  64
+	default 16 if MMCONF_SUPPORT && MMCONF_BUS_NUMBER <= 128
+	default 32
+	help
+	  This is the number of buses allocated for hotplug PCI express
+	  bridges, for use by hotplugged child devices. The default is 32
+	  buses.
+
+config PCIEXP_HOTPLUG_MEM
+	hex "PCI Express Hotplug Memory"
+	default 0x800000
+	help
+	  This is the amount of memory space, in bytes, to allocate to
+	  hotplug PCI express bridges, for use by hotplugged child devices.
+	  This size should be page-aligned. The default is 8 MiB.
+
+config PCIEXP_HOTPLUG_PREFETCH_MEM
+	hex "PCI Express Hotplug Prefetch Memory"
+	default 0x10000000
+	help
+	  This is the amount of pre-fetchable memory space, in bytes, to
+	  allocate to hot-plug PCI express bridges, for use by hotplugged
+	  child devices. This size should be page-aligned. The default is
+	  256 MiB.
+
+config PCIEXP_HOTPLUG_PREFETCH_MEM_ABOVE_4G
+	bool
+	depends on RESOURCE_ALLOCATOR_V4
+	default y if !PCIEXP_HOTPLUG_PREFETCH_MEM_BELOW_4G
+	default n
+	help
+	  This enables prefetch memory allocation above 4G boundary for the
+	  hotplug resources.
+
+config PCIEXP_HOTPLUG_PREFETCH_MEM_BELOW_4G
+	bool "PCI Express Hotplug Prefetch Memory Allocation below 4G boundary"
+	default n
+	help
+	  This enables prefetch memory allocation below 4G boundary for the
+	  hotplug resources.
+
+config PCIEXP_HOTPLUG_IO
+	hex "PCI Express Hotplug I/O Space"
+	default 0x2000
+	help
+	  This is the amount of I/O space to allocate to hot-plug PCI
+	  express bridges, for use by hotplugged child devices. The default
+	  is 8 KiB.
+
+endif # PCIEXP_HOTPLUG
 
 endif # PCIEXP_PLUGIN_SUPPORT
 
@@ -572,6 +724,9 @@ config SUBSYSTEM_VENDOR_ID
 	  This config option will override the devicetree settings for
 	  PCI Subsystem Vendor ID.
 
+	  Note: This option is not meant for a board's Kconfig; use the
+	  devicetree setting `subsystemid` instead.
+
 config SUBSYSTEM_DEVICE_ID
 	hex "Override PCI Subsystem Device ID"
 	depends on PCI
@@ -580,9 +735,13 @@ config SUBSYSTEM_DEVICE_ID
 	  This config option will override the devicetree settings for
 	  PCI Subsystem Device ID.
 
+	  Note: This option is not meant for a board's Kconfig; use the
+	  devicetree setting `subsystemid` instead.
+
 config VGA_BIOS
 	bool "Add a VGA BIOS image"
 	depends on ARCH_X86
+	select VGA_ROM_RUN_DEFAULT
 	help
 	  Select this option if you have a VGA BIOS image that you would
 	  like to add to your ROM.
@@ -602,16 +761,51 @@ config VGA_BIOS_ID
 	depends on VGA_BIOS
 	default "1106,3230"
 	help
-	  The comma-separated PCI vendor and device ID that would associate
-	  your VGA BIOS to your video card.
+	  The comma-separated PCI vendor and device ID with optional revision if that
+	  feature is enabled that would associate your vBIOS to your video card.
 
-	  Example: 1106,3230
+	  Example: 1106,3230 or 1106,3230,a3
 
 	  In the above example 1106 is the PCI vendor ID (in hex, but without
 	  the "0x" prefix) and 3230 specifies the PCI device ID of the
-	  video card (also in hex, without "0x" prefix).
+	  video card (also in hex, without "0x" prefix). a3 specifies the revision.
 
 	  Under GNU/Linux you can run `lspci -nn` to list the IDs of your PCI devices.
+
+config VGA_BIOS_SECOND
+	bool "Add a 2nd video BIOS image"
+	depends on ARCH_X86 && VGA_BIOS
+	help
+	  Select this option if you have a 2nd video BIOS image that you would
+	  like to add to your ROM.
+
+config VGA_BIOS_SECOND_FILE
+	string "2nd video BIOS path and filename"
+	depends on VGA_BIOS_SECOND
+	default "vbios2.bin"
+	help
+	  The path and filename of the file to use as video BIOS.
+
+config VGA_BIOS_SECOND_ID
+	string "Graphics device PCI IDs"
+	depends on VGA_BIOS_SECOND
+	help
+	  The comma-separated PCI vendor and device ID with optional revision if that
+	  feature is enabled that would associate your vBIOS to your video card.
+
+	  Example: 1106,3230 or 1106,3230,a3
+
+	  In the above example 1106 is the PCI vendor ID (in hex, but without
+	  the "0x" prefix) and 3230 specifies the PCI device ID of the
+	  video card (also in hex, without "0x" prefix). a3 specifies the revision.
+
+	  Under GNU/Linux you can run `lspci -nn` to list the IDs of your PCI devices.
+
+config CHECK_REV_IN_OPROM_NAME
+	def_bool n
+	help
+	  Select this in the platform BIOS or chipset if the option rom has a revision
+	  that needs to be checked when searching CBFS.
 
 config VGA_BIOS_DGPU
 	bool "Add a discrete VGA BIOS image"
@@ -656,7 +850,7 @@ config INTEL_GMA_HAVE_VBT
 
 config INTEL_GMA_ADD_VBT
 	depends on SOC_INTEL_COMMON || CPU_INTEL_COMMON
-	bool "Add a Video Bios Table (VBT) binary to CBFS"
+	bool "Add a Video BIOS Table (VBT) binary to CBFS"
 	default y if INTEL_GMA_HAVE_VBT
 	help
 	  Add a VBT data file to CBFS. The VBT describes the integrated
@@ -666,10 +860,10 @@ config INTEL_GMA_ADD_VBT
 config INTEL_GMA_VBT_FILE
 	string "VBT binary path and filename"
 	depends on INTEL_GMA_ADD_VBT
-	default "src/mainboard/$(MAINBOARDDIR)/variants/$(VARIANT_DIR)/data.vbt" \
+	default "src/mainboard/\$(MAINBOARDDIR)/variants/\$(VARIANT_DIR)/data.vbt" \
 		if INTEL_GMA_HAVE_VBT && VARIANT_DIR != ""
-	default "src/mainboard/$(MAINBOARDDIR)/data.vbt" if INTEL_GMA_HAVE_VBT
-	default "3rdparty/blobs/mainboard/$(MAINBOARDDIR)/vbt.bin"
+	default "src/mainboard/\$(MAINBOARDDIR)/data.vbt" if INTEL_GMA_HAVE_VBT
+	default "3rdparty/blobs/mainboard/\$(MAINBOARDDIR)/vbt.bin"
 	help
 	  The path and filename of the VBT binary.
 
@@ -682,5 +876,28 @@ config SOFTWARE_I2C
 	  be useful for debugging or on platforms where a driver for the real
 	  I2C controller is not (yet) available. The platform code needs to
 	  provide bindings to manually toggle I2C lines.
+
+config RESOURCE_ALLOCATOR_V3
+	bool
+	default n
+	help
+	  This config option enables resource allocator v3 which performs
+	  top down allocation of resources in a single MMIO window. This is the
+	  old resource allocator meant to be used only until the broken AMD
+	  chipsets are fixed. DO NOT USE THIS FOR ANY NEW CHIPSETS!
+
+config RESOURCE_ALLOCATOR_V4
+	bool
+	default n if RESOURCE_ALLOCATOR_V3
+	default y if !RESOURCE_ALLOCATOR_V3
+	help
+	  This config option enables resource allocator v4 which uses multiple
+	  ranges for allocating resources. This allows allocation of resources
+	  above 4G boundary as well.
+
+config XHCI_UTILS
+	def_bool n
+	help
+	  Provides xHCI utility functions.
 
 endmenu

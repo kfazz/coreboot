@@ -1,7 +1,6 @@
 #ifndef CPU_X86_MTRR_H
 #define CPU_X86_MTRR_H
 
-#include <commonlib/helpers.h>
 #ifndef __ASSEMBLER__
 #include <cpu/x86/msr.h>
 #include <arch/cpu.h>
@@ -17,6 +16,7 @@
 
 #define MTRR_CAP_MSR			0x0fe
 
+#define MTRR_CAP_PRMRR			(1 << 12)
 #define MTRR_CAP_SMRR			(1 << 11)
 #define MTRR_CAP_WC			(1 << 10)
 #define MTRR_CAP_FIX			(1 << 8)
@@ -27,13 +27,14 @@
 #define MTRR_DEF_TYPE_EN		(1 << 11)
 #define MTRR_DEF_TYPE_FIX_EN		(1 << 10)
 
-
 #define IA32_SMRR_PHYS_BASE		0x1f2
 #define IA32_SMRR_PHYS_MASK		0x1f3
+#define SMRR_PHYS_MASK_LOCK		(1 << 10)
 
-/* Specific to model_6fx and model_1067x */
-#define MSR_SMRR_PHYS_BASE		0xa0
-#define MSR_SMRR_PHYS_MASK		0xa1
+/* Specific to model_6fx and model_1067x.
+   These are named MSR_SMRR_PHYSBASE in the SDM. */
+#define CORE2_SMRR_PHYS_BASE		0xa0
+#define CORE2_SMRR_PHYS_MASK		0xa1
 
 #define MTRR_PHYS_BASE(reg)		(0x200 + 2 * (reg))
 #define MTRR_PHYS_MASK(reg)		(MTRR_PHYS_BASE(reg) + 1)
@@ -53,7 +54,7 @@
 #define MTRR_FIX_4K_F0000		0x26e
 #define MTRR_FIX_4K_F8000		0x26f
 
-#if !defined(__ASSEMBLER__) && !defined(__ROMCC__)
+#if !defined(__ASSEMBLER__)
 
 #include <stdint.h>
 #include <stddef.h>
@@ -78,6 +79,7 @@ void x86_setup_mtrrs(void);
  * it always dynamically detects the number of variable MTRRs available.
  */
 void x86_setup_mtrrs_with_detect(void);
+void x86_setup_mtrrs_with_detect_no_above_4gb(void);
 /*
  * x86_setup_var_mtrrs() parameters:
  * address_bits - number of physical address bits supported by cpu
@@ -107,8 +109,40 @@ static inline int get_var_mtrr_count(void)
 void set_var_mtrr(unsigned int reg, unsigned int base, unsigned int size,
 	unsigned int type);
 int get_free_var_mtrr(void);
+void clear_all_var_mtrr(void);
 
 asmlinkage void display_mtrrs(void);
+
+/* Variable MTRR structure to help track and set MTRRs prior to ramstage. This
+   and the following APIs can be used to set up more complex MTRR solutions
+   instead of open coding get_free_var_mtrr() and set_var_mtrr() or for determining
+   a future solution, such as postcar_loader. */
+struct var_mtrr_context {
+	uint32_t upper_mask;
+	int max_var_mtrrs;
+	int used_var_mtrrs;
+	void *arg; /* optional callback parameter */
+};
+
+/* Returns 0-relative MTRR from context. Use MTRR_PHYS_BASE|MASK macros for calculating
+   MSR address value. */
+static inline int var_mtrr_context_current_mtrr(const struct var_mtrr_context *ctx)
+{
+	return ctx->used_var_mtrrs;
+}
+
+/* Initialize var_mtrr_context object. Assumes all variable MTRRs are not yet used. */
+void var_mtrr_context_init(struct var_mtrr_context *ctx, void *arg);
+/* Allocate a variable mtrr base and mask, calling the provided callback for each MTRR
+   MSR base-mask pair needed to accommodate the address and size request.
+   Returns < 0 on error and 0 on success. */
+int var_mtrr_set_with_cb(struct var_mtrr_context *ctx,
+			uintptr_t addr, size_t size, int type,
+			void (*callback)(const struct var_mtrr_context *ctx,
+						uintptr_t base_addr, size_t size,
+						msr_t base, msr_t mask));
+/* Same as var_mtrr_set_with_cb() but just write the MSRs directly. */
+int var_mtrr_set(struct var_mtrr_context *ctx, uintptr_t addr, size_t size, int type);
 
 /*
  * Set the MTRRs using the data on the stack from setup_stack_and_mtrrs.
@@ -120,7 +154,7 @@ asmlinkage void soc_enable_mtrrs(void);
 /* fms: find most significant bit set, stolen from Linux Kernel Source. */
 static inline unsigned int fms(unsigned int x)
 {
-	int r;
+	unsigned int r;
 
 	__asm__("bsrl %1,%0\n\t"
 		"jnz 1f\n\t"
@@ -132,7 +166,7 @@ static inline unsigned int fms(unsigned int x)
 /* fls: find least significant bit set */
 static inline unsigned int fls(unsigned int x)
 {
-	int r;
+	unsigned int r;
 
 	__asm__("bsfl %1,%0\n\t"
 		"jnz 1f\n\t"
@@ -140,9 +174,9 @@ static inline unsigned int fls(unsigned int x)
 		"1:" : "=r" (r) : "mr" (x));
 	return r;
 }
-#endif /* !defined(__ASSEMBLER__) && !defined(__ROMCC__) */
+#endif /* !defined(__ASSEMBLER__) */
 
-/* Align up/down to next power of 2, suitable for ROMCC and assembler
+/* Align up/down to next power of 2, suitable for assembler
    too. Range of result 256kB to 128MB is good enough here. */
 #define _POW2_MASK(x)	((x>>1)|(x>>2)|(x>>3)|(x>>4)|(x>>5)| \
 					(x>>6)|(x>>7)|(x>>8)|((1<<18)-1))
@@ -157,10 +191,6 @@ static inline unsigned int fls(unsigned int x)
  * Note MTRR boundaries, must be power of two.
  */
 #define CACHE_TMP_RAMTOP (16<<20)
-
-#if ((CONFIG_XIP_ROM_SIZE & (CONFIG_XIP_ROM_SIZE - 1)) != 0)
-# error "CONFIG_XIP_ROM_SIZE is not a power of 2"
-#endif
 
 /* For ROM caching, generally, try to use the next power of 2. */
 #define OPTIMAL_CACHE_ROM_SIZE _ALIGN_UP_POW2(CONFIG_ROM_SIZE)
@@ -186,8 +216,8 @@ static inline unsigned int fls(unsigned int x)
 
 /* Last but not least, most (if not all) chipsets have MMIO
    between 0xfe000000 and 0xff000000, so limit to 16MiB. */
-#if CAR_CACHE_ROM_SIZE >= 16 * MiB
-# define CACHE_ROM_SIZE (16 * MiB)
+#if CAR_CACHE_ROM_SIZE >= 16 << 20
+# define CACHE_ROM_SIZE (16 << 20)
 #else
 # define CACHE_ROM_SIZE CAR_CACHE_ROM_SIZE
 #endif

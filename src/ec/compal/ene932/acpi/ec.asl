@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011-2012 The Chromium OS Authors. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /*
  * The mainboard must define a PNOT method to handle power
@@ -29,8 +16,7 @@ Device (EC0)
 	Field (ERAM, ByteAcc, Lock, Preserve)
 	{
 		// EC Name Space Configuration
-		Offset(0x00),
-		, 1,            // Reserved                              ; 00h.0
+		    , 1,        // Reserved                              ; 00h.0
 		LCDS, 1,        // 1= BACKLIGHT ON , 0= BACKLIGHT OFF    ; 00h.1
 		, 6,            // Reserved                              ; 00h.2 ~ 00h.6
 		HTBN, 8,        // HOTKEY_BUTTON_NUMBER                  ; 01h For ABO Hot Key Function
@@ -266,12 +252,12 @@ Device (EC0)
 	Method (_REG, 2, NotSerialized)
 	{
 		// Initialize AC power state
-		Store (ADPT, \PWRS)
+		\PWRS = ADPT
 
 		// Force a read of CPU temperature
-		Store (CTML, Local0)
+		Local0 = CTML
 		/* So that we don't get a warning that Local0 is unused.  */
-		Increment (Local0)
+		Local0++
 	}
 
 
@@ -336,7 +322,7 @@ Device (EC0)
 	// AC Power Connected
 	Method (_Q37, 0, NotSerialized)
 	{
-		Store (One, \PWRS)
+		\PWRS = 1
 		Notify (AC, 0x80)
 		Notify (BATX, 0x80)
 		// TODO ADD CPU power profile
@@ -346,7 +332,7 @@ Device (EC0)
 	// AC Power Removed
 	Method (_Q38, 0, NotSerialized)
 	{
-		Store (Zero, \PWRS)
+		\PWRS = 0
 		Notify (AC, 0x80)
 		Notify (BATX, 0x80)
 		// TODO ADD CPU power profile
@@ -377,7 +363,7 @@ Device (EC0)
 	{
 		IF(WLEX) //if Wlan exist
 		{
-			//TODO Store(WLAT, LANE)
+			//TODO LANE = WLAT
 		}
 	}
 

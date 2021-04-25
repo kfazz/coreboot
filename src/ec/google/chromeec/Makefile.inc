@@ -1,10 +1,17 @@
 ifeq ($(CONFIG_EC_GOOGLE_CHROMEEC),y)
 
+subdirs-y += audio_codec
+subdirs-y += i2c_tunnel
+
 bootblock-$(CONFIG_EC_GOOGLE_CHROMEEC_BOARDID) += ec_boardid.c
 verstage-$(CONFIG_EC_GOOGLE_CHROMEEC_BOARDID) += ec_boardid.c
 romstage-$(CONFIG_EC_GOOGLE_CHROMEEC_BOARDID) += ec_boardid.c
 ramstage-$(CONFIG_EC_GOOGLE_CHROMEEC_BOARDID) += ec_boardid.c
 smm-$(CONFIG_EC_GOOGLE_CHROMEEC_BOARDID) += ec_boardid.c
+
+smm-$(CONFIG_EC_GOOGLE_CHROMEEC_SKUID) += ec_skuid.c
+romstage-$(CONFIG_EC_GOOGLE_CHROMEEC_SKUID) += ec_skuid.c
+ramstage-$(CONFIG_EC_GOOGLE_CHROMEEC_SKUID) += ec_skuid.c
 
 bootblock-y += ec.c
 bootblock-$(CONFIG_EC_GOOGLE_CHROMEEC_LPC) += ec_lpc.c
@@ -24,6 +31,7 @@ verstage-y += ec.c crosec_proto.c vstore.c
 verstage-$(CONFIG_EC_GOOGLE_CHROMEEC_I2C) += ec_i2c.c
 verstage-$(CONFIG_EC_GOOGLE_CHROMEEC_LPC) += ec_lpc.c
 verstage-$(CONFIG_EC_GOOGLE_CHROMEEC_SPI) += ec_spi.c
+ramstage-$(CONFIG_HAVE_ACPI_TABLES) += ec_acpi.c
 
 ramstage-$(CONFIG_VBOOT) += vboot_storage.c
 smm-$(CONFIG_VBOOT) += vboot_storage.c
@@ -33,6 +41,8 @@ verstage-$(CONFIG_VBOOT) += vboot_storage.c
 verstage-$(CONFIG_EC_GOOGLE_CHROMEEC_SWITCHES) += switches.c
 romstage-$(CONFIG_EC_GOOGLE_CHROMEEC_SWITCHES) += switches.c
 ramstage-$(CONFIG_EC_GOOGLE_CHROMEEC_SWITCHES) += switches.c
+
+ramstage-$(CONFIG_DRIVERS_INTEL_DPTF) += ec_dptf_helpers.c
 
 CHROMEEC_SOURCE ?= $(top)/3rdparty/chromeec
 
@@ -63,6 +73,8 @@ CONFIG_EC_GOOGLE_CHROMEEC_BOARDNAME := $(call strip_quotes,$(CONFIG_EC_GOOGLE_CH
 $(obj)/mainboard/$(MAINBOARDDIR)/ecrw:
 	$(MAKE) -C $(CHROMEEC_SOURCE) $(if $(CONFIG_CCACHE),,CCACHE=) \
 		out=$(abspath $(obj)/external/chromeec/$(CONFIG_EC_GOOGLE_CHROMEEC_BOARDNAME)) \
+		REPRODUCIBLE_BUILD=1 \
+		CC=$(GCC_CC_arm) \
 		CROSS_COMPILE=$(subst -cpp,-,$(CPP_arm)) \
 		HOST_CROSS_COMPILE= \
 		BOARD=$(CONFIG_EC_GOOGLE_CHROMEEC_BOARDNAME) \
@@ -100,6 +112,8 @@ CONFIG_EC_GOOGLE_CHROMEEC_PD_BOARDNAME := $(call strip_quotes,$(CONFIG_EC_GOOGLE
 $(obj)/mainboard/$(MAINBOARDDIR)/pdrw:
 	$(MAKE) -C $(CHROMEEC_SOURCE) $(if $(CONFIG_CCACHE),,CCACHE=) \
 		out=$(abspath $(obj)/external/chromeec/$(CONFIG_EC_GOOGLE_CHROMEEC_PD_BOARDNAME)) \
+		REPRODUCIBLE_BUILD=1 \
+		CC=$(GCC_CC_arm) \
 		CROSS_COMPILE=$(subst -cpp,-,$(CPP_arm)) \
 		HOST_CROSS_COMPILE= \
 		BOARD=$(CONFIG_EC_GOOGLE_CHROMEEC_PD_BOARDNAME) \

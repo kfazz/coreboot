@@ -1,21 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
 /*
- *
  * Placed in a separate file since some of these definitions can be used from
  * assembly code
- *
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _SOC_GLK_GPIO_H_
@@ -215,7 +202,6 @@
 #define GPIO_175			(AUDIO_OFFSET + 19)
 #define TOTAL_AUDIO_PADS		20
 
-
 /* SCC community pads */
 /* For SMBus, SD-Card, Clock, CNV/SDIO, eMMC */
 #define SCC_OFFSET			(AUDIO_OFFSET + 20)
@@ -282,6 +268,7 @@
  */
 #define HOSTSW_OWN_REG_0		0xB0
 
+#define GPI_INT_STS_0			0x100
 #define GPI_INT_EN_0			0x110
 
 #define GPI_SMI_STS_0			0x170
@@ -309,10 +296,8 @@
 	(ALIGN_UP(NUM_SCC_PADS, GPIO_MAX_NUM_PER_GROUP) /	\
 		GPIO_MAX_NUM_PER_GROUP)
 
-
 #define NUM_GPI_STATUS_REGS		(NUM_N_GPI_REGS + NUM_NW_GPI_REGS \
 					+ NUM_AUDIO_GPI_REGS + NUM_SCC_GPI_REGS)
-
 
 /* Macros for translating a global pad offset to a local offset */
 #define PAD_NW(pad)			(pad - NW_OFFSET)

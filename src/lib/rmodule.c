@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Google LLC
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <assert.h>
 #include <cbmem.h>
 #include <cbfs.h>
@@ -24,6 +11,8 @@
 
 /* Change this define to get more verbose debugging for module loading. */
 #define PK_ADJ_LEVEL BIOS_NEVER
+
+const size_t region_alignment = MIN_UNSAFE(DYN_CBMEM_ALIGN_SIZE, 4096);
 
 static inline int rmodule_is_loaded(const struct rmodule *module)
 {
@@ -202,20 +191,26 @@ int rmodule_load(void *base, struct rmodule *module)
 	return 0;
 }
 
-int rmodule_calc_region(unsigned int region_alignment, size_t rmodule_size,
-			size_t *region_size, int *load_offset)
+static void *rmodule_cbfs_allocator(void *rsl_arg, size_t unused,
+				    const union cbfs_mdata *mdata)
 {
-	/* region_alignment must be a power of 2. */
-	if (region_alignment & (region_alignment - 1))
-		BUG();
+	struct rmod_stage_load *rsl = rsl_arg;
 
-	if (region_alignment < 4096)
-		region_alignment = 4096;
+	assert(IS_POWER_OF_2(region_alignment) &&
+	       region_alignment >= sizeof(struct rmodule_header));
 
-	/* Sanity check rmodule_header size. The code below assumes it is less
-	 * than the minimum alignment required. */
-	if (region_alignment < sizeof(struct rmodule_header))
-		BUG();
+	/* The CBFS core just passes us the decompressed size of the file, but
+	   we need to know the memlen of the binary image. We need to find and
+	   parse the stage header explicitly. */
+	const struct cbfs_file_attr_stageheader *sattr = cbfs_find_attr(mdata,
+			CBFS_FILE_ATTR_TAG_STAGEHEADER, sizeof(*sattr));
+	if (!sattr) {
+		printk(BIOS_ERR, "rmodule '%s' has no stage header!\n",
+		       rsl->prog->name);
+		return NULL;
+	}
+
+	const size_t memlen = be32toh(sattr->memlen);
 
 	/* Place the rmodule according to alignment. The rmodule files
 	 * themselves are packed as a header and a payload, however the rmodule
@@ -227,7 +222,7 @@ int rmodule_calc_region(unsigned int region_alignment, size_t rmodule_size,
 	 * to place the rmodule so that the program falls on the aligned
 	 * address with the header just before it. Therefore, we need at least
 	 * a page to account for the size of the header. */
-	*region_size = ALIGN(rmodule_size + region_alignment, 4096);
+	size_t region_size = ALIGN(memlen + region_alignment, 4096);
 	/* The program starts immediately after the header. However,
 	 * it needs to be aligned to a 4KiB boundary. Therefore, adjust the
 	 * program location so that the program lands on a page boundary.  The
@@ -243,52 +238,33 @@ int rmodule_calc_region(unsigned int region_alignment, size_t rmodule_size,
 	 * |  >= 0 bytes from alignment     |
 	 * +--------------------------------+  region_alignment
 	 */
-	*load_offset = region_alignment;
 
-	return region_alignment - sizeof(struct rmodule_header);
+	uint8_t *stage_region = cbmem_add(rsl->cbmem_id, region_size);
+	if (stage_region == NULL)
+		return NULL;
+
+	return stage_region + region_alignment - sizeof(struct rmodule_header);
 }
 
 int rmodule_stage_load(struct rmod_stage_load *rsl)
 {
 	struct rmodule rmod_stage;
-	size_t region_size;
-	char *stage_region;
-	int rmodule_offset;
-	int load_offset;
-	struct cbfs_stage stage;
-	void *rmod_loc;
-	struct region_device *fh;
 
 	if (rsl->prog == NULL || prog_name(rsl->prog) == NULL)
 		return -1;
 
-	fh = prog_rdev(rsl->prog);
-
-	if (rdev_readat(fh, &stage, 0, sizeof(stage)) != sizeof(stage))
+	if (prog_locate_hook(rsl->prog))
 		return -1;
 
-	rmodule_offset =
-		rmodule_calc_region(DYN_CBMEM_ALIGN_SIZE,
-				    stage.memlen, &region_size, &load_offset);
-
-	stage_region = cbmem_add(rsl->cbmem_id, region_size);
-
-	if (stage_region == NULL)
-		return -1;
-
-	rmod_loc = &stage_region[rmodule_offset];
-
-	printk(BIOS_INFO, "Decompressing stage %s @ 0x%p (%d bytes)\n",
-	       prog_name(rsl->prog), rmod_loc, stage.memlen);
-
-	if (!cbfs_load_and_decompress(fh, sizeof(stage), stage.len, rmod_loc,
-				      stage.memlen, stage.compression))
+	void *rmod_loc = cbfs_alloc(prog_name(rsl->prog),
+				    rmodule_cbfs_allocator, rsl, NULL);
+	if (!rmod_loc)
 		return -1;
 
 	if (rmodule_parse(rmod_loc, &rmod_stage))
 		return -1;
 
-	if (rmodule_load(&stage_region[load_offset], &rmod_stage))
+	if (rmodule_load(rmod_loc + sizeof(struct rmodule_header), &rmod_stage))
 		return -1;
 
 	prog_set_area(rsl->prog, rmod_stage.location,

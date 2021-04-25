@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2016 Google Inc.
- * Copyright (C) 2017-2018 Siemens AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <commonlib/helpers.h>
 #include <baseboard/variants.h>
@@ -47,7 +33,7 @@ static const struct pad_config gpio_table[] = {
 	/* SDIO - unused */
 	PAD_CFG_GPI(GPIO_166, DN_20K, DEEP),
 	PAD_CFG_GPI(GPIO_167, DN_20K, DEEP),
-	PAD_CFG_GPI(GPIO_168, DN_20K, DEEP),
+	PAD_CFG_NF(GPIO_168, UP_20K, DEEP, NF1),
 	PAD_CFG_GPI(GPIO_169, DN_20K, DEEP),
 	PAD_CFG_GPI(GPIO_170, DN_20K, DEEP),
 	PAD_CFG_GPI(GPIO_171, DN_20K, DEEP),
@@ -131,7 +117,6 @@ static const struct pad_config gpio_table[] = {
 	PAD_CFG_GPI(PMU_SLP_S0_B, UP_20K, DEEP),
 	PAD_CFG_GPI(PMU_SLP_S3_B, UP_20K, DEEP),
 	PAD_CFG_GPI(PMU_SLP_S4_B, UP_20K, DEEP),
-	PAD_CFG_GPI(PMU_SUSCLK, DN_20K, DEEP),
 	PAD_CFG_GPI(PMU_WAKE_B, DN_20K, DEEP),
 	PAD_CFG_GPI(SUS_STAT_B, DN_20K, DEEP),
 	PAD_CFG_GPI(SUSPWRDNACK, DN_20K, DEEP),
@@ -179,7 +164,7 @@ static const struct pad_config gpio_table[] = {
 	PAD_CFG_GPI(PMC_SPI_CLK, DN_20K, DEEP),		/* unused */
 
 	/* PMIC Signals unused signals related to an old PMIC interface. */
-	PAD_CFG_GPI(PMIC_PWRGOOD, DN_20K, DEEP),	/* PMIC_PWRGOOD */
+	PAD_CFG_NF(PMIC_PWRGOOD, DN_20K, DEEP, NF1),	/* PMIC_PWRGOOD */
 	PAD_CFG_GPI(PMIC_RESET_B, DN_20K, DEEP),	/* PMIC_RESET_B */
 	PAD_CFG_GPI(GPIO_213, UP_20K, DEEP),		/* PMIC_SDWN_B */
 	PAD_CFG_GPI(GPIO_214, DN_20K, DEEP),		/* PMIC_BCUDISW2 */
@@ -319,16 +304,16 @@ static const struct pad_config gpio_table[] = {
 	PAD_CFG_GPI(GPIO_73, DN_20K, DEEP),		/* pin open */
 
 	/* no TAP controller pins available on SMARC of APL4 */
-	PAD_CFG_GPI(TCK, DN_20K, DEEP),			/* pin open */
-	PAD_CFG_GPI(TRST_B, DN_20K, DEEP),		/* pin open */
-	PAD_CFG_GPI(TMS, DN_20K, DEEP),			/* pin open */
-	PAD_CFG_GPI(TDI, DN_20K, DEEP),			/* pin open */
+	PAD_CFG_NF(TCK, DN_20K, DEEP, NF1),		/* pin open */
+	PAD_CFG_NF(TRST_B, DN_20K, DEEP, NF1),		/* pin open */
+	PAD_CFG_NF(TMS, DN_20K, DEEP, NF1),		/* pin open */
+	PAD_CFG_NF(TDI, DN_20K, DEEP, NF1),		/* pin open */
 
-	PAD_CFG_GPI(CX_PMODE, DN_20K, DEEP),		/* pin open */
-	PAD_CFG_GPI(CX_PREQ_B, DN_20K, DEEP),		/* pin open */
-	PAD_CFG_GPI(JTAGX, DN_20K, DEEP),		/* pin open */
-	PAD_CFG_GPI(CX_PRDY_B, DN_20K, DEEP),		/* pin open */
-	PAD_CFG_GPI(TDO, DN_20K, DEEP),			/* pin open */
+	PAD_CFG_NF(CX_PMODE, DN_20K, DEEP, NF1),	/* pin open */
+	PAD_CFG_NF(CX_PREQ_B, DN_20K, DEEP, NF1),	/* pin open */
+	PAD_CFG_NF(JTAGX, DN_20K, DEEP, NF1),		/* pin open */
+	PAD_CFG_NF(CX_PRDY_B, DN_20K, DEEP, NF1),	/* pin open */
+	PAD_CFG_NF(TDO, DN_20K, DEEP, NF1),		/* pin open */
 
 	/* GPIO_[216:219] described into EDS Vol1. */
 	PAD_CFG_GPO(CNV_BRI_DT, 0, DEEP),	/* Disable eDP to LVDS bridge */
@@ -336,7 +321,7 @@ static const struct pad_config gpio_table[] = {
 	PAD_CFG_GPI(CNV_RGI_DT, DN_20K, DEEP),		/* pin open */
 
 	/* Writing to following GPIO registers leads to 0xFFFF FFFF in CFG0/1 */
-	PAD_CFG_GPI(CNV_RGI_RSP, DN_20K, DEEP),		/* pin open */
+	PAD_CFG_NF(CNV_RGI_RSP, DN_20K, DEEP, NF1),	/* pin open */
 
 	/* Serial Voltage Identification */
 	PAD_CFG_NF(SVID0_ALERT_B, NONE, DEEP, NF1),	/* SVID0_ALERT_B */
@@ -380,6 +365,8 @@ static const struct pad_config early_gpio_table[] = {
 	PAD_CFG_NF(GPIO_43, UP_20K, DEEP, NF1),		/* LPSS_UART1_TXD */
 	PAD_CFG_NF(GPIO_46, UP_20K, DEEP, NF1),		/* LPSS_UART2_RXD */
 	PAD_CFG_NF(GPIO_47, UP_20K, DEEP, NF1),		/* LPSS_UART2_TXD */
+
+	PAD_CFG_NF(PMU_SUSCLK, NONE, DEEP, NF1),/* 32,78 kHz used on SMARC */
 };
 
 const struct pad_config *variant_early_gpio_table(size_t *num)

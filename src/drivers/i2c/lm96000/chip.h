@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2017 secunet Security Networks AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef DRIVERS_I2C_LM96000_CHIP_H
 #define DRIVERS_I2C_LM96000_CHIP_H
@@ -93,6 +80,7 @@ struct lm96000_fan_config {
 };
 
 struct lm96000_temp_zone {
+	u8 low_temp;	/* temperature for min. duty cycle (in °C) */
 	u8 target_temp;	/* temperature for 100% duty cycle (in °C) */
 	u8 panic_temp;	/* temperature for 100% duty cycle on all fans */
 
@@ -100,9 +88,12 @@ struct lm96000_temp_zone {
 	   with. (Datasheet clearly states the opposite, that this
 	   is tied to each PWM output so YMMV.) */
 	enum {
-		LM96000_LOW_TEMP_OFF = 0, /* turn fan off below low temp. */
-		LM96000_LOW_TEMP_MIN = 1, /* keep PWM at mininum duty cycle */
+		/* turn fan off below `low_temp - hysteresis` */
+		LM96000_LOW_TEMP_OFF = 0,
+		/* keep PWM at mininum duty cycle */
+		LM96000_LOW_TEMP_MIN = 1,
 	} min_off;
+	u8 hysteresis;
 };
 
 /* Implements only those parts currently used by coreboot mainboards. */

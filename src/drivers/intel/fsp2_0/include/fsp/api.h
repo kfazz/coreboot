@@ -1,14 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015-2016 Intel Corp.
- * (Written by Alexandru Gagniuc <alexandrux.gagniuc@intel.com> for Intel Corp.)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef _FSP2_0_API_H_
 #define _FSP2_0_API_H_
@@ -41,10 +31,9 @@ enum fsp_notify_phase {
 	END_OF_FIRMWARE = 0xF0
 };
 
-
 /* Main FSP stages */
 void fsp_memory_init(bool s3wake);
-void fsp_silicon_init(bool s3wake);
+void fsp_silicon_init(void);
 void fsp_temp_ram_exit(void);
 
 /*
@@ -52,12 +41,15 @@ void fsp_temp_ram_exit(void);
  * separately from calling silicon init. It might be required in cases where
  * stage cache is no longer available by the point SoC calls into silicon init.
  */
-void fsps_load(bool s3wake);
+void fsps_load(void);
 
 /* Callbacks for updating stage-specific parameters */
 void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version);
 void platform_fsp_silicon_init_params_cb(FSPS_UPD *supd);
-
+/* Callbacks for SoC/Mainboard specific overrides */
+void platform_fsp_multi_phase_init_cb(uint32_t phase_index);
+/* Check if SoC sets EnableMultiPhaseSiliconInit UPD */
+int soc_fsp_multi_phase_init_is_enable(void);
 /*
  * The following functions are used when FSP_PLATFORM_MEMORY_SETTINGS_VERSION
  * is employed allowing the mainboard and SoC to supply their own version
@@ -72,9 +64,18 @@ void platform_fsp_notify_status(enum fsp_notify_phase phase);
 
 /* Initialize memory margin analysis settings. */
 void setup_mma(FSP_M_CONFIG *memory_cfg);
+/* Update the SOC specific logo param and load the logo. */
+void soc_load_logo(FSPS_UPD *supd);
 /* Update the SOC specific memory config param for mma. */
 void soc_update_memory_params_for_mma(FSP_M_CONFIG *memory_cfg,
 	struct mma_config_param *mma_cfg);
+
+/*
+ * As per FSP integration guide:
+ * If bootloader needs to take control of APs back, a full AP re-initialization is
+ * required after FSP-S is completed and control has been transferred back to bootloader
+ */
+void do_mpinit_after_fsp(void);
 
 /*
  * # DOCUMENTATION:

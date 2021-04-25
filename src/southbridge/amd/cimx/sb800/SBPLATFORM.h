@@ -1,21 +1,4 @@
-/*
- *****************************************************************************
- *
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * ***************************************************************************
- *
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _AMD_SBPLATFORM_H_
 #define _AMD_SBPLATFORM_H_
@@ -53,7 +36,6 @@ typedef union _PCI_ADDR {
 	#define IMC_ENABLE_OVER_WRITE        0x01
 #endif
 
-#include <console/console.h>
 #include "AmdSbLib.h"
 #include "Amd.h"
 #include <SB800.h>
@@ -62,10 +44,9 @@ typedef union _PCI_ADDR {
 #include <SBDEF.h>
 #include <AMDSBLIB.h>
 #include <SBSUBFUN.h>
-#include "platform_cfg.h"	/* mainboard specific configuration */
-#include <OEM.h>		/* platform default configuration */
+#include "platform_cfg.h"
+#include <OEM.h>
 #include <AMD.h>
-
 
 //------------------------------------------------------------------------------------------------------------------------//
 /**

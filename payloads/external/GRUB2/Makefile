@@ -1,9 +1,9 @@
-TAG-$(CONFIG_GRUB2_MASTER)=
+TAG-$(CONFIG_GRUB2_MASTER)=origin/HEAD
 TAG-$(CONFIG_GRUB2_REVISION)=$(CONFIG_GRUB2_REVISION_ID)
-TAG-$(CONFIG_GRUB2_STABLE)=e54c99aaff5e5f6f5d3b06028506c57e66d8ef77
+TAG-$(CONFIG_GRUB2_STABLE)=grub-2.04
 NAME-$(CONFIG_GRUB2_MASTER)=HEAD
 NAME-$(CONFIG_GRUB2_REVISION)=$(CONFIG_GRUB2_REVISION_ID)
-NAME-$(CONFIG_GRUB2_STABLE)=2.02
+NAME-$(CONFIG_GRUB2_STABLE)=2.04
 
 project_git_repo=https://git.savannah.gnu.org/git/grub.git/
 project_dir=grub2
@@ -15,20 +15,22 @@ all: grub2
 
 checkout:
 	echo "    GIT        GRUB2 $(NAME-y)"
-	test -d grub2 || \
-		git clone $(project_git_repo) $(project_dir)
-	cd grub2 && \
-		git checkout master && \
-		git pull; \
-		test -n "$(TAG-y)" && \
-			git branch -f $(NAME-y) $(TAG-y) && \
-			git checkout $(NAME-y) || true
+	test -d $(project_dir) || git clone $(project_git_repo) $(project_dir)
+	git -C $(project_dir) fetch
+ifeq ($(shell test -d $(project_dir) && \
+       (git -C $(project_dir) status --ignored=no --untracked-files=no --porcelain)),)
+	git -C $(project_dir) checkout -f $(TAG-y)
+else
+	echo "WARNING: index/tree not clean, skipping update / force checkout."
+	echo "         Checkout manually with "\
+	     "\`git -C payloads/external/GRUB2/$(project_dir) checkout -f\`."
+endif
 
 grub2/build/config.h: $(CONFIG_DEP) | checkout
 	echo "    CONFIG     GRUB2 $(NAME-y)"
 	rm -rf grub2/build
 	mkdir grub2/build
-	cd grub2 && ./autogen.sh
+	cd grub2 && ./bootstrap ; ./autogen.sh
 	cd grub2/build && ../configure CC="$(HOSTCC)" LD="$(LD)" \
 	FREETYPE="pkg-config freetype2" BUILD_FREETYPE="pkg-config freetype2" \
 	TARGET_CC="$(CC)" TARGET_OBJCOPY="$(OBJCOPY)" TARGET_STRIP="$(STRIP)" \

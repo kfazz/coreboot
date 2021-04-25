@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Rockchip Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/coreboot_tables.h>
 #include <gpio.h>
@@ -31,9 +18,8 @@ void setup_chromeos_gpios(void)
 void fill_lb_gpios(struct lb_gpios *gpios)
 {
 	struct lb_gpio chromeos_gpios[] = {
-		{GPIO_WP.raw, ACTIVE_LOW, gpio_get(GPIO_WP), "write protect"},
 		{GPIO_RECOVERY.raw, ACTIVE_LOW,
-			gpio_get(GPIO_RECOVERY), "recovery"},
+			!get_recovery_mode_switch(), "presence"},
 		{GPIO_RESET.raw, ACTIVE_HIGH, -1, "reset"},
 	};
 	lb_add_gpios(gpios, chromeos_gpios, ARRAY_SIZE(chromeos_gpios));

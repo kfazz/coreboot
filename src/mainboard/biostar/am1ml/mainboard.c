@@ -1,20 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Advanced Micro Devices, Inc.
- * Copyright (C) 2014 Sage Electronic Engineering, LLC
- * Copyright (C) 2015 Sergej Ivanov <getinaks@gmail.com>
- * All Rights Reserved
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <device/device.h>
@@ -23,7 +7,7 @@
 #include <southbridge/amd/common/amd_pci_util.h>
 #include <northbridge/amd/agesa/family16kb/pci_devs.h>
 
-const u8 mainboard_picr_data[FCH_INT_TABLE_SIZE] = {
+static const u8 mainboard_picr_data[FCH_INT_TABLE_SIZE] = {
 	/* INTA# - INTH# */
 	[0x00] = 0x03,0x04,0x05,0x07,0x0B,0x0A,0x1F,0x1F,
 	/* Misc-nil,0,1,2, INT from Serial irq */
@@ -38,7 +22,7 @@ const u8 mainboard_picr_data[FCH_INT_TABLE_SIZE] = {
 	[0x40] = 0x04, 0x04
 };
 
-const u8 mainboard_intr_data[FCH_INT_TABLE_SIZE] = {
+static const u8 mainboard_intr_data[FCH_INT_TABLE_SIZE] = {
 	/* INTA# - INTH# */
 	[0x00] = 0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,
 	/* Misc-nil,0,1,2, INT from Serial irq */
@@ -84,14 +68,11 @@ static const struct pirq_struct mainboard_pirq_data[] = {
 	{SD_DEVFN,		{PIRQ_SD, PIRQ_NC, PIRQ_NC, PIRQ_NC}},		/* SD:		14.7 */
 };
 
-const u8 *picr_data = mainboard_picr_data;
-const u8 *intr_data = mainboard_intr_data;
-
 /* PIRQ Setup */
 static void pirq_setup(void)
 {
 	pirq_data_ptr = mainboard_pirq_data;
-	pirq_data_size = sizeof(mainboard_pirq_data) / sizeof(struct pirq_struct);
+	pirq_data_size = ARRAY_SIZE(mainboard_pirq_data);
 	intr_data_ptr = mainboard_intr_data;
 	picr_data_ptr = mainboard_picr_data;
 }
@@ -101,8 +82,6 @@ static void pirq_setup(void)
  **********************************************/
 static void mainboard_enable(struct device *dev)
 {
-	printk(BIOS_INFO, "Mainboard " CONFIG_MAINBOARD_PART_NUMBER " Enable.\n");
-
 	/* Initialize the PIRQ data structures for consumption */
 	pirq_setup();
 }

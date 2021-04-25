@@ -1,18 +1,4 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2014 - 2017 Intel Corporation.
-## Copyright (C) 2017 - 2018 Online SAS
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+## SPDX-License-Identifier: GPL-2.0-only
 
 if BOARD_SCALEWAY_TAGADA
 
@@ -26,24 +12,16 @@ config BOARD_SPECIFIC_OPTIONS
 
 config MAINBOARD_DIR
 	string
-	default scaleway/tagada
+	default "scaleway/tagada"
 
 config MAINBOARD_PART_NUMBER
 	string
 	default "TAGADA"
-
-config MAINBOARD_VENDOR
-	string
-	default "Scaleway"
 
 config BMC_INFO_LOC
 	hex "BMC information location in flash"
 	default 0xff802000
 	help
 	  Location of BMC SERIAL information.
-
-config SMBIOS_ENCLOSURE_TYPE
-	hex
-	default 0x19	# SMBIOS_ENCLOSURE_MULTI_SYSTEM_CHASSIS
 
 endif # BOARD_SCALEWAY_TAGADA

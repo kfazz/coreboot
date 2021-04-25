@@ -1,32 +1,17 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- * Copyright (C) 2015 Google Inc.
- * Copyright (C) 2015 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 DefinitionBlock(
 	"dsdt.aml",
 	"DSDT",
-	0x02,		// DSDT revision: ACPI v2.0 and up
+	ACPI_DSDT_REV_2,
 	OEM_ID,
 	ACPI_TABLE_CREATOR,
 	0x20110725	// OEM revision
 )
 {
-	// Some generic macros
-	#include <soc/intel/skylake/acpi/platform.asl>
+	#include <acpi/dsdt_top.asl>
+	#include <soc/intel/common/block/acpi/acpi/platform.asl>
 
 	// global NVS and variables
 	#include <soc/intel/skylake/acpi/globalnvs.asl>
@@ -39,12 +24,12 @@ DefinitionBlock(
 		{
 			#include <soc/intel/skylake/acpi/systemagent.asl>
 			#include <soc/intel/skylake/acpi/pch.asl>
+			#include <drivers/intel/gma/acpi/default_brightness_levels.asl>
 		}
 
 	}
 
-	// Chipset specific sleep states
-	#include <soc/intel/skylake/acpi/sleepstates.asl>
+	#include <southbridge/intel/common/acpi/sleepstates.asl>
 
 	// Mainboard specific
 	#include "acpi/mainboard.asl"

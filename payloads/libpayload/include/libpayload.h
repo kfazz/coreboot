@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2008 Advanced Micro Devices, Inc.
  *
@@ -43,8 +42,8 @@
 #ifndef _LIBPAYLOAD_H
 #define _LIBPAYLOAD_H
 
+#include <stdbool.h>
 #include <libpayload-config.h>
-#include <compiler.h>
 #include <cbgfx.h>
 #include <ctype.h>
 #include <die.h>
@@ -66,9 +65,32 @@
 #include <pci.h>
 #include <archive.h>
 
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
-#define MAX(a,b) ((a) > (b) ? (a) : (b))
+/* Double-evaluation unsafe min/max, for bitfields and outside of functions */
+#define __CMP_UNSAFE(a, b, op) ((a) op (b) ? (a) : (b))
+#define MIN_UNSAFE(a, b) __CMP_UNSAFE(a, b, <)
+#define MAX_UNSAFE(a, b) __CMP_UNSAFE(a, b, >)
+
+#define __CMP_SAFE(a, b, op, var_a, var_b) ({ \
+	__TYPEOF_UNLESS_CONST(a, b) var_a = (a); \
+	__TYPEOF_UNLESS_CONST(b, a) var_b = (b); \
+	var_a op var_b ? var_a : var_b; \
+})
+
+#define __CMP(a, b, op) __builtin_choose_expr( \
+	__builtin_constant_p(a) && __builtin_constant_p(b), \
+	__CMP_UNSAFE(a, b, op), __CMP_SAFE(a, b, op, __TMPNAME, __TMPNAME))
+
+#define MIN(a, b) __CMP(a, b, <)
+#define MAX(a, b) __CMP(a, b, >)
+
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
+#define BIT(x)	(1ul << (x))
+
+#define DIV_ROUND_UP(x, y) ({ \
+	typeof(x) _div_local_x = (x); \
+	typeof(y) _div_local_y = (y); \
+	(_div_local_x + _div_local_y - 1) / _div_local_y; \
+})
 
 static inline u32 div_round_up(u32 n, u32 d) { return (n + d - 1) / d; }
 
@@ -107,6 +129,9 @@ static const char _pstruct(key)[]                                        \
 #define NVRAM_RTC_YEAR           9      /**< RTC Year offset in CMOS */
 #define NVRAM_RTC_FREQ_SELECT    10     /**< RTC Update Status Register */
 #define  NVRAM_RTC_UIP           0x80
+#define NVRAM_RTC_STATUSB        11     /**< RTC Status Register B */
+#define  NVRAM_RTC_FORMAT_24HOUR 0x02
+#define  NVRAM_RTC_FORMAT_BINARY 0x04
 
 /** Broken down time structure */
 struct tm {
@@ -125,6 +150,7 @@ u8 nvram_read(u8 addr);
 void nvram_write(u8 val, u8 addr);
 int nvram_updating(void);
 void rtc_read_clock(struct tm *tm);
+void rtc_write_clock(const struct tm *tm);
 /** @} */
 
 /**
@@ -160,11 +186,12 @@ int add_reset_handler(void (*new_handler)(void));
  */
 void keyboard_init(void);
 void keyboard_disconnect(void);
-int keyboard_havechar(void);
+bool keyboard_havechar(void);
 unsigned char keyboard_get_scancode(void);
 int keyboard_getchar(void);
 int keyboard_set_layout(char *country);
 int keyboard_getmodifier(void);
+void initialize_keyboard_media_key_mapping_callback(int (*media_key_mapper)(char));
 
 enum KEYBOARD_MODIFIERS {
 	KB_MOD_SHIFT = (1 << 0),
@@ -206,10 +233,14 @@ u8 i8042_data_ready_ps2(void);
 u8 i8042_data_ready_aux(void);
 
 u8 i8042_read_data_ps2(void);
+u8 i8042_peek_data_ps2(void);
 u8 i8042_read_data_aux(void);
 
 int i8042_wait_read_ps2(void);
 int i8042_wait_read_aux(void);
+
+int i8042_get_kbd_translation(void);
+int i8042_set_kbd_translation(bool xlate);
 
 /** @} */
 
@@ -289,6 +320,13 @@ void video_printf(int foreground, int background, enum video_printf_align align,
  */
 void cbmem_console_init(void);
 void cbmem_console_write(const void *buffer, size_t count);
+/**
+ * Take a snapshot of the CBMEM memory console. This function will allocate a
+ * range of memory. Callers must free the returned buffer by themselves.
+ *
+ * @return The allocated buffer on success, NULL on failure.
+ */
+char *cbmem_console_snapshot(void);
 /** @} */
 
 /* drivers/option.c */
@@ -328,6 +366,9 @@ int set_option_from_string(const struct nvram_accessor *nvram, struct cb_cmos_op
 typedef enum {
 	CONSOLE_INPUT_TYPE_UNKNOWN = 0,
 	CONSOLE_INPUT_TYPE_USB,
+	CONSOLE_INPUT_TYPE_EC,
+	CONSOLE_INPUT_TYPE_UART,
+	CONSOLE_INPUT_TYPE_GPIO,
 } console_input_type;
 
 void console_init(void);
@@ -408,14 +449,45 @@ u8 hex2bin(u8 h);
 void hexdump(const void *memory, size_t length);
 void fatal(const char *msg) __attribute__((noreturn));
 
+/* Population Count: number of bits that are one */
+static inline int popcnt(u32 x) { return __builtin_popcount(x); }
 /* Count Leading Zeroes: clz(0) == 32, clz(0xf) == 28, clz(1 << 31) == 0 */
-static inline int clz(u32 x) { return x ? __builtin_clz(x) : sizeof(x) * 8; }
+static inline int clz(u32 x)
+{
+	return x ? __builtin_clz(x) : (int)sizeof(x) * 8;
+}
 /* Integer binary logarithm (rounding down): log2(0) == -1, log2(5) == 2 */
-static inline int log2(u32 x) { return sizeof(x) * 8 - clz(x) - 1; }
+static inline int log2(u32 x) { return (int)sizeof(x) * 8 - clz(x) - 1; }
 /* Find First Set: __ffs(0xf) == 0, __ffs(0) == -1, __ffs(1 << 31) == 31 */
 static inline int __ffs(u32 x) { return log2(x & (u32)(-(s32)x)); }
+
+static inline int popcnt64(u64 x) { return __builtin_popcountll(x); }
+static inline int clz64(u64 x)
+{
+	return x ? __builtin_clzll(x) : sizeof(x) * 8;
+}
+
+static inline int log2_64(u64 x) { return sizeof(x) * 8 - clz64(x) - 1; }
+static inline int __ffs64(u64 x) { return log2_64(x & (u64)(-(s64)x)); }
 /** @} */
 
+/**
+ * @defgroup mmio MMIO helper functions
+ * @{
+ */
+#if !CONFIG(LP_ARCH_MIPS)
+void buffer_from_fifo32(void *buffer, size_t size, void *fifo,
+			int fifo_stride, int fifo_width);
+void buffer_to_fifo32_prefix(void *buffer, u32 prefix, int prefsz, size_t size,
+			     void *fifo, int fifo_stride, int fifo_width);
+static inline void buffer_to_fifo32(void *buffer, size_t size, void *fifo,
+				    int fifo_stride, int fifo_width)
+{
+	buffer_to_fifo32_prefix(buffer, 0, 0, size, fifo,
+				fifo_stride, fifo_width);
+}
+#endif
+/** @} */
 
 /**
  * @defgroup hash Hashing functions

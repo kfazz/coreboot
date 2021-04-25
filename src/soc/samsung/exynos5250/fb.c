@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2013 Google Inc.
- * Copyright (C) 2012 Samsung Electronics
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* LCD driver for Exynos */
 
@@ -25,7 +11,6 @@
 #include <soc/i2c.h>
 #include <soc/power.h>
 #include <soc/sysreg.h>
-#include <stdlib.h>
 #include <timer.h>
 
 /*
@@ -100,7 +85,7 @@ short console_row;
 /* Bypass FIMD of DISP1_BLK */
 static void fimd_bypass(void)
 {
-	setbits_le32(&exynos_sysreg->disp1blk_cfg, FIMDBYPASS_DISP1);
+	setbits32(&exynos_sysreg->disp1blk_cfg, FIMDBYPASS_DISP1);
 	exynos_sysreg->disp1blk_cfg &= ~FIMDBYPASS_DISP1;
 }
 
@@ -145,7 +130,7 @@ void fb_init(unsigned long int fb_size, void *lcdbase,
 	write32(&exynos_fimd->vidosd0b, val);
 	write32(&exynos_fimd->vidosd0c, pd->xres * pd->yres);
 
-	setbits_le32(&exynos_fimd->shadowcon, CHANNEL0_EN);
+	setbits32(&exynos_fimd->shadowcon, CHANNEL0_EN);
 
 	val = BPPMODE_F_RGB_16BIT_565 << BPPMODE_F_OFFSET;
 	val |= ENWIN_F_ENABLE | HALF_WORD_SWAP_EN;
@@ -154,14 +139,6 @@ void fb_init(unsigned long int fb_size, void *lcdbase,
 	/* DPCLKCON_ENABLE */
 	write32(&exynos_fimd->dpclkcon, 1 << 1);
 }
-
-#ifdef UNUSED_CODE
-void exynos_fimd_disable(void)
-{
-	write32(&exynos_fimd->wincon0, 0);
-	clrbits_le32(&exynos_fimd->shadowcon, CHANNEL0_EN);
-}
-#endif
 
 /*
  * Configure DP in slave mode and wait for video stream.
@@ -205,16 +182,16 @@ static int s5p_dp_config_video(struct s5p_dp_device *dp,
 	/* Set to use the register calculated M/N video */
 	s5p_dp_set_video_cr_mn(dp, CALCULATED_M, 0, 0);
 
-	clrbits_le32(&base->video_ctl_10, FORMAT_SEL);
+	clrbits32(&base->video_ctl_10, FORMAT_SEL);
 
 	/* Disable video mute */
-	clrbits_le32(&base->video_ctl_1, HDCP_VIDEO_MUTE);
+	clrbits32(&base->video_ctl_1, HDCP_VIDEO_MUTE);
 
 	/* Configure video slave mode */
 	s5p_dp_enable_video_master(dp);
 
 	/* Enable video */
-	setbits_le32(&base->video_ctl_1, VIDEO_EN);
+	setbits32(&base->video_ctl_1, VIDEO_EN);
 	timeout = s5p_dp_is_video_stream_on(dp);
 
 	if (timeout) {
@@ -258,7 +235,7 @@ static int s5p_dp_enable_scramble(struct s5p_dp_device *dp)
 	u8 data;
 	struct exynos5_dp *base = dp->base;
 
-	clrbits_le32(&base->dp_training_ptn_set, SCRAMBLING_DISABLE);
+	clrbits32(&base->dp_training_ptn_set, SCRAMBLING_DISABLE);
 
 	if (s5p_dp_read_byte_from_dpcd(dp, DPCD_ADDR_TRAINING_PATTERN_SET,
 				       &data)) {
@@ -288,7 +265,7 @@ static int s5p_dp_init_dp(struct s5p_dp_device *dp)
 		s5p_dp_reset(dp);
 
 		/* SW defined function Normal operation */
-		clrbits_le32(&base->func_en_1, SW_FUNC_EN_N);
+		clrbits32(&base->func_en_1, SW_FUNC_EN_N);
 
 		ret = s5p_dp_init_analog_func(dp);
 		if (!ret)
@@ -397,7 +374,7 @@ static int s5p_dp_hw_link_training(struct s5p_dp_device *dp,
 	struct exynos5_dp *base = dp->base;
 
 	/* Stop Video */
-	clrbits_le32(&base->video_ctl_1, VIDEO_EN);
+	clrbits32(&base->video_ctl_1, VIDEO_EN);
 
 	stopwatch_init_msecs_expire(&sw, PLL_LOCK_TIMEOUT);
 
@@ -411,12 +388,12 @@ static int s5p_dp_hw_link_training(struct s5p_dp_device *dp,
 	printk(BIOS_SPEW, "PLL is %slocked\n",
 			pll_is_locked == PLL_LOCKED ? "": "not ");
 	/* Reset Macro */
-	setbits_le32(&base->dp_phy_test, MACRO_RST);
+	setbits32(&base->dp_phy_test, MACRO_RST);
 
 	/* 10 us is the minimum reset time. */
 	udelay(10);
 
-	clrbits_le32(&base->dp_phy_test, MACRO_RST);
+	clrbits32(&base->dp_phy_test, MACRO_RST);
 
 	/* Set TX pre-emphasis to minimum */
 	for (lane = 0; lane < max_lane; lane++)
@@ -531,10 +508,9 @@ int dp_controller_init(struct s5p_dp_device *dp_device)
 		return ret;
 	}
 
-
 	base = dp->base;
 	/* Enable enhanced mode */
-	setbits_le32(&base->sys_ctl_4, ENHANCED);
+	setbits32(&base->sys_ctl_4, ENHANCED);
 
 	write32(&base->lane_count_set, dp->link_train.lane_count);
 	write32(&base->link_bw_set, dp->link_train.link_rate);

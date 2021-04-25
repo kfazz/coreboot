@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Sage Electronic Engineering, LLC.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <device/pci.h>
@@ -21,8 +8,6 @@
 #include <pc80/i8259.h>
 #include "amd_pci_int_defs.h"
 #include "amd_pci_int_types.h"
-
-#ifndef __PRE_RAM__
 
 const struct pirq_struct * pirq_data_ptr = NULL;
 u32 pirq_data_size = 0;
@@ -100,9 +85,7 @@ void write_pci_cfg_irqs(void)
 	u16 target_pin = 0;	/* Pin we will search our tables for */
 	u16 int_line = 0;	/* IRQ number read from PCI_INTR table and programmed to INT_LINE reg 0x3C */
 	u16 pci_intr_idx = 0;	/* Index into PCI_INTR table, 0xC00/0xC01 */
-	u8  bus = 0;		/* A PCI Device Bus number */
 	u16 devfn = 0;		/* A PCI Device and Function number */
-	u8  bridged_device = 0;	/* This device is on a PCI bridge */
 	u32 i = 0;
 
 	if (pirq_data_ptr == NULL) {
@@ -132,7 +115,6 @@ void write_pci_cfg_irqs(void)
 		if (int_pin < 1 || int_pin > 4)
 			continue;	/* Device has invalid INT_PIN so skip it */
 
-		bus   = target_dev->bus->secondary;
 		devfn = target_dev->path.pci.devfn;
 
 		/*
@@ -188,13 +170,10 @@ void write_pci_cfg_irqs(void)
 		 */
 		printk(BIOS_SPEW, "\tOrig INT_PIN\t: %d (%s)\n",
 						int_pin, pin_to_str(int_pin));
-		if (bridged_device)
-			printk(BIOS_SPEW, "\tSwizzled to\t: %d (%s)\n",
-							target_pin, pin_to_str(target_pin));
+
 		printk(BIOS_SPEW, "\tPCI_INTR idx\t: 0x%02x (%s)\n"
 						"\tINT_LINE\t: 0x%X (IRQ %d)\n",
 						pci_intr_idx, intr_types[pci_intr_idx], int_line, int_line);
 	}	/* for (dev = all_devices) */
 	printk(BIOS_DEBUG, "PCI_CFG IRQ: Finished writing PCI config space IRQ assignments\n");
 }
-#endif /* __PRE_RAM__ */

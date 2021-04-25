@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2008 coresystems GmbH
  *
@@ -30,7 +29,6 @@
 #include <unistd.h>
 
 unsigned long virtual_offset = 0;
-
 
 int getpagesize(void)
 {

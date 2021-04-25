@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 The Chromium OS Authors. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/io.h>
 #include <console/console.h>
@@ -115,10 +101,9 @@ void ec_set_ports(u16 cmd_reg, u16 data_reg)
 	ec_data_reg = data_reg;
 }
 
-#if !defined(__PRE_RAM__) && !defined(__SMM__)
 static void mec1308_enable(struct device *dev)
 {
-	struct ec_smsc_mec1308_config *conf = dev->chip_info;
+	DEVTREE_CONST struct ec_smsc_mec1308_config *conf = dev->chip_info;
 
 	if (conf->mailbox_port) {
 		ec_cmd_reg = conf->mailbox_port;
@@ -130,4 +115,3 @@ struct chip_operations ec_smsc_mec1308_ops = {
 	CHIP_NAME("SMSC MEC1308 EC Mailbox Interface")
 	.enable_dev = mec1308_enable
 };
-#endif

@@ -1,23 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _BERT_STORAGE_H_
 #define _BERT_STORAGE_H_
 
 #include <stdint.h>
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 
 /* Items in the BERT region
  *
@@ -54,6 +41,9 @@
  * +--------------------------------------------------------------------+
  */
 
+#define CRASHLOG_RECORD_TYPE	0x2
+#define CRASHLOG_FW_ERR_REV	0x2
+
 /* Get implementation-specific reserved area for generating BERT info */
 void bert_reserved_region(void **start, size_t *size);
 
@@ -67,7 +57,7 @@ size_t bert_storage_remaining(void);
 /* Find if errors were added, a BERT region is present, and ACPI table needed */
 int bert_errors_present(void);
 
-/* Get the number of entries accociated with status */
+/* Get the number of entries associated with status */
 static inline size_t bert_entry_count(acpi_generic_error_status_t *status)
 {
 	return (status->block_status & GENERIC_ERR_STS_ENTRY_COUNT_MASK)
@@ -94,7 +84,6 @@ static inline acpi_hest_generic_data_v300_t *acpi_hest_generic_data3(
 
 /* Find the address of a Generic Data structure's CPER error record section */
 #define section_of_acpientry(A, B) ((typeof(A))((u8 *)(B) + sizeof(*(B))))
-
 
 /* Add a context to an existing IA32/X64-type error entry */
 cper_ia32x64_context_t *new_cper_ia32x64_ctx(
@@ -133,6 +122,9 @@ acpi_hest_generic_data_v300_t *bert_append_genproc(
  */
 acpi_hest_generic_data_v300_t *bert_append_ia32x64(
 					acpi_generic_error_status_t *status);
+
+void *new_cper_fw_error_crashlog(acpi_generic_error_status_t *status, size_t cl_size);
+acpi_hest_generic_data_v300_t *bert_append_fw_err(acpi_generic_error_status_t *status);
 
 /* Add a new event to the BERT region.  An event consists of an ACPI Error
  * Status Block, a Generic Error Data Entry, and an associated CPER Error

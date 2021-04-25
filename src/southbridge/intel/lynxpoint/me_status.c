@@ -1,24 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 The Chromium OS Authors. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <stdlib.h>
 #include <console/console.h>
 #include "me.h"
 
-#if (CONFIG_DEFAULT_CONSOLE_LOGLEVEL >= BIOS_DEBUG)
 /* HFS1[3:0] Current Working State Values */
 static const char *me_cws_values[] = {
 	[ME_HFS_CWS_RESET]	= "Reset",
@@ -27,7 +11,7 @@ static const char *me_cws_values[] = {
 	[ME_HFS_CWS_NORMAL]	= "Normal",
 	[ME_HFS_CWS_WAIT]	= "Platform Disable Wait",
 	[ME_HFS_CWS_TRANS]	= "OP State Transition",
-	[ME_HFS_CWS_INVALID]	= "Invalid CPU Plugged In"
+	[ME_HFS_CWS_INVALID]	= "Invalid CPU Plugged In",
 };
 
 /* HFS1[8:6] Current Operation State Values */
@@ -122,7 +106,7 @@ static const char *me_progress_bup_values[] = {
 
 /* Progress Code 3 states */
 static const char *me_progress_policy_values[] = {
-	[ME_HFS2_STATE_POLICY_ENTRY] = "Entery into Policy Module",
+	[ME_HFS2_STATE_POLICY_ENTRY] = "Entry into Policy Module",
 	[ME_HFS2_STATE_POLICY_RCVD_S3] = "Received S3 entry",
 	[ME_HFS2_STATE_POLICY_RCVD_S4] = "Received S4 entry",
 	[ME_HFS2_STATE_POLICY_RCVD_S5] = "Received S5 entry",
@@ -138,11 +122,12 @@ static const char *me_progress_policy_values[] = {
 	[ME_HFS2_STATE_POLICY_DESCRIPTOR_ERR] = "ME cannot access the chipset descriptor region",
 	[ME_HFS2_STATE_POLICY_VSCC_NO_MATCH] = "Required VSCC values for flash parts do not match",
 };
-#endif
 
 void intel_me_status(struct me_hfs *hfs, struct me_hfs2 *hfs2)
 {
-#if (CONFIG_DEFAULT_CONSOLE_LOGLEVEL >= BIOS_DEBUG)
+	if (CONFIG_DEFAULT_CONSOLE_LOGLEVEL < BIOS_DEBUG)
+		return;
+
 	/* Check Current States */
 	printk(BIOS_DEBUG, "ME: FW Partition Table      : %s\n",
 	       hfs->fpt_bad ? "BAD" : "OK");
@@ -206,5 +191,4 @@ void intel_me_status(struct me_hfs *hfs, struct me_hfs2 *hfs2)
 		       hfs2->progress_code, hfs2->current_state);
 	}
 	printk(BIOS_DEBUG, "\n");
-#endif
 }

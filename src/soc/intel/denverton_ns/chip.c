@@ -1,30 +1,15 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015 - 2017 Intel Corp.
- * Copyright (C) 2017 Online SAS.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <bootstate.h>
 #include <cbfs.h>
 #include <console/console.h>
 #include <device/device.h>
 #include <device/pci.h>
-#include <device/pci_ops.h>
 #include <fsp/api.h>
 #include <fsp/util.h>
 #include <intelblocks/fast_spi.h>
+#include <intelblocks/gpio.h>
 #include <soc/iomap.h>
 #include <soc/intel/common/vbt.h>
 #include <soc/pci_devs.h>
@@ -33,11 +18,6 @@
 #include <spi-generic.h>
 #include <soc/hob_mem.h>
 
-static void pci_domain_set_resources(struct device *dev)
-{
-	assign_resources(dev->link_list);
-}
-
 static struct device_operations pci_domain_ops = {
 	.read_resources = &pci_domain_read_resources,
 	.set_resources = &pci_domain_set_resources,
@@ -45,13 +25,11 @@ static struct device_operations pci_domain_ops = {
 };
 
 static struct device_operations cpu_bus_ops = {
-	.read_resources = DEVICE_NOOP,
-	.set_resources = DEVICE_NOOP,
-	.enable_resources = DEVICE_NOOP,
+	.read_resources = noop_read_resources,
+	.set_resources = noop_set_resources,
 	.init = denverton_init_cpus,
-	.scan_bus = NULL,
 #if CONFIG(HAVE_ACPI_TABLES)
-	.acpi_fill_ssdt_generator = generate_cpu_entries,
+	.acpi_fill_ssdt = generate_cpu_entries,
 #endif
 };
 
@@ -62,11 +40,13 @@ static void soc_enable_dev(struct device *dev)
 		dev->ops = &pci_domain_ops;
 	else if (dev->path.type == DEVICE_PATH_CPU_CLUSTER)
 		dev->ops = &cpu_bus_ops;
+	else if (dev->path.type == DEVICE_PATH_GPIO)
+		block_gpio_enable(dev);
 }
 
 static void soc_init(void *data)
 {
-	fsp_silicon_init(false);
+	fsp_silicon_init();
 	soc_save_dimm_info();
 }
 
@@ -107,8 +87,7 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *silupd)
 	const struct microcode *microcode_file;
 	size_t microcode_len;
 
-	microcode_file = cbfs_boot_map_with_leak("cpu_microcode_blob.bin",
-		CBFS_TYPE_MICROCODE, &microcode_len);
+	microcode_file = cbfs_map("cpu_microcode_blob.bin", &microcode_len);
 
 	if ((microcode_file != NULL) && (microcode_len != 0)) {
 		/* Update CPU Microcode patch base address/size */

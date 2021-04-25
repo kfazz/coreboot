@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Rockchip Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <assert.h>
@@ -24,7 +11,6 @@
 #include <soc/i2c.h>
 #include <soc/soc.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <string.h>
 
 struct pll_div {
@@ -669,7 +655,7 @@ int rkclk_was_watchdog_reset(void)
 	return read32(&cru_ptr->cru_glb_rst_st) & 0x30;
 }
 
-unsigned rkclk_i2c_clock_for_bus(unsigned bus)
+unsigned int rkclk_i2c_clock_for_bus(unsigned int bus)
 {
 	/*i2c0,i2c2 src clk from pd_bus_pclk
 	other i2c src clk from peri_pclk

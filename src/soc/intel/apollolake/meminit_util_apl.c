@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2017 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <cbmem.h>
 #include <console/console.h>
@@ -90,7 +77,12 @@ void save_lpddr4_dimm_info_part_num(const char *dram_part_num)
 				src_dimm->DimmId,
 				dram_part_num,
 				strlen(dram_part_num),
-				memory_info_hob->DataWidth);
+				NULL, /* SPD not available */
+				memory_info_hob->DataWidth,
+				0,
+				0,
+				src_dimm->MfgId,
+				0);
 			index++;
 		}
 	}

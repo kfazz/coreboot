@@ -1,49 +1,22 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <string.h>
 #include <types.h>
 #include <device/device.h>
-#include <device/pci_def.h>
 #include <console/console.h>
 #include <drivers/intel/gma/int15.h>
-#include <pc80/mc146818rtc.h>
-#include <arch/io.h>
-#include <arch/interrupt.h>
+#include <option.h>
+#include <superio/hwm5_conf.h>
+#include <superio/nuvoton/common/hwm.h>
 
 /* Hardware Monitor */
 
 static u16 hwm_base = 0xa00;
 
-static void hwm_write(u8 reg, u8 value)
-{
-	outb(reg, hwm_base + 0x05);
-	outb(value, hwm_base + 0x06);
-}
-
-static void hwm_bank(u8 bank)
-{
-	hwm_write(0x4e, bank);
-}
-
 #define FAN_CRUISE_CONTROL_DISABLED	0
 #define FAN_CRUISE_CONTROL_SPEED	1
 #define FAN_CRUISE_CONTROL_THERMAL	2
-
 #define FAN_SPEED_5625	0
-
 
 struct fan_speed {
 	u8 fan_in;
@@ -77,26 +50,22 @@ static void hwm_setup(void)
 	int cpufan_speed = 0, sysfan_speed = 0;
 	int cpufan_temperature = 0, sysfan_temperature = 0;
 
-	cpufan_control = FAN_CRUISE_CONTROL_DISABLED;
-	get_option(&cpufan_control, "cpufan_cruise_control");
-	cpufan_speed = FAN_SPEED_5625;
-	get_option(&cpufan_speed, "cpufan_speed");
+	cpufan_control = get_int_option("cpufan_cruise_control", FAN_CRUISE_CONTROL_DISABLED);
+	cpufan_speed = get_int_option("cpufan_speed", FAN_SPEED_5625);
 
-	sysfan_control = FAN_CRUISE_CONTROL_DISABLED;
-	get_option(&sysfan_control, "sysfan_cruise_control");
-	sysfan_speed = FAN_SPEED_5625;
-	get_option(&sysfan_speed, "sysfan_speed");
+	sysfan_control = get_int_option("sysfan_cruise_control", FAN_CRUISE_CONTROL_DISABLED);
+	sysfan_speed = get_int_option("sysfan_speed", FAN_SPEED_5625);
 
-	hwm_bank(0);
-	hwm_write(0x59, 0x20); /* Diode Selection */
-	hwm_write(0x5d, 0x0f); /* All Sensors Diode, not Thermistor */
+	nuvoton_hwm_select_bank(hwm_base, 0);
+	pnp_write_hwm5_index(hwm_base, 0x59, 0x20); /* Diode Selection */
+	pnp_write_hwm5_index(hwm_base, 0x5d, 0x0f); /* All Sensors Diode, not Thermistor */
 
-	hwm_bank(4);
-	hwm_write(0x54, 0xf1); /* SYSTIN temperature offset */
-	hwm_write(0x55, 0x19); /* CPUTIN temperature offset */
-	hwm_write(0x56, 0xfc); /* AUXTIN temperature offset */
+	nuvoton_hwm_select_bank(hwm_base, 4);
+	pnp_write_hwm5_index(hwm_base, 0x54, 0xf1); /* SYSTIN temperature offset */
+	pnp_write_hwm5_index(hwm_base, 0x55, 0x19); /* CPUTIN temperature offset */
+	pnp_write_hwm5_index(hwm_base, 0x56, 0xfc); /* AUXTIN temperature offset */
 
-	hwm_bank(0x80); /* Default */
+	nuvoton_hwm_select_bank(hwm_base, 0x80); /* Default */
 
 	u8 fan_config = 0;
 	/* 00 FANOUT is Manual Mode */
@@ -111,43 +80,45 @@ static void hwm_setup(void)
 	case FAN_CRUISE_CONTROL_THERMAL: fan_config |= (1 << 2); break;
 	}
 	/* This register must be written first */
-	hwm_write(0x04, fan_config);
+	pnp_write_hwm5_index(hwm_base, 0x04, fan_config);
 
 	switch (cpufan_control) {
-	case FAN_CRUISE_CONTROL_SPEED:
+	case FAN_CRUISE_CONTROL_SPEED: /* CPUFANIN target speed */
 		printk(BIOS_DEBUG, "Fan Cruise Control setting CPU fan to %d RPM\n",
 				fan_speeds[cpufan_speed].fan_speed);
-		hwm_write(0x06, fan_speeds[cpufan_speed].fan_in);  /* CPUFANIN target speed */
+		pnp_write_hwm5_index(hwm_base, 0x06, fan_speeds[cpufan_speed].fan_in);
 		break;
-	case FAN_CRUISE_CONTROL_THERMAL:
+	case FAN_CRUISE_CONTROL_THERMAL: /* CPUFANIN target temperature */
 		printk(BIOS_DEBUG, "Fan Cruise Control setting CPU fan to activation at %d deg C/%d deg F\n",
 				temperatures[cpufan_temperature].deg_celsius,
 				temperatures[cpufan_temperature].deg_fahrenheit);
-		hwm_write(0x06, temperatures[cpufan_temperature].deg_celsius);  /* CPUFANIN target temperature */
+		pnp_write_hwm5_index(hwm_base, 0x06,
+				     temperatures[cpufan_temperature].deg_celsius);
 		break;
 	}
 
 	switch (sysfan_control) {
-	case FAN_CRUISE_CONTROL_SPEED:
+	case FAN_CRUISE_CONTROL_SPEED: /* SYSFANIN target speed */
 		printk(BIOS_DEBUG, "Fan Cruise Control setting system fan to %d RPM\n",
 				fan_speeds[sysfan_speed].fan_speed);
-		hwm_write(0x05, fan_speeds[sysfan_speed].fan_in);  /* SYSFANIN target speed */
+		pnp_write_hwm5_index(hwm_base, 0x05, fan_speeds[sysfan_speed].fan_in);
 		break;
-	case FAN_CRUISE_CONTROL_THERMAL:
+	case FAN_CRUISE_CONTROL_THERMAL: /* SYSFANIN target temperature */
 		printk(BIOS_DEBUG, "Fan Cruise Control setting system fan to activation at %d deg C/%d deg F\n",
 				temperatures[sysfan_temperature].deg_celsius,
 				temperatures[sysfan_temperature].deg_fahrenheit);
-		hwm_write(0x05, temperatures[sysfan_temperature].deg_celsius); /* SYSFANIN target temperature */
+		pnp_write_hwm5_index(hwm_base, 0x05,
+				     temperatures[sysfan_temperature].deg_celsius);
 		break;
 	}
 
-	hwm_write(0x0e, 0x02); /* Fan Output Step Down Time */
-	hwm_write(0x0f, 0x02); /* Fan Output Step Up Time */
+	pnp_write_hwm5_index(hwm_base, 0x0e, 0x02); /* Fan Output Step Down Time */
+	pnp_write_hwm5_index(hwm_base, 0x0f, 0x02); /* Fan Output Step Up Time */
 
-	hwm_write(0x47, 0xaf); /* FAN divisor register */
-	hwm_write(0x4b, 0x84); /* AUXFANIN speed divisor */
+	pnp_write_hwm5_index(hwm_base, 0x47, 0xaf); /* FAN divisor register */
+	pnp_write_hwm5_index(hwm_base, 0x4b, 0x84); /* AUXFANIN speed divisor */
 
-	hwm_write(0x40, 0x01); /* Init, but no SMI# */
+	pnp_write_hwm5_index(hwm_base, 0x40, 0x01); /* Init, but no SMI# */
 }
 
 /* mainboard_enable is executed as first thing after */
@@ -165,11 +136,10 @@ static void mainboard_init(void *chip_info)
 	struct device *dev;
 
 	for (i = 1; i <= 3; i++) {
-		int ethernet_disable = 0;
 		char cmos_option_name[] = "ethernetx";
 		snprintf(cmos_option_name, sizeof(cmos_option_name),
 			 "ethernet%01d", i);
-		get_option(&ethernet_disable, cmos_option_name);
+		int ethernet_disable = get_int_option(cmos_option_name, 0);
 		if (!ethernet_disable)
 			continue;
 		printk(BIOS_DEBUG, "Disabling Ethernet NIC #%d\n", i);

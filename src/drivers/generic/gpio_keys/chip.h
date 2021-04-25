@@ -1,22 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __DRIVERS_GENERIC_GPIO_KEYS_H__
 #define __DRIVERS_GENERIC_GPIO_KEYS_H__
 
-#include <arch/acpi_device.h>
+#include <acpi/acpi_device.h>
 #include <stdint.h>
 
 /* Linux input type */
@@ -37,6 +24,28 @@ enum {
 	EV_ACT_DEASSERTED,
 };
 
+enum {
+	/*
+	 * GPIO key uses SCI route to wake the system from suspend state. This is typically used
+	 * when the input line is dual routed i.e. one for IRQ and other for SCI or if the GPIO
+	 * controller is capable of handling the filtering for IRQ and SCI separately. This
+	 * requires "wake" property to be provided by the board which represents the GPE # for
+	 * wake. It is exposed as _PRW in ACPI tables.
+	 */
+	WAKEUP_ROUTE_SCI,
+	/*
+	 * GPIO key uses GPIO controller IRQ route for wake. This is used when IRQ and wake are
+	 * routed to the same pad and the GPIO controller is not capable of handling the trigger
+	 * filtering separately for IRQ and wake. Kernel driver for gpio-keys takes care of
+	 * reconfiguring the IRQ trigger as both edges when used in S0 and the edge requested by
+	 * BIOS (as per wakeup_event_action) when entering suspend. In this case, _PRW is not
+	 * exposed for the key device.
+	 */
+	WAKEUP_ROUTE_GPIO_IRQ,
+	/* GPIO key does not support wake. */
+	WAKEUP_ROUTE_DISABLED,
+};
+
 /* Details of the child node defining key */
 struct key_info {
 	/* Device name of the child node - Mandatory */
@@ -50,8 +59,10 @@ struct key_info {
 	uint32_t linux_input_type;
 	/* Descriptive name of the key */
 	const char *label;
-	/* Wake GPE */
-	unsigned int wake;
+	/* Wakeup route (if any) for the key. See WAKEUP_ROUTE_* macros above. */
+	unsigned int wakeup_route;
+	/* Wake GPE -- SCI GPE # for wake. Required for WAKEUP_ROUTE_SCI. */
+	unsigned int wake_gpe;
 	/* Trigger for Wakeup Event Action as defined in EV_ACT_* enum */
 	unsigned int wakeup_event_action;
 	/* Can this key be disabled? */

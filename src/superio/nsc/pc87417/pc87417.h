@@ -1,20 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2000 AG Electronics Ltd.
- * Copyright (C) 2003-2004 Linux Networx
- * Copyright (C) 2004 Tyan
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef SUPERIO_NSC_PC87417_H
 #define SUPERIO_NSC_PC87417_H
@@ -31,9 +15,7 @@
 #define PC87417_RTC  0x10
 
 #define PC87417_GPIO_DEV PNP_DEV(0x2e, PC87417_GPIO)
-/* This is to get around a romcc bug */
-/* #define PC87417_XBUS_DEV PNP_DEV(0x2e, PC87417_XBUS) */
-#define PC87417_XBUS_DEV PNP_DEV(0x2e, 0x0f)
+#define PC87417_XBUS_DEV PNP_DEV(0x2e, PC87417_XBUS)
 
 #define PC87417_GPSEL		0xf0
 #define PC87417_GPCFG1		0xf1
@@ -111,7 +93,6 @@
 #define PC87417_XWBCNF		0x16
 
 #include <device/pnp_type.h>
-#include <stdint.h>
 
 void pc87417_disable_dev(pnp_devfn_t dev);
 void pc87417_enable_dev(pnp_devfn_t dev);

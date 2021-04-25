@@ -1,21 +1,15 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015-2016 Intel Corp.
- * (Written by Alexandru Gagniuc <alexandrux.gagniuc@intel.com> for Intel Corp.)
- * (Written by Andrey Petrov <andrey.petrov@intel.com> for Intel Corp.)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <boot/coreboot_tables.h>
 #include <device/mmio.h>
+#include <cbfs.h>
 #include <cf9_reset.h>
+#include <commonlib/bsd/compression.h>
+#include <commonlib/fsp.h>
 #include <console/console.h>
 #include <fsp/util.h>
 #include <string.h>
+#include <types.h>
 
 static bool looks_like_fsp_header(const uint8_t *raw_hdr)
 {
@@ -55,39 +49,37 @@ enum cb_err fsp_identify(struct fsp_header *hdr, const void *fsp_blob)
 	hdr->notify_phase_entry_offset = read32(raw_hdr + 56);
 	hdr->memory_init_entry_offset = read32(raw_hdr + 60);
 	hdr->silicon_init_entry_offset = read32(raw_hdr + 68);
+	if (CONFIG(PLATFORM_USES_FSP2_2))
+		hdr->multi_phase_si_init_entry_offset = read32(raw_hdr + 72);
 
 	return CB_SUCCESS;
 }
 
-enum cb_err fsp_validate_component(struct fsp_header *hdr,
-					const struct region_device *rdev)
+enum cb_err fsp_validate_component(struct fsp_header *hdr, void *fsp_file, size_t file_size)
 {
-	void *membase;
+	void *raw_hdr = fsp_file + FSP_HDR_OFFSET;
 
-	/* Map just enough of the file to be able to parse the header. */
-	membase = rdev_mmap(rdev, FSP_HDR_OFFSET, FSP_HDR_LEN);
-
-	if (membase == NULL) {
-		printk(BIOS_CRIT, "Could not mmap() FSP header.\n");
+	if (file_size < FSP_HDR_OFFSET + FSP_HDR_LEN) {
+		printk(BIOS_CRIT, "FSP blob too small.\n");
 		return CB_ERR;
 	}
 
-	if (fsp_identify(hdr, membase) != CB_SUCCESS) {
-		rdev_munmap(rdev, membase);
+	if (fsp_identify(hdr, raw_hdr) != CB_SUCCESS) {
 		printk(BIOS_CRIT, "No valid FSP header\n");
 		return CB_ERR;
 	}
-
-	rdev_munmap(rdev, membase);
 
 	if (CONFIG(DISPLAY_FSP_HEADER))
 		fsp_print_header_info(hdr);
 
 	/* Check if size specified in the header matches the cbfs file size */
-	if (region_device_sz(rdev) < hdr->image_size) {
+	if (file_size < hdr->image_size) {
 		printk(BIOS_CRIT, "Component size bigger than cbfs file.\n");
 		return CB_ERR;
 	}
+
+	if (ENV_ROMSTAGE)
+		soc_validate_fsp_version(hdr);
 
 	return CB_SUCCESS;
 }
@@ -123,4 +115,96 @@ void fsp_handle_reset(uint32_t status)
 	default:
 		break;
 	}
+}
+
+static inline bool fspm_env(void)
+{
+	if (ENV_ROMSTAGE)
+		return true;
+	return false;
+}
+
+static inline bool fspm_xip(void)
+{
+	/* FSP-M is assumed to be loaded in romstage. */
+	if (fspm_env() && CONFIG(FSP_M_XIP))
+		return true;
+	return false;
+}
+
+/* Load the FSP component described by fsp_load_descriptor from cbfs. The FSP
+ * header object will be validated and filled in on successful load. */
+enum cb_err fsp_load_component(struct fsp_load_descriptor *fspld, struct fsp_header *hdr)
+{
+	size_t output_size;
+	void *dest;
+	struct prog *fsp_prog = &fspld->fsp_prog;
+
+	dest = cbfs_alloc(prog_name(fsp_prog), fspld->alloc, fspld, &output_size);
+	if (!dest)
+		return CB_ERR;
+
+	/* Don't allow FSP-M relocation. */
+	if (!fspm_env() && fsp_component_relocate((uintptr_t)dest, dest, output_size) < 0) {
+		printk(BIOS_ERR, "Unable to relocate FSP component!\n");
+		return CB_ERR;
+	}
+
+	prog_set_area(fsp_prog, dest, output_size);
+
+	if (fsp_validate_component(hdr, dest, output_size) != CB_SUCCESS) {
+		printk(BIOS_ERR, "Invalid FSP header after load!\n");
+		return CB_ERR;
+	}
+
+	/* Signal that FSP component has been loaded. */
+	prog_segment_loaded(hdr->image_base, hdr->image_size, SEG_FINAL);
+
+	return CB_SUCCESS;
+}
+
+/* Only call this function when FSP header has been read and validated */
+void fsp_get_version(char *buf)
+{
+	struct fsp_header *hdr = &fsps_hdr;
+	union fsp_revision revision;
+
+	revision.val = hdr->fsp_revision;
+	snprintf(buf, FSP_VER_LEN, "%u.%u-%u.%u.%u.%u", (hdr->spec_version >> 4),
+		hdr->spec_version & 0xf, revision.rev.major,
+		revision.rev.minor, revision.rev.revision, revision.rev.bld_num);
+}
+
+/* Check if the signature in the UPD header matches the expected one. If it doesn't match, the
+   FSP binaries in CBFS are for a different platform than the platform code trying to use it
+   in which case the function calls die(). */
+void fsp_verify_upd_header_signature(uint64_t upd_signature, uint64_t expected_signature)
+{
+	if (upd_signature != expected_signature) {
+		/* The UPD signatures are non-zero-terminated ASCII stored as a little endian
+		   uint64_t, so this needs some casts. */
+		die_with_post_code(POST_INVALID_VENDOR_BINARY,
+			"Invalid UPD signature! FSP provided \"%8s\", expected was \"%8s\".\n",
+			(char *)&upd_signature,
+			(char *)&expected_signature);
+	}
+}
+
+/* Add FSP version to coreboot table LB_TAG_PLATFORM_BLOB_VERSION */
+void lb_string_platform_blob_version(struct lb_header *header)
+{
+	struct lb_string *rec;
+	size_t len;
+	char fsp_version[FSP_VER_LEN] = {0};
+
+	fsp_get_version(fsp_version);
+	rec = (struct lb_string *)lb_new_record(header);
+	rec->tag = LB_TAG_PLATFORM_BLOB_VERSION;
+	len = strlen(fsp_version);
+	rec->size = ALIGN_UP(sizeof(*rec) + len + 1, 8);
+	memcpy(rec->string, fsp_version, len+1);
+}
+
+__weak void soc_validate_fsp_version(const struct fsp_header *hdr)
+{
 }

@@ -1,16 +1,4 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2013 Google Inc.
-##
-## This software is licensed under the terms of the GNU General Public
-## License version 2, as published by the Free Software Foundation, and
-## may be copied, distributed, and modified under those terms.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
+## SPDX-License-Identifier: GPL-2.0-only
 
 # Emulation for ARM Ltd Versatile Express Cortex-A9
 #  http://www.arm.com/products/tools/development-boards/versatile-express
@@ -25,7 +13,6 @@ config BOARD_SPECIFIC_OPTIONS
 	def_bool y
 	select CPU_ARMLTD_CORTEX_A9
 	select DRIVERS_UART_PL011
-	select CONSOLE_SERIAL
 	select MAINBOARD_HAS_NATIVE_VGA_INIT
 	select MAINBOARD_FORCE_NATIVE_VGA_INIT
 	select HAVE_LINEAR_FRAMEBUFFER
@@ -35,10 +22,15 @@ config BOARD_SPECIFIC_OPTIONS
 	select BOARD_ROMSIZE_KB_4096
 	select BOOT_DEVICE_NOT_SPI_FLASH
 	select MISSING_BOARD_RESET
+	select NO_MONOTONIC_TIMER
+
+config MEMLAYOUT_LD_FILE
+	string
+	default "src/mainboard/emulation/qemu-armv7/memlayout.ld"
 
 config MAINBOARD_DIR
 	string
-	default emulation/qemu-armv7
+	default "emulation/qemu-armv7"
 
 config MAINBOARD_PART_NUMBER
 	string
@@ -51,5 +43,9 @@ config MAX_CPUS
 config MAINBOARD_VENDOR
 	string
 	default "ARM Ltd."
+
+config DRAM_SIZE_MB
+	int
+	default 1024
 
 endif #  BOARD_EMULATION_QEMU_ARMV7

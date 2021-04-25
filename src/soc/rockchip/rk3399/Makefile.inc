@@ -1,17 +1,4 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright 2016 Rockchip Inc.
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+## SPDX-License-Identifier: GPL-2.0-only
 
 ifeq ($(CONFIG_SOC_ROCKCHIP_RK3399),y)
 
@@ -31,7 +18,6 @@ bootblock-y += gpio.c
 bootblock-y += saradc.c
 bootblock-y += timer.c
 
-verstage-y += ../common/cbmem.c
 verstage-y += ../common/gpio.c
 verstage-y += gpio.c
 verstage-y += sdram.c
@@ -59,7 +45,6 @@ romstage-y += ../common/i2c.c
 
 ################################################################################
 
-ramstage-y += ../common/cbmem.c
 ramstage-y += sdram.c
 ramstage-y += ../common/spi.c
 ramstage-y += ../common/uart.c
@@ -76,7 +61,6 @@ ramstage-y += timer.c
 ramstage-$(CONFIG_MAINBOARD_DO_NATIVE_VGA_INIT) += ../common/vop.c
 ramstage-y += usb.c
 
-ramstage-y += bl31_plat_params.c
 BL31_MAKEARGS += PLAT=rk3399 M0_CROSS_COMPILE="$(CROSS_COMPILE_arm)"
 ################################################################################
 
@@ -85,7 +69,7 @@ CPPFLAGS_common += -Isrc/soc/rockchip/common/include
 
 $(objcbfs)/bootblock.bin: $(objcbfs)/bootblock.raw.bin
 	@printf "Generating: $(subst $(obj)/,,$(@))\n"
-	@mkdir -p $(dir $@)
-	@$(IDBTOOL) --from=$< --to=$@ --enable-align --chip=RK33
+	$(Q)mkdir -p $(dir $@)
+	$(Q)$(IDBTOOL) --from=$< --to=$@ --enable-align --chip=RK33
 
 endif

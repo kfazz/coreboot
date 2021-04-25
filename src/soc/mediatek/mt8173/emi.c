@@ -1,27 +1,12 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
-#include <assert.h>
-#include <boardid.h>
 #include <console/console.h>
-#include <delay.h>
 #include <soc/addressmap.h>
 #include <soc/dramc_common.h>
 #include <soc/dramc_register.h>
 #include <soc/dramc_pi_api.h>
+#include <soc/dramc_soc.h>
 #include <soc/mt6391.h>
 #include <soc/pmic_wrap.h>
 #include <soc/pll.h>
@@ -150,7 +135,7 @@ size_t sdram_size(void)
 		       9;
 
 	/* check if row address */
-	/*00 is 13 bits, 01 is 14 bits, 10 is 15bits, 11 is 16 bits */
+	/* 00 is 13 bits, 01 is 14 bits, 10 is 15bits, 11 is 16 bits */
 	bit_counter += ((value & ROW_ADDR_BITS_MASK) >> ROW_ADDR_BITS_SHIFT) +
 		       13;
 
@@ -161,18 +146,18 @@ size_t sdram_size(void)
 	/* add bank address bit, LPDDR3 is 8 banks =2^3 */
 	bit_counter += 3;
 
-	/*transfor bits to bytes */
+	/* transform bits to bytes */
 	return ((size_t)1 << (bit_counter - 3));
 }
 
 static void init_4GB_mode(void)
 {
 	if (sdram_size() == (size_t)4 * GiB) {
-		setbits_le32(&mt8173_pericfg->axi_bus_ctl3, PERISYS_4G_SUPPORT);
-		setbits_le32(&mt8173_infracfg->infra_misc, DDR_4GB_SUPPORT_EN);
+		setbits32(&mt8173_pericfg->axi_bus_ctl3, PERISYS_4G_SUPPORT);
+		setbits32(&mt8173_infracfg->infra_misc, DDR_4GB_SUPPORT_EN);
 	} else {
-		clrbits_le32(&mt8173_pericfg->axi_bus_ctl3, PERISYS_4G_SUPPORT);
-		clrbits_le32(&mt8173_infracfg->infra_misc, DDR_4GB_SUPPORT_EN);
+		clrbits32(&mt8173_pericfg->axi_bus_ctl3, PERISYS_4G_SUPPORT);
+		clrbits32(&mt8173_infracfg->infra_misc, DDR_4GB_SUPPORT_EN);
 	}
 }
 

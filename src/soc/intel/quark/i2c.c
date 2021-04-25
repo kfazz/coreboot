@@ -1,19 +1,7 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2016-2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <assert.h>
+#include <commonlib/helpers.h>
 #include <console/console.h>
 #include <delay.h>
 #include <device/device.h>
@@ -38,7 +26,8 @@ static void i2c_disable(I2C_REGS *regs)
 	while (status & IC_ENABLE_CONTROLLER) {
 		udelay(1);
 		if (--timeout == 0)
-			die("ERROR - I2C failed to disable!\n");
+			die_with_post_code(POST_HW_INIT_FAILURE,
+					   "ERROR - I2C failed to disable!\n");
 		status = regs->ic_enable_status;
 	}
 
@@ -117,7 +106,6 @@ static int platform_i2c_read(uint32_t restart, uint8_t *rx_buffer, int length,
 	int bytes_transferred;
 	uint32_t cmd;
 	int fifo_bytes;
-	uint8_t junk;
 	I2C_REGS *regs;
 	uint32_t status;
 
@@ -128,12 +116,12 @@ static int platform_i2c_read(uint32_t restart, uint8_t *rx_buffer, int length,
 	/* Empty the FIFO */
 	status = regs->ic_status;
 	while (status & IC_STATUS_RFNE) {
-		junk = (uint8_t)regs->ic_data_cmd;
+		(void)regs->ic_data_cmd;
 		status = regs->ic_status;
 	}
 
 	/* Fill the FIFO with read commands */
-	fifo_bytes = min(length, 16);
+	fifo_bytes = MIN(length, 16);
 	bytes_transferred = 0;
 	while (length > 0) {
 		status = regs->ic_raw_intr_stat;
@@ -209,7 +197,7 @@ int platform_i2c_transfer(unsigned int bus, struct i2c_msg *segment,
 			if (index == 0)
 				printk(BIOS_ERR, "I2C Start\n");
 			printk(BIOS_ERR,
-				"I2C segment[%d]: %s 0x%02x %s 0x%p, 0x%08x bytes\n",
+				"I2C segment[%d]: %s 0x%02x %s %p, 0x%08x bytes\n",
 				index,
 				(segment[index].flags & I2C_M_RD) ? "Read from" : "Write to",
 				segment[index].slave,

@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef SOC_MEDIATEK_MT8183_PLL_H
 #define SOC_MEDIATEK_MT8183_PLL_H
@@ -230,6 +217,7 @@ enum {
 
 	MUX_MASK = 0x3 << 9,
 	MUX_SRC_ARMPLL = 0x1 << 9,
+	MUX_SRC_DIV_PLL1 = 0x2 << 9,
 };
 
 enum {
@@ -244,7 +232,7 @@ enum {
 
 /* PLL rate */
 enum {
-	ARMPLL_LL_HZ	= 1100 * MHz,
+	ARMPLL_LL_HZ	= 1417 * MHz,
 	ARMPLL_L_HZ	= 1200 * MHz,
 	CCIPLL_HZ	= 598 * 2 * MHz,
 	MAINPLL_HZ	= 1092 * MHz,
@@ -268,6 +256,16 @@ enum {
 /* top_mux rate */
 enum {
 	SPI_HZ		= MAINPLL_D5_D2_HZ,
+	UART_HZ		= CLK26M_HZ,
+};
+
+enum {
+	DCM_INFRA_BUS_MASK = 0x40907ffb,
+	DCM_INFRA_BUS_ON = 0x40904203,
+	DCM_INFRA_MEM_ON = 0x1 << 27,
+	DCM_INFRA_P2PRX_MASK = 0xf,
+	DCM_INFRA_PERI_MASK = 0xf03ffffb,
+	DCM_INFRA_PERI_ON = 0xf03f83e3,
 };
 
 #endif /* SOC_MEDIATEK_MT8183_PLL_H */

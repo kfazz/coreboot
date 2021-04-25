@@ -1,25 +1,13 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015-2016 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-
+#include <assert.h>
+#include <amdblocks/biosram.h>
+#include <amdblocks/hda.h>
 #include <device/pci_ops.h>
 #include <arch/ioapic.h>
-#include <arch/acpi.h>
-#include <arch/acpigen.h>
+#include <acpi/acpi.h>
+#include <acpi/acpigen.h>
 #include <cbmem.h>
-#include <chip.h>
 #include <console/console.h>
 #include <cpu/amd/mtrr.h>
 #include <cpu/x86/lapic_def.h>
@@ -28,19 +16,19 @@
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
-#include <romstage_handoff.h>
 #include <amdblocks/agesawrapper.h>
 #include <amdblocks/agesawrapper_call.h>
+#include <amdblocks/ioapic.h>
 #include <agesa_headers.h>
 #include <soc/cpu.h>
 #include <soc/northbridge.h>
-#include <soc/southbridge.h>
 #include <soc/pci_devs.h>
 #include <soc/iomap.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <string.h>
 #include <arch/bert_storage.h>
+
+#include "chip.h"
 
 static void set_io_addr_reg(struct device *dev, u32 nodeid, u32 linkn, u32 reg,
 			u32 io_min, u32 io_max)
@@ -158,7 +146,6 @@ static void set_resources(struct device *dev)
 	struct bus *bus;
 	struct resource *res;
 
-
 	/* do we need this? */
 	create_vga_resource(dev);
 
@@ -173,7 +160,7 @@ static void set_resources(struct device *dev)
 
 static void northbridge_init(struct device *dev)
 {
-	setup_ioapic((u8 *)IO_APIC2_ADDR, CONFIG_MAX_CPUS+1);
+	setup_ioapic((u8 *)IO_APIC2_ADDR, GNB_IOAPIC_ID);
 }
 
 static unsigned long acpi_fill_hest(acpi_hest_t *hest)
@@ -196,7 +183,7 @@ static unsigned long acpi_fill_hest(acpi_hest_t *hest)
 	return (unsigned long)current;
 }
 
-static void northbridge_fill_ssdt_generator(struct device *device)
+static void northbridge_fill_ssdt_generator(const struct device *device)
 {
 	msr_t msr;
 	char pscope[] = "\\_SB.PCI0";
@@ -217,7 +204,22 @@ static void northbridge_fill_ssdt_generator(struct device *device)
 	acpigen_pop_len();
 }
 
-static unsigned long agesa_write_acpi_tables(struct device *device,
+static void patch_ssdt_processor_scope(acpi_header_t *ssdt)
+{
+	unsigned int len = ssdt->length - sizeof(acpi_header_t);
+	unsigned int i;
+
+	for (i = sizeof(acpi_header_t); i < len; i++) {
+		/* Search for _PR_ scope and replace it with _SB_ */
+		if (*(uint32_t *)((unsigned long)ssdt + i) == 0x5f52505f)
+			*(uint32_t *)((unsigned long)ssdt + i) = 0x5f42535f;
+	}
+	/* Recalculate checksum */
+	ssdt->checksum = 0;
+	ssdt->checksum = acpi_checksum((void *)ssdt, ssdt->length);
+}
+
+static unsigned long agesa_write_acpi_tables(const struct device *device,
 					     unsigned long current,
 					     acpi_rsdp_t *rsdp)
 {
@@ -312,6 +314,7 @@ static unsigned long agesa_write_acpi_tables(struct device *device,
 	printk(BIOS_DEBUG, "ACPI:    * SSDT at %lx\n", current);
 	ssdt = (acpi_header_t *)agesawrapper_getlateinitptr(PICK_PSTATE);
 	if (ssdt != NULL) {
+		patch_ssdt_processor_scope(ssdt);
 		memcpy((void *)current, ssdt, ssdt->length);
 		ssdt = (acpi_header_t *)current;
 		current += ssdt->length;
@@ -329,16 +332,19 @@ static struct device_operations northbridge_operations = {
 	.set_resources	  = set_resources,
 	.enable_resources = pci_dev_enable_resources,
 	.init		  = northbridge_init,
-	.acpi_fill_ssdt_generator = northbridge_fill_ssdt_generator,
+	.acpi_fill_ssdt   = northbridge_fill_ssdt_generator,
 	.write_acpi_tables = agesa_write_acpi_tables,
-	.enable		  = 0,
-	.ops_pci	  = 0,
 };
+
+static const unsigned short pci_device_ids[] = {
+	PCI_DEVICE_ID_AMD_15H_MODEL_606F_NB_HT,
+	PCI_DEVICE_ID_AMD_15H_MODEL_707F_NB_HT,
+	0 };
 
 static const struct pci_driver family15_northbridge __pci_driver = {
 	.ops	= &northbridge_operations,
 	.vendor = PCI_VENDOR_ID_AMD,
-	.device = PCI_DEVICE_ID_AMD_15H_MODEL_707F_NB_HT,
+	.devices = pci_device_ids,
 };
 
 /*
@@ -390,11 +396,11 @@ void fam15_finalize(void *chip_info)
 void domain_enable_resources(struct device *dev)
 {
 	/* Must be called after PCI enumeration and resource allocation */
-	if (!romstage_handoff_is_resume())
-		do_agesawrapper(agesawrapper_amdinitmid, "amdinitmid");
+	if (!acpi_is_wakeup_s3())
+		do_agesawrapper(AMD_INIT_MID, "amdinitmid");
 }
 
-void domain_set_resources(struct device *dev)
+void domain_read_resources(struct device *dev)
 {
 	uint64_t uma_base = get_uma_base();
 	uint32_t uma_size = get_uma_size();
@@ -403,6 +409,8 @@ void domain_set_resources(struct device *dev)
 	msr_t high_tom = rdmsr(TOP_MEM2);
 	uint64_t high_mem_useable;
 	int idx = 0x10;
+
+	pci_domain_read_resources(dev);
 
 	/* 0x0 -> 0x9ffff */
 	ram_resource(dev, idx++, 0, 0xa0000 / KiB);
@@ -442,8 +450,6 @@ void domain_set_resources(struct device *dev)
 						uma_size / KiB);
 		}
 	}
-
-	assign_resources(dev->link_list);
 }
 
 /*********************************************************************
@@ -452,9 +458,13 @@ void domain_set_resources(struct device *dev)
 u32 map_oprom_vendev(u32 vendev)
 {
 	u32 new_vendev;
-	new_vendev =
-		((vendev >= 0x100298e0) && (vendev <= 0x100298ef)) ?
-				0x100298e0 : vendev;
+
+	if ((vendev >= 0x100298e0) && (vendev <= 0x100298ef))
+		new_vendev = 0x100298e0;
+	else if ((vendev >= 0x10029870) && (vendev <= 0x1002987f))
+		new_vendev = 0x10029870;
+	else
+		new_vendev = vendev;
 
 	if (vendev != new_vendev)
 		printk(BIOS_NOTICE, "Mapping PCI device %8x to %8x\n",
@@ -477,4 +487,50 @@ void SetNbMidParams(GNB_MID_CONFIGURATION *params)
 	/* 0=Primary and decode all VGA resources, 1=Secondary - decode none */
 	params->iGpuVgaMode = 0;
 	params->GnbIoapicAddress = IO_APIC2_ADDR;
+}
+
+void hda_soc_ssdt_quirks(const struct device *dev)
+{
+	const char *scope = acpi_device_path(dev);
+	static const struct fieldlist list[] = {
+		FIELDLIST_OFFSET(0x42),
+		FIELDLIST_NAMESTR("NSDI", 1),
+		FIELDLIST_NAMESTR("NSDO", 1),
+		FIELDLIST_NAMESTR("NSEN", 1),
+	};
+	struct opregion opreg = OPREGION("AZPD", PCI_CONFIG, 0x0, 0x100);
+
+	assert(scope);
+
+	acpigen_write_scope(scope);
+
+	/*
+	 * OperationRegion(AZPD, PCI_Config, 0x00, 0x100)
+	 * Field (AZPD, AnyAcc, NoLock, Preserve) {
+	 *	Offset (0x42),
+	 *	NSDI, 1,
+	 *	NSDO, 1,
+	 *	NSEN, 1,
+	 * }
+	 */
+	acpigen_write_opregion(&opreg);
+	acpigen_write_field(opreg.name, list, ARRAY_SIZE(list),
+			    FIELD_ANYACC | FIELD_NOLOCK | FIELD_PRESERVE);
+
+	/*
+	 * Method (_INI, 0, NotSerialized) {
+	 *	Store (Zero, NSEN)
+	 *	Store (One, NSDO)
+	 *	Store (One, NSDI)
+	 * }
+	 */
+	acpigen_write_method("_INI", 0);
+
+	acpigen_write_store_op_to_namestr(ZERO_OP, "NSEN");
+	acpigen_write_store_op_to_namestr(ONE_OP, "NSDO");
+	acpigen_write_store_op_to_namestr(ONE_OP, "NSDI");
+
+	acpigen_pop_len(); /* Method _INI */
+
+	acpigen_pop_len(); /* Scope */
 }

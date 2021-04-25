@@ -7,13 +7,14 @@ Introduction and Current State in coreboot
 *libgfxinit* is a library of full-featured graphics initialization
 (aka. modesetting) drivers. It's implemented in SPARK (a subset of
 Ada with formal verification features). While not restricted to in
-any way, it currently only supports Intel's integrated gfx control-
-lers (GMA).
+any way, it currently only supports Intel's integrated graphics
+controllers (GMA).
 
-Currently, it supports the Intel Core i3/i5/i7 processor line and
-will support HDMI and DP on the Atom successor Apollo Lake. At the
-time of writing, Sandy Bridge, Ivy Bridge, and Haswell are veri-
-fied to work within *coreboot*.
+Currently, it supports the Intel Core i3/i5/i7 processor line, HDMI
+and DP on the Apollo Lake processors and everything but SDVO on G45
+and GM45 chipsets. At the time of writing, G45, GM45, everything
+from Arrandale to Coffee Lake, and Apollo Lake are verified to work
+within *coreboot*.
 
 GMA: Framebuffer Configuration
 ------------------------------
@@ -48,12 +49,15 @@ follows:
 
 * `lightup_ok`: returns whether the initialization succeeded `1` or
                 failed `0`. Currently, only the case that no display
-                could be found counts as failure. A failure at a la-
-                ter stage (e.g. failure to train a DP) is not propa-
-                gated.
+                could be found counts as failure. A failure at a
+                later stage (e.g. failure to train a DP) is not
+                propagated.
 
 GMA: Per Board Configuration
 ----------------------------
+
+In order to set up the display panel, see the
+[display panel-specific documentation](/gfx/display-panel.md).
 
 There are a few Kconfig symbols to consider. To indicate that a
 board can initialize graphics through *libgfxinit*:
@@ -61,11 +65,20 @@ board can initialize graphics through *libgfxinit*:
     select MAINBOARD_HAS_LIBGFXINIT
 
 Internal ports share some hardware blocks (e.g. backlight, panel
-power sequencer). Therefore, each board has to select either eDP
-or LVDS as the internal port, if any:
+power sequencer). Therefore, each system with an integrated panel
+should set `GFX_GMA_PANEL_1_PORT` to the respective port, e.g.:
 
-    select GFX_GMA_INTERNAL_IS_EDP	# the default, or
-    select GFX_GMA_INTERNAL_IS_LVDS
+    config GFX_GMA_PANEL_1_PORT
+            default "DP3"
+
+For the most common cases, LVDS and eDP, exists a shorthand, one
+can select either:
+
+    select GFX_GMA_PANEL_1_ON_EDP	# the default, or
+    select GFX_GMA_PANEL_1_ON_LVDS
+
+Some newer chips feature a second block of panel control logic.
+For this, `GFX_GMA_PANEL_2_PORT` can be set.
 
 Boards with a DVI-I connector share the DDC (I2C) pins for both
 analog and digital displays. In this case, *libgfxinit* needs to
@@ -75,11 +88,28 @@ know through which interface the EDID can be queried:
     select GFX_GMA_ANALOG_I2C_HDMI_C	# or
     select GFX_GMA_ANALOG_I2C_HDMI_D
 
-Beside Kconfig options, *libgfxinit* needs to know which ports are
-implemented on a board and should be probed for displays. The mapping
-between the physical ports and these entries depends on the hardware
-implementation and can be recovered by testing or studying the output
-of `intelvbttool` or `intel_vbt_decode`.
+*libgfxinit* needs to know which ports are implemented on a board
+and should be probed for displays. There are two mechanisms to
+constrain the list of ports to probe, 1. port presence straps on
+the mainboard, and 2. a list of ports provided by *coreboot* (see
+below).
+
+Presence straps are configured via the state of certains pins of
+the chipset at reset time. They are documented in the chipset's
+datasheets. By default, *libgfxinit* honors these straps for
+safety. However, some boards don't implement the straps correctly.
+If ports are not strapped as implemented by error, one can select
+an option to ignore the straps:
+
+    select GFX_GMA_IGNORE_PRESENCE_STRAPS
+
+In the opposite case, that ports are strapped as implemented,
+but are actually unconnected, one has to make sure that the
+list of ports in *coreboot* omits them.
+
+The mapping between the physical ports and these entries depends on
+the hardware implementation and can be recovered by testing or
+studying the output of `intelvbttool` or `intel_vbt_decode`.
 Each board has to implement the package `GMA.Mainboard` with a list:
 
     ports : HW.GFX.GMA.Display_Probing.Port_List;
@@ -92,7 +122,8 @@ You can select from the following Ports:
 
     type Port_Type is
       (Disabled,	-- optionally terminates the list
-       Internal,	-- either eDP or LVDS as selected in Kconfig
+       LVDS,
+       eDP,
        DP1,
        DP2,
        DP3,
@@ -108,8 +139,7 @@ both DPx and HDMIx should be listed.
 
 A good example is the mainboard Kontron/KTQM77, it features two
 DP++ ports (DP2/HDMI2, DP3/HDMI3), one DVI-I port (HDMI1/Analog),
-eDP and LVDS. Due to the constraints mentioned above, only one of
-eDP and LVDS can be enabled. It defines `ports` as follows:
+eDP and LVDS. It defines `ports` as follows:
 
     ports : constant Port_List :=
       (DP2,
@@ -118,7 +148,8 @@ eDP and LVDS can be enabled. It defines `ports` as follows:
        HDMI2,
        HDMI3,
        Analog,
-       Internal,
+       LVDS,
+       eDP,
        others => Disabled);
 
 The `GMA.gfxinit()` procedure probes for display EDIDs in the

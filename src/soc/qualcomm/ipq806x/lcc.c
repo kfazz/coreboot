@@ -1,33 +1,5 @@
-/*
- * Copyright (c) 2015, The Linux Foundation. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above
- *       copyright notice, this list of conditions and the following
- *       disclaimer in the documentation and/or other materials provided
- *       with the distribution.
- *     * Neither the name of The Linux Foundation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+/* SPDX-License-Identifier: BSD-3-Clause */
 
-#include <stdlib.h>
 #include <stdint.h>
 #include <delay.h>
 #include <console/console.h>
@@ -76,11 +48,11 @@ typedef struct __packed {
 } Ipq806xLccPllRegs;
 
 struct lcc_freq_tbl {
-	unsigned freq;
-	unsigned pd;
-	unsigned m;
-	unsigned n;
-	unsigned d;
+	unsigned int freq;
+	unsigned int pd;
+	unsigned int m;
+	unsigned int n;
+	unsigned int d;
 };
 
 static const struct lcc_freq_tbl lcc_mi2s_freq_tbl[] = {
@@ -205,12 +177,12 @@ static int lcc_init_enable_ahbix(Ipq806xLccClocks *bus)
 	return 1;
 }
 
-static int lcc_init_mi2s(Ipq806xLccClocks *bus, unsigned freq)
+static int lcc_init_mi2s(Ipq806xLccClocks *bus, unsigned int freq)
 {
 	Ipq806xLccMi2sRegs *mi2s_regs = bus->lcc_mi2s_regs;
 	uint32_t regval;
 	uint8_t pd, m, n, d;
-	unsigned i;
+	unsigned int i;
 
 	i = 0;
 	while (lcc_mi2s_freq_tbl[i].freq != 0) {
@@ -285,31 +257,23 @@ static int lcc_enable_mi2s(Ipq806xLccClocks *bus)
 	return 1;
 }
 
-int audio_clock_config(unsigned frequency)
+int audio_clock_config(unsigned int frequency)
 {
-	Ipq806xLccClocks *bus = malloc(sizeof(*bus));
+	Ipq806xLccClocks bus = {
+		.gcc_apcs_regs = (void *)(MSM_GCC_BASE + GCC_PLL_APCS_REG),
+		.lcc_pll0_regs = (void *)(MSM_LPASS_LCC_BASE + LCC_PLL0_MODE_REG),
+		.lcc_ahbix_regs = (void *)(MSM_LPASS_LCC_BASE + LCC_AHBIX_NS_REG),
+		.lcc_mi2s_regs = (void *)(MSM_LPASS_LCC_BASE + LCC_MI2S_NS_REG),
+		.lcc_pll_regs = (void *)(MSM_LPASS_LCC_BASE + LCC_PLL_PCLK_REG),
+	};
 
-	if (!bus) {
-		printk(BIOS_ERR, "%s: failed to allocate bus structure\n",
-		       __func__);
+	if (lcc_init_enable_pll0(&bus))
 		return 1;
-	}
-
-	bus->gcc_apcs_regs = (void *)(MSM_GCC_BASE + GCC_PLL_APCS_REG);
-	bus->lcc_pll0_regs = (void *)(MSM_LPASS_LCC_BASE + LCC_PLL0_MODE_REG);
-	bus->lcc_ahbix_regs = (void *)(MSM_LPASS_LCC_BASE + LCC_AHBIX_NS_REG);
-	bus->lcc_mi2s_regs = (void *)(MSM_LPASS_LCC_BASE + LCC_MI2S_NS_REG);
-	bus->lcc_pll_regs = (void *)(MSM_LPASS_LCC_BASE + LCC_PLL_PCLK_REG);
-
-
-	if (lcc_init_enable_pll0(bus))
+	if (lcc_init_enable_ahbix(&bus))
 		return 1;
-	if (lcc_init_enable_ahbix(bus))
+	if (lcc_init_mi2s(&bus, frequency))
 		return 1;
-	if (lcc_init_mi2s(bus, frequency))
-		return 1;
-
-	if (lcc_enable_mi2s(bus))
+	if (lcc_enable_mi2s(&bus))
 		return 1;
 
 	return 0;

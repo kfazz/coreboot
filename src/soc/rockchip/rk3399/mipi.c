@@ -1,33 +1,18 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2017 Rockchip Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
-#include <assert.h>
 #include <console/console.h>
 #include <delay.h>
 #include <device/device.h>
 #include <edid.h>
 #include <gpio.h>
-#include <stdlib.h>
-#include <stdint.h>
 #include <string.h>
 #include <soc/addressmap.h>
 #include <soc/clock.h>
 #include <soc/display.h>
 #include <soc/mipi.h>
 #include <soc/soc.h>
+#include <types.h>
 #include <timer.h>
 
 static struct rk_mipi_dsi rk_mipi[2] = {
@@ -306,7 +291,7 @@ static int rk_mipi_dsi_get_lane_bps(struct rk_mipi_dsi *dsi,
 		       dsi->format);
 		return bpp;
 	}
-	pclk = edid->mode.pixel_clock * MSECS_PER_SEC;
+	pclk = (u64)edid->mode.pixel_clock * MSECS_PER_SEC;
 
 	/* take 1 / 0.8, since mbps must bigger than bandwidth of RGB */
 	target_bps = pclk / panel_data->lanes * bpp / 8 * 10;
@@ -321,7 +306,7 @@ static int rk_mipi_dsi_get_lane_bps(struct rk_mipi_dsi *dsi,
 	min_prediv = DIV_ROUND_UP(fref, 40 * MHz);
 	max_prediv = fref / (5 * MHz);
 
-	/* constraint: 80MHz <= Fvco <= 1500Mhz */
+	/* constraint: 80MHz <= Fvco <= 1500MHz */
 	fvco_min = 80 * MHz;
 	fvco_max = 1500 * MHz;
 	min_delta = 1500 * MHz;

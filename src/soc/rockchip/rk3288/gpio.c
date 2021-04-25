@@ -1,35 +1,22 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Rockchip Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <gpio.h>
+#include <soc/addressmap.h>
 #include <soc/gpio.h>
 #include <soc/grf.h>
 #include <soc/pmu.h>
 #include <soc/soc.h>
-#include <stdlib.h>
 
 struct rockchip_gpio_regs *gpio_port[] = {
-	(struct rockchip_gpio_regs *)0xff750000,
-	(struct rockchip_gpio_regs *)0xff780000,
-	(struct rockchip_gpio_regs *)0xff790000,
-	(struct rockchip_gpio_regs *)0xff7a0000,
-	(struct rockchip_gpio_regs *)0xff7b0000,
-	(struct rockchip_gpio_regs *)0xff7c0000,
-	(struct rockchip_gpio_regs *)0xff7d0000,
-	(struct rockchip_gpio_regs *)0xff7e0000,
-	(struct rockchip_gpio_regs *)0xff7f0000
+	(struct rockchip_gpio_regs *)GPIO0_BASE,
+	(struct rockchip_gpio_regs *)GPIO1_BASE,
+	(struct rockchip_gpio_regs *)GPIO2_BASE,
+	(struct rockchip_gpio_regs *)GPIO3_BASE,
+	(struct rockchip_gpio_regs *)GPIO4_BASE,
+	(struct rockchip_gpio_regs *)GPIO5_BASE,
+	(struct rockchip_gpio_regs *)GPIO6_BASE,
+	(struct rockchip_gpio_regs *)GPIO7_BASE,
+	(struct rockchip_gpio_regs *)GPIO8_BASE
 };
 
 #define PMU_GPIO_PORT 0

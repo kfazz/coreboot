@@ -1,20 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright 2011, Marvell Semiconductor Inc.
- * Lei Wen <leiwen@marvell.com>
- *
- * Copyright 2017 Intel Corporation
- *
  * Controller independent definitions
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #ifndef __COMMONLIB_SD_MMC_CTRLR_H__
 #define __COMMONLIB_SD_MMC_CTRLR_H__
@@ -26,6 +12,14 @@
 #define CARD_COMM_ERR		-18 /* Communications Error */
 #define CARD_TIMEOUT		-19
 #define CARD_IN_PROGRESS	-20 /* operation is in progress */
+
+/* MMC status in CBMEM_ID_MMC_STATUS */
+enum {
+	MMC_STATUS_NEED_RESET = 0,
+	MMC_STATUS_CMD1_READY_OR_IN_PROGRESS,
+	MMC_STATUS_CMD1_READY,
+	MMC_STATUS_CMD1_IN_PROGRESS,
+};
 
 struct mmc_command {
 	uint16_t cmdidx;

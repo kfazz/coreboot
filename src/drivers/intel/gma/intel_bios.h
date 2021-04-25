@@ -1,25 +1,5 @@
+/* SPDX-License-Identifier: MIT */
 /*
- * Copyright © 2006 Intel Corporation
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- *
  * Authors:
  *    Eric Anholt <eric@anholt.net>
  *
@@ -226,8 +206,8 @@ struct old_child_dev_config {
 } __packed;
 
 /* This one contains field offsets that are known to be common for all BDB
- * versions. Notice that the meaning of the contents contents may still change,
- * but at least the offsets are consistent. */
+ * versions. Notice that the meaning of the contents may still change, but
+ * at least the offsets are consistent. */
 struct common_child_dev_config {
 	u16 handle;
 	u16 device_type;
@@ -415,7 +395,6 @@ struct bdb_sdvo_lvds_options {
 	u8 panel_misc_bits_3;
 	u8 panel_misc_bits_4;
 } __packed;
-
 
 #define BDB_DRIVER_FEATURE_NO_LVDS		0
 #define BDB_DRIVER_FEATURE_INT_LVDS		1

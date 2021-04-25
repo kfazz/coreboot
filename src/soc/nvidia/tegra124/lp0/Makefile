@@ -1,19 +1,8 @@
-################################################################################
-##
-## Copyright 2014 Google Inc.
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
-################################################################################
+## SPDX-License-Identifier: GPL-2.0-only
 
--include ../../../../../.xcompile
+xcompile ?= ../../../../../build/xcompile
+-include $(xcompile)
+
 GCC_PREFIX?=$(CROSS_COMPILE_arm)
 
 CC = $(GCC_PREFIX)gcc
@@ -34,8 +23,8 @@ all: tegra_lp0_resume.fw
 tegra_lp0_resume.elf: tegra_lp0_resume.ld tegra_lp0_resume.c
 	$(CC) -marm -march=armv4t -mno-unaligned-access -nostdlib -static \
 		-Os -fpie -Wl,--build-id=none -ggdb3 -T tegra_lp0_resume.ld \
-		-include ../../../../arch/arm/include/stdint.h \
-		-include ../../../../commonlib/include/commonlib/compiler.h \
+		-include ../../../../include/stdint.h \
+		-include ../../../../commonlib/bsd/include/commonlib/bsd/compiler.h \
 		-o $@ $(filter %.c,$+)
 
 tegra_lp0_resume.fw: tegra_lp0_resume.elf

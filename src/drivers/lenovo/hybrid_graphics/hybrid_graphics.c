@@ -1,19 +1,5 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Patrick Rudolph <siro@das-labor.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <types.h>
 #include <option.h>
 #include <device/device.h>
 
@@ -28,7 +14,7 @@
 static void lenovo_hybrid_graphics_enable(struct device *dev)
 {
 	const struct drivers_lenovo_hybrid_graphics_config *config;
-	enum hybrid_graphics_req mode = HYBRID_GRAPHICS_DEFAULT_GPU;
+	enum hybrid_graphics_req mode;
 
 	/* Don't confuse anyone else and disable the fake device */
 	dev->enabled = 0;
@@ -39,7 +25,7 @@ static void lenovo_hybrid_graphics_enable(struct device *dev)
 		return;
 	}
 
-	get_option(&mode, "hybrid_graphics_mode");
+	mode = get_int_option("hybrid_graphics_mode", HYBRID_GRAPHICS_DEFAULT_GPU);
 
 	if (mode == HYBRID_GRAPHICS_DISCRETE) {
 		printk(BIOS_DEBUG, "Hybrid graphics:"

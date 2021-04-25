@@ -1,23 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2015-2016 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _SOC_PM_H_
 #define _SOC_PM_H_
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <device/mmio.h>
 #include <soc/gpe.h>
 #include <soc/iomap.h>
@@ -100,7 +86,7 @@
 
 #define GPE0_REG_MAX		4
 #define GPE0_REG_SIZE		32
-#define GPE0_STS(x)		(0x80 + (x * 4))
+#define GPE0_STS(x)		(0x80 + ((x) * 4))
 #define  GPE_31_0		0	/* 0x80/0x90 = GPE[31:0] */
 #define  GPE_63_32		1	/* 0x84/0x94 = GPE[63:32] */
 #define  GPE_95_64		2	/* 0x88/0x98 = GPE[95:64] */
@@ -119,7 +105,7 @@
 #define   TCOSCI_STS		(1 << 6)
 #define   SWGPE_STS		(1 << 2)
 #define   HOT_PLUG_STS		(1 << 1)
-#define GPE0_EN(x)		(0x90 + (x * 4))
+#define GPE0_EN(x)		(0x90 + ((x) * 4))
 #define   WADT_EN		(1 << 18)
 #define   LAN_WAK_EN		(1 << 16)
 #define   GPIO_T2_EN		(1 << 15)
@@ -142,8 +128,8 @@
  *  - on writes to GBL_RLS (bios commands)
  *  - on eSPI events (does nothing on LPC systems)
  * No SMIs:
+ *  - on TCO events, unless enabled in common code
  *  - on microcontroller writes (io 0x62/0x66)
- *  - on TCO events
  */
 #define ENABLE_SMI_PARAMS \
 	(APMC_EN | SLP_SMI_EN | GBL_SMI_EN | ESPI_SMI_EN | EOS)
@@ -169,17 +155,6 @@ struct chipset_power_state {
 	uint32_t prev_sleep_state;
 } __packed;
 
-/*
- * This is used only in FSP1_1 as we wanted to keep the flow unchanged.
- * Internally fill_power_state calls the new pmc_fill_power_state now
- */
-#if CONFIG(PLATFORM_USES_FSP1_1)
-struct chipset_power_state *fill_power_state(void);
-#endif
-
-/* Return the selected ACPI SCI IRQ */
-int acpi_sci_irq(void);
-
 /* Get base address PMC memory mapped registers. */
 uint8_t *pmc_mmio_regs(void);
 
@@ -204,5 +179,8 @@ static inline int deep_s5_enabled(void)
 	deep_s5_pol = read32(pmc_mmio_regs() + S5_PWRGATE_POL);
 	return !!(deep_s5_pol & (S5DC_GATE_SUS | S5AC_GATE_SUS));
 }
+
+/* STM Support */
+uint16_t get_pmbase(void);
 
 #endif

@@ -5,6 +5,7 @@ verstage-y += mem_pool.c
 romstage-y += mem_pool.c
 ramstage-y += mem_pool.c
 postcar-y += mem_pool.c
+smm-y += mem_pool.c
 
 bootblock-y += iobuf.c
 verstage-y += iobuf.c
@@ -30,11 +31,25 @@ ramstage-y += cbfs.c
 smm-y += cbfs.c
 postcar-y += cbfs.c
 
-decompressor-y += lz4_wrapper.c
-bootblock-y += lz4_wrapper.c
-verstage-y += lz4_wrapper.c
-romstage-y += lz4_wrapper.c
-ramstage-y += lz4_wrapper.c
-postcar-y += lz4_wrapper.c
+bootblock-y += bsd/cbfs_private.c
+verstage-y += bsd/cbfs_private.c
+romstage-y += bsd/cbfs_private.c
+postcar-y += bsd/cbfs_private.c
+ramstage-y += bsd/cbfs_private.c
+smm-y += bsd/cbfs_private.c
+
+bootblock-y += bsd/cbfs_mcache.c
+verstage-y += bsd/cbfs_mcache.c
+romstage-y += bsd/cbfs_mcache.c
+postcar-y += bsd/cbfs_mcache.c
+ramstage-y += bsd/cbfs_mcache.c
+smm-y += bsd/cbfs_mcache.c
+
+decompressor-y += bsd/lz4_wrapper.c
+bootblock-y += bsd/lz4_wrapper.c
+verstage-y += bsd/lz4_wrapper.c
+romstage-y += bsd/lz4_wrapper.c
+ramstage-y += bsd/lz4_wrapper.c
+postcar-y += bsd/lz4_wrapper.c
 
 ramstage-y += sort.c

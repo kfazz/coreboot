@@ -1,24 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <stdint.h>
 #include <cpu/x86/msr.h>
 #include <cpu/x86/tsc.h>
 #include <soc/msr.h>
 
-unsigned bus_freq_khz(void)
+unsigned int bus_freq_khz(void)
 {
 	msr_t clk_info = rdmsr(MSR_BSEL_CR_OVERCLOCK_CONTROL);
 	switch (clk_info.lo & 0x3) {
@@ -38,7 +24,7 @@ unsigned bus_freq_khz(void)
 unsigned long tsc_freq_mhz(void)
 {
 	msr_t platform_info;
-	unsigned bclk_khz = bus_freq_khz();
+	unsigned int bclk_khz = bus_freq_khz();
 
 	if (!bclk_khz)
 		return 0;
@@ -46,13 +32,6 @@ unsigned long tsc_freq_mhz(void)
 	platform_info = rdmsr(MSR_PLATFORM_INFO);
 	return (bclk_khz * ((platform_info.lo >> 8) & 0xff)) / 1000;
 }
-
-#if !defined(__SMM__)
-#if !defined(__PRE_RAM__)
-#include <soc/ramstage.h>
-#else
-#include <soc/romstage.h>
-#endif
 
 void set_max_freq(void)
 {
@@ -76,5 +55,3 @@ void set_max_freq(void)
 
 	wrmsr(IA32_PERF_CTL, perf_ctl);
 }
-
-#endif /* __SMM__ */

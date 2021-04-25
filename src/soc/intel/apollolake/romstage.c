@@ -1,43 +1,22 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015 Intel Corp.
- * (Written by Alexandru Gagniuc <alexandrux.gagniuc@intel.com> for Intel Corp.)
- * (Written by Andrey Petrov <andrey.petrov@intel.com> for Intel Corp.)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <arch/cpu.h>
-#include <arch/early_variables.h>
+#include <arch/romstage.h>
 #include <device/pci_ops.h>
 #include <arch/symbols.h>
 #include <assert.h>
-#include <bootmode.h>
-#include <cbmem.h>
 #include <cf9_reset.h>
 #include <console/console.h>
-#include <cpu/x86/mtrr.h>
+#include <device/device.h>
 #include <cpu/x86/pae.h>
 #include <delay.h>
 #include <device/pci_def.h>
 #include <device/resource.h>
 #include <fsp/api.h>
-#include <fsp/memmap.h>
 #include <fsp/util.h>
 #include <intelblocks/cpulib.h>
 #include <intelblocks/lpc_lib.h>
 #include <intelblocks/msr.h>
 #include <intelblocks/pmclib.h>
-#include <intelblocks/smm.h>
 #include <intelblocks/systemagent.h>
 #include <mrc_cache.h>
 #include <soc/cpu.h>
@@ -49,7 +28,6 @@
 #include <soc/systemagent.h>
 #include <spi_flash.h>
 #include <timer.h>
-#include <timestamp.h>
 #include "chip.h"
 
 static const uint8_t hob_variable_guid[16] = {
@@ -57,7 +35,7 @@ static const uint8_t hob_variable_guid[16] = {
 	0x8d, 0xe6, 0xc0, 0x44, 0x64, 0x1d, 0xe9, 0x42,
 };
 
-static uint32_t fsp_version CAR_GLOBAL;
+static uint32_t fsp_version;
 
 /* High Performance Event Timer Configuration */
 #define P2SB_HPTC				0x60
@@ -93,35 +71,6 @@ static void soc_early_romstage_init(void)
 	/* Enable decoding for HPET. Needed for FSP global pointer storage */
 	pci_write_config8(PCH_DEV_P2SB, P2SB_HPTC, P2SB_HPTC_ADDRESS_SELECT_0 |
 						P2SB_HPTC_ADDRESS_ENABLE);
-
-	if (CONFIG(DRIVERS_UART_8250IO))
-		lpc_io_setup_comm_a_b();
-}
-
-/* Thermal throttle activation offset */
-static void configure_thermal_target(void)
-{
-	const struct device *dev = dev_find_slot(0, SA_DEVFN_ROOT);
-	if (!dev) {
-		printk(BIOS_ERR, "Could not find SOC devicetree config\n");
-		return;
-	}
-	const config_t *conf = dev->chip_info;
-	if (!dev->chip_info) {
-		printk(BIOS_ERR, "Could not find chip info\n");
-		return;
-	}
-	msr_t msr;
-
-	if (!conf->tcc_offset)
-		return;
-
-	msr = rdmsr(MSR_TEMPERATURE_TARGET);
-	/* Bits 27:24 */
-	msr.lo &= ~(TEMPERATURE_TCC_MASK << TEMPERATURE_TCC_SHIFT);
-	msr.lo |= (conf->tcc_offset & TEMPERATURE_TCC_MASK)
-		<< TEMPERATURE_TCC_SHIFT;
-	wrmsr(MSR_TEMPERATURE_TARGET, msr);
 }
 
 /*
@@ -135,7 +84,7 @@ static bool punit_init(void)
 	struct stopwatch sw;
 
 	/* Thermal throttle activation offset */
-	configure_thermal_target();
+	configure_tcc_thermal_target();
 
 	/*
 	 * Software Core Disable Mask (P_CR_CORE_DISABLE_MASK_0_0_0_MCHBAR).
@@ -158,7 +107,7 @@ static bool punit_init(void)
 			PUINT_THERMAL_DEVICE_IRQ_VEC_NUMBER |
 			PUINT_THERMAL_DEVICE_IRQ_LOCK;
 
-	if (!CONFIG(SOC_INTEL_GLK)) {
+	if (!CONFIG(SOC_INTEL_GEMINILAKE)) {
 		data = MCHBAR32(0x7818);
 		data &= 0xFFFFE01F;
 		data |= 0x20 | 0x200;
@@ -197,31 +146,24 @@ void set_max_freq(void)
 	}
 
 	/* Enable burst mode */
-	cpu_enable_burst_mode();
+	cpu_burst_mode(true);
 
 	/* Enable speed step. */
-	cpu_enable_eist();
+	cpu_set_eist(true);
 
 	/* Set P-State ratio */
 	cpu_set_p_state_to_turbo_ratio();
 }
 
-asmlinkage void car_stage_entry(void)
+void mainboard_romstage_entry(void)
 {
-	struct postcar_frame pcf;
-	uintptr_t top_of_ram;
 	bool s3wake;
+	size_t var_size;
 	struct chipset_power_state *ps = pmc_get_power_state();
-	void *smm_base;
-	size_t smm_size, var_size;
 	const void *new_var_data;
-	uintptr_t tseg_base;
-
-	timestamp_add_now(TS_START_ROMSTAGE);
 
 	soc_early_romstage_init();
-
-	console_init();
+	report_platform_info();
 
 	s3wake = pmc_fill_power_state(ps) == ACPI_S3;
 	fsp_memory_init(s3wake);
@@ -236,42 +178,12 @@ asmlinkage void car_stage_entry(void)
 							&var_size);
 	if (new_var_data)
 		mrc_cache_stash_data(MRC_VARIABLE_DATA,
-				car_get_var(fsp_version), new_var_data,
+				fsp_version, new_var_data,
 				var_size);
 	else
 		printk(BIOS_ERR, "Failed to determine variable data\n");
 
-	if (postcar_frame_init(&pcf, 1*KiB))
-		die("Unable to initialize postcar frame.\n");
-
 	mainboard_save_dimm_info();
-
-	/*
-	 * We need to make sure ramstage will be run cached. At this point exact
-	 * location of ramstage in cbmem is not known. Instruct postcar to cache
-	 * 16 megs under cbmem top which is a safe bet to cover ramstage.
-	 */
-	top_of_ram = (uintptr_t) cbmem_top();
-	/* cbmem_top() needs to be at least 16 MiB aligned */
-	assert(ALIGN_DOWN(top_of_ram, 16*MiB) == top_of_ram);
-	postcar_frame_add_mtrr(&pcf, top_of_ram - 16*MiB, 16*MiB,
-		MTRR_TYPE_WRBACK);
-
-	/* Cache the memory-mapped boot media. */
-	postcar_frame_add_romcache(&pcf, MTRR_TYPE_WRPROT);
-
-	/*
-	* Cache the TSEG region at the top of ram. This region is
-	* not restricted to SMM mode until SMM has been relocated.
-	* By setting the region to cacheable it provides faster access
-	* when relocating the SMM handler as well as using the TSEG
-	* region for other purposes.
-	*/
-	smm_region_info(&smm_base, &smm_size);
-	tseg_base = (uintptr_t)smm_base;
-	postcar_frame_add_mtrr(&pcf, tseg_base, smm_size, MTRR_TYPE_WRBACK);
-
-	run_postcar_phase(&pcf);
 }
 
 static void fill_console_params(FSPM_UPD *mupd)
@@ -319,17 +231,11 @@ static void check_full_retrain(const FSPM_UPD *mupd)
 
 static void soc_memory_init_params(FSPM_UPD *mupd)
 {
-#if CONFIG(SOC_INTEL_GLK)
+#if CONFIG(SOC_INTEL_GEMINILAKE)
 	/* Only for GLK */
-	const struct device *dev = dev_find_slot(0, PCH_DEVFN_LPC);
-	assert(dev != NULL);
-	const config_t *config = dev->chip_info;
 	FSP_M_CONFIG *m_cfg = &mupd->FspmConfig;
 
-	if (!config)
-		die("Can not find SoC devicetree\n");
-
-	m_cfg->PrmrrSize = config->PrmrrSize;
+	m_cfg->PrmrrSize = get_valid_prmrr_size();
 
 	/*
 	 * CpuMemoryTest in FSP tests 0 to 1M of the RAM after MRC init.
@@ -350,24 +256,22 @@ static void soc_memory_init_params(FSPM_UPD *mupd)
 
 static void parse_devicetree_setting(FSPM_UPD *m_upd)
 {
-#if CONFIG(SOC_INTEL_GLK)
-	DEVTREE_CONST struct device *dev = dev_find_slot(0, PCH_DEVFN_NPK);
-	if (!dev)
-		return;
+	DEVTREE_CONST struct device *dev = pcidev_path_on_root(PCH_DEVFN_NPK);
 
-	m_upd->FspmConfig.TraceHubEn = dev->enabled;
+#if CONFIG(SOC_INTEL_GEMINILAKE)
+	m_upd->FspmConfig.TraceHubEn = is_dev_enabled(dev);
+#else
+	m_upd->FspmConfig.NpkEn = is_dev_enabled(dev);
 #endif
 }
 
 void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 {
-	struct region_device rdev;
-
 	check_full_retrain(mupd);
 
 	fill_console_params(mupd);
 
-	if (CONFIG(SOC_INTEL_GLK))
+	if (CONFIG(SOC_INTEL_GEMINILAKE))
 		soc_memory_init_params(mupd);
 
 	mainboard_memory_init_params(mupd);
@@ -404,13 +308,13 @@ void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 	 * wrong/missing key renders DRAM contents useless.
 	 */
 
-	if (mrc_cache_get_current(MRC_VARIABLE_DATA, version, &rdev) == 0) {
-		/* Assume leaking is ok. */
-		assert(CONFIG(BOOT_DEVICE_MEMORY_MAPPED));
-		mupd->FspmConfig.VariableNvsBufferPtr = rdev_mmap_full(&rdev);
-	}
+	mupd->FspmConfig.VariableNvsBufferPtr =
+		mrc_cache_current_mmap_leak(MRC_VARIABLE_DATA, version,
+					    NULL);
 
-	car_set_var(fsp_version, version);
+	assert(CONFIG(BOOT_DEVICE_MEMORY_MAPPED));
+
+	fsp_version = version;
 
 }
 

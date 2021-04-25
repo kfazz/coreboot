@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "harcuvar_boardid.h"
 #include "gpio.h"
@@ -21,12 +7,10 @@
 #include <fsp/api.h>
 #include <fsp/soc_binding.h>
 
-#if CONFIG(ENABLE_FSP_MEMORY_DOWN)
-
 /*
  * Define platform specific Memory Down Configure structure.
  *
- * If CONFIG_ENABLE_FSP_MEMORY_DOWN is enabled, the MEMORY_DOWN_CONFIG
+ * If CONFIG(ENABLE_FSP_MEMORY_DOWN) is enabled, the MEMORY_DOWN_CONFIG
  * structure should be customized to match the design.
  *
  * .SlotState indicates the memory down state of the specific channel/DIMM.
@@ -77,8 +61,6 @@ const MEMORY_DOWN_CONFIG mMemoryDownConfig = {
 	}
 };
 
-#endif /* CONFIG_ENABLE_FSP_MEMORY_DOWN */
-
 void mainboard_config_gpios(void);
 void mainboard_memory_init_params(FSPM_UPD *mupd);
 
@@ -89,7 +71,7 @@ void mainboard_config_gpios(void)
 {
 	size_t num;
 	const struct dnv_pad_config *table;
-	uint8_t boardid = board_id();
+	uint32_t boardid = board_id();
 
 	/* Configure pads prior to SiliconInit() in case there's any
 	* dependencies during hardware initialization.
@@ -117,7 +99,9 @@ void mainboard_config_gpios(void)
 
 void mainboard_memory_init_params(FSPM_UPD *mupd)
 {
-#if CONFIG(ENABLE_FSP_MEMORY_DOWN)
+	if (!CONFIG(ENABLE_FSP_MEMORY_DOWN))
+		return;
+
 	uint8_t *spd_data_ptr = NULL;
 
 	/* Get SPD data pointer */
@@ -139,5 +123,4 @@ void mainboard_memory_init_params(FSPM_UPD *mupd)
 		mupd->FspmConfig.PcdMemoryDown = 0;
 		mupd->FspmConfig.PcdMemoryDownConfigPtr = 0;
 	}
-#endif /* CONFIG_ENABLE_FSP_MEMORY_DOWN */
 }

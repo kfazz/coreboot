@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017-2018 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 Scope(\_SB)
 {
@@ -50,15 +37,15 @@ Scope(\_SB)
 			CreateQwordField (RBUF, ^BAR0._MIN, EMIN)
 			CreateQwordField (RBUF, ^BAR0._MAX, EMAX)
 			CreateQwordField (RBUF, ^BAR0._LEN, ELEN)
-			Store (EMNA, EMIN)
-			Store (ELNG, ELEN)
-			Subtract (Add (EMNA, ELNG), 1, EMAX)
+			EMIN = EMNA
+			ELEN = ELNG
+			EMAX = EMNA + ELNG - 1
 			Return (RBUF)
 		}
 
 		Method (_STA, 0x0, NotSerialized)
 		{
-			If (LNotEqual (EPCS, 0))
+			If (EPCS != 0)
 			{
 				Return (0xF)
 			}

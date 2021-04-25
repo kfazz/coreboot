@@ -1,31 +1,15 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- * Copyright (C) 2012 The Chromium OS Authors.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <delay.h>
-#ifdef __SMM__
-#include <device/pci_def.h>
-#else /* !__SMM__ */
 #include <device/device.h>
 #include <device/pci.h>
-#endif
+#include <device/pci_def.h>
 #include <device/pci_ops.h>
-#include "pch.h"
 #include <string.h>
+
+#include "chip.h"
+#include "pch.h"
 
 int pch_silicon_revision(void)
 {
@@ -57,7 +41,7 @@ int pch_silicon_type(void)
 	return pch_type;
 }
 
-int pch_silicon_supported(int type, int rev)
+static int pch_silicon_supported(int type, int rev)
 {
 	int cur_type = pch_silicon_type();
 	int cur_rev = pch_silicon_revision();
@@ -85,7 +69,7 @@ int pch_silicon_supported(int type, int rev)
 #define IOBP_RETRY 1000
 static inline int iobp_poll(void)
 {
-	unsigned try = IOBP_RETRY;
+	unsigned int try = IOBP_RETRY;
 	u32 data;
 
 	while (try--) {
@@ -143,11 +127,17 @@ void pch_iobp_update(u32 address, u32 andvalue, u32 orvalue)
 		return;
 }
 
-#ifndef __SMM__
-/* Set bit in Function Disble register to hide this device */
-static void pch_hide_devfn(unsigned devfn)
+#ifndef __SIMPLE_DEVICE__
+/* Set bit in function disable register to hide this device */
+static void pch_hide_devfn(unsigned int devfn)
 {
 	switch (devfn) {
+	case PCI_DEVFN(20, 0): /* xHCI */
+		if (pch_silicon_type() == PCH_TYPE_PPT) {
+			/* on CPT this bit is reserved */
+			RCBA32_OR(FD, PCH_DISABLE_XHCI);
+		}
+		break;
 	case PCI_DEVFN(22, 0): /* MEI #1 */
 		RCBA32_OR(FD2, PCH_DISABLE_MEI1);
 		break;
@@ -161,7 +151,7 @@ static void pch_hide_devfn(unsigned devfn)
 		RCBA32_OR(FD2, PCH_DISABLE_KT);
 		break;
 	case PCI_DEVFN(25, 0): /* Gigabit Ethernet */
-		RCBA32_OR(BUC, PCH_DISABLE_GBE);
+		/* BUC is already handled in `early_pch.c`. */
 		break;
 	case PCI_DEVFN(26, 0): /* EHCI #2 */
 		RCBA32_OR(FD, PCH_DISABLE_EHCI2);
@@ -311,7 +301,6 @@ static void pch_pcie_devicetree_update(
 static void pch_pcie_enable(struct device *dev)
 {
 	struct southbridge_intel_bd82x6x_config *config = dev->chip_info;
-	u32 reg32;
 
 	if (!config)
 		return;
@@ -346,8 +335,8 @@ static void pch_pcie_enable(struct device *dev)
 		 * If PCIe 0-3 disabled set Function 0 0xE2[0] = 1
 		 * If PCIe 4-7 disabled set Function 4 0xE2[0] = 1
 		 *
-		 * This check is done here instead of pcie driver
-		 * because the pcie driver enable() handler is not
+		 * This check is done here instead of PCIe driver
+		 * because the PCIe driver enable() handler is not
 		 * called unless the device is enabled.
 		 */
 		if ((PCI_FUNC(dev->path.pci.devfn) == 0 ||
@@ -355,9 +344,7 @@ static void pch_pcie_enable(struct device *dev)
 			/* Handle workaround for PPT and CPT/B1+ */
 			if (pch_silicon_supported(PCH_TYPE_CPT, PCH_STEP_B1) &&
 			    !pch_pcie_check_set_enabled(dev)) {
-				u8 reg8 = pci_read_config8(dev, 0xe2);
-				reg8 |= 1;
-				pci_write_config8(dev, 0xe2, reg8);
+				pci_or_config8(dev, 0xe2, 1);
 			}
 
 			/*
@@ -368,10 +355,8 @@ static void pch_pcie_enable(struct device *dev)
 		}
 
 		/* Ensure memory, io, and bus master are all disabled */
-		reg32 = pci_read_config32(dev, PCI_COMMAND);
-		reg32 &= ~(PCI_COMMAND_MASTER |
-			   PCI_COMMAND_MEMORY | PCI_COMMAND_IO);
-		pci_write_config32(dev, PCI_COMMAND, reg32);
+		pci_and_config16(dev, PCI_COMMAND,
+				 ~(PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY | PCI_COMMAND_IO));
 
 		/* Do not claim downstream transactions for PCIe ports */
 		new_rpfn |= RPFN_HIDE(PCI_FUNC(dev->path.pci.devfn));
@@ -398,9 +383,7 @@ static void pch_pcie_enable(struct device *dev)
 		}
 
 		/* Enable SERR */
-		reg32 = pci_read_config32(dev, PCI_COMMAND);
-		reg32 |= PCI_COMMAND_SERR;
-		pci_write_config32(dev, PCI_COMMAND, reg32);
+		pci_or_config16(dev, PCI_COMMAND, PCI_COMMAND_SERR);
 	}
 
 	/*
@@ -420,8 +403,6 @@ static void pch_pcie_enable(struct device *dev)
 
 void pch_enable(struct device *dev)
 {
-	u32 reg32;
-
 	/* PCH PCIe Root Ports get special handling */
 	if (PCI_SLOT(dev->path.pci.devfn) == PCH_PCIE_DEV_SLOT)
 		return pch_pcie_enable(dev);
@@ -430,18 +411,14 @@ void pch_enable(struct device *dev)
 		printk(BIOS_DEBUG, "%s: Disabling device\n",  dev_path(dev));
 
 		/* Ensure memory, io, and bus master are all disabled */
-		reg32 = pci_read_config32(dev, PCI_COMMAND);
-		reg32 &= ~(PCI_COMMAND_MASTER |
-			   PCI_COMMAND_MEMORY | PCI_COMMAND_IO);
-		pci_write_config32(dev, PCI_COMMAND, reg32);
+		pci_and_config16(dev, PCI_COMMAND,
+				 ~(PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY | PCI_COMMAND_IO));
 
 		/* Hide this device if possible */
 		pch_hide_devfn(dev->path.pci.devfn);
 	} else {
 		/* Enable SERR */
-		reg32 = pci_read_config32(dev, PCI_COMMAND);
-		reg32 |= PCI_COMMAND_SERR;
-		pci_write_config32(dev, PCI_COMMAND, reg32);
+		pci_or_config16(dev, PCI_COMMAND, PCI_COMMAND_SERR);
 	}
 }
 

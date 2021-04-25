@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- * Copyright (C) 2015 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef MAINBOARD_GPIO_H
 #define MAINBOARD_GPIO_H
@@ -89,7 +75,7 @@ static const struct pad_config gpio_table[] = {
 /* MPHY_EXT_PWR_GATE */	PAD_CFG_NF(GPP_B11, NONE, DEEP, NF1),
 /* PM_SLP_S0 */		PAD_CFG_NF(GPP_B12, NONE, DEEP, NF1),
 /* PCH_PLT_RST */	PAD_CFG_NF(GPP_B13, NONE, DEEP, NF1),
-/* GPP_B_14_SPKR */	PAD_CFG_NF(GPP_B14, 20K_PD, DEEP, NF1),
+/* GPP_B_14_SPKR */	PAD_CFG_NF(GPP_B14, DN_20K, DEEP, NF1),
 /* GSPI0_CS# */		/* GPP_B15 */
 /* WLAN_PCIE_WAKE */
 /* SSD_PCIE_WAKE */	PAD_CFG_GPO(GPP_B17, 1, DEEP),
@@ -98,11 +84,11 @@ static const struct pad_config gpio_table[] = {
 /* CODEC_SPI_CLK */
 /* CODEC_SPI_MISO */
 /* CODEC_SPI_MOSI */
-/* SM1ALERT# */		PAD_CFG_NF(GPP_B23, 20K_PD, DEEP, NF1),
+/* SM1ALERT# */		PAD_CFG_NF(GPP_B23, DN_20K, DEEP, NF1),
 
 /* SMB_CLK */		PAD_CFG_NF(GPP_C0, NONE, DEEP, NF1),
 /* SMB_DATA */		PAD_CFG_NF(GPP_C1, NONE, DEEP, NF1),
-/* SMBALERT# */		PAD_CFG_NF(GPP_C2, 20K_PD, DEEP, NF1),
+/* SMBALERT# */		PAD_CFG_NF(GPP_C2, DN_20K, DEEP, NF1),
 /* M2_WWAN_PWREN */	PAD_CFG_NF(GPP_C3, NONE, DEEP, NF1),
 /* SML0DATA */		PAD_CFG_NF(GPP_C4, NONE, DEEP, NF1),
 /* SML0ALERT# */	/* GPP_C5 */

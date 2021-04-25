@@ -1,45 +1,40 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2010 coresystems GmbH
- * Copyright (C) 2015 Google Inc.
- * Copyright (C) 2015 Intel Corporation
- * Copyright (C) 2017 Purism SPC.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <assert.h>
 #include <soc/romstage.h>
 #include <spd_bin.h>
-#include "pei_data.h"
+#include <stdint.h>
+#include <string.h>
 
 void mainboard_memory_init_params(FSPM_UPD *mupd)
 {
-	FSP_M_CONFIG *mem_cfg;
+	const u16 rcomp_resistors[3] = { 121, 81, 100 };
+
+	const u16 rcomp_targets[5] = { 100, 40, 20, 20, 26 };
+
+	FSP_M_CONFIG *mem_cfg = &mupd->FspmConfig;
+
 	struct spd_block blk = {
 		.addr_map = { 0x50 },
 	};
 
-	mem_cfg = &mupd->FspmConfig;
+	assert(sizeof(mem_cfg->RcompResistor) == sizeof(rcomp_resistors));
+	assert(sizeof(mem_cfg->RcompTarget)   == sizeof(rcomp_targets));
 
 	get_spd_smbus(&blk);
 	dump_spd_info(&blk);
 	assert(blk.spd_array[0][0] != 0);
 
-	mainboard_fill_dq_map_data(&mem_cfg->DqByteMapCh0);
-	mainboard_fill_dqs_map_data(&mem_cfg->DqsMapCpu2DramCh0);
-	mainboard_fill_rcomp_res_data(&mem_cfg->RcompResistor);
-	mainboard_fill_rcomp_strength_data(&mem_cfg->RcompTarget);
+	memcpy(mem_cfg->RcompResistor, rcomp_resistors, sizeof(mem_cfg->RcompResistor));
+	memcpy(mem_cfg->RcompTarget,   rcomp_targets,   sizeof(mem_cfg->RcompTarget));
 
 	mem_cfg->DqPinsInterleaved = TRUE;
 	mem_cfg->MemorySpdDataLen = blk.len;
 	mem_cfg->MemorySpdPtr00 = (uintptr_t) blk.spd_array[0];
+
+	/* Enable and set SATA HSIO adjustments for ports 0 and 2 */
+	mem_cfg->PchSataHsioRxGen3EqBoostMagEnable[0] = 1;
+	mem_cfg->PchSataHsioRxGen3EqBoostMagEnable[2] = 1;
+	mem_cfg->PchSataHsioRxGen3EqBoostMag[0] = 1;
+	mem_cfg->PchSataHsioRxGen3EqBoostMag[2] = 1;
 }

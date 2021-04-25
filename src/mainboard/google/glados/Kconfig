@@ -19,6 +19,9 @@ config BOARD_GOOGLE_BASEBOARD_GLADOS
 	select MAINBOARD_HAS_TPM1
 	select SOC_INTEL_SKYLAKE
 	select SYSTEM_TYPE_LAPTOP
+	select MAINBOARD_HAS_LIBGFXINIT
+	select MAINBOARD_NO_FSP_GOP if !BOARD_GOOGLE_GLADOS
+	select HAVE_SPD_IN_CBFS
 
 if BOARD_GOOGLE_BASEBOARD_GLADOS
 
@@ -58,13 +61,9 @@ config VARIANT_DIR
 	default "lars" if BOARD_GOOGLE_LARS
 	default "sentry" if BOARD_GOOGLE_SENTRY
 
-config DEVICETREE
+config OVERRIDE_DEVICETREE
 	string
-	default "variants/$(CONFIG_VARIANT_DIR)/devicetree.cb"
-
-config MAX_CPUS
-	int
-	default 8
+	default "variants/\$(CONFIG_VARIANT_DIR)/overridetree.cb"
 
 config TPM_PIRQ
 	hex
@@ -75,30 +74,15 @@ config INCLUDE_NHLT_BLOBS
 	select NHLT_DMIC_2CH
 	select NHLT_NAU88L25
 
-config EC_GOOGLE_CHROMEEC_BOARDNAME
-	string
-	default "chell" if BOARD_GOOGLE_CHELL
-	default "glados" if BOARD_GOOGLE_GLADOS
-	default ""
-
-config EC_GOOGLE_CHROMEEC_PD_BOARDNAME
-	string
-	default "chell_pd" if BOARD_GOOGLE_CHELL
-	default "glados_pd" if BOARD_GOOGLE_GLADOS
-	default ""
-
-config GBB_HWID
-	string
-	depends on CHROMEOS
-	default "ASUKA TEST 2547" if BOARD_GOOGLE_ASUKA
-	default "CAROLINE TEST 0958" if BOARD_GOOGLE_CAROLINE
-	default "CAVE TEST 9629" if BOARD_GOOGLE_CAVE
-	default "CHELL TEST 6297" if BOARD_GOOGLE_CHELL
-	default "GLADOS TEST 1988" if BOARD_GOOGLE_GLADOS
-	default "LARS TEST 5001" if BOARD_GOOGLE_LARS
-	default "SENTRY TEST 6297" if BOARD_GOOGLE_SENTRY
-
 config UART_FOR_CONSOLE
 	int
 	default 2
+
+config CONSOLE_SERIAL
+	bool
+	default n
+
+config USE_PM_ACPI_TIMER
+	default n
+
 endif

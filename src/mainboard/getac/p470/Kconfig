@@ -1,17 +1,5 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2007-2008 coresystems GmbH
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+## SPDX-License-Identifier: GPL-2.0-only
+
 if BOARD_GETAC_P470
 
 config BOARD_SPECIFIC_OPTIONS
@@ -30,15 +18,13 @@ config BOARD_SPECIFIC_OPTIONS
 	select HAVE_MP_TABLE
 	select HAVE_OPTION_TABLE
 	select HAVE_ACPI_RESUME
-	select UDELAY_LAPIC
 	select BOARD_ROMSIZE_KB_1024
-	select CHANNEL_XOR_RANDOMIZATION
 	select INTEL_INT15
 	select I945_LVDS
 
 config MAINBOARD_DIR
 	string
-	default getac/p470
+	default "getac/p470"
 
 config MAINBOARD_PART_NUMBER
 	string
@@ -47,10 +33,6 @@ config MAINBOARD_PART_NUMBER
 config IRQ_SLOT_COUNT
 	int
 	default 18
-
-config MAX_CPUS
-	int
-	default 4
 
 config VGA_BIOS_FILE
 	string

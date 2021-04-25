@@ -1,17 +1,6 @@
 ##
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2016 Google, Inc.
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+## SPDX-License-Identifier: GPL-2.0-only
+
 export top=$(abspath $(CURDIR)/../..)
 export crossgcc_version=$(shell $(top)/util/crossgcc/buildgcc --version | grep 'cross toolchain' | sed 's/^.*\sv//' | sed 's/\s.*$$//')
 export DOCKER:=$(shell $(SHELL) -c "command -v docker")
@@ -42,8 +31,8 @@ GID ?= $(shell id -g)
 
 test-docker:
 	$(if $(DOCKER),,\
-		$(warning Docker command not found.  Please install docker) \
-		$(warning https://docs.docker.com/engine/installation ) \
+		$(warning Error: Docker command not found.  Please install docker) \
+		$(warning Instructions: https://docs.docker.com/engine/install/ ) \
 		$(error halting))
 
 test-docker-login: test-docker
@@ -54,9 +43,9 @@ test-docker-login: test-docker
 coreboot-sdk: test-docker
 	@echo "Building coreboot SDK $(crossgcc_version) from commit $(DOCKER_COMMIT)"
 	cat coreboot-sdk/Dockerfile | \
-		sed "s/{{DOCKER_COMMIT}}/$(DOCKER_COMMIT)/" | \
-		sed "s/{{SDK_VERSION}}/$(COREBOOT_IMAGE_TAG)/" | \
-		sed "s/{{CROSSGCC_PARAM}}/$(COREBOOT_CROSSGCC_PARAM)/" | \
+		sed "s/{{DOCKER_COMMIT}}/$(DOCKER_COMMIT)/g" | \
+		sed "s/{{SDK_VERSION}}/$(COREBOOT_IMAGE_TAG)/g" | \
+		sed "s/{{CROSSGCC_PARAM}}/$(COREBOOT_CROSSGCC_PARAM)/g" | \
 		$(DOCKER) build -t coreboot/coreboot-sdk:$(COREBOOT_IMAGE_TAG) -
 
 upload-coreboot-sdk: test-docker-login
@@ -64,12 +53,16 @@ upload-coreboot-sdk: test-docker-login
 
 coreboot-jenkins-node: test-docker
 	cat coreboot-jenkins-node/Dockerfile | \
-		sed "s/{{SDK_VERSION}}/$(COREBOOT_IMAGE_TAG)/" | \
+		sed "s/{{SDK_VERSION}}/$(COREBOOT_IMAGE_TAG)/g" | \
 		sed "s|{{SSH_KEY}}|$$(cat coreboot-jenkins-node/authorized_keys)|" | \
 		$(DOCKER) build -t coreboot/coreboot-jenkins-node:$(COREBOOT_IMAGE_TAG) -
 
 upload-coreboot-jenkins-node: test-docker-login
 	$(DOCKER) push coreboot/coreboot-jenkins-node:$(COREBOOT_IMAGE_TAG)
+
+doc.coreboot.org: test-docker
+	$(DOCKER) build --force-rm -t doc.coreboot.org \
+	$(top)/util/docker/doc.coreboot.org/
 
 docker-killall: test-docker
 	@if [ -n "$$($(DOCKER) ps | grep 'coreboot')" ]; then \
@@ -89,14 +82,19 @@ clean-coreboot-images: docker-killall
 docker-clean: clean-coreboot-containers
 	@$(MAKE) clean-coreboot-images
 
-docker-cleanall:
+docker-cleanall: test-docker
+ifeq ($(Y),1)
 	@if [ -n "$$($(DOCKER) ps -a | grep -v "CONTAINER")" ]; then \
-		$(DOCKER) kill $$($(DOCKER) ps -a | grep -v "CONTAINER" | sed 's|\s.*$$||'); \
+		$(DOCKER) kill $$($(DOCKER) ps | grep -v "CONTAINER" | sed 's|\s.*$$||') ; \
 		$(DOCKER) rm $$($(DOCKER) ps -a | grep -v "CONTAINER" | sed 's|\s.*$$||'); \
 	fi
 	@if [ -n "$$($(DOCKER) images | grep -v "REPOSITORY")" ]; then \
 		$(DOCKER) rmi $$($(DOCKER) images | grep -v "REPOSITORY" | tr -s ' ' | cut -f3 -d ' '); \
 	fi
+else
+	echo "This will remove *ALL* docker containers from your machine."
+	echo "If this is what you want, run 'make docker-cleanall Y=1'"
+endif
 
 $(DOCKER_CCACHE):
 	@mkdir -p $@
@@ -112,11 +110,11 @@ docker-run-local: test-docker $(DOCKER_CCACHE)
 
 docker-build-coreboot: docker-run-local
 docker-build-coreboot: override DOCKER_RUN_LOCAL := \
-	make clean && make $(BUILD_CMD); rm -f .xcompile
+	make clean && make $(BUILD_CMD)
 
 docker-abuild: docker-run-local
 docker-abuild: override DOCKER_RUN_LOCAL := \
-	make clean && util/abuild/abuild $(ABUILD_ARGS); rm -f .xcompile
+	make clean && util/abuild/abuild $(ABUILD_ARGS)
 
 docker-what-jenkins-does: docker-run-local
 docker-what-jenkins-does: override DOCKER_RUN_LOCAL := \
@@ -160,11 +158,25 @@ docker-shell: test-docker
 		/bin/bash -l
 
 docker-jenkins-attach: USER=root
-docker-jenkins-attach:
-	docker exec --user $(USER) \
+docker-jenkins-attach: test-docker
+	$(DOCKER)  exec --user $(USER) \
 		-e COLUMNS=$(shell tput cols) -e LINES=$(shell tput lines) -e TERM=$(TERM) \
 		-it "$$(docker ps | grep coreboot-jenkins-node | cut -f1 -d' ')" \
 		/bin/bash -l
+
+docker-build-docs: test-docker
+docker-build-docs:
+	$(DOCKER) run -it --rm \
+		--user $(UID):$(GID) \
+		-v "$(top)/:/data-in/:ro" \
+		-v "$(top)/Documentation/_build/:/data-out/" \
+		doc.coreboot.org
+
+docker-livehtml-docs: test-docker
+docker-livehtml-docs:
+	$(DOCKER) run -it --rm \
+		--net=host -v "$(top)/:/data-in/:ro" \
+		doc.coreboot.org livehtml
 
 help:
 	@echo "Commands for working with docker images:"
@@ -172,9 +184,10 @@ help:
 	@echo "  upload-coreboot-sdk          - Upload coreboot-sdk to hub.docker.com"
 	@echo "  coreboot-jenkins-node        - Build coreboot-jenkins-node container"
 	@echo "  upload-coreboot-jenkins-node - Upload coreboot-jenkins-node to hub.docker.com"
+	@echo "  doc.coreboot.org             - Build doc.coreboot.org container"
 	@echo "  clean-coreboot-containers    - Remove all docker coreboot containers"
 	@echo "  clean-coreboot-images        - Remove all docker coreboot images"
-	@echo "  clean-docker                 - Remove docker coreboot containers & images"
+	@echo "  docker-clean                 - Remove docker coreboot containers & images"
 	@echo
 	@echo "Commands for using docker images"
 	@echo "  docker-build-coreboot        - Build coreboot under coreboot-sdk"
@@ -186,6 +199,8 @@ help:
 	@echo "      <USER=root or USER=coreboot>"
 	@echo "  docker-jenkins-server        - Run coreboot-jenkins-node image (for server)"
 	@echo "  docker-jenkins-attach        - Open shell in running jenkins server"
+	@echo "  docker-build-docs            - Build the documentation"
+	@echo "  docker-livehtml-docs         - Run sphinx-autobuild"
 	@echo
 	@echo "Variables:"
 	@echo "  COREBOOT_JENKINS_PORT=$(COREBOOT_JENKINS_PORT)"
@@ -197,7 +212,9 @@ help:
 .PHONY: test-docker test-docker-login
 .PHONY: coreboot-jenkins-node upload-coreboot-jenkins-node
 .PHONY: coreboot-sdk upload-coreboot-sdk
+.PHONY: doc.coreboot.org
 .PHONY: clean-coreboot-containers clean-coreboot-images
 .PHONY: docker-abuild
 .PHONY: docker-what-jenkins-does docker-shell docker-jenkins-server docker-jenkins-attach
+.PHONY: docker-build-docs docker-livehtml-docs
 .PHONY: help

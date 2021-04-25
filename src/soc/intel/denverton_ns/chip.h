@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 - 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef SOC_INTEL_DENVERTON_NS_CHIP_H
 #define SOC_INTEL_DENVERTON_NS_CHIP_H
@@ -70,9 +56,10 @@ struct soc_intel_denverton_ns_config {
 	uint32_t ipc1;
 	uint32_t ipc2;
 	uint32_t ipc3;
-};
 
-extern struct chip_operations soc_intel_denverton_ns_ops;
+	/* TCC activation offset */
+	uint32_t tcc_offset;
+};
 
 typedef struct soc_intel_denverton_ns_config config_t;
 

@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2013 Google Inc.
- * Copyright (C) 2012 Samsung Electronics
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef CPU_SAMSUNG_EXYNOS5420_CLK_H
 #define CPU_SAMSUNG_EXYNOS5420_CLK_H
@@ -697,7 +683,7 @@ struct st_epll_con_val {
  * @param periph_id	Peripheral ID of peripheral to change
  * @param divisor	New divisor for this peripheral's clock
  */
-void clock_ll_set_pre_ratio(enum periph_id periph_id, unsigned divisor);
+void clock_ll_set_pre_ratio(enum periph_id periph_id, unsigned int divisor);
 
 /**
  * Low-level function to set the clock ratio for a peripheral
@@ -705,7 +691,7 @@ void clock_ll_set_pre_ratio(enum periph_id periph_id, unsigned divisor);
  * @param periph_id	Peripheral ID of peripheral to change
  * @param divisor	New divisor for this peripheral's clock
  */
-void clock_ll_set_ratio(enum periph_id periph_id, unsigned divisor);
+void clock_ll_set_ratio(enum periph_id periph_id, unsigned int divisor);
 
 /**
  * Low-level function that selects the best clock scalars for a given rate and

@@ -1,33 +1,14 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef SOC_INTEL_COMMON_BLOCK_FAST_SPI_H
 #define SOC_INTEL_COMMON_BLOCK_FAST_SPI_H
 
-#include <stdint.h>
-#include <stddef.h>
+#include <types.h>
 
 /*
  * Disable the BIOS write protect and Enable Prefetching and Caching.
  */
 void fast_spi_init(void);
-/*
- * Minimal set of commands to read WPSR from SPI.
- * Returns 0 on success, < 0 on failure.
- */
-int fast_spi_flash_read_wpsr(u8 *sr);
 /*
  * Set FAST_SPIBAR BIOS Control BILD bit.
  */
@@ -36,6 +17,10 @@ void fast_spi_set_bios_interface_lock_down(void);
  * Set FAST_SPIBAR BIOS Control LE bit.
  */
 void fast_spi_set_lock_enable(void);
+/*
+ * Set FAST_SPIBAR BIOS Control Ext Bios LE bit.
+ */
+void fast_spi_set_ext_bios_lock_enable(void);
 /*
  * Set FAST_SPIBAR BIOS Control EISS bit.
  */
@@ -80,6 +65,10 @@ void fast_spi_early_init(uintptr_t spi_base_address);
  */
 extern const struct spi_ctrlr fast_spi_flash_ctrlr;
 /*
+ * Clear SPI Synchronous SMI status bit and return its value.
+ */
+bool fast_spi_clear_sync_smi_status(void);
+/*
  * Read SPI Write protect disable bit.
  */
 bool fast_spi_wpd_status(void);
@@ -87,5 +76,20 @@ bool fast_spi_wpd_status(void);
  * Enable SPI Write protect.
  */
 void fast_spi_enable_wp(void);
+/*
+ * Get base and size of extended BIOS decode window used at runtime in host address space. If
+ * the BIOS region is not greater than 16MiB, then this function returns 0 for both base and
+ * size.
+ */
+void fast_spi_get_ext_bios_window(uintptr_t *base, size_t *size);
+/*
+ * SOC function to get SPI-DMI Destination Id
+ */
+uint32_t soc_get_spi_dmi_destination_id(void);
+/*
+ * Add MTRR for extended BIOS region(when supported) to postcar frame
+ */
+struct postcar_frame;
+void fast_spi_cache_ext_bios_postcar(struct postcar_frame *pcf);
 
 #endif	/* SOC_INTEL_COMMON_BLOCK_FAST_SPI_H */

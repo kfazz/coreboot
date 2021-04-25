@@ -1,21 +1,7 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <delay.h>
-#include <stddef.h>
 
 #include <soc/addressmap.h>
 #include <soc/infracfg.h>
@@ -282,7 +268,7 @@ static const struct rate rates[] = {
 
 void pll_set_pcw_change(const struct pll *pll)
 {
-	setbits_le32(pll->div_reg, PLL_PCW_CHG);
+	setbits32(pll->div_reg, PLL_PCW_CHG);
 }
 
 void mt_pll_init(void)
@@ -290,20 +276,20 @@ void mt_pll_init(void)
 	int i;
 
 	/* enable univpll & mainpll div */
-	setbits_le32(&mtk_apmixed->ap_pll_con2, 0x1FFE << 16);
+	setbits32(&mtk_apmixed->ap_pll_con2, 0x1FFE << 16);
 
 	/* enable clock square1 low-pass filter */
-	setbits_le32(&mtk_apmixed->ap_pll_con0, 0x2);
+	setbits32(&mtk_apmixed->ap_pll_con0, 0x2);
 
 	/* xPLL PWR ON */
 	for (i = 0; i < APMIXED_PLL_MAX; i++)
-		setbits_le32(plls[i].pwr_reg, PLL_PWR_ON);
+		setbits32(plls[i].pwr_reg, PLL_PWR_ON);
 
 	udelay(PLL_PWR_ON_DELAY);
 
 	/* xPLL ISO Disable */
 	for (i = 0; i < APMIXED_PLL_MAX; i++)
-		clrbits_le32(plls[i].pwr_reg, PLL_ISO);
+		clrbits32(plls[i].pwr_reg, PLL_ISO);
 
 	udelay(PLL_ISO_DELAY);
 
@@ -319,7 +305,7 @@ void mt_pll_init(void)
 
 	/* xPLL Frequency Enable */
 	for (i = 0; i < APMIXED_PLL_MAX; i++)
-		setbits_le32(plls[i].reg, PLL_EN);
+		setbits32(plls[i].reg, PLL_EN);
 
 	/* wait for PLL stable */
 	udelay(PLL_EN_DELAY);
@@ -327,26 +313,32 @@ void mt_pll_init(void)
 	/* xPLL DIV RSTB */
 	for (i = 0; i < APMIXED_PLL_MAX; i++) {
 		if (plls[i].rstb_shift != NO_RSTB_SHIFT)
-			setbits_le32(plls[i].reg, 1 << plls[i].rstb_shift);
+			setbits32(plls[i].reg, 1 << plls[i].rstb_shift);
 	}
 
 	/* MCUCFG CLKMUX */
-	clrsetbits_le32(&mt8183_mcucfg->mp0_pll_divider_cfg, DIV_MASK, DIV_1);
-	clrsetbits_le32(&mt8183_mcucfg->mp2_pll_divider_cfg, DIV_MASK, DIV_1);
-	clrsetbits_le32(&mt8183_mcucfg->bus_pll_divider_cfg, DIV_MASK, DIV_2);
+	clrsetbits32(&mt8183_mcucfg->mp0_pll_divider_cfg, DIV_MASK, DIV_1);
+	clrsetbits32(&mt8183_mcucfg->mp2_pll_divider_cfg, DIV_MASK, DIV_1);
+	clrsetbits32(&mt8183_mcucfg->bus_pll_divider_cfg, DIV_MASK, DIV_2);
 
-	clrsetbits_le32(&mt8183_mcucfg->mp0_pll_divider_cfg, MUX_MASK,
+	clrsetbits32(&mt8183_mcucfg->mp0_pll_divider_cfg, MUX_MASK,
 		MUX_SRC_ARMPLL);
-	clrsetbits_le32(&mt8183_mcucfg->mp2_pll_divider_cfg, MUX_MASK,
+	clrsetbits32(&mt8183_mcucfg->mp2_pll_divider_cfg, MUX_MASK,
 		MUX_SRC_ARMPLL);
-	clrsetbits_le32(&mt8183_mcucfg->bus_pll_divider_cfg, MUX_MASK,
+	clrsetbits32(&mt8183_mcucfg->bus_pll_divider_cfg, MUX_MASK,
 		MUX_SRC_ARMPLL);
 
 	/* enable infrasys DCM */
-	setbits_le32(&mt8183_infracfg->infra_bus_dcm_ctrl, 0x3 << 21);
+	setbits32(&mt8183_infracfg->infra_bus_dcm_ctrl, 0x3 << 21);
+	clrsetbits32(&mt8183_infracfg->infra_bus_dcm_ctrl,
+		DCM_INFRA_BUS_MASK, DCM_INFRA_BUS_ON);
+	setbits32(&mt8183_infracfg->mem_dcm_ctrl, DCM_INFRA_MEM_ON);
+	clrbits32(&mt8183_infracfg->p2p_rx_clk_on, DCM_INFRA_P2PRX_MASK);
+	clrsetbits32(&mt8183_infracfg->peri_bus_dcm_ctrl,
+		DCM_INFRA_PERI_MASK, DCM_INFRA_PERI_ON);
 
 	/* enable [11] for change i2c module source clock to TOPCKGEN */
-	setbits_le32(&mt8183_infracfg->module_clk_sel, 0x1 << 11);
+	setbits32(&mt8183_infracfg->module_clk_sel, 0x1 << 11);
 
 	/*
 	 * TOP CLKMUX -- DO NOT CHANGE WITHOUT ADJUSTING <soc/pll.h> CONSTANTS!
@@ -355,5 +347,44 @@ void mt_pll_init(void)
 		mux_set_sel(&muxes[mux_sels[i].id], mux_sels[i].sel);
 
 	/* enable [14] dramc_pll104m_ck */
-	setbits_le32(&mtk_topckgen->clk_misc_cfg_0, 1 << 14);
+	setbits32(&mtk_topckgen->clk_misc_cfg_0, 1 << 14);
+
+	/* enable audio clock */
+	setbits32(&mtk_topckgen->clk_cfg_5_clr, 1 << 7);
+
+	/* enable intbus clock */
+	setbits32(&mtk_topckgen->clk_cfg_5_clr, 1 << 15);
+
+	/* enable infra clock */
+	setbits32(&mt8183_infracfg->module_sw_cg_1_clr, 1 << 25);
+
+	/* enable mtkaif 26m clock */
+	setbits32(&mt8183_infracfg->module_sw_cg_2_clr, 1 << 4);
+}
+
+void mt_pll_raise_little_cpu_freq(u32 freq)
+{
+	/* enable [4] intermediate clock armpll_divider_pll1_ck */
+	setbits32(&mtk_topckgen->clk_misc_cfg_0, 1 << 4);
+
+	/* switch ca53 clock source to intermediate clock */
+	clrsetbits32(&mt8183_mcucfg->mp0_pll_divider_cfg, MUX_MASK,
+		MUX_SRC_DIV_PLL1);
+
+	/* disable armpll_ll frequency output */
+	clrbits32(plls[APMIXED_ARMPLL_LL].reg, PLL_EN);
+
+	/* raise armpll_ll frequency */
+	pll_set_rate(&plls[APMIXED_ARMPLL_LL], freq);
+
+	/* enable armpll_ll frequency output */
+	setbits32(plls[APMIXED_ARMPLL_LL].reg, PLL_EN);
+	udelay(PLL_EN_DELAY);
+
+	/* switch ca53 clock source back to armpll_ll */
+	clrsetbits32(&mt8183_mcucfg->mp0_pll_divider_cfg, MUX_MASK,
+		MUX_SRC_ARMPLL);
+
+	/* disable [4] intermediate clock armpll_divider_pll1_ck */
+	clrbits32(&mtk_topckgen->clk_misc_cfg_0, 1 << 4);
 }

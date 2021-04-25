@@ -1,18 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <device/pci_ops.h>
+#include <device/smbus_host.h>
 #include <spd.h>
 #include "raminit.h"
 
@@ -21,7 +11,7 @@ void dump_spd_registers(void)
 	int i;
 	printk(BIOS_DEBUG, "\n");
 	for (i = 0; i < DIMM_SOCKETS; i++) {
-		unsigned device;
+		unsigned int device;
 		device = DIMM0 + i;
 		if (device) {
 			int j;
@@ -32,7 +22,7 @@ void dump_spd_registers(void)
 				if ((j & 0xf) == 0) {
 					printk(BIOS_DEBUG, "\n%02x: ", j);
 				}
-				status = spd_read_byte(device, j);
+				status = smbus_read_byte(device, j);
 				if (status < 0) {
 					printk(BIOS_DEBUG, "bad device\n");
 					break;
@@ -45,7 +35,7 @@ void dump_spd_registers(void)
 	}
 }
 
-void dump_pci_device(unsigned dev)
+void dump_pci_device(unsigned int dev)
 {
 	int i;
 	printk(BIOS_DEBUG, "PCI: %02x:%02x.%02x\n", (dev >> 20) & 0xff, (dev >> 15) & 0x1f, (dev >> 12) & 7);

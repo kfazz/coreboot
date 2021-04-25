@@ -1,21 +1,6 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 - 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
-#include <arch/io.h>
+#include <acpi/acpi.h>
 #include <device/pci_ops.h>
 #include <console/console.h>
 #include <device/device.h>
@@ -31,23 +16,21 @@
 /* While we read BAR dynamically in case it changed, let's
  * initialize it with a same value
  */
-static u16 acpi_base = DEFAULT_ACPI_BASE;
+static u16 acpi_base = ACPI_BASE_ADDRESS;
 static u32 pwrm_base = DEFAULT_PWRM_BASE;
 
 static void pch_power_options(struct device *dev) { /* TODO */ }
 
 static void pch_set_acpi_mode(void)
 {
-	if (CONFIG(HAVE_SMI_HANDLER) && !acpi_is_wakeup_s3()) {
-		printk(BIOS_DEBUG, "Disabling ACPI via APMC:\n");
-		outb(APM_CNT_ACPI_DISABLE, APM_CNT);
-		printk(BIOS_DEBUG, "done.\n");
+	if (!acpi_is_wakeup_s3()) {
+		apm_control(APM_CNT_ACPI_DISABLE);
 	}
 }
 
 static void pmc_init(struct device *dev)
 {
-	printk(BIOS_DEBUG, "pch: pmc_init\n");
+	printk(BIOS_DEBUG, "pch: %s\n", __func__);
 
 	/* Get the base address */
 	acpi_base = pci_read_config16(dev, PMC_ACPI_BASE) & MASK_PMC_ACPI_BASE;
@@ -105,7 +88,6 @@ static struct device_operations pmc_ops = {
 	.read_resources = pci_pmc_read_resources,
 	.set_resources = pci_dev_set_resources,
 	.enable_resources = pci_dev_enable_resources,
-	.scan_bus = 0,
 	.init = pmc_init,
 	.ops_pci = &soc_pci_ops,
 };
@@ -113,5 +95,5 @@ static struct device_operations pmc_ops = {
 static const struct pci_driver pch_pmc __pci_driver = {
 	.ops = &pmc_ops,
 	.vendor = PCI_VENDOR_ID_INTEL,
-	.device = PMC_DEVID,
+	.device = PCI_DEVICE_ID_INTEL_DENVERTON_PMC,
 };

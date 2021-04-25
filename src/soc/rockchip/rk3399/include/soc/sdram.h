@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2016 Rockchip Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __SOC_ROCKCHIP_RK3399_SDRAM_H__
 #define __SOC_ROCKCHIP_RK3399_SDRAM_H__
@@ -40,66 +27,66 @@ struct rk3399_ddr_pi_regs {
 union noc_ddrtiminga0 {
 	u32 d32;
 	struct {
-		unsigned acttoact : 6;
-		unsigned reserved0 : 2;
-		unsigned rdtomiss : 6;
-		unsigned reserved1 : 2;
-		unsigned wrtomiss : 6;
-		unsigned reserved2 : 2;
-		unsigned readlatency : 8;
+		unsigned int acttoact : 6;
+		unsigned int reserved0 : 2;
+		unsigned int rdtomiss : 6;
+		unsigned int reserved1 : 2;
+		unsigned int wrtomiss : 6;
+		unsigned int reserved2 : 2;
+		unsigned int readlatency : 8;
 	} b;
 };
 
 union noc_ddrtimingb0 {
 	u32 d32;
 	struct {
-		unsigned rdtowr : 5;
-		unsigned reserved0 : 3;
-		unsigned wrtord : 5;
-		unsigned reserved1 : 3;
-		unsigned rrd : 4;
-		unsigned reserved2 : 4;
-		unsigned faw : 6;
-		unsigned reserved3 : 2;
+		unsigned int rdtowr : 5;
+		unsigned int reserved0 : 3;
+		unsigned int wrtord : 5;
+		unsigned int reserved1 : 3;
+		unsigned int rrd : 4;
+		unsigned int reserved2 : 4;
+		unsigned int faw : 6;
+		unsigned int reserved3 : 2;
 	} b;
 };
 
 union noc_ddrtimingc0 {
 	u32 d32;
 	struct {
-		unsigned burstpenalty : 4;
-		unsigned reserved0 : 4;
-		unsigned wrtomwr : 6;
-		unsigned reserved1 : 18;
+		unsigned int burstpenalty : 4;
+		unsigned int reserved0 : 4;
+		unsigned int wrtomwr : 6;
+		unsigned int reserved1 : 18;
 	} b;
 };
 
 union noc_devtodev0 {
 	u32 d32;
 	struct {
-		unsigned busrdtord : 3;
-		unsigned reserved0 : 1;
-		unsigned busrdtowr : 3;
-		unsigned reserved1 : 1;
-		unsigned buswrtord : 3;
-		unsigned reserved2 : 1;
-		unsigned buswrtowr : 3;
-		unsigned reserved3 : 17;
+		unsigned int busrdtord : 3;
+		unsigned int reserved0 : 1;
+		unsigned int busrdtowr : 3;
+		unsigned int reserved1 : 1;
+		unsigned int buswrtord : 3;
+		unsigned int reserved2 : 1;
+		unsigned int buswrtowr : 3;
+		unsigned int reserved3 : 17;
 	} b;
 };
 
 union noc_ddrmode {
 	u32 d32;
 	struct {
-		unsigned autoprecharge : 1;
-		unsigned bypassfiltering : 1;
-		unsigned fawbank : 1;
-		unsigned burstsize : 2;
-		unsigned mwrsize : 2;
-		unsigned reserved2 : 1;
-		unsigned forceorder : 8;
-		unsigned forceorderstate : 8;
-		unsigned reserved3 : 8;
+		unsigned int autoprecharge : 1;
+		unsigned int bypassfiltering : 1;
+		unsigned int fawbank : 1;
+		unsigned int burstsize : 2;
+		unsigned int mwrsize : 2;
+		unsigned int reserved2 : 1;
+		unsigned int forceorder : 8;
+		unsigned int forceorderstate : 8;
+		unsigned int reserved3 : 8;
 	} b;
 };
 

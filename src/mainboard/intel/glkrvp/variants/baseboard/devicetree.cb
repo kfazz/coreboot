@@ -56,9 +56,11 @@ chip soc/intel/apollolake
 	register "dptf_enable" = "1"
 
 	# PL1 override: 7.5W setting gives a run-time 6W actual
-	register "tdp_pl1_override_mw" = "7500"
 	# Set RAPL PL2 to 15W.
-	register "tdp_pl2_override_mw" = "15000"
+	register "power_limits_config" = "{
+		.tdp_pl1_override = 7,
+		.tdp_pl2_override = 15,
+	}"
 
 	# Enable Audio Clock and Power gating
 	register "hdaudio_clk_gate_enable" = "1"
@@ -97,14 +99,6 @@ chip soc/intel/apollolake
 	# Minimum SLP S3 assertion width 28ms.
 	register "slp_s3_assertion_width_usecs" = "28000"
 
-	register "sgx_enable" = "1"
-
-	# PRMRR size options
-	# 0x02000000 - 32MiB
-	# 0x04000000 - 64MiB
-	# 0x08000000 - 128MiB
-	register "PrmrrSize" = "128 * MiB"
-
 	register "pnp_settings" = "PNP_PERF_POWER"
 
 	device domain 0 on
@@ -120,6 +114,7 @@ chip soc/intel/apollolake
 		device pci 0d.3 on  end	# - Shared SRAM
 		device pci 0e.0 on	# - Audio
 			chip drivers/generic/max98357a
+				register "hid" = ""MX98357A""
 				register "sdmode_gpio" =  "ACPI_GPIO_OUTPUT_ACTIVE_HIGH(GPIO_160)"
 				register "sdmode_delay" = "5"
 				device generic 0 on end

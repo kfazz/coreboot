@@ -1,54 +1,41 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 Google LLC
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#define DPTF_CPU_PASSIVE	96
-#define DPTF_CPU_CRITICAL	103
+#define DPTF_CPU_PASSIVE	98
+#define DPTF_CPU_CRITICAL	108
 
 /* Skin Sensor for CPU VR temperature monitor */
 #define DPTF_TSR0_SENSOR_ID	1
 #define DPTF_TSR0_SENSOR_NAME	"Skin"
-#define DPTF_TSR0_PASSIVE	56
-#define DPTF_TSR0_CRITICAL	108
+#define DPTF_TSR0_PASSIVE	55
+#define DPTF_TSR0_CRITICAL	100
 
 /* Memory Sensor for DDR temperature monitor */
 #define DPTF_TSR1_SENSOR_ID	2
 #define DPTF_TSR1_SENSOR_NAME	"DDR"
-#define DPTF_TSR1_PASSIVE	70
-#define DPTF_TSR1_CRITICAL	95
+#define DPTF_TSR1_PASSIVE	53
+#define DPTF_TSR1_CRITICAL	100
 
 /* M.2 Sensor for Ambient temperature monitor */
 #define DPTF_TSR2_SENSOR_ID	3
 #define DPTF_TSR2_SENSOR_NAME	"Ambient"
-#define DPTF_TSR2_PASSIVE	50
-#define DPTF_TSR2_CRITICAL	95
+#define DPTF_TSR2_PASSIVE	38
+#define DPTF_TSR2_CRITICAL	93
 
 #undef DPTF_ENABLE_FAN_CONTROL
 #undef DPTF_ENABLE_CHARGER
 
 Name (DTRT, Package () {
 	/* CPU Throttle Effect on CPU */
-	Package () { \_SB.PCI0.TCPU, \_SB.PCI0.TCPU, 100, 10, 0, 0, 0, 0 },
+	Package () { \_SB.PCI0.TCPU, \_SB.PCI0.TCPU, 500, 100, 0, 0, 0, 0 },
 
 	/* CPU Throttle Effect on Skin (TSR0) */
-	Package () { \_SB.PCI0.TCPU, \_SB.DPTF.TSR0, 100, 600, 0, 0, 0, 0 },
+	Package () { \_SB.PCI0.TCPU, \_SB.DPTF.TSR0, 400, 40, 0, 0, 0, 0 },
 
 	/* CPU Throttle Effect on DDR (TSR1) */
-	Package () { \_SB.PCI0.TCPU, \_SB.DPTF.TSR1, 100, 90, 0, 0, 0, 0 },
+	Package () { \_SB.PCI0.TCPU, \_SB.DPTF.TSR1, 300, 50, 2, 0, 0, 0 },
 
 	/* CPU Throttle Effect on Ambient (TSR2) */
-	Package () { \_SB.PCI0.TCPU, \_SB.DPTF.TSR2, 100, 600, 0, 0, 0, 0 },
+	Package () { \_SB.PCI0.TCPU, \_SB.DPTF.TSR2, 1000, 100, 1, 0, 0, 0 },
 })
 
 Name (MPPC, Package ()

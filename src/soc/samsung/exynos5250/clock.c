@@ -1,24 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2010 Samsung Electronics
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <assert.h>
 #include <console/console.h>
 #include <soc/clk.h>
 #include <soc/periph.h>
-#include <stdlib.h>
 #include <timer.h>
 
 /* input clock of PLL: SMDK5250 has 24MHz input clock */
@@ -385,10 +371,10 @@ void set_mmc_clk(int dev_index, unsigned int div)
 	write32(addr, val);
 }
 
-void clock_ll_set_pre_ratio(enum periph_id periph_id, unsigned divisor)
+void clock_ll_set_pre_ratio(enum periph_id periph_id, unsigned int divisor)
 {
-	unsigned shift;
-	unsigned mask = 0xff;
+	unsigned int shift;
+	unsigned int mask = 0xff;
 	u32 *reg;
 
 	/*
@@ -425,13 +411,13 @@ void clock_ll_set_pre_ratio(enum periph_id periph_id, unsigned divisor)
 		      periph_id);
 		return;
 	}
-	clrsetbits_le32(reg, mask << shift, (divisor & mask) << shift);
+	clrsetbits32(reg, mask << shift, (divisor & mask) << shift);
 }
 
-void clock_ll_set_ratio(enum periph_id periph_id, unsigned divisor)
+void clock_ll_set_ratio(enum periph_id periph_id, unsigned int divisor)
 {
-	unsigned shift;
-	unsigned mask = 0xff;
+	unsigned int shift;
+	unsigned int mask = 0xff;
 	u32 *reg;
 
 	switch (periph_id) {
@@ -460,7 +446,7 @@ void clock_ll_set_ratio(enum periph_id periph_id, unsigned divisor)
 		      periph_id);
 		return;
 	}
-	clrsetbits_le32(reg, mask << shift, (divisor & mask) << shift);
+	clrsetbits32(reg, mask << shift, (divisor & mask) << shift);
 }
 
 /**
@@ -644,7 +630,7 @@ int clock_epll_set_rate(unsigned long rate)
 
 void clock_select_i2s_clk_source(void)
 {
-	clrsetbits_le32(&exynos_clock->src_peric1, AUDIO1_SEL_MASK,
+	clrsetbits32(&exynos_clock->src_peric1, AUDIO1_SEL_MASK,
 			(CLK_SRC_SCLK_EPLL));
 }
 
@@ -664,7 +650,7 @@ int clock_set_i2s_clk_prescaler(unsigned int src_frq, unsigned int dst_frq)
 		printk(BIOS_DEBUG, "src frq = %d des frq = %d ", src_frq, dst_frq);
 		return -1;
 	}
-	clrsetbits_le32(&exynos_clock->div_peric4, AUDIO_1_RATIO_MASK,
+	clrsetbits32(&exynos_clock->div_peric4, AUDIO_1_RATIO_MASK,
 				(div & AUDIO_1_RATIO_MASK));
 	return 0;
 }

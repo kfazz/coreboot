@@ -1,14 +1,6 @@
 ##
-## This file is part of the coreboot project.
 ##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
+## SPDX-License-Identifier: GPL-2.0-only
 
 config STORAGE
 	bool "Support for storage devices"
@@ -20,7 +12,7 @@ config STORAGE
 config STORAGE_64BIT_LBA
 	bool "Use 64-bit integers to address sectors"
 	depends on STORAGE
-	default n
+	default y
 	help
 	  If this is selected, sectors will be addressed by an 64-bit integer.
 	  Select this to support LBA-48 for ATA drives.
@@ -53,7 +45,14 @@ config STORAGE_AHCI
 config STORAGE_AHCI_ONLY_TESTED
 	bool "Only enable tested controllers"
 	depends on STORAGE_AHCI
+	default n
+	help
+	  If this option is selected, only AHCI controllers which are known
+	  to work will be used.
+
+config STORAGE_NVME
+	bool "Support for NVMe devices"
+	depends on STORAGE && PCI
 	default y
 	help
-	  If this option is selected only AHCI controllers which are known
-	  to work will be used.
+	  Select this option if you want support for NVMe devices.

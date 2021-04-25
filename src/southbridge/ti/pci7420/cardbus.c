@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <device/device.h>
 #include <device/pci.h>
@@ -21,10 +7,6 @@
 #include <device/cardbus.h>
 #include "pci7420.h"
 #include "chip.h"
-
-#ifdef ODD_IRQ_FIXUP
-static int cardbus_count = 0;
-#endif
 
 static void pci7420_cardbus_init(struct device *dev)
 {
@@ -61,20 +43,6 @@ static void pci7420_cardbus_init(struct device *dev)
 
 	/* Multifunction routing status */
 	pci_write_config32(dev, MFUNC, 0x018a1b22);
-
-#ifdef ODD_IRQ_FIXUP
-	/* This is a workaround for buggy kernels. This should
-	 * probably be read from the device tree, but as long
-	 * as only one mainboard is using this bridge it does
-	 * not matter.
-	 *
-	 * Basically what we do here is assign INTA to the first
-	 * cardbus controller, and INTB to the second one. We know
-	 * there are only two of them.
-	 */
-	pci_write_config8(dev, PCI_INTERRUPT_PIN, cardbus_count);
-	cardbus_count++;
-#endif
 }
 
 static void pci7420_cardbus_read_resources(struct device *dev)
@@ -111,12 +79,6 @@ static const struct pci_driver ti_pci7620_driver __pci_driver = {
 	.device = 0xac8d,
 };
 
-static void ti_pci7420_enable_dev(struct device *dev)
-{
-	/* Nothing here yet */
-}
-
 struct chip_operations southbridge_ti_pci7420_ops = {
 	CHIP_NAME("Texas Instruments PCI7420/7620 Cardbus Controller")
-	.enable_dev    = ti_pci7420_enable_dev,
 };

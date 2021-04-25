@@ -2,8 +2,7 @@ if BOARD_SAPPHIRE_PUREPLATINUMH61
 
 config BOARD_SPECIFIC_OPTIONS
 	def_bool y
-	select ARCH_X86
-	select NORTHBRIDGE_INTEL_IVYBRIDGE
+	select NORTHBRIDGE_INTEL_SANDYBRIDGE
 	select USE_NATIVE_RAMINIT
 	select SOUTHBRIDGE_INTEL_BD82X6X
 	select SUPERIO_FINTEK_F71808A
@@ -18,7 +17,7 @@ config BOARD_SPECIFIC_OPTIONS
 
 config MAINBOARD_DIR
 	string
-	default sapphire/pureplatinumh61
+	default "sapphire/pureplatinumh61"
 
 config MAINBOARD_PART_NUMBER
 	string
@@ -32,20 +31,8 @@ config VGA_BIOS_ID
 	string
 	default "8086,0162"
 
-config MAINBOARD_PCI_SUBSYSTEM_DEVICE_ID
-	hex
-	default 0x1007
-
-config MAINBOARD_PCI_SUBSYSTEM_VENDOR_ID
-	hex
-	default 0x174b
-
 config DRAM_RESET_GATE_GPIO
 	int
 	default 60
-
-config MAX_CPUS
-	int
-	default 8
 
 endif

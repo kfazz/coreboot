@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2016 Google Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 Device (TPSD)
 {
@@ -28,12 +15,12 @@ Device (TPSD)
 
 	Method (FNCX, 1, NotSerialized)
 	{
-		If (LEqual (Arg0, 0x86)) {
+		If (Arg0 == 0x86) {
 			/* Enable topstar-laptop kernel driver handling */
-			Store (One, ^^EC.TPSE)
-		} ElseIf (LEqual (Arg0, 0x87)) {
+			^^EC.TPSE = 1
+		} ElseIf (Arg0 == 0x87) {
 			/* Disable topstar-laptop kernel driver handling */
-			Store (Zero, ^^EC.TPSE)
+			^^EC.TPSE = 0
 		}
 	}
 }
@@ -52,7 +39,9 @@ Device (EC)
 	OperationRegion (ERAM, EmbeddedControl, Zero, 0xFF)
 	Field (ERAM, ByteAcc, Lock, Preserve)
 	{
-		Offset (0x15),
+		Offset (0x13),
+		RTMP, 8,
+		, 8,
 		BSTS, 2,	/* Battery Status */
 		, 3,
 		BTEX, 1,	/* Battery Present */
@@ -63,6 +52,7 @@ Device (EC)
 		BTLE, 1,	/* Bluetooth Enable/Disable */
 		Offset (0x25),
 		, 5,
+		FANM, 2,
 		TPSE, 1,	/* topstar-laptop driver enable/disable */
 		Offset (0x31),
 		, 6,
@@ -90,10 +80,10 @@ Device (EC)
 	Method (_REG, 2, NotSerialized)
 	{
 		/* Initialize AC power state */
-		Store (ACEX, \PWRS)
+		\PWRS = ACEX
 
 		/* Initialize LID switch state */
-		Store (LIDS, \LIDS)
+		\LIDS = LIDS
 	}
 
 	/* Notify topstar-laptop kernel driver */
@@ -125,7 +115,7 @@ Device (EC)
 	/* AC Status Changed */
 	Method (_Q20)
 	{
-		Store (ACEX, \PWRS)
+		\PWRS = ACEX
 		Notify (AC, 0x80)
 		Notify (BAT, 0x80)
 		PNOT ()
@@ -134,7 +124,7 @@ Device (EC)
 	/* Lid Event */
 	Method (_Q21)
 	{
-		Store (LIDS, \LIDS)
+		\LIDS = LIDS
 		Notify (LID0, 0x80)
 	}
 
@@ -186,24 +176,24 @@ Device (EC)
 		Notify (\_SB.SLPB, 0x80)
 	}
 
-	/* KEY_F13 (Touchpad Enable/Disable)
+	/* KEY_F13 (Touchpad Enable/Disable) */
 	Method (_Q34)
 	{
 		TPSN (0x87)
-		XOr (^TPAD, One, ^TPAD)
+		^TPAD ^= 1
 	}
 
 	/* KEY_WLAN */
 	Method (_Q35)
 	{
 		TPSN (0x88)
-		XOr (^WIFI, One, ^WIFI)
+		^WIFI ^= 1
 	}
 
 	/* KEY_BLUETOOTH */
 	Method (_Q37)
 	{
-		XOr (^BTLE, One, ^BTLE)
+		^BTLE ^= 1
 	}
 
 	/* Turbo Enable/Disable */
@@ -218,16 +208,36 @@ Device (EC)
 		 * when the system is charging.
 		 */
 		If (TURB) {
-			Store (PPCM_TURBO, PPCM)
+			PPCM = PPCM_TURBO
 			PPCN ()
-			Store (One, EDTB)
+			EDTB = 1
 		} Else {
-			Store (PPCM_NOTURBO, PPCM)
+			PPCM = PPCM_NOTURBO
 			PPCN ()
-			Store (Zero, EDTB)
+			EDTB = 0
 		}
 	}
 
 	#include "ac.asl"
 	#include "battery.asl"
+}
+
+Scope (\_TZ)
+{
+	ThermalZone (TZ0)
+	{
+		/* _TMP: Temperature */
+		Method (_TMP, 0, Serialized)
+		{
+			Local0 = (0x0AAC + (\_SB.PCI0.LPCB.EC.RTMP * 0x0A))
+			Return (Local0)
+		}
+
+		/* _CRT: Critical Temperature */
+		Method (_CRT, 0, Serialized)
+		{
+			/* defined in board ec.asl */
+			Return (CRIT_TEMP)
+		}
+	}
 }

@@ -1,9 +1,5 @@
 #*****************************************************************************
 #
-# Copyright (c) 2012, 2016   Advanced Micro Devices, Inc.
-#               2013 - 2014, Sage Electronic Engineering, LLC
-# All rights reserved.
-#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #     * Redistributions of source code must retain the above copyright
@@ -28,22 +24,22 @@
 #
 #*****************************************************************************
 
+bootblock-y += bootblock.c
+bootblock-y += early_setup.c
 bootblock-$(CONFIG_USBDEBUG) += enable_usbdebug.c
 
 romstage-y += early_setup.c
-romstage-$(CONFIG_USBDEBUG) += enable_usbdebug.c
+romstage-y += enable_usbdebug.c
 romstage-$(CONFIG_HUDSON_IMC_FWM) += imc.c
 romstage-y += smbus.c
 romstage-y += smbus_spd.c
 romstage-$(CONFIG_HUDSON_UART) += uart.c
 
 verstage-y += early_setup.c
-verstage-y += reset.c
 verstage-$(CONFIG_HUDSON_UART) += uart.c
 
-ramstage-$(CONFIG_USBDEBUG) += enable_usbdebug.c
+ramstage-y += enable_usbdebug.c
 ramstage-$(CONFIG_HAVE_ACPI_TABLES) += fadt.c
-ramstage-$(CONFIG_SOUTHBRIDGE_AMD_PI_KERN) += gpio.c
 ramstage-y += hda.c
 ramstage-y += hudson.c
 ramstage-y += ide.c
@@ -51,7 +47,6 @@ ramstage-$(CONFIG_HUDSON_IMC_FWM) += imc.c
 ramstage-y += lpc.c
 ramstage-y += pci.c
 ramstage-y += pcie.c
-ramstage-y += reset.c
 ramstage-y += sata.c
 ramstage-y += sd.c
 ramstage-y += sm.c
@@ -60,8 +55,10 @@ ramstage-$(CONFIG_HAVE_SMI_HANDLER) += smi_util.c
 ramstage-$(CONFIG_HUDSON_UART) += uart.c
 ramstage-y += usb.c
 
-smm-$(CONFIG_HAVE_SMI_HANDLER) += smihandler.c
-smm-$(CONFIG_HAVE_SMI_HANDLER) += smi_util.c
+all-y += reset.c
+
+smm-y += smihandler.c
+smm-y += smi_util.c
 
 # ROMSIG At ROMBASE + 0x20000:
 # +-----------+---------------+----------------+------------+
@@ -72,78 +69,23 @@ smm-$(CONFIG_HAVE_SMI_HANDLER) += smi_util.c
 #
 # EC ROM should be 64K aligned.
 
+ifeq ($(CONFIG_AMDFW_OUTSIDE_CBFS),y)
 HUDSON_FWM_POSITION=$(call int-add, $(call int-subtract, 0xffffffff $(CONFIG_ROM_SIZE)) 0x20000 1)
+else
+HUDSON_FWM_POSITION=0xfff20000
+endif
 
-##
 ifeq ($(CONFIG_HUDSON_PSP), y)
-##
-### 0
 
-##
 ifeq ($(CONFIG_CPU_AMD_PI_00730F01), y)
-FIRMWARE_LOCATE=$(dir $(call strip_quotes, $(CONFIG_AMD_PUBKEY_FILE)))
+FIRMWARE_LOCATION=$(shell grep -e FIRMWARE_LOCATION $(CONFIG_AMDFW_CONFIG_FILE) | awk '{print $$2}')
 FIRMWARE_TYPE=
-endif
-##
-ifeq ($(CONFIG_CPU_AMD_PI_00660F01), y)
-FIRMWARE_LOCATE=$(dir $(call strip_quotes, $(CONFIG_AMD_PUBKEY_FILE)))
-FIRMWARE_TYPE=CZ
+
 endif
 
-###5
-PUBSIGNEDKEY_FILE=$(top)/$(FIRMWARE_LOCATE)/RtmPubSigned$(FIRMWARE_TYPE).key
-###1
-ifeq ($(CONFIG_CPU_AMD_PI_00730F01), y)
-PSPBTLDR_FILE=$(top)/$(FIRMWARE_LOCATE)/PspBootLoader$(FIRMWARE_TYPE).Bypass.sbin
-else ifeq ($(CONFIG_CPU_AMD_PI_00660F01), y)
-PSPBTLDR_FILE=$(top)/$(FIRMWARE_LOCATE)/PspBootLoader_prod_$(FIRMWARE_TYPE).sbin
-endif
-
-###3
-ifeq ($(CONFIG_CPU_AMD_PI_00730F01), y)
-PSPRCVR_FILE=$(top)/$(FIRMWARE_LOCATE)/PspRecovery$(FIRMWARE_TYPE).sbin
-else ifeq ($(CONFIG_CPU_AMD_PI_00660F01), y)
-PSPRCVR_FILE=$(top)/$(FIRMWARE_LOCATE)/PspRecoveryBootLoader_prod_$(FIRMWARE_TYPE).sbin
-endif
-
-###2
-ifeq ($(CONFIG_CPU_AMD_PI_00730F01), y)
-PSPSCUREOS_FILE=$(top)/$(FIRMWARE_LOCATE)/PspSecureOs$(FIRMWARE_TYPE).sbin
-else ifeq ($(CONFIG_CPU_AMD_PI_00660F01), y)
-PSPSCUREOS_FILE=$(top)/$(FIRMWARE_LOCATE)/PspSecureOs_prod_$(FIRMWARE_TYPE).csbin
-endif
-
-###4
-PSPNVRAM_FILE=$(top)/$(FIRMWARE_LOCATE)/PspNvram$(FIRMWARE_TYPE).bin
-
-###8
-SMUFWM_FILE=$(top)/$(FIRMWARE_LOCATE)/SmuFirmware$(FIRMWARE_TYPE).sbin
-SMUFWM_FN_FILE=$(top)/$(FIRMWARE_LOCATE)/SmuFirmware$(FIRMWARE_TYPE)_FN.sbin
-
-###95
-SMUSCS_FILE=$(top)/$(FIRMWARE_LOCATE)/SmuScs$(FIRMWARE_TYPE).bin
-
-###9
-PSPSECUREDEBUG_FILE=$(top)/$(FIRMWARE_LOCATE)/PspSecureDebug$(FIRMWARE_TYPE).Key
-
-###12
-ifeq ($(CONFIG_CPU_AMD_PI_00730F01), y)
-PSPTRUSTLETS_FILE=$(top)/$(FIRMWARE_LOCATE)/trustlets.bin
-else ifeq ($(CONFIG_CPU_AMD_PI_00660F01), y)
-PSPTRUSTLETS_FILE=$(top)/$(FIRMWARE_LOCATE)/PspTrustlets_prod_$(FIRMWARE_TYPE).cbin
-endif
-
-###13
-ifeq ($(CONFIG_CPU_AMD_PI_00730F01), y)
-TRUSTLETKEY_FILE=$(top)/$(FIRMWARE_LOCATE)/Trustlet.tkn.cert
-else ifeq ($(CONFIG_CPU_AMD_PI_00660F01), y)
-TRUSTLETKEY_FILE=$(top)/$(FIRMWARE_LOCATE)/TrustletKey_prod_$(FIRMWARE_TYPE).sbin
-endif
-
-###18
-ifeq ($(CONFIG_CPU_AMD_PI_00660F01), y)
-SMUFIRMWARE2_FILE=$(top)/$(FIRMWARE_LOCATE)/SmuFirmware2_prod_$(FIRMWARE_TYPE).sbin
-endif
+#PUBSIGNEDKEY_FILE=$(top)/$(FIRMWARE_LOCATION)/RtmPubSigned$(FIRMWARE_TYPE).key
+#PSPNVRAM_FILE=$(top)/$(FIRMWARE_LOCATION)/PspNvram$(FIRMWARE_TYPE).bin
+#PSPSECUREDEBUG_FILE=$(top)/$(FIRMWARE_LOCATION)/PspSecureDebug$(FIRMWARE_TYPE).Key
 
 endif
 
@@ -158,7 +100,7 @@ OPT_PSPBTLDR_FILE=$(call add_opt_prefix, $(PSPBTLDR_FILE), --bootloader)
 OPT_SMUFWM_FILE=$(call add_opt_prefix, $(SMUFWM_FILE), --smufirmware)
 OPT_PSPRCVR_FILE=$(call add_opt_prefix, $(PSPRCVR_FILE), --recovery)
 OPT_PUBSIGNEDKEY_FILE=$(call add_opt_prefix, $(PUBSIGNEDKEY_FILE), --rtmpubkey)
-OPT_PSPSCUREOS_FILE=$(call add_opt_prefix, $(PSPSCUREOS_FILE), --secureos)
+OPT_PSPSECUREOS_FILE=$(call add_opt_prefix, $(PSPSECUREOS_FILE), --secureos)
 OPT_PSPNVRAM_FILE=$(call add_opt_prefix, $(PSPNVRAM_FILE), --nvram)
 OPT_PSPSECUREDEBUG_FILE=$(call add_opt_prefix, $(PSPSECUREDEBUG_FILE), --securedebug)
 OPT_PSPTRUSTLETS_FILE=$(call add_opt_prefix, $(PSPTRUSTLETS_FILE), --trustlets)
@@ -166,28 +108,20 @@ OPT_TRUSTLETKEY_FILE=$(call add_opt_prefix, $(TRUSTLETKEY_FILE), --trustletkey)
 OPT_SMUFIRMWARE2_FILE=$(call add_opt_prefix, $(SMUFIRMWARE2_FILE), --smufirmware2)
 OPT_SMUSCS_FILE=$(call add_opt_prefix, $(SMUSCS_FILE), --smuscs)
 
+# Add all the files listed in the config file
+POUND_SIGN=$(call strip_quotes, "\#")
+DEP_FILES= $(patsubst %,$(FIRMWARE_LOCATION)/%, $(shell sed -e /^$(POUND_SIGN)/d -e /^FIRMWARE_LOCATION/d $(CONFIG_AMDFW_CONFIG_FILE) | awk '{print $$2}' ))
+
 $(obj)/amdfw.rom:	$(call strip_quotes, $(CONFIG_HUDSON_XHCI_FWM_FILE)) \
 			$(call strip_quotes, $(CONFIG_HUDSON_IMC_FWM_FILE)) \
 			$(call strip_quotes, $(CONFIG_HUDSON_GEC_FWM_FILE)) \
-			$(call strip_quotes, $(CONFIG_AMD_PUBKEY_FILE)) \
-			$(call strip_quotes, $(PUBSIGNEDKEY_FILE)) \
-			$(call strip_quotes, $(PSPBTLDR_FILE)) \
-			$(call strip_quotes, $(PSPRCVR_FILE)) \
-			$(call strip_quotes, $(PSPSCUREOS_FILE)) \
-			$(call strip_quotes, $(PSPNVRAM_FILE)) \
-			$(call strip_quotes, $(SMUFWM_FILE)) \
-			$(call strip_quotes, $(SMUSCS_FILE)) \
-			$(call strip_quotes, $(PSPSECUREDEBUG_FILE)) \
-			$(call strip_quotes, $(PSPTRUSTLETS_FILE)) \
-			$(call strip_quotes, $(TRUSTLETKEY_FILE)) \
-			$(call strip_quotes, $(SMUFIRMWARE2_FILE)) \
 			$(call strip_quotes, $(AMD_PUBKEY2_FILE)) \
 			$(call strip_quotes, $(PUBSIGNEDKEY2_FILE)) \
 			$(call strip_quotes, $(PSPBTLDR2_FILE)) \
 			$(call strip_quotes, $(SMUFWM2_FILE)) \
 			$(call strip_quotes, $(SMUFWM2_FN_FILE)) \
 			$(call strip_quotes, $(PSPRCVR2_FILE)) \
-			$(call strip_quotes, $(PSPSCUREOS2_FILE)) \
+			$(call strip_quotes, $(PSPSECUREOS2_FILE)) \
 			$(call strip_quotes, $(PSPNVRAM2_FILE)) \
 			$(call strip_quotes, $(SMUSCS2_FILE)) \
 			$(call strip_quotes, $(PSPSECUREDEBUG2_FILE)) \
@@ -195,6 +129,7 @@ $(obj)/amdfw.rom:	$(call strip_quotes, $(CONFIG_HUDSON_XHCI_FWM_FILE)) \
 			$(call strip_quotes, $(TRUSTLETKEY2_FILE)) \
 			$(call strip_quotes, $(SMUFIRMWARE2_2_FILE)) \
 			$(call strip_quotes, $(SMUFIRMWARE2_2_FN_FILE)) \
+			$(DEP_FILES) \
 			$(AMDFWTOOL)
 	rm -f $@
 	@printf "    AMDFWTOOL  $(subst $(obj)/,,$(@))\n"
@@ -202,25 +137,13 @@ $(obj)/amdfw.rom:	$(call strip_quotes, $(CONFIG_HUDSON_XHCI_FWM_FILE)) \
 		$(OPT_HUDSON_XHCI_FWM_FILE) \
 		$(OPT_HUDSON_IMC_FWM_FILE) \
 		$(OPT_HUDSON_GEC_FWM_FILE) \
-		$(OPT_AMD_PUBKEY_FILE) \
-		$(OPT_PSPBTLDR_FILE) \
-		$(OPT_SMUFWM_FILE) \
-		$(OPT_PSPRCVR_FILE) \
-		$(OPT_PUBSIGNEDKEY_FILE) \
-		$(OPT_PSPSCUREOS_FILE) \
-		$(OPT_PSPNVRAM_FILE) \
-		$(OPT_PSPSECUREDEBUG_FILE) \
-		$(OPT_PSPTRUSTLETS_FILE) \
-		$(OPT_TRUSTLETKEY_FILE) \
-		$(OPT_SMUFIRMWARE2_FILE) \
-		$(OPT_SMUSCS_FILE) \
 		$(OPT_2AMD_PUBKEY_FILE) \
 		$(OPT_2PSPBTLDR_FILE) \
 		$(OPT_2SMUFWM_FILE) \
 		$(OPT_2SMUFWM_FN_FILE) \
 		$(OPT_2PSPRCVR_FILE) \
 		$(OPT_2PUBSIGNEDKEY_FILE) \
-		$(OPT_2PSPSCUREOS_FILE) \
+		$(OPT_2PSPSECUREOS_FILE) \
 		$(OPT_2PSPNVRAM_FILE) \
 		$(OPT_2PSPSECUREDEBUG_FILE) \
 		$(OPT_2PSPTRUSTLETS_FILE) \
@@ -229,13 +152,12 @@ $(obj)/amdfw.rom:	$(call strip_quotes, $(CONFIG_HUDSON_XHCI_FWM_FILE)) \
 		$(OPT_2SMUFIRMWARE2_FN_FILE) \
 		$(OPT_2SMUSCS_FILE) \
 		--flashsize $(CONFIG_ROM_SIZE) \
+		--location $(HUDSON_FWM_POSITION) \
+		--config $(CONFIG_AMDFW_CONFIG_FILE) \
 		--output	$@
 
 ifeq ($(CONFIG_AMDFW_OUTSIDE_CBFS),y)
-PHONY+=add_amdfw
-INTERMEDIATE+=add_amdfw
-
-add_amdfw: $(obj)/coreboot.pre $(obj)/amdfw.rom
+$(call add_intermediate, add_amdfw, $(obj)/amdfw.rom)
 	printf "    DD         Adding AMD Firmware\n"
 	dd if=$(obj)/amdfw.rom \
 		of=$(obj)/coreboot.pre conv=notrunc bs=1 seek=131072 >/dev/null 2>&1

@@ -1,17 +1,4 @@
- /*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Samsung Electronics
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+ /* SPDX-License-Identifier: GPL-2.0-only */
 
 /* Machine Specific Values for SMDK5420 board based on Exynos5 */
 
@@ -655,7 +642,6 @@ struct exynos5_phy_control;
 #define CTRL_FORCE_MASK		(0x7F << 8)
 #define CTRL_LOCK_COARSE_MASK	(0x7F << 10)
 
-
 #define CTRL_OFFSETD_RESET_VAL	0x8
 #define CTRL_OFFSETD_VAL	0x7F
 
@@ -723,7 +709,6 @@ struct exynos5_phy_control;
 #define PHY_CON39_VAL_40_OHM	0x0B6D0B6D
 #define PHY_CON39_VAL_34_OHM	0x0DB60DB6
 #define PHY_CON39_VAL_30_OHM	0x0FFF0FFF
-
 
 #define CTRL_BSTLEN_OFFSET	8
 #define CTRL_RDLAT_OFFSET	0

@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreinfo project.
- *
- * Copyright (C) 2008 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef COREINFO_H_
 #define COREINFO_H_
@@ -27,8 +14,7 @@ struct coreinfo_module {
 	int (*handle) (int);
 };
 
-extern void docpuid(int, unsigned long *, unsigned long *, unsigned long *,
-		    unsigned long *);
+extern void docpuid(uint32_t idx, uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx);
 
 void print_module_title(WINDOW *win, const char *title);
 

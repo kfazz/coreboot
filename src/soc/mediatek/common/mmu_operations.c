@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/mmu.h>
 #include <symbols.h>
@@ -25,11 +12,11 @@ void mtk_mmu_init(void)
 	mmu_init();
 
 	/*
-	 * Set 0x0 to 4GB address as device memory. We want to config IO_PHYS
+	 * Set 0x0 to 8GB address as device memory. We want to config IO_PHYS
 	 * address to DEV_MEM, and map a proper range of dram for the memory
 	 * test during calibration.
 	 */
-	mmu_config_range((void *)0, (uintptr_t)4U * GiB, DEV_MEM);
+	mmu_config_range((void *)0, (uintptr_t)8U * GiB, DEV_MEM);
 
 	/* SRAM is cached */
 	mmu_config_range(_sram, REGION_SIZE(sram), SECURE_CACHED_MEM);

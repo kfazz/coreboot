@@ -1,22 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013-2014 Sage Electronic Engineering, LLC.
- * Copyright (C) 2015 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef FSP1_1_UTIL_H
 #define FSP1_1_UTIL_H
 
+#include <arch/cpu.h>
 #include <fsp/api.h>
 /* Current users expect to get the SoC's FSP definitions by including util.h. */
 #include <fsp/soc_binding.h>
@@ -43,6 +30,7 @@ void *get_next_resource_hob(const EFI_GUID *guid, const void *hob_start);
 void *get_first_resource_hob(const EFI_GUID *guid);
 void fsp_display_upd_value(const char *name, uint32_t size, uint64_t old,
 	uint64_t new);
+void report_fsp_output(void);
 
 /* Return version of FSP associated with fih. */
 static inline uint32_t fsp_version(FSP_INFO_HEADER *fih)
@@ -52,10 +40,10 @@ static inline uint32_t fsp_version(FSP_INFO_HEADER *fih)
 
 /*
  * Relocate FSP entire binary into ram. Returns < 0 on error, 0 on success.
- * The FSP source is pointed to by region_device and the relocation information
+ * The CBFS file name of the FSP source and the relocation information
  * is encoded in a struct prog with its entry point set to the FSP info header.
  */
-int fsp_relocate(struct prog *fsp_relocd, const struct region_device *fsp_src);
+int fsp_relocate(struct prog *fsp_relocd);
 
 /* Additional HOB types not included in the FSP:
  * #define EFI_HOB_TYPE_HANDOFF 0x0001
@@ -97,14 +85,6 @@ void *get_first_hob(uint16_t type);
 void *get_next_guid_hob(const EFI_GUID *guid, const void *hob_start);
 void *get_first_guid_hob(const EFI_GUID *guid);
 
-/*
- * Writes number_of_bytes data bytes from buffer to the console.
- * The number of bytes actually written to the console is returned.
- *
- * If number_of_bytes is zero, don't output any data but instead wait until
- * the console has output all data, then return 0.
- */
-__attribute__((cdecl)) size_t fsp_write_line(uint8_t *buffer,
-	size_t number_of_bytes);
+asmlinkage void chipset_teardown_car_main(void);
 
 #endif	/* FSP1_1_UTIL_H */

@@ -1,31 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/cache.h>
 #include <arch/lib_helpers.h>
 #include <arch/mmu.h>
 #include <arch/transition.h>
 #include <assert.h>
-
-/* Litte-endian, No XN-forced, Instr cache disabled,
- * Stack alignment disabled, Data and unified cache
- * disabled, Alignment check disabled, MMU disabled
- */
-#define SCTLR_MASK  (SCTLR_MMU_DISABLE | SCTLR_ACE_DISABLE | \
-		     SCTLR_CACHE_DISABLE | SCTLR_SAE_DISABLE | SCTLR_RES1 | \
-		     SCTLR_ICE_DISABLE | SCTLR_WXN_DISABLE | SCTLR_LITTLE_END)
 
 void __weak exc_dispatch(struct exc_state *exc_state, uint64_t id)
 {
@@ -56,7 +35,6 @@ void transition_to_el2(void *entry, void *arg, uint64_t spsr)
 	struct exc_state exc_state;
 	struct elx_state *elx = &exc_state.elx;
 	struct regs *regs = &exc_state.regs;
-	uint32_t sctlr;
 
 	regs->x[X0_INDEX] = (uint64_t)arg;
 	elx->elr = (uint64_t)entry;
@@ -72,19 +50,10 @@ void transition_to_el2(void *entry, void *arg, uint64_t spsr)
 	 */
 	assert(get_el_from_spsr(spsr) == EL2 && !(spsr & SPSR_ERET_32));
 
-	/* Initialize SCR with defaults for running without secure monitor. */
-	raw_write_scr_el3(SCR_TWE_DISABLE |	/* don't trap WFE */
-			  SCR_TWI_DISABLE |	/* don't trap WFI */
-			  SCR_ST_ENABLE |	/* allow secure timer access */
-			  SCR_LOWER_AARCH64 |	/* lower level is AArch64 */
-			  SCR_SIF_DISABLE |	/* disable secure ins. fetch */
-			  SCR_HVC_ENABLE |	/* allow HVC instruction */
-			  SCR_SMD_ENABLE |	/* disable SMC instruction */
-			  SCR_RES1 |		/* reserved-1 bits */
-			  SCR_EA_DISABLE |	/* disable ext. abort trap */
-			  SCR_FIQ_DISABLE |	/* disable FIQ trap to EL3 */
-			  SCR_IRQ_DISABLE |	/* disable IRQ trap to EL3 */
-			  SCR_NS_ENABLE);	/* lower level is non-secure */
+	/* Initialize SCR with defaults for running without secure monitor
+	   (disable all traps, enable all instructions, run NS at AArch64). */
+	raw_write_scr_el3(SCR_FIEN | SCR_API | SCR_APK | SCR_ST | SCR_RW |
+			  SCR_HCE | SCR_SMD | SCR_RES1 | SCR_NS);
 
 	/* Initialize CPTR to not trap anything to EL3. */
 	raw_write_cptr_el3(CPTR_EL3_TCPAC_DISABLE | CPTR_EL3_TTA_DISABLE |
@@ -94,10 +63,8 @@ void transition_to_el2(void *entry, void *arg, uint64_t spsr)
 	raw_write_elr_el3(elx->elr);
 	raw_write_spsr_el3(elx->spsr);
 
-	/* SCTLR: Initialize EL with selected properties */
-	sctlr = raw_read_sctlr_el2();
-	sctlr &= SCTLR_MASK;
-	raw_write_sctlr_el2(sctlr);
+	/* SCTLR: Initialize EL with everything disabled */
+	raw_write_sctlr_el2(SCTLR_RES1);
 
 	/* SP_ELx: Initialize stack pointer */
 	raw_write_sp_el2(elx->sp_elx);

@@ -40,7 +40,6 @@
 #include "compat/of.h"
 #include "debug.h"
 
-
 // a Expansion Header Struct as defined in Plug and Play BIOS Spec 1.0a Chapter 3.2
 typedef struct {
 	char signature[4];	// signature
@@ -85,7 +84,9 @@ typedef struct {
 	u8 devfn;
 #if CONFIG(PCI_OPTION_ROM_RUN_YABEL)
 	struct device* dev;
+	u64 puid; /* unused */
 #else
+	void *dev;
 	u64 puid;
 	phandle_t phandle;
 	ihandle_t ihandle;
@@ -149,7 +150,7 @@ u8 biosemu_dev_translate_address(int type, unsigned long * addr);
 static inline void
 out32le(void *addr, u32 val)
 {
-#if CONFIG(ARCH_X86) || CONFIG(ARCH_ARM)
+#if ENV_X86 || ENV_ARM || ENV_ARM64
 	*((u32*) addr) = cpu_to_le32(val);
 #else
 	asm volatile ("stwbrx  %0, 0, %1"::"r" (val), "r"(addr));
@@ -160,7 +161,7 @@ static inline u32
 in32le(void *addr)
 {
 	u32 val;
-#if CONFIG(ARCH_X86) || CONFIG(ARCH_ARM)
+#if ENV_X86 || ENV_ARM || ENV_ARM64
 	val = cpu_to_le32(*((u32 *) addr));
 #else
 	asm volatile ("lwbrx  %0, 0, %1":"=r" (val):"r"(addr));
@@ -171,7 +172,7 @@ in32le(void *addr)
 static inline void
 out16le(void *addr, u16 val)
 {
-#if CONFIG(ARCH_X86) || CONFIG(ARCH_ARM)
+#if ENV_X86 || ENV_ARM || ENV_ARM64
 	*((u16*) addr) = cpu_to_le16(val);
 #else
 	asm volatile ("sthbrx  %0, 0, %1"::"r" (val), "r"(addr));
@@ -182,7 +183,7 @@ static inline u16
 in16le(void *addr)
 {
 	u16 val;
-#if CONFIG(ARCH_X86) || CONFIG(ARCH_ARM)
+#if ENV_X86 || ENV_ARM || ENV_ARM64
 	val = cpu_to_le16(*((u16*) addr));
 #else
 	asm volatile ("lhbrx %0, 0, %1":"=r" (val):"r"(addr));

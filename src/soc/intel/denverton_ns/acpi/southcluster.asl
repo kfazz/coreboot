@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007 - 2009 coresystems GmbH
- * Copyright (C) 2014 - 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include "../include/soc/iomap.h"
 
@@ -62,11 +47,21 @@ Scope(\)
 // Virtual root port 0
 Device (VRP0) {
 	Name   (_ADR, 0x00160000)
+
+	Method (_PRT)
+	{
+		Return (IRQM (22))
+	}
 }
 
 // Virtual root port 1
 Device (VRP1) {
 	Name   (_ADR, 0x00170000)
+
+	Method (_PRT)
+	{
+		Return (IRQM (23))
+	}
 }
 
 // ME HECI
@@ -122,7 +117,7 @@ Device (P2SB)
 #include "pmc.asl"
 
 // SMBus 0:1f.4
-#include "smbus.asl"
+#include <soc/intel/common/block/acpi/acpi/smbus.asl>
 
 // Northpeak 0:1f.7
 #include "npk.asl"
@@ -133,7 +128,7 @@ Device (P2SB)
 Method (_OSC, 4)
 {
 	/* Check for proper GUID */
-	If (LEqual (Arg0, ToUUID("33DB4D5B-1FF7-401C-9657-7441C03DD766")))
+	If (Arg0 == ToUUID("33DB4D5B-1FF7-401C-9657-7441C03DD766"))
 	{
 		/* Let OS control everything */
 		Return (Arg3)
@@ -142,7 +137,7 @@ Method (_OSC, 4)
 	{
 		/* Unrecognized UUID */
 		CreateDWordField (Arg3, 0, CDW1)
-		Or (CDW1, 4, CDW1)
+		CDW1 |= 4
 		Return (Arg3)
 	}
 }

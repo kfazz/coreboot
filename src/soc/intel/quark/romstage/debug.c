@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2016 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <fsp/util.h>
@@ -26,7 +13,7 @@ void soc_display_fspm_upd_params(const FSPM_UPD *fspm_old_upd,
 	new = &fspm_new_upd->FspmConfig;
 
 	/* Display the parameters for MemoryInit */
-	printk(BIOS_SPEW, "UPD values for MemoryInit at: 0x%p\n", new);
+	printk(BIOS_SPEW, "UPD values for MemoryInit at: %p\n", new);
 	fsp_display_upd_value("AddrMode", sizeof(old->AddrMode),
 		old->AddrMode, new->AddrMode);
 	fsp_display_upd_value("ChanMask", sizeof(old->ChanMask),

@@ -1,25 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <types.h>
 #include <console/console.h>
-#include <cpu/x86/cache.h>
 #include <device/pci_def.h>
-#include <cpu/x86/smm.h>
-#include <elog.h>
 #include <southbridge/intel/common/pmbase.h>
 #include <southbridge/intel/common/gpio.h>
 
@@ -111,7 +94,6 @@ void dump_smi_status(u32 smi_sts)
 	printk(BIOS_DEBUG, "\n");
 }
 
-
 /**
  * @brief read and clear GPE0_STS
  * @return GPE0_STS register
@@ -175,7 +157,6 @@ u32 reset_tco_status(void)
 	return reg32;
 }
 
-
 void dump_tco_status(u32 tco_sts)
 {
 	printk(BIOS_DEBUG, "TCO_STS: ");
@@ -207,7 +188,6 @@ void smi_set_eos(void)
 	write_pmbase8(SMI_EN, reg8);
 }
 
-
 void dump_alt_gp_smi_status(u16 alt_gp_smi_sts)
 {
 	int i;
@@ -231,4 +211,13 @@ u16 reset_alt_gp_smi_status(void)
 	write_pmbase16(ALT_GP_SMI_STS, reg16);
 
 	return reg16;
+}
+
+void dump_all_status(void)
+{
+	dump_smi_status(reset_smi_status());
+	dump_pm1_status(reset_pm1_status());
+	dump_gpe0_status(reset_gpe0_status());
+	dump_alt_gp_smi_status(reset_alt_gp_smi_status());
+	dump_tco_status(reset_tco_status());
 }

@@ -1,30 +1,16 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015 Intel Corp.
- * Copyright (C) 2017 - 2018 Siemens AG
- * (Written by Alexandru Gagniuc <alexandrux.gagniuc@intel.com> for Intel Corp.)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef _SOC_APOLLOLAKE_CHIP_H_
 #define _SOC_APOLLOLAKE_CHIP_H_
 
 #include <commonlib/helpers.h>
-#include <intelblocks/chip.h>
+#include <drivers/intel/gma/gma.h>
+#include <intelblocks/cfg.h>
 #include <intelblocks/gspi.h>
 #include <soc/gpe.h>
 #include <soc/gpio.h>
 #include <intelblocks/lpc_lib.h>
+#include <intelblocks/power_limit.h>
 #include <device/i2c_simple.h>
 #include <drivers/i2c/designware/dw_i2c.h>
 #include <soc/pm.h>
@@ -43,6 +29,20 @@ struct soc_intel_apollolake_config {
 
 	/* Common structure containing soc config data required by common code*/
 	struct soc_intel_common_config common_soc_config;
+
+	/* Common struct containing power limits configuration info */
+	struct soc_power_limits_config power_limits_config;
+
+	/*
+	 * IGD panel configuration
+	 *
+	 * Second backlight control shares logic with other pins (aka. display utility pin).
+	 * Be sure it's used for PWM before setting any secondary backlight value.
+	 */
+	struct i915_gpu_panel_config panel_cfg[2];
+
+	/* i915 struct for GMA backlight control */
+	struct i915_gpu_controller_info gfx;
 
 	/*
 	 * Mapping from PCIe root port to CLKREQ input on the SOC. The SOC has
@@ -113,12 +113,7 @@ struct soc_intel_apollolake_config {
 	int dptf_enable;
 
 	/* TCC activation offset value in degrees Celsius */
-	int tcc_offset;
-
-	/* PL1 override value in mW for APL */
-	uint16_t tdp_pl1_override_mw;
-	/* PL2 override value in mW for APL */
-	uint16_t tdp_pl2_override_mw;
+	uint32_t tcc_offset;
 
 	/* Configure Audio clk gate and power gate
 	 * IOSF-SB port ID 92 offset 0x530 [5] and [3]
@@ -136,20 +131,13 @@ struct soc_intel_apollolake_config {
 	/* USB2 eye diagram settings per port */
 	struct usb2_eye_per_port usb2eye[APOLLOLAKE_USB2_PORT_MAX];
 
+	/* Override USB port configuration */
+	uint8_t usb_config_override;
+	struct usb_port_config usb2_port[APOLLOLAKE_USB2_PORT_MAX];
+	struct usb_port_config usb3_port[APOLLOLAKE_USB3_PORT_MAX];
+
 	/* GPIO SD card detect pin */
 	unsigned int sdcard_cd_gpio;
-
-	/* PRMRR size setting with three options
-	 *  0x02000000 - 32MiB
-	 *  0x04000000 - 64MiB
-	 *  0x08000000 - 128MiB */
-	uint32_t PrmrrSize;
-
-	/* Enable SGX feature.
-	 * Enabling SGX feature is 2 step process,
-	 * (1) set sgx_enable = 1
-	 * (2) set PrmrrSize to supported size */
-	uint8_t sgx_enable;
 
 	/* Select PNP Settings.
 	 * (0) Performance,
@@ -194,6 +182,14 @@ struct soc_intel_apollolake_config {
 	 * the Upd parameter VtdEnable.
 	 */
 	uint8_t enable_vtd;
+
+	/* Options to disable the LFPS periodic sampling for USB3 Ports.
+	 * Default value of PMCTRL_REG bits[7:4] is 9 which means periodic sampling
+	 * interval is 9ms.
+	 * Set 1 to update XHCI host MMIO BAR + PMCTRL_REG (0x80A4 bits[7:4]) to 0
+	 * 0:Enable (default), 1:Disable.
+	 */
+	uint8_t disable_xhci_lfps_pm;
 };
 
 typedef struct soc_intel_apollolake_config config_t;

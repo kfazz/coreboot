@@ -1,28 +1,12 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2016 - 2017 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <bootblock_common.h>
-#include <cpu/x86/mtrr.h>
 #include <device/pci.h>
 #include <FsptUpd.h>
 #include <intelblocks/fast_spi.h>
 #include <soc/bootblock.h>
 #include <soc/iomap.h>
 #include <spi-generic.h>
-#include <timestamp.h>
 #include <console/console.h>
 
 const FSPT_UPD temp_ram_init_params = {
@@ -32,13 +16,22 @@ const FSPT_UPD temp_ram_init_params = {
 			.Reserved = {0},
 	},
 	.FsptCoreUpd = {
-			.MicrocodeRegionBase =
-				(UINT32)CONFIG_CPU_MICROCODE_CBFS_LOC,
-			.MicrocodeRegionLength =
-				(UINT32)CONFIG_CPU_MICROCODE_CBFS_LEN,
+			/*
+			 * It is a requirement for firmware to have Firmware Interface Table
+			 * (FIT), which contains pointers to each microcode update.
+			 * The microcode update is loaded for all logical processors before
+			 * cpu reset vector.
+			 *
+			 * All SoC since Gen-4 has above mechanism in place to load microcode
+			 * even before hitting CPU reset vector. Hence skipping FSP-T loading
+			 * microcode after CPU reset by passing '0' value to
+			 * FSPT_UPD.MicrocodeRegionBase and FSPT_UPD.MicrocodeRegionLength.
+			 */
+			.MicrocodeRegionBase = 0,
+			.MicrocodeRegionLength = 0,
 			.CodeRegionBase =
-				(UINT32)(0x100000000ULL - CONFIG_CBFS_SIZE),
-			.CodeRegionLength = (UINT32)CONFIG_CBFS_SIZE,
+				(UINT32)(0x100000000ULL - CONFIG_ROM_SIZE),
+			.CodeRegionLength = (UINT32)CONFIG_ROM_SIZE,
 			.Reserved1 = {0},
 	},
 	.FsptConfig = {
@@ -52,7 +45,7 @@ const FSPT_UPD temp_ram_init_params = {
 asmlinkage void bootblock_c_entry(uint64_t base_timestamp)
 {
 	/* Call lib/bootblock.c main */
-	bootblock_main_with_timestamp(base_timestamp, NULL, 0);
+	bootblock_main_with_basetime(base_timestamp);
 };
 
 void bootblock_soc_early_init(void)

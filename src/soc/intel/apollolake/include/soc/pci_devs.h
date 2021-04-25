@@ -1,51 +1,42 @@
-/*
- * This file is part of the coreboot project.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef _SOC_APOLLOLAKE_PCI_DEVS_H_
 #define _SOC_APOLLOLAKE_PCI_DEVS_H_
 
 #include <device/pci_def.h>
 
-#define _SA_DEVFN(slot)		PCI_DEVFN(SA_DEV_SLOT_ ## slot, 0)
 #define _PCH_DEVFN(slot, func)	PCI_DEVFN(PCH_DEV_SLOT_ ## slot, func)
 
 #if !defined(__SIMPLE_DEVICE__)
 #include <device/device.h>
-#define _SA_DEV(slot)		dev_find_slot(0, _SA_DEVFN(slot))
-#define _PCH_DEV(slot, func)	dev_find_slot(0, _PCH_DEVFN(slot, func))
+#define _PCH_DEV(slot, func)	pcidev_path_on_root_debug(_PCH_DEVFN(slot, func), __func__)
 #else
-#define _SA_DEV(slot)		PCI_DEV(0, SA_DEV_SLOT_ ## slot, 0)
 #define _PCH_DEV(slot, func)	PCI_DEV(0, PCH_DEV_SLOT_ ## slot, func)
 #endif
 
 /* System Agent Devices */
 
 #define SA_DEV_SLOT_ROOT	0x00
-#define  SA_DEVFN_ROOT		_SA_DEVFN(ROOT)
-#define  SA_DEV_ROOT		_SA_DEV(ROOT)
+#define  SA_DEVFN_ROOT		PCI_DEVFN(SA_DEV_SLOT_ROOT, 0)
+#if defined(__SIMPLE_DEVICE__)
+#define  SA_DEV_ROOT		PCI_DEV(0, SA_DEV_SLOT_ROOT, 0)
+#endif
 
 #define SA_DEV_SLOT_PUNIT	0x01
-#define  SA_DEVFN_PUNIT		_SA_DEVFN(PUNIT)
-#define  SA_DEV_PUNIT		_SA_DEV(PUNIT)
+#define  SA_DEVFN_PUNIT		PCI_DEVFN(SA_DEV_SLOT_PUNIT, 0)
+#define  SA_DEV_PUNIT		PCI_DEV(0, SA_DEV_SLOT_PUNIT, 0)
 
 #define SA_DEV_SLOT_IGD		0x02
-#define  SA_DEVFN_IGD		_SA_DEVFN(IGD)
-#define  SA_DEV_IGD		_SA_DEV(IGD)
+#define  SA_DEVFN_IGD		PCI_DEVFN(SA_DEV_SLOT_IGD, 0)
+#define  SA_DEV_IGD		PCI_DEV(0, SA_DEV_SLOT_IGD, 0)
 
 #define SA_DEV_SLOT_IPU		0x03
-#define  SA_DEVFN_IPU		_SA_DEVFN(IPU)
-#define  SA_DEV_IPU		_SA_DEV(IPU)
+#define  SA_DEVFN_IPU		PCI_DEVFN(SA_DEV_SLOT_IPU, 0)
+#define  SA_DEV_IPU		PCI_DEV(0, SA_DEV_SLOT_IPU, 0)
+
+#define SA_GLK_DEV_SLOT_GMM	0x03
+#define SA_GLK_DEVFN_GMM	PCI_DEVFN(SA_GLK_DEV_SLOT_GMM, 0)
+#define SA_GLK_DEV_GMM		PCI_DEV(0, SA_GLK_DEV_SLOT_GMM, 0)
 
 /* PCH Devices */
 

@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef INTEL_COMMON_PMUTIL_H
 #define INTEL_COMMON_PMUTIL_H
@@ -39,7 +25,6 @@
 #define  GPI_IS_SMI		0x01
 #define  GPI_IS_SCI		0x02
 #define  GPI_IS_NMI		0x03
-
 
 #define MAINBOARD_POWER_OFF	0
 #define MAINBOARD_POWER_ON	1
@@ -138,13 +123,13 @@ void alt_gpi_mask(u16 clr, u16 set);
 void smi_set_eos(void);
 void dump_alt_gp_smi_status(u16 alt_gp_smi_sts);
 u16 reset_alt_gp_smi_status(void);
+void dump_all_status(void);
+
 void southbridge_smm_xhci_sleep(u8 slp_type);
 void gpi_route_interrupt(u8 gpi, u8 mode);
 void southbridge_gate_memory_reset(void);
-void southbridge_update_gnvs(u8 apm_cnt, int *smm_done);
 void southbridge_finalize_all(void);
 void southbridge_smi_monitor(void);
-em64t101_smm_state_save_area_t *smi_apmc_find_state_save(u8 cmd);
 void pch_log_state(void);
 
 #endif /*INTEL_COMMON_PMUTIL_H */

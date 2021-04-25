@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015 Timothy Pearson <tpearson@raptorengineeringinc.com>, Raptor Engineering
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* WARNING
  * Switchable graphics not yet tested!
@@ -39,19 +26,19 @@ Field (GPCM, ByteAcc, NoLock, Preserve) {
 
 Method(SHYB, 1) {
 	/* Switch hybrid graphics */
-	if (LEqual(Arg0, One))
+	if (Arg0 == One)
 	{
 		/* Discrete graphics requested */
-		Or(GPLV, HYG1, GPLV)
-		Or(GQLV, HYG2, GQLV)
+		GPLV |= HYG1
+		GQLV |= HYG2
 	}
 	else
 	{
 		/* Integrated graphics requested */
-		Xor(HYG1, 0xFFFFFFFF, Local0)
-		And(GPLV, Local0, GPLV)
-		Xor(HYG2, 0xFFFFFFFF, Local0)
-		And(GQLV, Local0, GQLV)
+		Local0 = HYG1 ^ 0xFFFFFFFF
+		GPLV &= Local0
+		Local0 = HYG2 ^ 0xFFFFFFFF
+		GQLV &= Local0
 	}
 }
 
@@ -63,26 +50,24 @@ Method (ATPX, 2, Serialized) {
 	})
 	CreateWordField (ATPR, 0x00, SIZE)
 	CreateWordField (ATPR, 0x02, VERS)
-	CreateDWordField (ATPR, 0x02, MASK)
 	CreateDWordField (ATPR, 0x04, FUNC)
-	CreateDWordField (ATPR, 0x06, FLAG)
 
 	/* Version request */
-	if (LEqual(Arg0, 0x0))
+	if (Arg0 == 0x0)
 	{
 		/* Assemble and return version information */
-		Store (0x08, SIZE)	/* Response length */
-		Store (0x01, VERS)	/* Version number */
-		Store (0x0F, FUNC)	/* Supported functions? */
+		SIZE = 0x08	/* Response length */
+		VERS = 0x01	/* Version number */
+		FUNC = 0x0F	/* Supported functions? */
 		Return (ATPR)
 	}
 
 	/* Mux select */
-	if (LEqual(Arg0, 0x2))
+	if (Arg0 == 0x2)
 	{
 		CreateByteField (Arg1, 0x02, PWST)
-		Store (PWST, Local0)
-		And (Local0, 0x01, Local0)
+		Local0 = PWST
+		Local0 &= 0x01
 		If (Local0)
 		{
 			/* Enable discrete graphics */

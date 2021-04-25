@@ -1,25 +1,11 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <bootstate.h>
 #include <cbmem.h>
 #include <console/console.h>
 #include <device/device.h>
 #include <device/pci_def.h>
-#include <device/pci_ops.h>
 #include <dimm_info_util.h>
 #include <memory_info.h>
 #include <lib.h>
@@ -179,12 +165,12 @@ static void agesawrapper_post_device(void *unused)
 	if (acpi_is_wakeup_s3())
 		return;
 
-	do_agesawrapper(agesawrapper_amdinitlate, "amdinitlate");
+	do_agesawrapper(AMD_INIT_LATE, "amdinitlate");
 
 	if (!acpi_s3_resume_allowed())
 		return;
 
-	do_agesawrapper(agesawrapper_amdinitrtb, "amdinitrtb");
+	do_agesawrapper(AMD_INIT_RTB, "amdinitrtb");
 }
 
 BOOT_STATE_INIT_ENTRY(BS_POST_DEVICE, BS_ON_EXIT, agesawrapper_post_device,

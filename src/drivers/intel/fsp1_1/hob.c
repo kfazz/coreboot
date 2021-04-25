@@ -1,22 +1,6 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013-2014 Sage Electronic Engineering, LLC.
- * Copyright (C) 2015 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/early_variables.h>
 #include <arch/hlt.h>
-#include <bootstate.h>
 #include <console/console.h>
 #include <fsp/util.h>
 #include <ip_checksum.h>
@@ -286,7 +270,7 @@ void print_hob_type_structure(u16 hob_type, void *hob_list_ptr)
 	 * the end of the HOB list
 	 */
 	printk(BIOS_DEBUG, "\n=== FSP HOB Data Structure ===\n");
-	printk(BIOS_DEBUG, "0x%p: hob_list_ptr\n", hob_list_ptr);
+	printk(BIOS_DEBUG, "%p: hob_list_ptr\n", hob_list_ptr);
 	do {
 		EFI_HOB_GENERIC_HEADER *current_header_ptr =
 			(EFI_HOB_GENERIC_HEADER *)current_hob;

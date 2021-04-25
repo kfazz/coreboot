@@ -1,4 +1,4 @@
-ifeq ($(CONFIG_SOC_INTEL_CANNONLAKE),y)
+ifeq ($(CONFIG_SOC_INTEL_CANNONLAKE_BASE),y)
 
 subdirs-y += romstage
 subdirs-y += ../../../cpu/intel/microcode
@@ -7,15 +7,14 @@ subdirs-y += ../../../cpu/x86/lapic
 subdirs-y += ../../../cpu/x86/mtrr
 subdirs-y += ../../../cpu/x86/smm
 subdirs-y += ../../../cpu/x86/tsc
+subdirs-y += ../../../cpu/intel/common
 
 bootblock-y += bootblock/bootblock.c
-bootblock-y += bootblock/cpu.c
 bootblock-y += bootblock/pch.c
 bootblock-y += pmutil.c
 bootblock-y += bootblock/report_platform.c
 bootblock-y += gspi.c
 bootblock-y += i2c.c
-bootblock-y += memmap.c
 bootblock-y += spi.c
 bootblock-y += lpc.c
 bootblock-y += p2sb.c
@@ -25,7 +24,6 @@ romstage-y += cnl_memcfg_init.c
 romstage-y += gspi.c
 romstage-y += i2c.c
 romstage-y += lpc.c
-romstage-y += memmap.c
 romstage-y += pmutil.c
 romstage-y += reset.c
 romstage-y += spi.c
@@ -34,6 +32,7 @@ romstage-y += uart.c
 ramstage-y += acpi.c
 ramstage-y += chip.c
 ramstage-y += cpu.c
+ramstage-y += dptf.c
 ramstage-y += elog.c
 ramstage-y += finalize.c
 ramstage-y += fsp_params.c
@@ -42,26 +41,26 @@ ramstage-y += gspi.c
 ramstage-y += i2c.c
 ramstage-y += lockdown.c
 ramstage-y += lpc.c
-ramstage-y += memmap.c
+ramstage-y += me.c
 ramstage-y += nhlt.c
 ramstage-y += p2sb.c
 ramstage-y += pmc.c
 ramstage-y += pmutil.c
-ramstage-$(CONFIG_PLATFORM_USES_FSP2_0) += reset.c
-ramstage-y += smmrelocate.c
+ramstage-y += reset.c
 ramstage-y += spi.c
 ramstage-y += systemagent.c
 ramstage-y += uart.c
 ramstage-y += vr_config.c
 ramstage-y += sd.c
+ramstage-y += xhci.c
 
 smm-y += elog.c
 smm-y += p2sb.c
 smm-y += pmutil.c
 smm-y += smihandler.c
 smm-y += uart.c
+smm-y += xhci.c
 
-postcar-y += memmap.c
 postcar-y += pmutil.c
 postcar-y += i2c.c
 postcar-y += gspi.c
@@ -88,10 +87,33 @@ smm-y += gpio.c
 verstage-y += gpio.c
 endif
 
-# Coffeelake U43e D0
-cpu_microcode_bins += 3rdparty/blobs/cpu/intel/model_806ex/microcode.bin
-# Coffeelake H/S/E3 B0 U0
-cpu_microcode_bins += 3rdparty/blobs/cpu/intel/model_906ex/microcode.bin
+bootblock-y += gpio_common.c
+ramstage-y += gpio_common.c
+
+ifeq ($(CONFIG_SOC_INTEL_CANNONLAKE),y)
+# Not yet in intel-microcode repo
+#cpu_microcode_bins += $(wildcard 3rdparty/intel-microcode/intel-ucode/06-66-*)
+else ifeq ($(CONFIG_SOC_INTEL_COFFEELAKE),y)
+ifeq ($(CONFIG_SOC_INTEL_CANNONLAKE_PCH_H),y)
+cpu_microcode_bins += 3rdparty/intel-microcode/intel-ucode/06-9e-0a
+cpu_microcode_bins += 3rdparty/intel-microcode/intel-ucode/06-9e-0b
+cpu_microcode_bins += 3rdparty/intel-microcode/intel-ucode/06-9e-0c
+cpu_microcode_bins += 3rdparty/intel-microcode/intel-ucode/06-9e-0d
+else
+cpu_microcode_bins += 3rdparty/intel-microcode/intel-ucode/06-8e-0a
+endif
+else ifeq ($(CONFIG_SOC_INTEL_WHISKEYLAKE),y)
+cpu_microcode_bins += 3rdparty/intel-microcode/intel-ucode/06-8e-0b
+cpu_microcode_bins += 3rdparty/intel-microcode/intel-ucode/06-8e-0c
+else ifeq ($(CONFIG_SOC_INTEL_COMETLAKE),y)
+ifeq ($(CONFIG_SOC_INTEL_CANNONLAKE_PCH_H),y)
+cpu_microcode_bins += 3rdparty/intel-microcode/intel-ucode/06-a5-02
+else
+# Missing 06-a6-01
+cpu_microcode_bins += 3rdparty/intel-microcode/intel-ucode/06-8e-0c
+cpu_microcode_bins += 3rdparty/intel-microcode/intel-ucode/06-a6-00
+endif
+endif
 
 CPPFLAGS_common += -I$(src)/soc/intel/cannonlake
 CPPFLAGS_common += -I$(src)/soc/intel/cannonlake/include

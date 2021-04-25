@@ -1,24 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Rockchip Inc.
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <assert.h>
 #include <bootblock_common.h>
 #include <delay.h>
-#include <reset.h>
 #include <soc/clock.h>
 #include <soc/i2c.h>
 #include <soc/grf.h>
@@ -43,8 +28,8 @@ void bootblock_mainboard_init(void)
 		reboot_from_watchdog();
 
 	/* Up VDD_CPU (BUCK1) to 1.4V to support max CPU frequency (1.8GHz). */
-	setbits_le32(&rk3288_pmu->iomux_i2c0scl, IOMUX_I2C0SCL);
-	setbits_le32(&rk3288_pmu->iomux_i2c0sda, IOMUX_I2C0SDA);
+	setbits32(&rk3288_pmu->iomux_i2c0scl, IOMUX_I2C0SCL);
+	setbits32(&rk3288_pmu->iomux_i2c0sda, IOMUX_I2C0SDA);
 	assert(CONFIG_PMIC_BUS == 0);	/* must correspond with IOMUX */
 	i2c_init(CONFIG_PMIC_BUS, 400*KHz);
 

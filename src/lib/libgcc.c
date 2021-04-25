@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <types.h>
 
@@ -20,8 +7,13 @@
  * <lib.h> in case GCC does not have an assembly version for this arch.
  */
 
-#if !CONFIG(ARCH_X86)	       /* work around lack of --gc-sections on x86 */ \
-	&& !CONFIG(ARCH_RISCV_RV32) /* defined in rv32 libgcc.a */
+/*
+ * FIXME
+ * work around lack of --gc-sections on x86
+ * defined in rv32 libgcc.a
+ */
+
+#if !ENV_X86 && !ENV_RISCV
 int __clzsi2(u32 a);
 int __clzsi2(u32 a)
 {

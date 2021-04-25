@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2007 Uwe Hermann <uwe@hermann-uwe.de>
  * Copyright (C) 2008 Ulf Jordan <jordan@chalmers.se>
@@ -163,7 +162,6 @@ chtype console_acs_map[128] =
 
 // FIXME: Ugly (and insecure!) hack!
 char sprintf_tmp[1024];
-
 
 int curses_flags = (F_ENABLE_CONSOLE | F_ENABLE_SERIAL);
 

@@ -1,42 +1,22 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- * Copyright (C) 2011 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <types.h>
+#include <cpu/x86/smm.h>
 #include <device/device.h>
-#include <device/pci_def.h>
-#include <device/pci_ops.h>
 #include <drivers/intel/gma/int15.h>
-#include <arch/acpi.h>
-#include <arch/io.h>
-#include <arch/interrupt.h>
-#include <boot/coreboot_tables.h>
+#include <acpi/acpi.h>
 #include "onboard.h"
 #include "ec.h"
 #include <southbridge/intel/bd82x6x/pch.h>
 #include <smbios.h>
-#include <device/pci.h>
 #include <ec/compal/ene932/ec.h>
 #include <vendorcode/google/chromeos/chromeos.h>
 
 void mainboard_suspend_resume(void)
 {
 	/* Enable ACPI mode before OS resume */
-	outb(0xe1, 0xb2);
+	apm_control(APM_CNT_ACPI_ENABLE);
 }
-
 
 static void mainboard_init(struct device *dev)
 {
@@ -57,7 +37,8 @@ static int parrot_onboard_smbios_data(struct device *dev, int *handle,
 			0,				/* segment */
 			BOARD_TRACKPAD_I2C_ADDR,	/* bus */
 			0,				/* device */
-			0);				/* function */
+			0,				/* function */
+			SMBIOS_DEVICE_TYPE_OTHER);	/* device type */
 	} else {
 		len += smbios_write_type41(
 			current, handle,
@@ -66,7 +47,8 @@ static int parrot_onboard_smbios_data(struct device *dev, int *handle,
 			0,				/* segment */
 			BOARD_TRACKPAD_I2C_ADDR,	/* bus */
 			0,				/* device */
-			0);				/* function */
+			0,				/* function */
+			SMBIOS_DEVICE_TYPE_OTHER);	/* device type */
 	}
 
 	return len;
@@ -79,7 +61,7 @@ static void mainboard_enable(struct device *dev)
 {
 	dev->ops->init = mainboard_init;
 	dev->ops->get_smbios_data = parrot_onboard_smbios_data;
-	dev->ops->acpi_inject_dsdt_generator = chromeos_dsdt_generator;
+	dev->ops->acpi_inject_dsdt = chromeos_dsdt_generator;
 	install_intel_vga_int15_handler(GMA_INT15_ACTIVE_LFP_EDP, GMA_INT15_PANEL_FIT_DEFAULT, GMA_INT15_BOOT_DISPLAY_DEFAULT, 0);
 }
 

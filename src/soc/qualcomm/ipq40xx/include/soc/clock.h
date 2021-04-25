@@ -1,37 +1,11 @@
-/*
- * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
- * Source : APQ8064 LK Boot
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above
- *       copyright notice, this list of conditions and the following
- *       disclaimer in the documentation and/or other materials provided
- *       with the distribution.
- *     * Neither the name of The Linux Foundation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+/* Source : APQ8064 LK Boot */
+/* SPDX-License-Identifier: BSD-3-Clause */
 
 #ifndef __IPQ40XX_CLOCK_H_
 #define __IPQ40XX_CLOCK_H_
 
 #include <soc/iomap.h>
+#include <types.h>
 
 /* UART clock @ 7.3728 MHz */
 #define UART_DM_CLK_RX_TX_BIT_RATE 0xFF
@@ -201,7 +175,6 @@
 #define GMAC_COREn_CLCK_INV_DISABLE		(0 << 5)
 #define GMAC_COREn_CLCK_BRANCH_ENA		(1 << 4)
 
-
 /* Uart specific clock settings */
 
 void uart_pll_vote_clk_enable(unsigned int);
@@ -209,8 +182,7 @@ void uart_clock_config(unsigned int blsp_uart, unsigned int m, unsigned int n,
 		unsigned int d);
 void nand_clock_config(void);
 void usb_clock_config(void);
-int audio_clock_config(unsigned frequency);
+int audio_clock_config(unsigned int frequency);
 int blsp_i2c_clock_config(blsp_qup_id_t id);
-
 
 #endif  /*  __PLATFORM_IPQ40XX_CLOCK_H_ */

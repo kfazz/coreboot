@@ -13,7 +13,8 @@
 #ifndef VBE_H
 #define VBE_H
 
-#include <boot/coreboot_tables.h>
+#include <stdint.h>
+
 // these structs are for input from and output to OF
 typedef struct {
 	u8 display_type;	// 0 = NONE, 1 = analog, 2 = digital
@@ -33,18 +34,6 @@ typedef struct {
 	u16 max_screen_width;
 	u8 color_depth;
 } __packed screen_info_input_t;
-
-// these structs only store a subset of the VBE defined fields
-// only those needed.
-typedef struct {
-	char signature[4];
-	u16 version;
-	u8 *oem_string_ptr;
-	u32 capabilities;
-	u16 video_mode_list[256];	// lets hope we never have more than
-					// 256 video modes...
-	u16 total_memory;
-} vbe_info_t;
 
 typedef struct {
 	u16 mode_attributes; // 00
@@ -113,5 +102,11 @@ typedef struct {
 
 void vbe_set_graphics(void);
 void vbe_textmode_console(void);
+
+/**
+ * Returns the mode_info struct from the vbe context,
+ * if initialized. NULL on invalid mode_infos.
+ */
+const vbe_mode_info_t *vbe_mode_info(void);
 
 #endif // VBE_H

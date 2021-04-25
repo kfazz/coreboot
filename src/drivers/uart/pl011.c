@@ -1,29 +1,15 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google, Inc.
- * Copyright 2018-present Facebook, Inc.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <boot/coreboot_tables.h>
 #include <console/uart.h>
 #include <drivers/uart/pl011.h>
 
-void uart_init(int idx)
+void uart_init(unsigned int idx)
 {
 }
 
-void uart_tx_byte(int idx, unsigned char data)
+void uart_tx_byte(unsigned int idx, unsigned char data)
 {
 	struct pl011_uart *regs = uart_platform_baseptr(idx);
 
@@ -31,7 +17,7 @@ void uart_tx_byte(int idx, unsigned char data)
 	uart_tx_flush(idx);
 }
 
-void uart_tx_flush(int idx)
+void uart_tx_flush(unsigned int idx)
 {
 	struct pl011_uart *regs = uart_platform_baseptr(idx);
 
@@ -40,7 +26,7 @@ void uart_tx_flush(int idx)
 		;
 }
 
-unsigned char uart_rx_byte(int idx)
+unsigned char uart_rx_byte(unsigned int idx)
 {
 	struct pl011_uart *regs = uart_platform_baseptr(idx);
 
@@ -49,7 +35,6 @@ unsigned char uart_rx_byte(int idx)
 	return read8(&regs->dr);
 }
 
-#ifndef __PRE_RAM__
 void uart_fill_lb(void *data)
 {
 	struct lb_serial serial;
@@ -63,4 +48,3 @@ void uart_fill_lb(void *data)
 
 	lb_add_console(LB_TAG_CONSOLE_SERIAL8250MEM, data);
 }
-#endif

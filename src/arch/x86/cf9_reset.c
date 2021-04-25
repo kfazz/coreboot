@@ -1,24 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2017 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/io.h>
 #include <arch/cache.h>
 #include <cf9_reset.h>
 #include <console/console.h>
 #include <halt.h>
-#include <reset.h>
 
 /*
  * A system reset in terms of the CF9 register asserts the INIT#
@@ -38,7 +24,7 @@ void do_system_reset(void)
  * A full reset in terms of the CF9 register triggers a power cycle
  * (i.e. S0 -> S5 -> S0 transition). Thus, it could be called a
  * "cold reset".
- * Note: Not all x86 implementations comply with this defitinion,
+ * Note: Not all x86 implementations comply with this definition,
  *       some may require additional configuration to power cycle.
  */
 void do_full_reset(void)

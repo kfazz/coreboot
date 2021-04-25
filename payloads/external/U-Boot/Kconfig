@@ -1,6 +1,6 @@
 if PAYLOAD_UBOOT
 
-config PAYLOAD_SPECIFIC_OPTIONS # dummy
+config PAYLOAD_SPECIFIC_OPTIONS
 	def_bool y
 	select PAYLOAD_IS_FLAT_BINARY
 
@@ -9,7 +9,7 @@ choice
 	default UBOOT_STABLE
 
 config UBOOT_STABLE
-	bool "v2016.1"
+	bool "v2019.4"
 	help
 	  Stable U-Boot version
 

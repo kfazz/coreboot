@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- *               2012 secunet Security Networks AG
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/io.h>
 #include <device/mmio.h>
@@ -22,8 +7,11 @@
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
+#include <option.h>
+#include <types.h>
+
+#include "chip.h"
 #include "i82801ix.h"
-#include <pc80/mc146818rtc.h>
 
 typedef struct southbridge_intel_i82801ix_config config_t;
 
@@ -35,7 +23,7 @@ static void sata_enable_ahci_mmap(struct device *const dev, const u8 port_map,
 	struct resource *res;
 
 	/* Initialize AHCI memory-mapped space */
-	res = find_resource(dev, PCI_BASE_ADDRESS_5);
+	res = probe_resource(dev, PCI_BASE_ADDRESS_5);
 	if (!res)
 		return;
 
@@ -152,8 +140,8 @@ static void sata_init(struct device *const dev)
 	const config_t *const config = dev->chip_info;
 
 	const u16 devid = pci_read_config16(dev, PCI_DEVICE_ID);
-	const int is_mobile = (devid == 0x2928) || (devid == 0x2929);
-	u8 sata_mode;
+	const int is_mobile = (devid == PCI_DEVICE_ID_INTEL_82801IBM_IEM_SATA_IDE_P01) ||
+			      (devid == PCI_DEVICE_ID_INTEL_82801IBM_IEM_SATA_AHCI_P0145);
 
 	printk(BIOS_DEBUG, "i82801ix_sata: initializing...\n");
 
@@ -163,9 +151,8 @@ static void sata_init(struct device *const dev)
 		return;
 	}
 
-	if (get_option(&sata_mode, "sata_mode") != CB_SUCCESS)
-		/* Default to AHCI */
-		sata_mode = 0;
+	/* Default to AHCI */
+	u8 sata_mode = get_int_option("sata_mode", 0);
 
 	/*
 	 * TODO: In contrast to ICH7 and PCH code we don't set
@@ -216,8 +203,7 @@ static void sata_init(struct device *const dev)
 
 	if (is_mobile && config->sata_traffic_monitor) {
 		struct device *const lpc_dev = pcidev_on_root(0x1f, 0);
-		if (((pci_read_config8(lpc_dev, D31F0_CxSTATE_CNF)
-							>> 3) & 3) == 3) {
+		if (((pci_read_config8(lpc_dev, D31F0_CxSTATE_CNF) >> 3) & 3) == 3) {
 			u8 reg8 = pci_read_config8(dev, 0x9c);
 			reg8 &= ~(0x1f << 2);
 			reg8 |= 3 << 2;
@@ -237,14 +223,11 @@ static void sata_enable(struct device *dev)
 	const config_t *const config = dev->chip_info;
 
 	u16 map = 0;
-	u8 sata_mode;
 
 	if (!config)
 		return;
 
-	if (get_option(&sata_mode, "sata_mode") != CB_SUCCESS)
-		/* Default to AHCI */
-		sata_mode = 0;
+	u8 sata_mode = get_int_option("sata_mode", 0);
 
 	/*
 	 * Set SATA controller mode early so the resource allocator can
@@ -258,23 +241,22 @@ static void sata_enable(struct device *dev)
 	pci_write_config16(dev, 0x90, map);
 }
 
-static struct pci_operations sata_pci_ops = {
-	.set_subsystem    = pci_dev_set_subsystem,
-};
-
 static struct device_operations sata_ops = {
 	.read_resources		= pci_dev_read_resources,
 	.set_resources		= pci_dev_set_resources,
 	.enable_resources	= pci_dev_enable_resources,
 	.init			= sata_init,
 	.enable			= sata_enable,
-	.scan_bus		= 0,
-	.ops_pci		= &sata_pci_ops,
+	.ops_pci		= &pci_dev_ops_pci,
 };
 
 static const unsigned short pci_device_ids[] = {
-	0x2920, 0x2921, 0x2922, 0x2923,
-	0x2928, 0x2929,
+	PCI_DEVICE_ID_INTEL_82801IB_SATA_P0123,
+	PCI_DEVICE_ID_INTEL_82801IB_SATA_P01,
+	PCI_DEVICE_ID_INTEL_82801IB_SATA_AHCI1,
+	PCI_DEVICE_ID_INTEL_82801IB_SATA_AHCI2,
+	PCI_DEVICE_ID_INTEL_82801IBM_IEM_SATA_IDE_P01,
+	PCI_DEVICE_ID_INTEL_82801IBM_IEM_SATA_AHCI_P0145,
 	0,
 };
 

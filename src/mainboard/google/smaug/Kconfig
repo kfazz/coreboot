@@ -1,17 +1,4 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright 2015 Google Inc.
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+## SPDX-License-Identifier: GPL-2.0-only
 
 if BOARD_GOOGLE_SMAUG
 
@@ -31,6 +18,7 @@ config BOARD_SPECIFIC_OPTIONS
 	select MAINBOARD_HAS_CHROMEOS
 	select MAINBOARD_HAS_I2C_TPM_GENERIC
 	select MAINBOARD_HAS_TPM1
+	select DRIVERS_TI_TPS65913_RTC
 
 config VBOOT
 	select EC_GOOGLE_CHROMEEC_SWITCHES
@@ -38,7 +26,7 @@ config VBOOT
 
 config MAINBOARD_DIR
 	string
-	default google/smaug
+	default "google/smaug"
 
 config MAINBOARD_PART_NUMBER
 	string
@@ -86,8 +74,12 @@ config EC_GOOGLE_CHROMEEC_I2C_BUS
 	hex
 	default 0x1
 
-config GBB_HWID
-	string
-	depends on CHROMEOS
-	default "SMAUG TEST 2906"
+config DRIVERS_TI_TPS65913_RTC_BUS
+	int
+	default 4
+
+config DRIVERS_TI_TPS65913_RTC_ADDR
+	hex
+	default 0x58
+
 endif # BOARD_GOOGLE_SMAUG

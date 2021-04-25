@@ -1,22 +1,6 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- * Copyright (C) 2015 Damien Zammit <damien@zamaudio.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include "hostbridge.asl"
-#include "../iomap.h"
 
 /* PCI Device Resource Consumption */
 Device (PDRC)
@@ -25,11 +9,11 @@ Device (PDRC)
 	Name (_UID, 1)
 
 	Name (PDRS, ResourceTemplate() {
-		Memory32Fixed(ReadWrite, 0xfed1c000, 0x00004000) // RCBA
-		Memory32Fixed(ReadWrite, DEFAULT_MCHBAR,   0x00004000)
-		Memory32Fixed(ReadWrite, DEFAULT_DMIBAR,   0x00001000)
-		Memory32Fixed(ReadWrite, DEFAULT_EPBAR,    0x00001000)
-		Memory32Fixed(ReadWrite, CONFIG_MMCONF_BASE_ADDRESS, 0x04000000)
+		Memory32Fixed(ReadWrite, CONFIG_FIXED_RCBA_MMIO_BASE, CONFIG_RCBA_LENGTH)
+		Memory32Fixed(ReadWrite, CONFIG_FIXED_MCHBAR_MMIO_BASE, 0x00004000)
+		Memory32Fixed(ReadWrite, CONFIG_FIXED_DMIBAR_MMIO_BASE, 0x00001000)
+		Memory32Fixed(ReadWrite, CONFIG_FIXED_EPBAR_MMIO_BASE,  0x00001000)
+		Memory32Fixed(ReadWrite, CONFIG_MMCONF_BASE_ADDRESS, CONFIG_MMCONF_LENGTH)
 		Memory32Fixed(ReadWrite, 0xfed20000, 0x00020000) // Misc ICH
 		Memory32Fixed(ReadWrite, 0xfed40000, 0x00005000) // Misc ICH
 		Memory32Fixed(ReadWrite, 0xfed45000, 0x0004b000) // Misc ICH
@@ -46,4 +30,4 @@ Device (PDRC)
 #include "peg.asl"
 
 // Integrated graphics 0:2.0
-#include <drivers/intel/gma/acpi/non-pch.asl>
+#include <drivers/intel/gma/acpi/gfx.asl>

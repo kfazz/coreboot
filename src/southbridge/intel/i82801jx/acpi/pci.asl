@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 // Intel PCI to PCI bridge 0:1e.0
 
@@ -59,7 +45,7 @@ Device (PCIB)
 	// TODO: How many slots, where?
 
 	// PCI Interrupt Routing.
-	// If PICM is set, interrupts are routed over the i8259, otherwise
+	// If PICM is _not_ set, interrupts are routed over the i8259, otherwise
 	// over the IOAPIC. (Really? If they're above 15 they need to be routed
 	// fixed over the IOAPIC?)
 

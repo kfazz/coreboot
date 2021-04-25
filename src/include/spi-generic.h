@@ -1,24 +1,30 @@
-/*
- * (C) Copyright 2001
- * Gerald Van Baren, Custom IDEAS, vanbaren@cideas.com.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef _SPI_GENERIC_H_
 #define _SPI_GENERIC_H_
 
+/* Common parameters -- kind of high, but they should only occur when there
+ * is a problem (and well your system already is broken), so err on the side
+ * of caution in case we're dealing with slower SPI buses and/or processors.
+ */
+#define SPI_FLASH_PROG_TIMEOUT_MS		200
+#define SPI_FLASH_PAGE_ERASE_TIMEOUT_MS		500
+
 #include <commonlib/region.h>
 #include <stdint.h>
 #include <stddef.h>
+
+/* SPI vendor IDs */
+#define VENDOR_ID_ADESTO			0x1f
+#define VENDOR_ID_AMIC				0x37
+#define VENDOR_ID_ATMEL				0x1f
+#define VENDOR_ID_EON				0x1c
+#define VENDOR_ID_GIGADEVICE			0xc8
+#define VENDOR_ID_MACRONIX			0xc2
+#define VENDOR_ID_SPANSION			0x01
+#define VENDOR_ID_SST				0xbf
+#define VENDOR_ID_STMICRO			0x20
+#define VENDOR_ID_WINBOND			0xef
 
 /* Controller-specific definitions: */
 
@@ -125,6 +131,7 @@ enum {
  * setup:		Setup given SPI device bus.
  * xfer:		Perform one SPI transfer operation.
  * xfer_vector:	Vector of SPI transfer operations.
+ * xfer_dual:		(optional) Perform one SPI transfer in Dual SPI mode.
  * max_xfer_size:	Maximum transfer size supported by the controller
  *			(0 = invalid,
  *			 SPI_CTRLR_DEFAULT_MAX_XFER_SIZE = unlimited)
@@ -145,6 +152,8 @@ struct spi_ctrlr {
 		    size_t bytesout, void *din, size_t bytesin);
 	int (*xfer_vector)(const struct spi_slave *slave,
 			struct spi_op vectors[], size_t count);
+	int (*xfer_dual)(const struct spi_slave *slave, const void *dout,
+			 size_t bytesout, void *din, size_t bytesin);
 	uint32_t max_xfer_size;
 	uint32_t flags;
 	int (*flash_probe)(const struct spi_slave *slave,
@@ -242,7 +251,7 @@ void spi_release_bus(const struct spi_slave *slave);
  *   din:	Pointer to a string of bytes that will be filled in.
  *   bytesin:	How many bytes to read.
  *
- * Note that din and dout are transferred simulataneously in a full duplex
+ * Note that din and dout are transferred simultaneously in a full duplex
  * transaction. The number of clocks within one transaction is calculated
  * as: MAX(bytesout*8, bytesin*8).
  *

@@ -1,27 +1,12 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Advanced Micro Devices, Inc.
- * Copyright (C) 2015 Sergej Ivanov <getinaks@gmail.com>
- * Copyright (C) 2018 Gergely Kiss <mail.gery@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/azalia.h>
 #include <AGESA.h>
+#include <console/console.h>
 #include <northbridge/amd/agesa/BiosCallOuts.h>
 #include <northbridge/amd/agesa/state_machine.h>
 #include <FchPlatform.h>
-#include <stdlib.h>
-#include <pc80/mc146818rtc.h>
+#include <option.h>
 #include <types.h>
 
 const BIOS_CALLOUT_STRUCT BiosCallouts[] =
@@ -102,12 +87,7 @@ void board_FCH_InitReset(struct sysinfo *cb_NA, FCH_RESET_DATA_BLOCK *FchParams_
 	FchParams_reset->Mode = 6;
 
 	/* Read SATA speed setting from CMOS */
-	enum cb_err ret;
-	ret = get_option(&FchParams_reset->SataSetMaxGen2, "sata_speed");
-	if (ret != CB_SUCCESS) {
-		FchParams_reset->SataSetMaxGen2 = 0;
-		printk(BIOS_DEBUG, "ERROR: cannot read CMOS setting, falling back to default. Error code: %x\n", (int)ret);
-	}
+	FchParams_reset->SataSetMaxGen2 = get_int_option("sata_speed", 0);
 	printk(BIOS_DEBUG, "Force SATA 3Gbps mode = %x\n", FchParams_reset->SataSetMaxGen2);
 }
 
@@ -122,14 +102,8 @@ void board_FCH_InitEnv(struct sysinfo *cb_NA, FCH_DATA_BLOCK *FchParams_env)
 	FchParams_env->Hwm.HwmFchtsiAutoPoll = FALSE;/* 1 enable, 0 disable TSI Auto Polling */
 
 	/* Read SATA controller mode from CMOS */
-	enum cb_err ret;
-	ret = get_option(&FchParams_env->Sata.SataClass, "sata_mode");
-	if (ret != CB_SUCCESS) {
-		FchParams_env->Sata.SataClass = 0;
-		printk(BIOS_DEBUG, "ERROR: cannot read CMOS setting, falling back to default. Error code: %x\n", (int)ret);
-	}
+	FchParams_env->Sata.SataClass = get_int_option("sata_mode", 0);
 
-	// code from olivehillplus (ft3b) - only place where sata is configured
 	switch ((SATA_CLASS)FchParams_env->Sata.SataClass) {
 	case SataLegacyIde:
 	case SataRaid:

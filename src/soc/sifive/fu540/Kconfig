@@ -1,15 +1,4 @@
-# This file is part of the coreboot project.
-#
-# Copyright (C) 2018 Jonathan Neuschäfer
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# SPDX-License-Identifier: GPL-2.0-only
 
 config SOC_SIFIVE_FU540
 	bool
@@ -22,12 +11,15 @@ config SOC_SIFIVE_FU540
 	select ARCH_ROMSTAGE_RISCV
 	select ARCH_RAMSTAGE_RISCV
 	select DRIVERS_UART_SIFIVE
-	select GENERIC_UDELAY
-	select HAVE_MONOTONIC_TIMER
 	select RISCV_USE_ARCH_TIMER
 	select UART_OVERRIDE_REFCLK
+	select RISCV_HAS_OPENSBI
 
 if SOC_SIFIVE_FU540
+
+config MEMLAYOUT_LD_FILE
+	string
+	default "src/soc/sifive/fu540/memlayout.ld"
 
 config RISCV_ARCH
 	string
@@ -49,4 +41,11 @@ config RISCV_WORKING_HARTID
 	int
 	default 0
 
+config OPENSBI_PLATFORM
+	string
+	default "sifive/fu540"
+
+config OPENSBI_TEXT_START
+	hex
+	default 0x80000000
 endif

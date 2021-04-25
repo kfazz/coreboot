@@ -1,24 +1,11 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Siemens AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _I2C_RX6110SA_H_
 #define _I2C_RX6110SA_H_
 
-/* The address of this RTC is fixed. */
-#define RX6110SA_SLAVE_ADR		0x32
-#define RX6110SA_I2C_CONTROLLER		0
+#define RX6110SA_ACPI_NAME		"ERX6"
+#define RX6110SA_HID_NAME		"SECC6110"
+#define RX6110SA_HID_DESC		"Real Time Clock"
 
 /* Register layout */
 #define SECOND_REG			0x10

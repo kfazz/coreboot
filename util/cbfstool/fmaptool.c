@@ -1,17 +1,5 @@
-/*
- * fmaptool, CLI utility for converting plaintext fmd files into fmap blobs
- *
- * Copyright (C) 2015 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* fmaptool, CLI utility for converting plaintext fmd files into fmap blobs */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include "common.h"
 #include "cbfs_sections.h"
@@ -24,6 +12,13 @@
 #define STDIN_FILENAME_SENTINEL "-"
 
 #define HEADER_FMAP_OFFSET "FMAP_OFFSET"
+#define HEADER_FMAP_SIZE "FMAP_SIZE"
+
+/*
+ * Macro name used in the generated C header file to provide list of section names that do not
+ * have any sub-sections.
+ */
+#define HEADER_FMAP_TERMINAL_SECTIONS "FMAP_TERMINAL_SECTIONS"
 
 enum fmaptool_return {
 	FMAPTOOL_EXIT_SUCCESS = 0,
@@ -82,8 +77,46 @@ static void list_cbfs_section_names(FILE *out)
 	fputc('\n', out);
 }
 
+static void write_header_fmap_terminal_section_names(FILE *header,
+						     const struct flashmap_descriptor *root)
+{
+	assert(root);
+
+	if (root->list_len == 0) {
+		fprintf(header, "%s ", root->name);
+		return;
+	}
+
+	fmd_foreach_child(child, root)
+		write_header_fmap_terminal_section_names(header, child);
+}
+
+static void write_header_fmap_sections(FILE *header, const struct flashmap_descriptor *root,
+				       unsigned int offset)
+{
+	assert(root);
+	/*
+	 * The offset may only be unknown for the root node in a system where the flash isn't
+	 * memory-mapped.
+	 */
+	if (!root->offset_known && offset != 0)
+		return;
+
+	const unsigned int current_offset = offset + (root->offset_known ? root->offset : 0);
+	fprintf(header, "#define FMAP_SECTION_%s_START %#x\n", root->name, current_offset);
+
+	if (!root->size_known)
+		return;
+
+	fprintf(header, "#define FMAP_SECTION_%s_SIZE %#x\n", root->name, root->size);
+
+	fmd_foreach_child(child, root)
+		write_header_fmap_sections(header, child, current_offset);
+}
+
 static bool write_header(const char *out_fname,
-					const struct flashmap_descriptor *root)
+			 const struct flashmap_descriptor *root,
+			 const int fmap_size)
 {
 	assert(out_fname);
 
@@ -100,21 +133,15 @@ static bool write_header(const char *out_fname,
 
 	fputs("#ifndef FMAPTOOL_GENERATED_HEADER_H_\n", header);
 	fputs("#define FMAPTOOL_GENERATED_HEADER_H_\n\n", header);
-	fprintf(header, "#define %s %#x\n\n", HEADER_FMAP_OFFSET, fmap_offset);
+	fprintf(header, "#define %s %#x\n", HEADER_FMAP_OFFSET, fmap_offset);
+	fprintf(header, "#define %s %#x\n\n", HEADER_FMAP_SIZE, fmap_size);
 
-	/* also add defines for each CBFS-carrying fmap region: base and size */
-	cbfs_section_iterator_t cbfs_it = cbfs_sections_iterator();
-	while (cbfs_it) {
-		const struct flashmap_descriptor *item =
-				cbfs_sections_iterator_deref(cbfs_it);
-		assert(item->offset_known && item->size_known);
-		unsigned abs_base = fmd_calc_absolute_offset(root, item->name);
-		fprintf(header, "#define ___FMAP__%s_BASE 0x%x\n",
-			item->name, abs_base);
-		fprintf(header, "#define ___FMAP__%s_SIZE 0x%x\n",
-			item->name, item->size);
-		cbfs_sections_iterator_advance(&cbfs_it);
-	}
+	fprintf(header, "#define %s \"", HEADER_FMAP_TERMINAL_SECTIONS);
+	write_header_fmap_terminal_section_names(header, root);
+	fprintf(header, "\"\n\n");
+
+	write_header_fmap_sections(header, root, 0);
+	fputs("\n", header);
 
 	fputs("#endif\n", header);
 
@@ -245,7 +272,7 @@ int main(int argc, char **argv)
 	fmap_destroy(flashmap);
 
 	if (args.header_filename &&
-			!write_header(args.header_filename, descriptor)) {
+			!write_header(args.header_filename, descriptor, size)) {
 		full_fmd_cleanup(&descriptor);
 		return FMAPTOOL_EXIT_FAILED_WRITING_HEADER;
 	}

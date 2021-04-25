@@ -1,20 +1,7 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Advanced Micro Devices, Inc.
- * Copyright (C) 2013 Sage Electronic Engineering, LLC
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <cbfs.h>
+#include <console/console.h>
 #include <cpu/x86/lapic.h>
 #include <cpu/x86/mp.h>
 #include <timer.h>
@@ -149,9 +136,8 @@ AGESA_STATUS agesa_GfxGetVbiosImage(uint32_t Func, uintptr_t FchData,
 	GFX_VBIOS_IMAGE_INFO *pVbiosImageInfo;
 
 	pVbiosImageInfo = (GFX_VBIOS_IMAGE_INFO *)ConfigPrt;
-	pVbiosImageInfo->ImagePtr = cbfs_boot_map_with_leak(
-			"pci"CONFIG_VGA_BIOS_ID".rom",
-			CBFS_TYPE_OPTIONROM, NULL);
+	pVbiosImageInfo->ImagePtr = cbfs_map(
+			"pci"CONFIG_VGA_BIOS_ID".rom", NULL);
 	printk(BIOS_DEBUG, "%s: IMGptr=%p\n", __func__,
 			pVbiosImageInfo->ImagePtr);
 	return pVbiosImageInfo->ImagePtr ? AGESA_SUCCESS : AGESA_WARNING;
@@ -197,7 +183,7 @@ static void callout_ap_entry(void *unused)
 {
 	AGESA_STATUS Status = AGESA_UNSUPPORTED;
 
-	printk(BIOS_DEBUG, "%s Func: 0x%x,  Data: 0x%lx, Ptr: 0x%p\n",
+	printk(BIOS_DEBUG, "%s Func: 0x%x,  Data: 0x%lx, Ptr: %p\n",
 		__func__, agesadata.Func, agesadata.Data, agesadata.ConfigPtr);
 
 	/* Check if this AP should run the function */
@@ -208,7 +194,7 @@ static void callout_ap_entry(void *unused)
 	Status = amd_late_run_ap_task(agesadata.ConfigPtr);
 
 	if (Status)
-		printk(BIOS_DEBUG, "There was a problem with %lx returned %s\n",
+		printk(BIOS_DEBUG, "There was a problem with %x returned %s\n",
 			lapicid(), decodeAGESA_STATUS(Status));
 }
 
@@ -219,8 +205,8 @@ AGESA_STATUS agesa_RunFuncOnAp(uint32_t Func, uintptr_t Data, void *ConfigPtr)
 	agesadata.Func = Func;
 	agesadata.Data = Data;
 	agesadata.ConfigPtr = ConfigPtr;
-	mp_run_on_aps(callout_ap_entry, NULL, MP_RUN_ON_ALL_CPUS,
-			100 * USECS_PER_MSEC);
+	if (mp_run_on_aps(callout_ap_entry, NULL, MP_RUN_ON_ALL_CPUS, 100 * USECS_PER_MSEC))
+		return AGESA_ERROR;
 
 	return AGESA_SUCCESS;
 }
@@ -233,8 +219,8 @@ AGESA_STATUS agesa_RunFcnOnAllAps(uint32_t Func, uintptr_t Data,
 	agesadata.Func = Func;
 	agesadata.Data = Data;
 	agesadata.ConfigPtr = ConfigPtr;
-	mp_run_on_aps(callout_ap_entry, NULL, MP_RUN_ON_ALL_CPUS,
-			100 * USECS_PER_MSEC);
+	if (mp_run_on_aps(callout_ap_entry, NULL, MP_RUN_ON_ALL_CPUS, 100 * USECS_PER_MSEC))
+		return AGESA_ERROR;
 
 	return AGESA_SUCCESS;
 }

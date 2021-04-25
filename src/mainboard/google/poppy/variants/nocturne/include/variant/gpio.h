@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __BASEBOARD_GPIO_H__
 #define __BASEBOARD_GPIO_H__
@@ -34,8 +21,11 @@
 /* EC wake is LAN_WAKE# which is a special DeepSX wake pin */
 #define GPE_EC_WAKE		GPE0_LAN_WAK
 
-/* EC sync irq is GPP_D12 */
+/* EC sync irq is tied to GPP_D17 */
 #define EC_SYNC_IRQ		GPP_D17_IRQ
+
+/* EC sync gpio */
+#define EC_SYNC_GPIO		GPP_D17
 
 /* eSPI virtual wire reporting */
 #define EC_SCI_GPI		GPE0_ESPI

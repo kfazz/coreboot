@@ -1,18 +1,5 @@
-/*
- * inteltool - dump all registers on an Intel CPU + chipset based system.
- *
- * Copyright (C) 2008-2010 by coresystems GmbH
- * Copyright (C) 2012 Anton Kochkov
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* inteltool - dump all registers on an Intel CPU + chipset based system */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,8 +26,8 @@ int print_gfx(struct pci_dev *gfx)
 		exit(1);
 	}
 	for (i = 0; i < MMIO_SIZE; i += 4) {
-		if (*(uint32_t *)(mmio + i))
-			printf("0x%06x: 0x%08x\n", i, *(uint32_t *)(mmio + i));
+		if (read32(mmio + i))
+			printf("0x%06x: 0x%08x\n", i, read32(mmio + i));
 	}
 	unmap_physical((void *)mmio, MMIO_SIZE);
 	return 0;

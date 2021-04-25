@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2016 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <baseboard/variants.h>
 #include <gpio.h>
@@ -140,9 +127,23 @@ static const struct lpddr4_sku skus[] = {
 	/* K4F6E3S4HM-MGCJ - both logical channels  */
 	[7] = {
 		.speed = LP4_SPEED_2400,
+		.ch0_rank_density = LP4_16Gb_DENSITY,
+		.ch1_rank_density = LP4_16Gb_DENSITY,
+		.part_num = "K4F6E3S4HM-MGCJ",
+	},
+	/* K4F8E3S4HD-MGCL - both logical channels  */
+	[8] = {
+		.speed = LP4_SPEED_2400,
 		.ch0_rank_density = LP4_8Gb_DENSITY,
 		.ch1_rank_density = LP4_8Gb_DENSITY,
-		.part_num = "K4F6E3S4HM-MGCJ",
+		.part_num = "K4F8E3S4HD-MGCL",
+	},
+	/* NT6AN256T32AV-J2 - both logical channels */
+	[9] = {
+		.speed = LP4_SPEED_2400,
+		.ch0_rank_density = LP4_8Gb_DENSITY,
+		.ch1_rank_density = LP4_8Gb_DENSITY,
+		.part_num = "NT6AN256T32AV-J2",
 	},
 };
 

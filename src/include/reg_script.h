@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef REG_SCRIPT_H
 #define REG_SCRIPT_H
@@ -368,9 +355,7 @@ struct reg_script_bus_entry {
 #define REG_RES_XOR32(bar_, reg_, value_) \
 	REG_RES_RXW32(bar_, reg_, 0xffffffff, value_)
 
-
-#if CONFIG(SOC_INTEL_BAYTRAIL) || \
-CONFIG(SOC_INTEL_FSP_BAYTRAIL)
+#if CONFIG(SOC_INTEL_BAYTRAIL)
 /*
  * IO Sideband Function
  */
@@ -394,7 +379,7 @@ CONFIG(SOC_INTEL_FSP_BAYTRAIL)
 	REG_SCRIPT_IOSF(POLL, unit_, reg_, mask_, value_, timeout_)
 #define REG_IOSF_XOR(unit_, reg_, value_) \
 	REG_IOSF_RXW(unit_, reg_, 0xffffffff, value_)
-#endif	/* CONFIG_SOC_INTEL_BAYTRAIL || CONFIG_SOC_INTEL_FSP_BAYTRAIL*/
+#endif	/* CONFIG_SOC_INTEL_BAYTRAIL */
 
 /*
  * CPU Model Specific Register

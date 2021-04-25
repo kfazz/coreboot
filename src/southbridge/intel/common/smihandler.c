@@ -1,35 +1,21 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <types.h>
 #include <arch/io.h>
 #include <device/pci_ops.h>
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <console/console.h>
 #include <cpu/x86/cache.h>
 #include <device/pci_def.h>
 #include <cpu/x86/smm.h>
+#include <cpu/intel/em64t101_save_state.h>
 #include <elog.h>
 #include <halt.h>
-#include <pc80/mc146818rtc.h>
+#include <option.h>
 #include <southbridge/intel/common/pmbase.h>
+#include <smmstore.h>
 
 #include "pmutil.h"
-
-static int smm_initialized = 0;
 
 u16 get_pmbase(void)
 {
@@ -72,7 +58,7 @@ static void busmaster_disable_on_bus(int bus)
 
 	for (slot = 0; slot < 0x20; slot++) {
 		for (func = 0; func < 8; func++) {
-			u32 reg32;
+			u16 reg16;
 			pci_devfn_t dev = PCI_DEV(bus, slot, func);
 
 			val = pci_read_config32(dev, PCI_VENDOR_ID);
@@ -82,9 +68,9 @@ static void busmaster_disable_on_bus(int bus)
 				continue;
 
 			/* Disable Bus Mastering for this one device */
-			reg32 = pci_read_config32(dev, PCI_COMMAND);
-			reg32 &= ~PCI_COMMAND_MASTER;
-			pci_write_config32(dev, PCI_COMMAND, reg32);
+			reg16 = pci_read_config16(dev, PCI_COMMAND);
+			reg16 &= ~PCI_COMMAND_MASTER;
+			pci_write_config16(dev, PCI_COMMAND, reg16);
 
 			/* If this is a bridge, then follow it. */
 			hdr = pci_read_config8(dev, PCI_HEADER_TYPE);
@@ -107,40 +93,43 @@ __weak void southbridge_smm_xhci_sleep(u8 slp_type)
 {
 }
 
-
-static void southbridge_smi_sleep(void)
+static int power_on_after_fail(void)
 {
-	u8 reg8;
-	u32 reg32;
-	u8 slp_typ;
-	u8 s5pwr = CONFIG_MAINBOARD_POWER_FAILURE_STATE;
-
-	// save and recover RTC port values
+	/* save and recover RTC port values */
 	u8 tmp70, tmp72;
 	tmp70 = inb(0x70);
 	tmp72 = inb(0x72);
-	get_option(&s5pwr, "power_on_after_fail");
+	const int s5pwr = get_int_option("power_on_after_fail",
+					 CONFIG_MAINBOARD_POWER_FAILURE_STATE);
 	outb(tmp70, 0x70);
 	outb(tmp72, 0x72);
+
+	/* For "KEEP", switch to "OFF" - KEEP is software emulated. */
+	return (s5pwr == MAINBOARD_POWER_ON);
+}
+
+static void southbridge_smi_sleep(void)
+{
+	u32 reg32;
+	u8 slp_typ;
 
 	/* First, disable further SMIs */
 	write_pmbase8(SMI_EN, read_pmbase8(SMI_EN) & ~SLP_SMI_EN);
 
 	/* Figure out SLP_TYP */
 	reg32 = read_pmbase32(PM1_CNT);
-	printk(BIOS_SPEW, "SMI#: SLP = 0x%08x\n", reg32);
 	slp_typ = acpi_sleep_from_pm1(reg32);
+
+	printk(BIOS_SPEW, "SMI#: SLP = 0x%08x, TYPE = 0x%02x\n", reg32, slp_typ);
 
 	southbridge_smm_xhci_sleep(slp_typ);
 
 	/* Do any mainboard sleep handling */
 	mainboard_smi_sleep(slp_typ);
 
-#if CONFIG(ELOG_GSMI)
 	/* Log S3, S4, and S5 entry */
 	if (slp_typ >= ACPI_S3)
-		elog_add_event_byte(ELOG_TYPE_ACPI_ENTER, slp_typ);
-#endif
+		elog_gsmi_add_event_byte(ELOG_TYPE_ACPI_ENTER, slp_typ);
 
 	/* Next, do the deed.
 	 */
@@ -169,16 +158,11 @@ static void southbridge_smi_sleep(void)
 
 		write_pmbase32(GPE0_EN, 0);
 
-		/* Always set the flag in case CMOS was changed on runtime. For
-		 * "KEEP", switch to "OFF" - KEEP is software emulated
-		 */
-		reg8 = pci_read_config8(PCI_DEV(0, 0x1f, 0), D31F0_GEN_PMCON_3);
-		if (s5pwr == MAINBOARD_POWER_ON) {
-			reg8 &= ~1;
-		} else {
-			reg8 |= 1;
-		}
-		pci_write_config8(PCI_DEV(0, 0x1f, 0), D31F0_GEN_PMCON_3, reg8);
+		/* Always set the flag in case CMOS was changed on runtime. */
+		if (power_on_after_fail())
+			pci_and_config8(PCI_DEV(0, 0x1f, 0), D31F0_GEN_PMCON_3, ~1);
+		else
+			pci_or_config8(PCI_DEV(0, 0x1f, 0), D31F0_GEN_PMCON_3, 1);
 
 		/* also iterates over all bridges on bus 0 */
 		busmaster_disable_on_bus(0);
@@ -213,7 +197,7 @@ static void southbridge_smi_sleep(void)
  * core in case we are not running on the same core that
  * initiated the IO transaction.
  */
-em64t101_smm_state_save_area_t *smi_apmc_find_state_save(u8 cmd)
+static em64t101_smm_state_save_area_t *smi_apmc_find_state_save(u8 cmd)
 {
 	em64t101_smm_state_save_area_t *state;
 	int node;
@@ -244,7 +228,6 @@ em64t101_smm_state_save_area_t *smi_apmc_find_state_save(u8 cmd)
 	return NULL;
 }
 
-#if CONFIG(ELOG_GSMI)
 static void southbridge_smi_gsmi(void)
 {
 	u32 *ret, *param;
@@ -265,7 +248,26 @@ static void southbridge_smi_gsmi(void)
 	/* drivers/elog/gsmi.c */
 	*ret = gsmi_exec(sub_command, param);
 }
-#endif
+
+static void southbridge_smi_store(void)
+{
+	u8 sub_command, ret;
+	em64t101_smm_state_save_area_t *io_smi =
+		smi_apmc_find_state_save(APM_CNT_SMMSTORE);
+	uintptr_t reg_rbx;
+
+	if (!io_smi)
+		return;
+	/* Command and return value in EAX */
+	sub_command = (io_smi->rax >> 8) & 0xff;
+
+	/* Parameter buffer in EBX */
+	reg_rbx = (uintptr_t)io_smi->rbx;
+
+	/* drivers/smmstore/smi.c */
+	ret = smmstore_exec(sub_command, (void *)reg_rbx);
+	io_smi->rax = ret;
+}
 
 static int mainboard_finalized = 0;
 
@@ -273,39 +275,13 @@ static void southbridge_smi_apmc(void)
 {
 	u8 reg8;
 
-	/* Emulate B2 register as the FADT / Linux expects it */
-
-	reg8 = inb(APM_CNT);
+	reg8 = apm_get_apmc();
 	switch (reg8) {
-	case APM_CNT_CST_CONTROL:
-		/* Calling this function seems to cause
-		 * some kind of race condition in Linux
-		 * and causes a kernel oops
-		 */
-		printk(BIOS_DEBUG, "C-state control\n");
-		break;
-	case APM_CNT_PST_CONTROL:
-		/* Calling this function seems to cause
-		 * some kind of race condition in Linux
-		 * and causes a kernel oops
-		 */
-		printk(BIOS_DEBUG, "P-state control\n");
-		break;
 	case APM_CNT_ACPI_DISABLE:
 		write_pmbase32(PM1_CNT, read_pmbase32(PM1_CNT) & ~SCI_EN);
-		printk(BIOS_DEBUG, "SMI#: ACPI disabled.\n");
 		break;
 	case APM_CNT_ACPI_ENABLE:
 		write_pmbase32(PM1_CNT, read_pmbase32(PM1_CNT) | SCI_EN);
-		printk(BIOS_DEBUG, "SMI#: ACPI enabled.\n");
-		break;
-	case APM_CNT_GNVS_UPDATE:
-		if (smm_initialized) {
-			printk(BIOS_DEBUG,
-				"SMI#: SMM structures already initialized!\n");
-			return;
-		}
-		southbridge_update_gnvs(reg8, &smm_initialized);
 		break;
 	case APM_CNT_FINALIZE:
 		if (mainboard_finalized) {
@@ -316,11 +292,14 @@ static void southbridge_smi_apmc(void)
 		southbridge_finalize_all();
 		mainboard_finalized = 1;
 		break;
-#if CONFIG(ELOG_GSMI)
 	case APM_CNT_ELOG_GSMI:
-		southbridge_smi_gsmi();
+		if (CONFIG(ELOG_GSMI))
+			southbridge_smi_gsmi();
 		break;
-#endif
+	case APM_CNT_SMMSTORE:
+		if (CONFIG(SMMSTORE))
+			southbridge_smi_store();
+		break;
 	}
 
 	mainboard_smi_apmc(reg8);
@@ -340,9 +319,7 @@ static void southbridge_smi_pm1(void)
 		// power button pressed
 		u32 reg32;
 		reg32 = (7 << 10) | (1 << 13);
-#if CONFIG(ELOG_GSMI)
-		elog_add_event(ELOG_TYPE_POWER_BUTTON);
-#endif
+		elog_gsmi_add_event(ELOG_TYPE_POWER_BUTTON);
 		write_pmbase32(PM1_CNT, reg32);
 	}
 }
@@ -383,8 +360,6 @@ static void southbridge_smi_mc(void)
 	printk(BIOS_DEBUG, "Microcontroller SMI.\n");
 }
 
-
-
 static void southbridge_smi_tco(void)
 {
 	u32 tco_sts;
@@ -398,7 +373,7 @@ static void southbridge_smi_tco(void)
 	if (tco_sts & (1 << 8)) { // BIOSWR
 		u8 bios_cntl;
 
-		bios_cntl = pci_read_config16(PCI_DEV(0, 0x1f, 0), 0xdc);
+		bios_cntl = pci_read_config8(PCI_DEV(0, 0x1f, 0), 0xdc);
 
 		if (bios_cntl & 1) {
 			/* BWE is RW, so the SMI was caused by a
@@ -412,13 +387,13 @@ static void southbridge_smi_tco(void)
 			 * box.
 			 */
 			printk(BIOS_DEBUG, "Switching back to RO\n");
-			pci_write_config32(PCI_DEV(0, 0x1f, 0), 0xdc,
+			pci_write_config8(PCI_DEV(0, 0x1f, 0), 0xdc,
 					(bios_cntl & ~1));
 		} /* No else for now? */
 	} else if (tco_sts & (1 << 3)) { /* TIMEOUT */
 		/* Handle TCO timeout */
 		printk(BIOS_DEBUG, "TCO Timeout.\n");
-	} else if (!tco_sts) {
+	} else {
 		dump_tco_status(tco_sts);
 	}
 }
@@ -475,14 +450,8 @@ static smi_handler_t southbridge_smi[32] = {
 
 /**
  * @brief Interrupt handler for SMI#
- * @param node
- * @param state_save
  */
-#if CONFIG(SMM_TSEG)
 void southbridge_smi_handler(void)
-#else
-void cpu_smi_handler(unsigned int node, smm_state_save_area_t *state_save)
-#endif
 {
 	int i, dump = 0;
 	u32 smi_sts;

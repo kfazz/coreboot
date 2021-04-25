@@ -1,39 +1,8 @@
-/*
- * Copyright (c) 2012 The Linux Foundation. All rights reserved.
- * Source : APQ8064 LK boot
- *
- * Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name of Google, Inc. nor the names of its contributors
- *    may be used to endorse or promote products derived from this
- *    software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
- * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- */
+/* Source : APQ8064 LK boot */
+/* SPDX-License-Identifier: BSD-3-Clause */
 
 #include <device/mmio.h>
 #include <boot/coreboot_tables.h>
-#include <console/console.h>
 #include <console/uart.h>
 #include <delay.h>
 #include <gpio.h>
@@ -41,14 +10,13 @@
 #include <soc/gsbi.h>
 #include <soc/ipq_uart.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 #define FIFO_DATA_SIZE	4
 
 typedef struct {
 	void *uart_dm_base;
 	void *uart_gsbi_base;
-	unsigned uart_gsbi;
+	unsigned int uart_gsbi;
 	uart_clk_mnd_t mnd_value;
 	gpio_func_data_t dbg_uart_gpio[NO_OF_DBG_UART_GPIOS];
 } uart_params_t;
@@ -192,10 +160,10 @@ msm_boot_uart_dm_read(unsigned int *data, int *count, int wait)
 }
 #endif
 
-void uart_tx_byte(int idx, unsigned char data)
+void uart_tx_byte(unsigned int idx, unsigned char data)
 {
 	int num_of_chars = 1;
-	unsigned tx_data = 0;
+	unsigned int tx_data = 0;
 	void *base = uart_board_param.uart_dm_base;
 
 	/* Wait until transmit FIFO is empty. */
@@ -301,7 +269,7 @@ static unsigned int msm_boot_uart_dm_init(void  *uart_dm_base)
  *
  * Initializes clocks, GPIO and UART controller.
  */
-void uart_init(int idx)
+void uart_init(unsigned int idx)
 {
 	/* Note int idx isn't used in this driver. */
 	void *dm_base;
@@ -348,7 +316,7 @@ uint32_t uartmem_getbaseaddr(void)
  * uart_tx_flush - transmits a string of data
  * @s: string to transmit
  */
-void uart_tx_flush(int idx)
+void uart_tx_flush(unsigned int idx)
 {
 	void *base = uart_board_param.uart_dm_base;
 
@@ -383,7 +351,7 @@ int uart_can_rx_byte(void)
  *
  * Returns the character read from serial port.
  */
-uint8_t uart_rx_byte(int idx)
+uint8_t uart_rx_byte(unsigned int idx)
 {
 	uint8_t byte;
 
@@ -399,9 +367,7 @@ uint8_t uart_rx_byte(int idx)
 	return byte;
 }
 
-#ifndef __PRE_RAM__
 /* TODO: Implement fuction */
 void uart_fill_lb(void *data)
 {
 }
-#endif

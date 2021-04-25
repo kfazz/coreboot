@@ -1,22 +1,11 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef SOC_MEDIATEK_MT8183_RTC_H
 #define SOC_MEDIATEK_MT8183_RTC_H
 
+#include <soc/pmic_wrap_common.h>
 #include <soc/rtc_common.h>
+#include <stdbool.h>
 
 /* RTC registers */
 enum {
@@ -77,7 +66,7 @@ enum {
 	RTC_BBPU_RELOAD	= 1U << 5,
 	RTC_BBPU_CBUSY	= 1U << 6,
 
-	RTC_CBUSY_TIMEOUT_US = 800
+	RTC_CBUSY_TIMEOUT_US = 8000
 };
 
 enum {
@@ -100,10 +89,25 @@ enum {
 };
 
 enum {
-	RTC_EMBCK_SRC_SEL	= 1 << 8,
-	RTC_EMBCK_SEL_MODE	= 3 << 6,
-	RTC_XOSC32_ENB		= 1 << 5,
-	RTC_REG_XOSC32_ENB	= 1 << 15
+	RTC_XOSCCALI_MASK	= 0x1F << 0,
+	RTC_XOSC32_ENB		= 1U << 5,
+	RTC_EMB_HW_MODE		= 0U << 6,
+	RTC_EMB_K_EOSC32_MODE	= 1U << 6,
+	RTC_EMB_SW_DCXO_MODE	= 2U << 6,
+	RTC_EMB_SW_EOSC32_MODE	= 3U << 6,
+	RTC_EMBCK_SEL_MODE_MASK	= 3U << 6,
+	RTC_EMBCK_SRC_SEL	= 1U << 8,
+	RTC_EMBCK_SEL_OPTION	= 1U << 9,
+	RTC_GPS_CKOUT_EN	= 1U << 10,
+	RTC_REG_XOSC32_ENB	= 1U << 15
+};
+
+enum {
+	RTC_LPD_OPT_XOSC_AND_EOSC_LPD	= 0U << 13,
+	RTC_LPD_OPT_EOSC_LPD		= 1U << 13,
+	RTC_LPD_OPT_XOSC_LPD		= 2U << 13,
+	RTC_LPD_OPT_F32K_CK_ALIVE	= 3U << 13,
+	RTC_LPD_OPT_MASK		= 3U << 13
 };
 
 /* PMIC TOP Register Definition */
@@ -113,6 +117,9 @@ enum {
 
 /* PMIC TOP Register Definition */
 enum {
+	PMIC_RG_TOP_CKPDN_CON0 = 0x010C,
+	PMIC_RG_TOP_CKPDN_CON0_SET = 0x010E,
+	PMIC_RG_TOP_CKPDN_CON0_CLR = 0x0110,
 	PMIC_RG_TOP_CKPDN_CON1 = 0x0112,
 	PMIC_RG_TOP_CKPDN_CON1_SET = 0x0114,
 	PMIC_RG_TOP_CKPDN_CON1_CLR = 0x0116,
@@ -121,9 +128,15 @@ enum {
 	PMIC_RG_TOP_CKSEL_CON0_CLR = 0x011C
 };
 
+enum {
+	PMIC_RG_FQMTR_32K_CK_PDN_SHIFT = 10,
+	PMIC_RG_FQMTR_CK_PDN_SHIFT = 11
+};
+
 /* PMIC DCXO Register Definition */
 enum {
 	PMIC_RG_DCXO_CW00 = 0x0788,
+	PMIC_RG_DCXO_CW00_CLR = 0x078C,
 	PMIC_RG_DCXO_CW02 = 0x0790,
 	PMIC_RG_DCXO_CW07 = 0x079A,
 	PMIC_RG_DCXO_CW09 = 0x079E,
@@ -132,6 +145,7 @@ enum {
 	PMIC_RG_DCXO_CW15 = 0x07AE,
 	PMIC_RG_DCXO_CW16 = 0x07B0,
 	PMIC_RG_DCXO_CW21 = 0x07BA,
+	PMIC_RG_DCXO_CW23 = 0x07BE,
 	PMIC_RG_DCXO_ELR0 = 0x07C4
 };
 
@@ -139,10 +153,84 @@ enum {
 	PMIC_RG_TOP_TMA_KEY = 0x03A8
 };
 
+/* PMIC Frequency Meter Definition */
+enum {
+	PMIC_RG_FQMTR_CKSEL	= 0x0118,
+	PMIC_RG_FQMTR_RST	= 0x013E,
+	PMIC_RG_FQMTR_CON0	= 0x0514,
+	PMIC_RG_FQMTR_WINSET	= 0x0516,
+	PMIC_RG_FQMTR_DATA	= 0x0518,
+
+	FQMTR_TIMEOUT_US	= 8000
+};
+
+enum {
+	PMIC_FQMTR_FIX_CLK_26M		= 0U << 0,
+	PMIC_FQMTR_FIX_CLK_XOSC_32K_DET	= 1U << 0,
+	PMIC_FQMTR_FIX_CLK_EOSC_32K	= 2U << 0,
+	PMIC_FQMTR_FIX_CLK_RTC_32K	= 3U << 0,
+	PMIC_FQMTR_FIX_CLK_SMPS_CK	= 4U << 0,
+	PMIC_FQMTR_FIX_CLK_TCK_SEC	= 5U << 0,
+	PMIC_FQMTR_FIX_CLK_PMU_75K	= 6U << 0,
+	PMIC_FQMTR_CKSEL_MASK		= 7U << 0
+};
+
+enum {
+	PMIC_FQMTR_RST_SHIFT = 8
+};
+
+enum {
+	PMIC_FQMTR_CON0_XOSC32_CK	= 0U << 0,
+	PMIC_FQMTR_CON0_DCXO_F32K_CK	= 1U << 0,
+	PMIC_FQMTR_CON0_EOSC32_CK	= 2U << 0,
+	PMIC_FQMTR_CON0_XOSC32_CK_DETECTON = 3U << 0,
+	PMIC_FQMTR_CON0_FQM26M_CK	= 4U << 0,
+	PMIC_FQMTR_CON0_FQM32k_CK	= 5U << 0,
+	PMIC_FQMTR_CON0_TEST_CK		= 6U << 0,
+	PMIC_FQMTR_CON0_TCKSEL_MASK	= 7U << 0,
+	PMIC_FQMTR_CON0_BUSY		= 1U << 3,
+	PMIC_FQMTR_CON0_DCXO26M_EN	= 1U << 4,
+	PMIC_FQMTR_CON0_FQMTR_EN	= 1U << 15
+};
+
+enum {
+	RTC_FQMTR_LOW_BASE = 794 - 2,
+	RTC_FQMTR_HIGH_BASE = 794 + 2
+};
+
+enum {
+	RTC_XOSCCALI_START = 0x00,
+	RTC_XOSCCALI_END = 0x1f
+};
+
 /* external API */
 void rtc_bbpu_power_on(void);
-void rtc_osc_init(void);
-int rtc_init(u8 recover);
+int rtc_init(int recover);
+bool rtc_gpio_init(void);
 void rtc_boot(void);
+u16 rtc_get_frequency_meter(u16 val, u16 measure_src, u16 window_size);
+void mt6358_dcxo_disable_unused(void);
+
+static inline s32 rtc_read(u16 addr, u16 *rdata)
+{
+	s32 ret;
+
+	ret = pwrap_read(addr, rdata);
+	if (ret < 0)
+		rtc_info("pwrap_read failed: ret=%d\n", ret);
+
+	return ret;
+}
+
+static inline s32 rtc_write(u16 addr, u16 wdata)
+{
+	s32 ret;
+
+	ret = pwrap_write(addr, wdata);
+	if (ret < 0)
+		rtc_info("pwrap_write failed: ret=%d\n", ret);
+
+	return ret;
+}
 
 #endif /* SOC_MEDIATEK_MT8183_RTC_H */

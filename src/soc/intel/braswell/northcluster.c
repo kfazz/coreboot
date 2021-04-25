@@ -1,35 +1,18 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- * Copyright (C) 2015 Intel Corp.
- * Copyright (C) 2018 Eltan B.V.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
+#include <acpi/acpigen.h>
 #include <cbmem.h>
 #include <cpu/x86/smm.h>
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
-#include <fsp/memmap.h>
-#include <cpu/x86/lapic.h>
+#include <cpu/x86/lapic_def.h>
 #include <fsp/util.h>
 #include <soc/iomap.h>
 #include <soc/iosf.h>
 #include <soc/pci_devs.h>
 #include <soc/ramstage.h>
-#include <soc/smm.h>
-#include <vendorcode/google/chromeos/chromeos.h>
 #include <stddef.h>
 
 /*
@@ -68,11 +51,11 @@
  * |     Cacheable/Usable     |
  * +--------------------------+ 0
  */
-#define RES_IN_KIB(r) ((r) >> 10)
+#define RES_IN_KiB(r) ((r) >> 10)
 
 uint32_t nc_read_top_of_low_memory(void)
 {
-	MAYBE_STATIC uint32_t tolm = 0;
+	static uint32_t tolm;
 
 	if (tolm)
 		return tolm;
@@ -87,7 +70,7 @@ static void nc_read_resources(struct device *dev)
 	unsigned long mmconf;
 	unsigned long bmbound_k;
 	unsigned long bmbound_hi;
-	void *smm_base;
+	uintptr_t smm_base;
 	size_t smm_size;
 	unsigned long tseg_base_k;
 	unsigned long tseg_top_k;
@@ -102,14 +85,13 @@ static void nc_read_resources(struct device *dev)
 
 	/* Determine TSEG data */
 	smm_region(&smm_base, &smm_size);
-	tseg_base_k = RES_IN_KIB((unsigned long) smm_base);
-	tseg_top_k = tseg_base_k + RES_IN_KIB(smm_size);
+	tseg_base_k = RES_IN_KiB(smm_base);
+	tseg_top_k = tseg_base_k + RES_IN_KiB(smm_size);
 
 	/* Determine the base of the FSP reserved memory */
 	fsp_reserved_memory_area = cbmem_find(CBMEM_ID_FSP_RESERVED_MEMORY);
 	if (fsp_reserved_memory_area) {
-		fsp_res_base_k =
-			RES_IN_KIB((unsigned int)fsp_reserved_memory_area);
+		fsp_res_base_k = RES_IN_KiB((unsigned int)fsp_reserved_memory_area);
 	} else {
 		/* If no FSP reserverd area */
 		fsp_res_base_k = tseg_base_k;
@@ -117,15 +99,15 @@ static void nc_read_resources(struct device *dev)
 
 	/* PCIe memory-mapped config space access - 256 MiB. */
 	mmconf = iosf_bunit_read(BUNIT_MMCONF_REG) & ~((1 << 28) - 1);
-	mmio_resource(dev, BUNIT_MMCONF_REG, RES_IN_KIB(mmconf), 256 * 1024);
+	mmio_resource(dev, BUNIT_MMCONF_REG, RES_IN_KiB(mmconf), 256 * 1024);
 
 	/* 0 -> 0xa0000 */
-	base_k = RES_IN_KIB(0);
-	size_k = RES_IN_KIB(0xa0000) - base_k;
+	base_k = RES_IN_KiB(0);
+	size_k = RES_IN_KiB(0xa0000) - base_k;
 	ram_resource(dev, index++, base_k, size_k);
 
 	/* High memory -> fsp_res_base - cacheable and usable */
-	base_k = RES_IN_KIB(0x100000);
+	base_k = RES_IN_KiB(0x100000);
 	size_k = fsp_res_base_k - base_k;
 	ram_resource(dev, index++, base_k, size_k);
 
@@ -135,7 +117,7 @@ static void nc_read_resources(struct device *dev)
 	reserved_ram_resource(dev, index++, base_k, size_k);
 
 	/* TSEG TOP -> bmbound is memory backed mmio. */
-	bmbound_k = RES_IN_KIB(nc_read_top_of_low_memory());
+	bmbound_k = RES_IN_KiB(nc_read_top_of_low_memory());
 	mmio_resource(dev, index++, tseg_top_k, bmbound_k - tseg_top_k);
 
 	/*
@@ -143,10 +125,9 @@ static void nc_read_resources(struct device *dev)
 	 * bits of 35:28. Therefore, shift register to align properly.
 	 */
 	bmbound_hi = iosf_bunit_read(BUNIT_BMBOUND_HI) & ~((1 << 24) - 1);
-	bmbound_hi = RES_IN_KIB(bmbound_hi) << 4;
+	bmbound_hi = RES_IN_KiB(bmbound_hi) << 4;
 	if (bmbound_hi > four_gig_kib)
-		ram_resource(dev, index++, four_gig_kib,
-			     bmbound_hi - four_gig_kib);
+		ram_resource(dev, index++, four_gig_kib, bmbound_hi - four_gig_kib);
 
 	/*
 	 * Reserve everything between A segment and 1MB:
@@ -155,24 +136,29 @@ static void nc_read_resources(struct device *dev)
 	 * 0xc0000 - 0xfffff: RAM
 	 */
 	mmio_resource(dev, index++, (0xa0000 >> 10), (0xc0000 - 0xa0000) >> 10);
-	reserved_ram_resource(dev, index++, (0xc0000 >> 10),
-			      (0x100000 - 0xc0000) >> 10);
+	reserved_ram_resource(dev, index++, (0xc0000 >> 10), (0x100000 - 0xc0000) >> 10);
 
 	/*
 	 * Reserve local APIC
 	 */
-	base_k = RES_IN_KIB(LAPIC_DEFAULT_BASE);
-	size_k = RES_IN_KIB(0x00100000);
+	base_k = RES_IN_KiB(LAPIC_DEFAULT_BASE);
+	size_k = RES_IN_KiB(0x00100000);
 	mmio_resource(dev, index++, base_k, size_k);
+}
 
-	if (CONFIG(CHROMEOS))
-		chromeos_reserve_ram_oops(dev, index++);
+static void nc_generate_ssdt(const struct device *dev)
+{
+	generate_cpu_entries(dev);
+
+	acpigen_write_scope("\\");
+	acpigen_write_name_dword("TOLM", nc_read_top_of_low_memory());
+	acpigen_pop_len();
 }
 
 static struct device_operations nc_ops = {
-	.acpi_fill_ssdt_generator = generate_cpu_entries,
-	.read_resources           = nc_read_resources,
-	.ops_pci                  = &soc_pci_ops,
+	.read_resources	= nc_read_resources,
+	.acpi_fill_ssdt	= nc_generate_ssdt,
+	.ops_pci	= &soc_pci_ops,
 };
 
 static const struct pci_driver nc_driver __pci_driver = {

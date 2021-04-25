@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright 2014 Google Inc.
  *
@@ -31,9 +30,8 @@
 #include <libpayload.h>
 #include <stdint.h>
 
-u64 exception_stack[0x200] __attribute__((aligned(16)));
+u64 exception_stack[2*KiB] __attribute__((aligned(16)));
 u64 *exception_stack_end = exception_stack + ARRAY_SIZE(exception_stack);
-extern unsigned int test_exc;
 
 struct exception_handler_info
 {
@@ -112,13 +110,7 @@ void exception_dispatch(struct exception_state *state, int idx)
 	/* Few words below SP in case we need state from a returned function. */
 	dump_stack(state->sp - 32, 512);
 
-	if (test_exc) {
-		state->elr += 4;
-		test_exc = 0;
-		printf("returning back now\n");
-	}
-	else
-		halt();
+	halt();
 }
 
 void exception_init(void)

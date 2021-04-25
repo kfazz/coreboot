@@ -1,7 +1,6 @@
 chip northbridge/intel/sandybridge
 	# IGD Displays
-	register "gfx.ndid" = "3"
-	register "gfx.did" = "{ 0x80000100, 0x80000240, 0x80000410, 0x80000410, 0x00000005 }"
+	register "gfx" = "GMA_STATIC_DISPLAYS(0)"
 
 	device cpu_cluster 0 on
 		chip cpu/intel/model_206ax
@@ -9,13 +8,9 @@ chip northbridge/intel/sandybridge
 			device lapic 0x0 on end
 			device lapic 0xacac off end
 
-			register "c1_acpower" = "1"	# ACPI(C1) = MWAIT(C1)
-			register "c2_acpower" = "4"	# ACPI(C2) = MWAIT(C3)
-			register "c3_acpower" = "0"	# ACPI(C3) = MWAIT(C7)
-
-			register "c1_battery" = "1"	# ACPI(C1) = MWAIT(C1)
-			register "c2_battery" = "4"	# ACPI(C2) = MWAIT(C3)
-			register "c3_battery" = "0"	# ACPI(C3) = MWAIT(C7)
+			register "acpi_c1" = "1"	# ACPI(C1) = MWAIT(C1)
+			register "acpi_c2" = "4"	# ACPI(C2) = MWAIT(C3)
+			register "acpi_c3" = "0"	# ACPI(C3) = MWAIT(C7)
 		end
 	end
 
@@ -40,7 +35,6 @@ chip northbridge/intel/sandybridge
 			register "pcie_port_coalesce" = "0"
 
 			register "c2_latency" = "101"  # c2 not supported
-			register "p_cnt_throttling_supported" = "1"
 
 			register "xhci_switchable_ports"	= "0x0f"
 			register "superspeed_capable_ports"	= "0x0f"

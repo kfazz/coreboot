@@ -1,19 +1,5 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <console/console.h>
 #include <device/device.h>
 #include <device/pci.h>
 #include <intelblocks/systemagent.h>
@@ -29,7 +15,7 @@
 void soc_add_fixed_mmio_resources(struct device *dev, int *index)
 {
 	static const struct sa_mmio_descriptor soc_fixed_resources[] = {
-		{ PCIEXBAR, CONFIG_MMCONF_BASE_ADDRESS, CONFIG_SA_PCIEX_LENGTH,
+		{ PCIEXBAR, CONFIG_MMCONF_BASE_ADDRESS, CONFIG_MMCONF_LENGTH,
 				"PCIEXBAR" },
 		{ MCHBAR, MCH_BASE_ADDRESS, MCH_BASE_SIZE, "MCHBAR" },
 		{ DMIBAR, DMI_BASE_ADDRESS, DMI_BASE_SIZE, "DMIBAR" },
@@ -65,4 +51,18 @@ void soc_systemagent_init(struct device *dev)
 
 	/* Enable BIOS Reset CPL */
 	enable_bios_reset_cpl();
+}
+
+uint32_t soc_systemagent_max_chan_capacity_mib(u8 capid0_a_ddrsz)
+{
+	switch (capid0_a_ddrsz) {
+	case 1:
+		return 8192;
+	case 2:
+		return 4096;
+	case 3:
+		return 2048;
+	default:
+		return 65536;
+	}
 }

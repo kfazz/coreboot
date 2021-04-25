@@ -1,19 +1,6 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2016 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <baseboard/gpio.h>
 #include <baseboard/variants.h>
 #include <commonlib/helpers.h>
@@ -74,7 +61,10 @@ static const struct pad_config gpio_table[] = {
 	PAD_CFG_GPI(SMB_CLK, UP_20K, DEEP),	 /* SMB_CLK */
 	PAD_CFG_GPI(SMB_DATA, UP_20K, DEEP),	 /* SMB_DATA */
 
-	/* LPC */
+	/*
+	 * LPC
+	 * Note: It's unconfirmed if this redundancy to the bootblock table is necessary.
+	 */
 	PAD_CFG_NF(LPC_ILB_SERIRQ, UP_20K, DEEP, NF1), /* LPC_SERIRQ */
 	PAD_CFG_NF(LPC_CLKOUT0, NONE, DEEP, NF1), /* LPC_CLKOUT0 */
 	PAD_CFG_GPI(LPC_CLKOUT1, UP_20K, DEEP),	 /* LPC_CLKOUT1 -- unused */
@@ -354,11 +344,28 @@ const struct pad_config *variant_gpio_table(size_t *num)
 
 /* GPIOs needed prior to ramstage. */
 static const struct pad_config early_gpio_table[] = {
+	/* LPC */
+	PAD_CFG_NF(LPC_ILB_SERIRQ, UP_20K, DEEP, NF1), /* LPC_SERIRQ */
+	PAD_CFG_NF(LPC_CLKOUT0, NONE, DEEP, NF1), /* LPC_CLKOUT0 */
+	PAD_CFG_GPI(LPC_CLKOUT1, UP_20K, DEEP),	 /* LPC_CLKOUT1 -- unused */
+	PAD_CFG_NF(LPC_AD0, UP_20K, DEEP, NF1),	 /* LPC_AD0 */
+	PAD_CFG_NF(LPC_AD1, UP_20K, DEEP, NF1),	 /* LPC_AD1 */
+	PAD_CFG_NF(LPC_AD2, UP_20K, DEEP, NF1),	 /* LPC_AD2 */
+	PAD_CFG_NF(LPC_AD3, UP_20K, DEEP, NF1),	 /* LPC_AD3 */
+	PAD_CFG_NF(LPC_CLKRUNB, UP_20K, DEEP, NF1), /* LPC_CLKRUN_N */
+	PAD_CFG_NF(LPC_FRAMEB, NATIVE, DEEP, NF1), /* LPC_FRAME_N */
+
+	/* UART */
+	PAD_CFG_NF(GPIO_46, NATIVE, DEEP, NF1),	 /* LPSS_UART2_RXD */
+	PAD_CFG_NF_IOSSTATE(GPIO_47, NATIVE, DEEP, NF1, Tx1RxDCRx0), /* LPSS_UART2_TXD */
+
 	PAD_CFG_GPI(GPIO_75, UP_20K, DEEP),	 /* I2S1_BCLK -- PCH_WP */
+
 	/* I2C2 - TPM  */
 	PAD_CFG_NF(GPIO_128, UP_2K, DEEP, NF1), /* LPSS_I2C2_SDA */
 	PAD_CFG_NF(GPIO_129, UP_2K, DEEP, NF1), /* LPSS_I2C2_SCL */
 	PAD_CFG_GPI_APIC_LOW(GPIO_28, NONE, DEEP), /* TPM IRQ */
+
 	/* WLAN_PE_RST - default to deasserted just in case FSP misbehaves. */
 	PAD_CFG_GPO(GPIO_122, 0, DEEP),		 /* SIO_SPI_2_RXD */
 };

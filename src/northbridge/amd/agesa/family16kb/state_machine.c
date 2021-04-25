@@ -1,22 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2016 Kyösti Mälkki
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#include <amdblocks/biosram.h>
 
 #include <Porting.h>
 #include <AGESA.h>
-
-#include <cbmem.h>
 #include <northbridge/amd/agesa/state_machine.h>
 #include <northbridge/amd/agesa/agesa_helper.h>
 
@@ -31,6 +18,9 @@ void platform_BeforeInitEarly(struct sysinfo *cb, AMD_EARLY_PARAMS *Early)
 void platform_BeforeInitPost(struct sysinfo *cb, AMD_POST_PARAMS *Post)
 {
 	AGESA_STATUS status;
+
+	Post->MemConfig.BottomIo = (UINT16)(MIN(0xE0000000,
+			MAX(0x28000000, CONFIG_BOTTOMIO_POSITION)) >> 24) & 0xF8;
 
 	if (CONFIG(ENABLE_MRC_CACHE)) {
 		status = OemInitResume(&Post->MemConfig.MemContext);
@@ -75,6 +65,10 @@ void platform_AfterS3LateRestore(struct sysinfo *cb, AMD_S3LATE_PARAMS *S3Late)
 void platform_BeforeInitMid(struct sysinfo *cb, AMD_MID_PARAMS *Mid)
 {
 	amd_initcpuio();
+}
+
+void platform_BeforeInitLate(struct sysinfo *cb, AMD_LATE_PARAMS *Late)
+{
 }
 
 void platform_AfterInitLate(struct sysinfo *cb, AMD_LATE_PARAMS *Late)

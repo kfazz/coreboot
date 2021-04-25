@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Google Inc.
- * Copyright (C) 2015 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <console/console.h>
 #include <cpu/cpu.h>
 #include <types.h>
@@ -62,7 +48,7 @@ uint16_t wifi_regulatory_domain(void)
 
 	/* If not found for any reason fall backto the default value */
 	if (!vpd_gets(wrdd_domain_key, wrdd_domain_code,
-		ARRAY_SIZE(wrdd_domain_code), VPD_ANY)) {
+		ARRAY_SIZE(wrdd_domain_code), VPD_RO_THEN_RW)) {
 		printk(BIOS_DEBUG,
 		"Error: Could not locate '%s' in VPD\n", wrdd_domain_key);
 		return WRDD_DEFAULT_REGULATORY_DOMAIN;

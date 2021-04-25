@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Patrick Rudolph 2017 <siro@das-labor.org>
  *
@@ -29,6 +28,7 @@
 
 #include <libpayload-config.h>
 #include <libpayload.h>
+#include <stdbool.h>
 #include <stddef.h>
 
 #include "i8042.h"
@@ -112,6 +112,19 @@ static u8 fifo_pop(struct fifo *fifo)
 	return ret;
 }
 
+/** Peek on the head of fifo queue.
+ * Returns the oldest object on the queue if any.
+ * In case the queue is empty 0 is returned.
+ * @fifo: Fifo to use
+ */
+static u8 fifo_peek(struct fifo *fifo)
+{
+	if (fifo_is_empty(fifo))
+		return 0;
+
+	return fifo->buf[fifo->rx];
+}
+
 /** Destroys a fifo queue.
  * @fifo: Fifo to use
  */
@@ -160,7 +173,7 @@ static u8 i8042_wait_cmd_rdy(void)
  */
 static u8 i8042_wait_data_rdy(void)
 {
-	int retries = 10000;
+	int retries = 30000;
 	while (retries-- && !(read_status() & OBF))
 		udelay(50);
 
@@ -197,23 +210,29 @@ u8 i8042_probe(void)
 
 	/* If 0x64 returns 0xff, then we have no keyboard
 	 * controller */
-	if (read_status() == 0xFF)
+	if (read_status() == 0xFF) {
+		printf("ERROR: No keyboard controller found!\n");
 		return 0;
+	}
 
-	if (!i8042_wait_cmd_rdy())
+	if (!i8042_wait_cmd_rdy()) {
+		printf("ERROR: i8042_wait_cmd_rdy failed!\n");
 		return 0;
+	}
 
 	kbc_init = 1;
 
 	/* Disable first device */
 	if (i8042_cmd(I8042_CMD_DIS_KB) != 0) {
 		kbc_init = 0;
+		printf("ERROR: i8042_cmd I8042_CMD_DIS_KB failed!\n");
 		return 0;
 	}
 
 	/* Disable second device */
 	if (i8042_cmd(I8042_CMD_DIS_AUX) != 0) {
 		kbc_init = 0;
+		printf("ERROR: i8042_cmd I8042_CMD_DIS_AUX failed!\n");
 		return 0;
 	}
 
@@ -225,6 +244,7 @@ u8 i8042_probe(void)
 	if (i8042_cmd_with_response(I8042_CMD_SELF_TEST)
 	    != I8042_SELF_TEST_RSP) {
 		kbc_init = 0;
+		printf("ERROR: i8042_cmd I8042_CMD_SELF_TEST failed!\n");
 		return 0;
 	}
 
@@ -313,6 +333,24 @@ void i8042_write_data(u8 data)
 }
 
 /**
+ * Send command & data to keyboard controller.
+ *
+ * @param cmd: The command to be sent.
+ * @param data: The data to be sent.
+ * Returns 0 on success, -1 on failure.
+ */
+static int i8042_cmd_with_data(const u8 cmd, const u8 data)
+{
+	const int ret = i8042_cmd(cmd);
+	if (ret != 0)
+		return ret;
+
+	i8042_write_data(data);
+
+	return ret;
+}
+
+/**
  * Probe for keyboard controller data and queue it.
  */
 static void i8042_data_poll(void)
@@ -366,6 +404,14 @@ u8 i8042_read_data_ps2(void)
 }
 
 /**
+ * Returns available keyboard data without advancing the queue.
+ */
+u8 i8042_peek_data_ps2(void)
+{
+	return fifo_peek(ps2_fifo);
+}
+
+/**
  * Returns available mouse data, if any.
  */
 u8 i8042_read_data_aux(void)
@@ -401,4 +447,37 @@ int i8042_wait_read_aux(void)
 		udelay(50);
 
 	return (retries <= 0) ? -1 : i8042_read_data_aux();
+}
+
+/**
+ * Get the keyboard scancode translation state.
+ *
+ * Returns: -1 on timeout, 1 if the controller translates
+ *          scancode set #2 to #1, and 0 if not.
+ */
+int i8042_get_kbd_translation(void)
+{
+	const int cfg = i8042_cmd_with_response(I8042_CMD_RD_CMD_BYTE);
+	if (cfg < 0)
+		return cfg;
+
+	return !!(cfg & I8042_CMD_BYTE_XLATE);
+}
+
+/**
+ * Sets the keyboard scancode translation state.
+ *
+ * Returns: -1 on timeout, 0 otherwise.
+ */
+int i8042_set_kbd_translation(const bool xlate)
+{
+	int cfg = i8042_cmd_with_response(I8042_CMD_RD_CMD_BYTE);
+	if (cfg < 0)
+		return cfg;
+
+	if (xlate)
+		cfg |= I8042_CMD_BYTE_XLATE;
+	else
+		cfg &= ~I8042_CMD_BYTE_XLATE;
+	return i8042_cmd_with_data(I8042_CMD_WR_CMD_BYTE, cfg);
 }

@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- * Copyright (C) 2012 secunet Security Networks AG
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 // Thermal Zone
 
@@ -58,18 +43,18 @@ Scope (\_TZ)
 		Method (_TMP, 0, Serialized)
 		{
 			If (\_SB.PCI0.LPCB.EC0.ALRC) {
-				Store(0, \_SB.PCI0.LPCB.EC0.ALRC)
+				\_SB.PCI0.LPCB.EC0.ALRC = 0
 				Return(_AC0())
 			}
 
 			If (\_SB.PCI0.LPCB.EC0.ALRL) {
-				Store(0, THRO)
-				Store(0, \_SB.PCI0.LPCB.EC0.ALRL)
+				THRO = 0
+				\_SB.PCI0.LPCB.EC0.ALRL = 0
 			}
 
 			If (\_SB.PCI0.LPCB.EC0.ALRH) {
-				Store(1, THRO)
-				Store(0, \_SB.PCI0.LPCB.EC0.ALRH)
+				THRO = 1
+				\_SB.PCI0.LPCB.EC0.ALRH = 0
 			}
 
 			/* vendor BIOS reports 0K if TCPU >= 128 deg C ?!? */
@@ -81,9 +66,9 @@ Scope (\_TZ)
 		Method (_PSL, 0, Serialized)
 		{
 			If (MPEN) {
-				Return (Package() {\_PR.CP00, \_PR.CP01})
+				Return (Package() {\_SB.CP00, \_SB.CP01})
 			}
-			Return (Package() {\_PR.CP00})
+			Return (Package() {\_SB.CP00})
 		}
 
 		// TC1 value for passive cooling

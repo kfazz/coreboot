@@ -1,18 +1,6 @@
 #!/usr/bin/env bash
 #
-# This file is part of the coreboot project.
-#
-# Copyright 2015-2016 Google Inc.
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-
+# SPDX-License-Identifier: GPL-2.0-only
 
 # This script creates a list of commits between two releases, broken out into
 # fairly inexact categories, based on the directories that files are in.  If
@@ -28,7 +16,7 @@
 
 if ! ( git --version && cloc --version && rename --version ) > /dev/null 2>&1
 then
-	echo "ERROR: cloc or git is not installed.  Exiting"
+	echo "ERROR: cloc, git or rename is not installed.  Exiting"
 	exit 1
 fi
 
@@ -59,6 +47,11 @@ if [ "$1" == "--help" ] || [ -z "$1" ] || [ -z "$2" ]; then
 else
 	OLD_GIT_VERSION="$1"
 	NEW_GIT_VERSION="$2"
+	if [ "$OLD_GIT_VERSION" = "HEAD" -o "$NEW_GIT_VERSION" = "HEAD" ]; then
+		echo "Error: using HEAD as a reference doesn't work"
+		echo
+		exit 1
+	fi
 	TOTAL_COMMITS=$(git log --pretty=oneline \
 		"${OLD_GIT_VERSION}..${NEW_GIT_VERSION}" 2>/dev/null | wc -l)
 fi
@@ -192,7 +185,6 @@ version_ctrl_c() {
 		-exec rename 's/gnumakefile/Makefile\.inc/' {} \;
 	git checkout origin/master > /dev/null 2>&1
 	git submodule update --init --checkout  > /dev/null 2>&1
-	rm -f "$mainboard_list_old" "$mainboard_list_new"
 	rm "$LOGFILE"
 	exit 1;
 }
@@ -203,11 +195,21 @@ show_diff () {
 	local old
 
 	new="$(comm -13 <(echo "$2") <(echo "$3"))"
+	old="$(comm -23 <(echo "$2") <(echo "$3"))"
+
+	# Allow running a postprocessor, given as 4th argument over the
+	# resulting diff, provide context if it's old or new data
+	if [ -n "$4" ]; then
+		new=$(echo "$new" | $4 new | sort)
+		old=$(echo "$old" | $4 old | sort)
+	fi
+	new="$(printf "$new" | sed 's/^/* /')"
+	old="$(printf "$old" | sed 's/^/* /')"
+
 	if [ -n "$new" ]; then
 		printf "Added %s $1:\n-------------------\n%s\n\n" \
 			"$(echo "$new" | wc -l)" "$new"  >> "$LOGFILE"
 	fi
-	old="$(comm -23 <(echo "$2") <(echo "$3"))"
 	if [ -n "$old" ]; then
 		printf "Removed %s $1:\n-------------------\n%s\n\n" \
 			"$(echo "$old" | wc -l)" "$old"  >> "$LOGFILE"
@@ -216,14 +218,29 @@ show_diff () {
 
 get_sloc () {
 	# Because cloc works on extensions, and .inc identifies as pascal,
-	# rename Makefile.inc, then remap the other .inc files to c
-	find 'src' -name 'Makefile.inc' -exec rename 's/Makefile\.inc/gnumakefile/' {} \;
+	# while we use it both for Makefile.inc and some files that are
+	# really C, do three passes: everything but .inc files, all .inc files
+	# that aren't Makefiles, all Makefile.inc, then combine them.
 
-	cloc --progress-rate=0 --quiet --script-lang="Bourne Shell",bash \
-		--force-lang=c,inc --exclude-dir=vendorcode src
+	local base=`mktemp`
+	find src -name Makefile.inc > ${base}.mak
 
-	# Change all the makefiles back to Makefile.inc
-	find 'src' -name 'gnumakefile' -exec rename 's/gnumakefile/Makefile\.inc/' {} \;
+	cloc --progress-rate=0 --quiet \
+		--script-lang="Bourne Shell",bash --exclude-ext=inc \
+		--exclude-dir=vendorcode --out=${base} src
+	cloc --progress-rate=0 --quiet \
+		--exclude-list-file=${base}.mak --force-lang=c,inc \
+		--exclude-dir=vendorcode --out=${base}.c src
+	cloc --progress-rate=0 --quiet \
+		--list-file=${base}.mak --force-lang=make,inc \
+		--exclude-dir=vendorcode --out=${base}.m src
+	cloc --progress-rate=0 --quiet --sum-reports \
+		${base} ${base}.c ${base}.m --out ${base}.result
+
+	echo
+	cat ${base}.result.lang
+
+	rm -f ${base}*
 }
 
 # Start collecting data from the old and new revisions.
@@ -291,7 +308,7 @@ log_versions "$(git log --pretty=%H \
 echo "" >> "$LOGFILE"
 
 ### SPECIFIC AREAS FOR RELEASE ###
-get_log_dedupe "cleanup" "" "spelling\|Use tabs\|transition away from device_t\|space [around\|before]\|code formatting\|commented code\|code cleanup\|capitalize\|unnecessary whitespace\|checkpatch"
+get_log_dedupe "cleanup" "" "spelling\|Use tabs\|transition away from device_t\|space [around\|before]\|code formatting\|commented code\|code cleanup\|capitalize\|unnecessary whitespace\|checkpatch\|remove unused\|remove.*not used"
 
 get_log_dedupe "Google Kahlee / AMD Gardenia" "src/mainboard/google/kahlee src/mainboard/amd/gardenia" "kahlee\|gardenia"
 get_log_dedupe "AMD Stoney Ridge" "src/soc/amd/stoneyridge" "stoney"
@@ -329,11 +346,16 @@ get_log_dedupe "Intel Sandybridge / Ivybridge" "src/southbridge/intel/bd82x6x sr
 get_log_dedupe "Intel Common" "src/soc/intel/common src/southbridge/intel/common src/northbridge/intel/common" ""
 get_log_dedupe "Amd Common" "src/soc/amd/common src/southbridge/amd/common" ""
 
+get_log_dedupe "Nvidia" "src/southbridge/nvidia" ""
+get_log_dedupe "Via" "src/northbridge/via src/southbridge/via" ""
+get_log_dedupe "Broadcom" "src/southbridge/broadcom" ""
+get_log_dedupe "Qualcomm" "src/soc/qualcomm" ""
+
 get_log_dedupe "Intel vendorcode / FSP" "src/drivers/intel/fsp* src/vendorcode/intel" ""
 get_log_dedupe "AMD vendorcode / AGESA / PI" "src/vendorcode/amd" ""
 get_log_dedupe "Google vendorcode" "src/vendorcode/google"
 
-get_log_dedupe "TPM" "src/drivers/i2c/tpm" "tpm"
+get_log_dedupe "TPM" "src/drivers/i2c/tpm src/security/tpm" "tpm"
 get_log_dedupe "Vboot" "src/vboot" "vboot"
 
 
@@ -348,11 +370,6 @@ get_log_dedupe "ARM" \
 get_log_dedupe "RISC-V" \
 	"$(for codedir in $(grep -rl "_RISCV" --include=Kconfig | grep -v 'payloads/\|drivers/\|vendorcode/\|console' ); do dirname "$codedir"; done | grep -v '^src$')" \
 	"riscv\|risc-v\|sifive"
-
-get_log_dedupe "MIPS" \
-	"$(for codedir in $(grep -rl "_MIPS" --include=Kconfig | \
-	grep -v 'src/mainboard\|payloads/\|drivers/\|vendorcode/\|console' ); \
-	do dirname "$codedir"; done | grep -v '^src$')"
 }
 
 get_log_dedupe "X86 intel" \
@@ -394,11 +411,32 @@ get_log_dedupe "Build system" \
 	"Makefile Makefile.inc toolchain.inc src/Kconfig src/cpu/Makefile.inc"
 
 get_log_dedupe "Submodules" "3rdparty util/nvidia/cbootimage"
+
+get_log_dedupe "Maintainers" "MAINTAINERS" ""
+
 # Finally, get anything that was missed above
 get_log_dedupe "MISC" "."
 
+# Replace VENDOR_DEVICE from stdin with their nice names on stdout
+real_mainboard_names() {
+	local tree_version=$1 # "old" or "new"
+	local git_version_var=${tree_version^^}_GIT_VERSION
+	local git_version=${!git_version_var}
+	local line
+
+	while read line; do
+		local file="$(git grep -l "^[[:space:]]*config\>[[:space:]]*\<BOARD_${line}\$" ${git_version} -- src/mainboard/\*/\*/Kconfig.name | sed "s,^${git_version}:,,")"
+		if [ -z "$file" ]; then
+			echo "This shouldn't happen: couldn't find Kconfig for $line"
+			exit 1
+		fi
+		local vendor="$(git grep \" ${git_version} -- $(echo ${file} | cut -d/ -f1-3,5) | cut -d\" -f2)"
+		git grep -h -A1 "^[[:space:]]*config\>[[:space:]]*\<BOARD_${line}\$" ${git_version} -- ${file} | grep \" |cut -d\" -f2 |sed "s,^,${vendor} ,"
+	done
+}
+
 # Show areas that have been added or removed
-show_diff "mainboards"   "$mainboard_list_old"   "$mainboard_list_new"
+show_diff "mainboards"   "$mainboard_list_old"   "$mainboard_list_new"    real_mainboard_names
 show_diff "processors"   "$cpu_list_old"         "$cpu_list_new"
 show_diff "socs"         "$soc_list_old"         "$soc_list_new"
 show_diff "northbridges" "$northbridge_list_old" "$northbridge_list_new"
@@ -424,8 +462,8 @@ NEW_AUTHORS=$(git log --pretty=%an "${OLD_GIT_VERSION}" 2>/dev/null | sort | \
 	git log --pretty=%an "${NEW_GIT_VERSION}" 2>/dev/null | \
 	sort | uniq > "$after_names" && \
 	grep -Fxv -c -f "$before_names" "$after_names")
-NEW_AUTHOR_LIST=$( grep -Fxv -f "$before_names" "$after_names" && \
-	rm "$before_names" "$after_names")
+NEW_AUTHOR_LIST=$( grep -Fxv -f "$before_names" "$after_names")
+rm -f "$before_names" "$after_names"
 {
 	printf -- "- Total commits: %s\n" "$TOTAL_COMMITS"
 	printf -- "- Total authors: %s\n" \

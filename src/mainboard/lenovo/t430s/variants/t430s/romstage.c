@@ -1,27 +1,12 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2010 coresystems GmbH
- * Copyright (C) 2011 The ChromiumOS Authors.  All rights reserved.
- * Copyright (C) 2014 Vladimir Serbinenko
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <option.h>
-#include <arch/byteorder.h>
 #include <device/pci_ops.h>
 #include <device/pci_def.h>
 #include <northbridge/intel/sandybridge/raminit_native.h>
 #include <southbridge/intel/bd82x6x/pch.h>
 #include <ec/lenovo/pmh7/pmh7.h>
+#include <types.h>
 
 const struct southbridge_usb_port mainboard_usb_ports[] = {
 	{ 1, 0,  0 }, /* P0:, OC 0 */
@@ -48,9 +33,7 @@ void mainboard_get_spd(spd_raw_data *spd, bool id_only)
 
 void mainboard_early_init(int s3resume)
 {
-	u8 enable_peg;
-	if (get_option(&enable_peg, "enable_dual_graphics") != CB_SUCCESS)
-		enable_peg = 0;
+	u8 enable_peg = get_int_option("enable_dual_graphics", 0);
 
 	bool power_en = pmh7_dgpu_power_state();
 

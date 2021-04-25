@@ -1,26 +1,14 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Samsung Electronics
- * Copyright 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <assert.h>
+#include <cbfs.h>
 #include <console/console.h>
 #include <soc/cpu.h>
 #include <soc/spi.h>
 #include <spi-generic.h>
-#include <stdlib.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 #include <symbols.h>
 
@@ -89,10 +77,10 @@ static void spi_sw_reset(struct exynos_spi *regs, int word)
 	if (swap_cfg != orig_swap_cfg)
 		write32(&regs->swap_cfg, swap_cfg);
 
-	clrbits_le32(&regs->ch_cfg, SPI_RX_CH_ON | SPI_TX_CH_ON);
-	setbits_le32(&regs->ch_cfg, SPI_CH_RST);
-	clrbits_le32(&regs->ch_cfg, SPI_CH_RST);
-	setbits_le32(&regs->ch_cfg, SPI_RX_CH_ON | SPI_TX_CH_ON);
+	clrbits32(&regs->ch_cfg, SPI_RX_CH_ON | SPI_TX_CH_ON);
+	setbits32(&regs->ch_cfg, SPI_CH_RST);
+	clrbits32(&regs->ch_cfg, SPI_CH_RST);
+	setbits32(&regs->ch_cfg, SPI_RX_CH_ON | SPI_TX_CH_ON);
 }
 
 static void exynos_spi_init(struct exynos_spi *regs)
@@ -100,14 +88,14 @@ static void exynos_spi_init(struct exynos_spi *regs)
 	// Set FB_CLK_SEL.
 	write32(&regs->fb_clk, SPI_FB_DELAY_180);
 	// CPOL: Active high.
-	clrbits_le32(&regs->ch_cfg, SPI_CH_CPOL_L);
+	clrbits32(&regs->ch_cfg, SPI_CH_CPOL_L);
 
-	// Clear rx and tx channel if set priveously.
-	clrbits_le32(&regs->ch_cfg, SPI_RX_CH_ON | SPI_TX_CH_ON);
+	// Clear rx and tx channel if set previously.
+	clrbits32(&regs->ch_cfg, SPI_RX_CH_ON | SPI_TX_CH_ON);
 
-	setbits_le32(&regs->swap_cfg,
+	setbits32(&regs->swap_cfg,
 		     SPI_RX_SWAP_EN | SPI_RX_BYTE_SWAP | SPI_RX_HWORD_SWAP);
-	clrbits_le32(&regs->ch_cfg, SPI_CH_HS_EN);
+	clrbits32(&regs->ch_cfg, SPI_CH_HS_EN);
 
 	// Do a soft reset, which will also enable both channels.
 	spi_sw_reset(regs, 1);
@@ -117,7 +105,7 @@ static int spi_ctrlr_claim_bus(const struct spi_slave *slave)
 {
 	struct exynos_spi *regs = to_exynos_spi(slave)->regs;
 	// TODO(hungte) Add some delay if too many transactions happen at once.
-	clrbits_le32(&regs->cs_reg, SPI_SLAVE_SIG_INACT);
+	clrbits32(&regs->cs_reg, SPI_SLAVE_SIG_INACT);
 	return 0;
 }
 
@@ -201,12 +189,12 @@ static int spi_ctrlr_xfer(const struct spi_slave *slave, const void *dout, size_
 static void spi_ctrlr_release_bus(const struct spi_slave *slave)
 {
 	struct exynos_spi *regs = to_exynos_spi(slave)->regs;
-	setbits_le32(&regs->cs_reg, SPI_SLAVE_SIG_INACT);
+	setbits32(&regs->cs_reg, SPI_SLAVE_SIG_INACT);
 }
 
 static int spi_ctrlr_setup(const struct spi_slave *slave)
 {
-	ASSERT(slave->bus >= 0 && slave->bus < 3);
+	ASSERT(slave->bus < 3);
 	struct exynos_spi_slave *eslave;
 
 	eslave = to_exynos_spi(slave);
@@ -281,13 +269,11 @@ static const struct region_device_ops exynos_spi_ops = {
 };
 
 static struct mmap_helper_region_device mdev =
-	MMAP_HELPER_REGION_INIT(&exynos_spi_ops, 0, CONFIG_ROM_SIZE);
+	MMAP_HELPER_DEV_INIT(&exynos_spi_ops, 0, CONFIG_ROM_SIZE, &cbfs_cache);
 
 void exynos_init_spi_boot_device(void)
 {
 	boot_slave = &exynos_spi_slaves[1];
-
-	mmap_helper_device_init(&mdev, _cbfs_cache, REGION_SIZE(cbfs_cache));
 }
 
 const struct region_device *exynos_spi_boot_device(void)

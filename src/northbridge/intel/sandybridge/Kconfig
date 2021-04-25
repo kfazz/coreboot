@@ -1,18 +1,4 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2010 Google Inc.
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
-
+## SPDX-License-Identifier: GPL-2.0-only
 
 config NORTHBRIDGE_INTEL_SANDYBRIDGE
 	bool
@@ -20,22 +6,35 @@ config NORTHBRIDGE_INTEL_SANDYBRIDGE
 	select CPU_INTEL_MODEL_206AX
 	select HAVE_DEBUG_RAM_SETUP
 	select INTEL_GMA_ACPI
-	select POSTCAR_STAGE
-	select POSTCAR_CONSOLE
 
-config NORTHBRIDGE_INTEL_IVYBRIDGE
+if NORTHBRIDGE_INTEL_SANDYBRIDGE
+
+config SANDYBRIDGE_VBOOT_IN_ROMSTAGE
 	bool
-	select CACHE_MRC_SETTINGS
-	select CPU_INTEL_MODEL_306AX
-	select HAVE_DEBUG_RAM_SETUP
-	select INTEL_GMA_ACPI
-	select POSTCAR_STAGE
-	select POSTCAR_CONSOLE
+	default n
+	help
+	  Selected by boards to force VBOOT_STARTS_IN_ROMSTAGE.
 
-if NORTHBRIDGE_INTEL_IVYBRIDGE || NORTHBRIDGE_INTEL_SANDYBRIDGE
+config SANDYBRIDGE_VBOOT_IN_BOOTBLOCK
+	depends on VBOOT
+	depends on !SANDYBRIDGE_VBOOT_IN_ROMSTAGE
+	bool "Start verstage in bootblock"
+	default y
+	select VBOOT_STARTS_IN_BOOTBLOCK
+	select VBOOT_SEPARATE_VERSTAGE
+	help
+	  Sandy Bridge can either start verstage in a separate stage
+	  right after the bootblock has run or it can start it
+	  after romstage for compatibility reasons.
+	  Sandy Bridge however uses a mrc.bin to initialize memory which
+	  needs to be located at a fixed offset. Therefore even with
+	  a separate verstage starting after the bootblock that same
+	  binary is used meaning a jump is made from RW to the RO region
+	  and back to the RW region after the binary is done.
 
 config VBOOT
-	select VBOOT_STARTS_IN_ROMSTAGE
+	select VBOOT_MUST_REQUEST_DISPLAY
+	select VBOOT_STARTS_IN_ROMSTAGE if !SANDYBRIDGE_VBOOT_IN_BOOTBLOCK
 
 config USE_NATIVE_RAMINIT
 	bool "Use native raminit"
@@ -65,6 +64,19 @@ config NATIVE_RAMINIT_IGNORE_XMP_MAX_DIMMS
 	  Disabled by default as it might cause system instability.
 	  Handle with care!
 
+config NATIVE_RAMINIT_IGNORE_XMP_REQUESTED_VOLTAGE
+	bool "Ignore XMP profile requested voltage"
+	default n
+	depends on USE_NATIVE_RAMINIT
+	help
+	  Native raminit only supports 1.5V operation, but there are DIMMs
+	  which request 1.65V operation in XMP profiles. This option allows
+	  raminit to use these XMP profiles anyway, instead of falling back
+	  to non-XMP settings.
+	  Disabled by default because it allows forcing memory to run out of
+	  specification. Consider this to be an overclocking option.
+	  Handle with care!
+
 config CBFS_SIZE
 	hex
 	default 0x100000
@@ -73,25 +85,27 @@ config VGA_BIOS_ID
 	string
 	default "8086,0106"
 
-config CACHE_MRC_SIZE_KB
-	int
-	default 512
-
-config BOOTBLOCK_NORTHBRIDGE_INIT
-	string
-	default "northbridge/intel/sandybridge/bootblock.c"
-
 config MMCONF_BASE_ADDRESS
-	hex
 	default 0xf0000000
 	help
 	  The MRC blob requires it to be at 0xf0000000.
 
-if USE_NATIVE_RAMINIT
+config MMCONF_BUS_NUMBER
+	int
+	default 64
 
 config DCACHE_RAM_BASE
 	hex
 	default 0xfefe0000
+
+config DCACHE_BSP_STACK_SIZE
+	hex
+	default 0x10000
+	help
+	  The amount of BSP stack anticipated in bootblock and
+	  other stages.
+
+if USE_NATIVE_RAMINIT
 
 config DCACHE_RAM_SIZE
 	hex
@@ -101,21 +115,32 @@ config DCACHE_RAM_MRC_VAR_SIZE
 	hex
 	default 0x0
 
+config RAMINIT_ALWAYS_ALLOW_DLL_OFF
+	bool "Also enable memory DLL-off mode on desktops and servers"
+	default n
+	help
+	  If enabled, allow enabling DLL-off mode for platforms other than
+	  mobile. Saves power at the expense of higher exit latencies. Has
+	  no effect on mobile platforms, where DLL-off is always allowed.
+	  Power down is disabled for stability when running at high clocks.
+
+config RAMINIT_ENABLE_ECC
+	bool "Enable ECC if supported"
+	default y
+	help
+	  Enable ECC if supported by both, host and RAM.
+
 endif # USE_NATIVE_RAMINIT
 
 if !USE_NATIVE_RAMINIT
 
-config DCACHE_RAM_BASE
-	hex
-	default 0xff7e0000
-
 config DCACHE_RAM_SIZE
 	hex
-	default 0x1c000
+	default 0x17000
 
 config DCACHE_RAM_MRC_VAR_SIZE
 	hex
-	default 0x4000
+	default 0x9000
 
 config MRC_FILE
 	string "Intel System Agent path and filename"
@@ -125,5 +150,17 @@ config MRC_FILE
 	  binary.
 
 endif # !USE_NATIVE_RAMINIT
+
+config INTEL_GMA_BCLV_OFFSET
+	default 0x48254
+
+config FIXED_MCHBAR_MMIO_BASE
+	default 0xfed10000
+
+config FIXED_DMIBAR_MMIO_BASE
+	default 0xfed18000
+
+config FIXED_EPBAR_MMIO_BASE
+	default 0xfed19000
 
 endif

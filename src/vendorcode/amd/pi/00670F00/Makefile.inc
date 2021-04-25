@@ -1,9 +1,5 @@
 #*****************************************************************************
 #
-# Copyright (c) 2012, 2016   Advanced Micro Devices, Inc.
-#               2013 - 2014, Sage Electronic Engineering, LLC
-# All rights reserved.
-#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #     * Redistributions of source code must retain the above copyright
@@ -28,7 +24,7 @@
 #
 #*****************************************************************************
 
-ifeq ($(CONFIG_SOC_AMD_STONEYRIDGE_FP4)$(CONFIG_SOC_AMD_STONEYRIDGE_FT4),y)
+ifeq ($(CONFIG_SOC_AMD_STONEYRIDGE),y)
 # AGESA V5 Files
 
 AGESA_ROOT = $(call strip_quotes,$(CONFIG_AGESA_BINARY_PI_VENDORCODE_PATH))
@@ -75,12 +71,12 @@ $(agesa_src_path)/$(notdir $1): $1
 
 $(call src-to-obj,libagesa,$1): $(agesa_src_path)/$(notdir $1) $(obj)/config.h $(src)/include/kconfig.h
 	@printf "    CC         $$(subst $(obj)/,,$$(@))\n"
-	$(CC_libagesa) -c -MMD $(CFLAGS_libagesa) $(AGESA_CFLAGS)             \
-	               $(AGESA_INC)                                           \
-	               -include $(src)/include/rules.h                        \
-	               -include $(src)/include/kconfig.h                      \
-	               -include $(src)/commonlib/include/commonlib/compiler.h \
-	               -o $$@                                                 \
+	$(CC_libagesa) -c -MMD $(CFLAGS_libagesa) $(AGESA_CFLAGS)                     \
+	               $(AGESA_INC)                                                   \
+	               -include $(src)/include/kconfig.h                              \
+	               -include $(src)/include/rules.h                                \
+	               -include $(src)/commonlib/bsd/include/commonlib/bsd/compiler.h \
+	               -o $$@                                                         \
 	               $(agesa_src_path)/$(notdir $1)
 
 endef
@@ -116,10 +112,22 @@ ramstage-libs += $(agesa_output_path)/libagesa.a
 
 #######################################################################
 
+warn_no_agesa:
+	printf "\n\t** WARNING **\n"
+	printf "coreboot has been built with no AGESA support.  Successfully "
+	printf "booting this image will be impossible.\n\n"
+
+PHONY+=warn_no_agesa
+
 ifeq ($(CONFIG_AGESA_SPLIT_MEMORY_FILES), y)
 
 # convert input elf to rmodule
 AGESA_POST_MEM_INPUT_ELF = $(call strip_quotes,$(CONFIG_AGESA_POST_MEMORY_BINARY_PI_FILE))
+
+# If no post-mem file then also skip pre-mem file
+ifeq ($(AGESA_POST_MEM_INPUT_ELF),)
+files_added:: warn_no_agesa
+else
 AGESA_POST_MEM_ELF = $(objcbfs)/$(patsubst %.elf,%.debug,$(notdir $(AGESA_POST_MEM_INPUT_ELF)))
 AGESA_POST_MEM_ELF_RMOD = $(AGESA_POST_MEM_ELF).rmod
 
@@ -140,10 +148,18 @@ cbfs-files-$(CONFIG_CPU_AMD_AGESA_BINARY_PI) += $(CONFIG_AGESA_POST_MEMORY_CBFS_
 $(CONFIG_AGESA_POST_MEMORY_CBFS_NAME)-file := $(AGESA_POST_MEM_ELF_RMOD)
 $(CONFIG_AGESA_POST_MEMORY_CBFS_NAME)-type := stage
 $(CONFIG_AGESA_POST_MEMORY_CBFS_NAME)-compression := $(CBFS_COMPRESS_FLAG)
+
+endif # AGESA_POST_MEM_INPUT_ELF == ""
+
+else # CONFIG_AGESA_SPLIT_MEMORY_FILES
+
+AGESA_BINARYPI_INPUT_FILE = $(call strip_quotes,$(CONFIG_AGESA_BINARY_PI_FILE))
+ifeq ($(AGESA_BINARYPI_INPUT_FILE),)
+files_added:: warn_no_agesa
 else
 
 cbfs-files-$(CONFIG_CPU_AMD_AGESA_BINARY_PI) += $(CONFIG_AGESA_CBFS_NAME)
-$(CONFIG_AGESA_CBFS_NAME)-file := $(CONFIG_AGESA_BINARY_PI_FILE)
+$(CONFIG_AGESA_CBFS_NAME)-file := $(AGESA_BINARYPI_INPUT_FILE)
 
 ifeq ($(CONFIG_AGESA_BINARY_PI_AS_STAGE),y)
 $(CONFIG_AGESA_CBFS_NAME)-type := stage
@@ -154,8 +170,10 @@ $(CONFIG_AGESA_CBFS_NAME)-align := 4096
 else
 $(CONFIG_AGESA_CBFS_NAME)-type := raw
 $(CONFIG_AGESA_CBFS_NAME)-position := $(CONFIG_AGESA_BINARY_PI_LOCATION)
+regions-for-file-$(CONFIG_AGESA_CBFS_NAME) = COREBOOT
 endif  # CONFIG_AGESA_BINARY_PI_AS_STAGE
 
+endif  # AGESA_BINARYPI_INPUT_FILE == ""
 endif  # CONFIG_AGESA_SPLIT_MEMORY_FILES
 
 endif

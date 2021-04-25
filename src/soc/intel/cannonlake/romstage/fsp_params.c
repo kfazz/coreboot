@@ -1,36 +1,45 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <assert.h>
-#include <chip.h>
+#include <device/pci_def.h>
+#include <device/pci.h>
+#include <cpu/x86/msr.h>
 #include <console/console.h>
 #include <fsp/util.h>
+#include <intelblocks/cpulib.h>
 #include <intelblocks/pmclib.h>
 #include <soc/iomap.h>
+#include <soc/msr.h>
 #include <soc/pci_devs.h>
 #include <soc/romstage.h>
+#include <types.h>
 #include <vendorcode/google/chromeos/chromeos.h>
 
-static void soc_memory_init_params(FSP_M_CONFIG *m_cfg, const config_t *config)
+#include "../chip.h"
+
+static void soc_memory_init_params(FSPM_UPD *mupd, const config_t *config)
 {
+	FSP_M_CONFIG *m_cfg = &mupd->FspmConfig;
+	FSP_M_TEST_CONFIG *tconfig = &mupd->FspmTestConfig;
+
 	unsigned int i;
 	uint32_t mask = 0;
-	const struct device *dev = dev_find_slot(0, PCH_DEVFN_ISH);
+	const struct device *dev = pcidev_path_on_root(SA_DEVFN_IGD);
 
-	/* Set IGD stolen size to 64MB. */
-	m_cfg->IgdDvmt50PreAlloc = 2;
+	/*
+	 * Probe for no IGD and disable InternalGfx and panel power to prevent a
+	 * crash in FSP-M.
+	 */
+	const bool igd_on = !CONFIG(SOC_INTEL_DISABLE_IGD) && dev && dev->enabled;
+	if (igd_on && pci_read_config16(SA_DEV_IGD, PCI_VENDOR_ID) != 0xffff) {
+		/* Set IGD stolen size to 64MB. */
+		m_cfg->InternalGfx = 1;
+		m_cfg->IgdDvmt50PreAlloc = 2;
+	} else {
+		m_cfg->InternalGfx = 0;
+		m_cfg->IgdDvmt50PreAlloc = 0;
+		tconfig->PanelPowerEnable = 0;
+	}
 	m_cfg->TsegSize = CONFIG_SMM_TSEG_SIZE;
 	m_cfg->IedSize = CONFIG_IED_REGION_SIZE;
 	m_cfg->SaGv = config->SaGv;
@@ -45,9 +54,13 @@ static void soc_memory_init_params(FSP_M_CONFIG *m_cfg, const config_t *config)
 			mask |= (1 << i);
 	}
 	m_cfg->PcieRpEnableMask = mask;
-	m_cfg->PrmrrSize = config->PrmrrSize;
+	m_cfg->PrmrrSize = get_valid_prmrr_size();
 	m_cfg->EnableC6Dram = config->enable_c6dram;
+#if CONFIG(SOC_INTEL_COMETLAKE)
+	m_cfg->SerialIoUartDebugControllerNumber = CONFIG_UART_FOR_CONSOLE;
+#else
 	m_cfg->PcdSerialIoUartNumber = CONFIG_UART_FOR_CONSOLE;
+#endif
 	/*
 	 * PcdDebugInterfaceFlags
 	 * This config will allow coreboot to pass information to the FSP
@@ -59,30 +72,21 @@ static void soc_memory_init_params(FSP_M_CONFIG *m_cfg, const config_t *config)
 	m_cfg->PcdDebugInterfaceFlags =
 				CONFIG(DRIVERS_UART_8250IO) ? 0x02 : 0x10;
 
-	/* Disable Vmx if Vt-d is already disabled */
-	if (config->VtdDisable)
-		m_cfg->VmxEnable = 0;
-	else
-		m_cfg->VmxEnable = config->VmxEnable;
+	/* Change VmxEnable UPD value according to ENABLE_VMX Kconfig */
+	m_cfg->VmxEnable = CONFIG(ENABLE_VMX);
 
-#if CONFIG(SOC_INTEL_COMMON_CANNONLAKE_BASE)
-	m_cfg->SkipMpInit = !CONFIG_USE_INTEL_FSP_MP_INIT;
-#endif
+	m_cfg->SkipMpInit = !CONFIG(USE_INTEL_FSP_MP_INIT);
 
-	/* Disable CPU Flex Ratio and SaGv in recovery mode */
-	if (vboot_recovery_mode_enabled()) {
-		struct chipset_power_state *ps = pmc_get_power_state();
-
-		/*
-		 * Only disable when coming from S5 (cold reset) otherwise
-		 * the flex ratio may be locked and FSP will return an error.
-		 */
-		if (ps && ps->prev_sleep_state == ACPI_S5) {
-			m_cfg->CpuRatio = 0;
-			m_cfg->SaGv = 0;
-		}
+	if (config->cpu_ratio_override) {
+		m_cfg->CpuRatio = config->cpu_ratio_override;
+	} else {
+		/* Set CpuRatio to match existing MSR value */
+		msr_t flex_ratio;
+		flex_ratio = rdmsr(MSR_FLEX_RATIO);
+		m_cfg->CpuRatio = (flex_ratio.lo >> 8) & 0xff;
 	}
 
+	dev = pcidev_path_on_root(PCH_DEVFN_ISH);
 	/* If ISH is enabled, enable ISH elements */
 	if (!dev)
 		m_cfg->PchIshEnable = 0;
@@ -90,7 +94,7 @@ static void soc_memory_init_params(FSP_M_CONFIG *m_cfg, const config_t *config)
 		m_cfg->PchIshEnable = dev->enabled;
 
 	/* If HDA is enabled, enable HDA elements */
-	dev = dev_find_slot(0, PCH_DEVFN_HDA);
+	dev = pcidev_path_on_root(PCH_DEVFN_HDA);
 	if (!dev)
 		m_cfg->PchHdaEnable = 0;
 	else
@@ -101,25 +105,60 @@ static void soc_memory_init_params(FSP_M_CONFIG *m_cfg, const config_t *config)
 	dev = pcidev_path_on_root(SA_DEVFN_IPU);
 	if (dev)
 		m_cfg->SaIpuEnable = dev->enabled;
+
+	/* SATA Gen3 strength */
+	for (i = 0; i < SOC_INTEL_CML_SATA_DEV_MAX; i++) {
+		if (config->sata_port[i].RxGen3EqBoostMagEnable) {
+			m_cfg->PchSataHsioRxGen3EqBoostMagEnable[i] =
+				config->sata_port[i].RxGen3EqBoostMagEnable;
+			m_cfg->PchSataHsioRxGen3EqBoostMag[i] =
+				config->sata_port[i].RxGen3EqBoostMag;
+		}
+		if (config->sata_port[i].TxGen3DownscaleAmpEnable) {
+			m_cfg->PchSataHsioTxGen3DownscaleAmpEnable[i] =
+				config->sata_port[i].TxGen3DownscaleAmpEnable;
+			m_cfg->PchSataHsioTxGen3DownscaleAmp[i] =
+				config->sata_port[i].TxGen3DownscaleAmp;
+		}
+		if (config->sata_port[i].TxGen3DeEmphEnable) {
+			m_cfg->PchSataHsioTxGen3DeEmphEnable[i] =
+				config->sata_port[i].TxGen3DeEmphEnable;
+			m_cfg->PchSataHsioTxGen3DeEmph[i] =
+				config->sata_port[i].TxGen3DeEmph;
+		}
+	}
+#if !CONFIG(SOC_INTEL_COMETLAKE)
+	if (config->DisableHeciRetry)
+		tconfig->DisableHeciRetry = config->DisableHeciRetry;
+#endif
 }
 
 void platform_fsp_memory_init_params_cb(FSPM_UPD *mupd, uint32_t version)
 {
-	const struct device *dev = dev_find_slot(0, PCH_DEVFN_LPC);
-	const struct device *smbus = dev_find_slot(0, PCH_DEVFN_SMBUS);
+	const struct device *dev = pcidev_path_on_root(PCH_DEVFN_LPC);
 	assert(dev != NULL);
-	const config_t *config = dev->chip_info;
+	const config_t *config = config_of(dev);
 	FSP_M_CONFIG *m_cfg = &mupd->FspmConfig;
+	FSP_M_TEST_CONFIG *tconfig = &mupd->FspmTestConfig;
 
-	soc_memory_init_params(m_cfg, config);
+	soc_memory_init_params(mupd, config);
 
 	/* Enable SMBus controller based on config */
-	if (!smbus)
+	dev = pcidev_path_on_root(PCH_DEVFN_SMBUS);
+	if (!dev)
 		m_cfg->SmbusEnable = 0;
 	else
-		m_cfg->SmbusEnable = smbus->enabled;
+		m_cfg->SmbusEnable = dev->enabled;
+
 	/* Set debug probe type */
-	m_cfg->PlatformDebugConsent = config->DebugConsent;
+	m_cfg->PlatformDebugConsent =
+		CONFIG_SOC_INTEL_CANNONLAKE_DEBUG_CONSENT;
+
+	/* Configure VT-d */
+	tconfig->VtdDisable = 0;
+
+	/* Set HECI1 PCI BAR address */
+	m_cfg->Heci1BarAddress = HECI1_BASE_ADDRESS;
 
 	mainboard_memory_init_params(mupd);
 }

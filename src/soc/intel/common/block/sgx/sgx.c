@@ -1,33 +1,18 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <assert.h>
 #include <console/console.h>
 #include <cpu/x86/msr.h>
 #include <cpu/x86/mtrr.h>
 #include <cpu/intel/microcode.h>
+#include <cpu/intel/common/common.h>
+#include <intelblocks/cpulib.h>
 #include <intelblocks/mp_init.h>
 #include <intelblocks/msr.h>
 #include <intelblocks/sgx.h>
 #include <intelblocks/systemagent.h>
 #include <soc/cpu.h>
+#include <soc/nvs.h>
 #include <soc/pci_devs.h>
-#include <string.h>
-
-static bool sgx_param_valid;
-static struct sgx_param g_sgx_param;
 
 static inline uint64_t sgx_resource(uint32_t low, uint32_t high)
 {
@@ -37,28 +22,6 @@ static inline uint64_t sgx_resource(uint32_t low, uint32_t high)
 	return val;
 }
 
-static const struct sgx_param *get_sgx_param(void)
-{
-	if (sgx_param_valid)
-		return &g_sgx_param;
-
-	memset(&g_sgx_param, 0, sizeof(g_sgx_param));
-	if (soc_fill_sgx_param(&g_sgx_param) < 0) {
-		printk(BIOS_ERR, "SGX : Failed to get soc sgx param\n");
-		return NULL;
-	}
-	sgx_param_valid = true;
-	printk(BIOS_INFO, "SGX : param.enable = %d\n", g_sgx_param.enable);
-
-	return &g_sgx_param;
-}
-
-static int soc_sgx_enabled(void)
-{
-	const struct sgx_param *sgx_param = get_sgx_param();
-	return sgx_param ? sgx_param->enable : 0;
-}
-
 static int is_sgx_supported(void)
 {
 	struct cpuid_result cpuid_regs;
@@ -66,7 +29,7 @@ static int is_sgx_supported(void)
 
 	cpuid_regs = cpuid_ext(0x7, 0x0); /* EBX[2] is feature capability */
 	msr = rdmsr(MTRR_CAP_MSR); /* Bit 12 is PRMRR enablement */
-	return ((cpuid_regs.ebx & SGX_SUPPORTED) && (msr.lo & PRMRR_SUPPORTED));
+	return ((cpuid_regs.ebx & SGX_SUPPORTED) && (msr.lo & MTRR_CAP_PRMRR));
 }
 
 void prmrr_core_configure(void)
@@ -80,9 +43,18 @@ void prmrr_core_configure(void)
 	} prmrr_base, prmrr_mask;
 	msr_t msr;
 
-	if (!soc_sgx_enabled() || !is_sgx_supported())
+	/*
+	 * Software Developer's Manual Volume 4:
+	 * Order Number: 335592-068US
+	 * Chapter 2.16.1
+	 * MSR_PRMRR_PHYS_MASK is in scope "Core"
+	 * MSR_PRMRR_PHYS_BASE is in scope "Core"
+	 * Return if Hyper-Threading is enabled and not thread 0
+	 */
+	if (!is_sgx_supported() || intel_ht_sibling())
 		return;
 
+	/* PRMRR_PHYS_MASK is in scope "Core" */
 	msr = rdmsr(MSR_PRMRR_PHYS_MASK);
 	/* If it is locked don't attempt to write PRMRR MSRs. */
 	if (msr.lo & PRMRR_PHYS_MASK_LOCK)
@@ -101,8 +73,8 @@ void prmrr_core_configure(void)
 		return;
 	}
 
-	printk(BIOS_INFO, "SGX: prmrr_base = 0x%llx", prmrr_base.data64);
-	printk(BIOS_INFO, "SGX: prmrr_mask = 0x%llx", prmrr_mask.data64);
+	printk(BIOS_INFO, "SGX: prmrr_base = 0x%llx\n", prmrr_base.data64);
+	printk(BIOS_INFO, "SGX: prmrr_mask = 0x%llx\n", prmrr_mask.data64);
 
 	/* Program core PRMRR MSRs.
 	 * - Set cache writeback mem attrib in PRMRR base MSR
@@ -135,6 +107,12 @@ static void enable_sgx(void)
 {
 	msr_t msr;
 
+	/*
+	 * Intel 64 and IA-32 ArchitecturesSoftware Developer's ManualVolume 3C
+	 * Order Number:  326019-060US
+	 * Chapter 35.10.2 "Additional MSRs Supported by Intel"
+	 * IA32_FEATURE_CONTROL is in scope "Thread"
+	 */
 	msr = rdmsr(IA32_FEATURE_CONTROL);
 	/* Only enable it when it is not locked */
 	if ((msr.lo & FEATURE_CONTROL_LOCK_BIT) == 0) {
@@ -147,6 +125,12 @@ static void lock_sgx(void)
 {
 	msr_t msr;
 
+	/*
+	 * Intel 64 and IA-32 ArchitecturesSoftware Developer's ManualVolume 3C
+	 * Order Number:  326019-060US
+	 * Chapter 35.10.2 "Additional MSRs Supported by Intel"
+	 * IA32_FEATURE_CONTROL is in scope "Thread"
+	 */
 	msr = rdmsr(IA32_FEATURE_CONTROL);
 	/* If it is locked don't attempt to lock it again. */
 	if ((msr.lo & 1) == 0) {
@@ -161,6 +145,7 @@ static int owner_epoch_update(void)
 	 * for PoC just write '0's to the MSRs. */
 	msr_t msr = {0, 0};
 
+	/* SGX_OWNEREPOCH is in scope "Package" */
 	wrmsr(MSR_SGX_OWNEREPOCH0, msr);
 	wrmsr(MSR_SGX_OWNEREPOCH1, msr);
 	return 0;
@@ -201,29 +186,49 @@ static int is_prmrr_approved(void)
 	return 0;
 }
 
+/*
+ * Configures SGX according to "Intel Software Guard Extensions Technology"
+ * Document Number: 565432
+ */
 void sgx_configure(void *unused)
 {
-	const void *microcode_patch = intel_mp_current_microcode();
 
-	if (!soc_sgx_enabled() || !is_sgx_supported() || !is_prmrr_set()) {
-		printk(BIOS_ERR, "SGX: pre-conditions not met\n");
+	if (!is_sgx_supported() || !is_prmrr_set()) {
+		printk(BIOS_ERR, "SGX: not supported or pre-conditions not met\n");
 		return;
 	}
 
-	/* Enable the SGX feature */
+	/* Enable the SGX feature on all threads. */
 	enable_sgx();
 
 	/* Update the owner epoch value */
 	if (owner_epoch_update() < 0)
 		return;
 
-	/* Ensure to lock memory before reload microcode patch */
-	cpu_lock_sgx_memory();
+	/* Ensure to lock memory before reloading microcode patch */
+	if (CONFIG(SOC_INTEL_COMMON_BLOCK_SGX_LOCK_MEMORY))
+		cpu_lt_lock_memory();
 
-	/* Reload the microcode patch */
-	intel_microcode_load_unlocked(microcode_patch);
+	/*
+	 * Update just on the first CPU in the core. Other siblings
+	 * get the update automatically according to Document: 253668-060US
+	 * Intel SDM Chapter 9.11.6.3
+	 * "Update in a System Supporting Intel Hyper-Threading Technology"
+	 * Intel Hyper-Threading Technology has implications on the loading of the
+	 * microcode update. The update must be loaded for each core in a physical
+	 * processor. Thus, for a processor supporting Intel Hyper-Threading
+	 * Technology, only one logical processor per core is required to load the
+	 * microcode update. Each individual logical processor can independently
+	 * load the update. However, MP initialization must provide some mechanism
+	 * (e.g. a software semaphore) to force serialization of microcode update
+	 * loads and to prevent simultaneous load attempts to the same core.
+	 */
+	if (!intel_ht_sibling()) {
+		const void *microcode_patch = intel_microcode_find();
+		intel_microcode_load_unlocked(microcode_patch);
+	}
 
-	/* Lock the SGX feature */
+	/* Lock the SGX feature on all threads. */
 	lock_sgx();
 
 	/* Activate the SGX feature, if PRMRR config was approved by MCHECK */
@@ -231,13 +236,13 @@ void sgx_configure(void *unused)
 		activate_sgx();
 }
 
-void sgx_fill_gnvs(global_nvs_t *gnvs)
+void sgx_fill_gnvs(struct global_nvs *gnvs)
 {
 	struct cpuid_result cpuid_regs;
 
-	if (!soc_sgx_enabled() || !is_sgx_supported()) {
+	if (!is_sgx_supported()) {
 		printk(BIOS_DEBUG,
-			"SGX: not enabled or not supported. skip gnvs fill\n");
+			"SGX: not supported. skip gnvs fill\n");
 		return;
 	}
 

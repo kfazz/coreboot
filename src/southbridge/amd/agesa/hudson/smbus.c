@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2010 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _HUDSON_SMBUS_C_
 #define _HUDSON_SMBUS_C_
@@ -189,7 +176,7 @@ void alink_ab_indx(u32 reg_space, u32 reg_addr,
 	tmp |= val;
 
 	/* printk(BIOS_DEBUG, "about write %x, index=%x", tmp, (reg_space&0x3)<<29 | reg_addr); */
-	outl((reg_space & 0x7) << 29 | reg_addr, AB_INDX);	/* probably we dont have to do it again. */
+	outl((reg_space & 0x7) << 29 | reg_addr, AB_INDX);	/* probably we don't have to do it again. */
 	outl(tmp, AB_DATA);
 	outl(0, AB_INDX);
 }
@@ -211,7 +198,7 @@ void alink_rc_indx(u32 reg_space, u32 reg_addr, u32 port,
 	tmp |= val;
 
 	//printk(BIOS_DEBUG, "about write %x, index=%x", tmp, (reg_space&0x3)<<29 | (port&3) << 24 | reg_addr);
-	outl((reg_space & 0x7) << 29 | (port & 3) << 24 | reg_addr, AB_INDX);	/* probably we dont have to do it again. */
+	outl((reg_space & 0x7) << 29 | (port & 3) << 24 | reg_addr, AB_INDX);	/* probably we don't have to do it again. */
 	outl(tmp, AB_DATA);
 	outl(0, AB_INDX);
 }

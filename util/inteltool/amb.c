@@ -1,17 +1,5 @@
-/*
- * inteltool - dump all registers on an Intel CPU + chipset based system.
- *
- * Copyright (C) 2012 Sven Schnelle <svens@stackframe.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* inteltool - dump all registers on an Intel CPU + chipset based system */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <stddef.h>
 #include <stdio.h>
@@ -20,11 +8,11 @@
 
 #define AMB_CONFIG_SPACE_SIZE 0x20000
 
-#define AMB_ADDR(base, fn, reg) (base | ((fn & 7) << 8) | ((reg & 0xff)))
+#define AMB_ADDR(fn, reg) (((fn & 7) << 8) | ((reg & 0xff)))
 
 static uint32_t amb_read_config32(volatile void *base, int fn, int reg)
 {
-	return *(uint32_t *)(AMB_ADDR((intptr_t)base, fn, reg));
+	return read32(base + AMB_ADDR(fn, reg));
 }
 
 static void amb_printreg32(volatile void *base, int fn, int reg,
@@ -38,7 +26,7 @@ static void amb_printreg32(volatile void *base, int fn, int reg,
 
 static uint16_t amb_read_config16(volatile void *base, int fn, int reg)
 {
-	return *(uint16_t *)(AMB_ADDR((intptr_t)base, fn, reg));
+	return read16(base + AMB_ADDR(fn, reg));
 }
 
 static void amb_printreg16(volatile void *base, int fn, int reg,
@@ -53,7 +41,7 @@ static void amb_printreg16(volatile void *base, int fn, int reg,
 
 static uint8_t amb_read_config8(volatile void *base, int fn, int reg)
 {
-	return *(uint8_t *)(AMB_ADDR((intptr_t)base, fn, reg));
+	return read8(base + AMB_ADDR(fn, reg));
 }
 
 static void amb_printreg8(volatile void *base, int fn, int reg,

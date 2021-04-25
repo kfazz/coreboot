@@ -1,40 +1,29 @@
-/*
- * This file is part of the coreboot project.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __DEVICE_PNP_OPS_H__
 #define __DEVICE_PNP_OPS_H__
 
 #include <stdint.h>
-#include <arch/io.h>
-#include <device/pnp_type.h>
+#include <device/pnp.h>
 
-#ifdef __SIMPLE_DEVICE__
+#if ENV_PNP_SIMPLE_DEVICE
 
 static __always_inline void pnp_write_config(
 	pnp_devfn_t dev, uint8_t reg, uint8_t value)
 {
-	unsigned int port = dev >> 8;
-	outb(reg, port);
-	outb(value, port + 1);
+	pnp_write_index(dev >> 8, reg, value);
 }
 
 static __always_inline uint8_t pnp_read_config(
 	pnp_devfn_t dev, uint8_t reg)
 {
-	unsigned int port = dev >> 8;
-	outb(reg, port);
-	return inb(port + 1);
+	return pnp_read_index(dev >> 8, reg);
+}
+
+static __always_inline void pnp_unset_and_set_config(
+	pnp_devfn_t dev, uint8_t reg, uint8_t unset, uint8_t set)
+{
+	pnp_unset_and_set_index(dev >> 8, reg, unset, set);
 }
 
 static __always_inline
@@ -47,13 +36,13 @@ void pnp_set_logical_device(pnp_devfn_t dev)
 static __always_inline
 void pnp_set_enable(pnp_devfn_t dev, int enable)
 {
-	pnp_write_config(dev, 0x30, enable?0x1:0x0);
+	pnp_write_config(dev, PNP_IDX_EN, enable?0x1:0x0);
 }
 
 static __always_inline
 int pnp_read_enable(pnp_devfn_t dev)
 {
-	return !!pnp_read_config(dev, 0x30);
+	return !!pnp_read_config(dev, PNP_IDX_EN);
 }
 
 static __always_inline
@@ -82,6 +71,6 @@ void pnp_set_drq(pnp_devfn_t dev, unsigned int index, unsigned int drq)
 	pnp_write_config(dev, index, drq & 0xff);
 }
 
-#endif /* __SIMPLE_DEVICE__ */
+#endif
 
 #endif

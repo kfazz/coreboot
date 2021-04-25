@@ -1,55 +1,40 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015 - 2017 Intel Corp.
- * Copyright (C) 2017 - 2019 Siemens AG
- * (Written by Alexandru Gagniuc <alexandrux.gagniuc@intel.com> for Intel Corp.)
- * (Written by Andrey Petrov <andrey.petrov@intel.com> for Intel Corp.)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
+#include <bootsplash.h>
 #include <bootstate.h>
 #include <cbmem.h>
 #include <console/console.h>
 #include <cpu/x86/mp.h>
-#include <cpu/x86/msr.h>
 #include <device/mmio.h>
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ops.h>
 #include <intelblocks/acpi.h>
-#include <intelblocks/chip.h>
+#include <intelblocks/cfg.h>
 #include <intelblocks/fast_spi.h>
 #include <intelblocks/msr.h>
 #include <intelblocks/p2sb.h>
+#include <intelblocks/power_limit.h>
 #include <intelblocks/xdci.h>
 #include <fsp/api.h>
 #include <fsp/util.h>
 #include <intelblocks/cpulib.h>
+#include <intelblocks/gpio.h>
 #include <intelblocks/itss.h>
 #include <intelblocks/pmclib.h>
-#include <romstage_handoff.h>
 #include <soc/cpu.h>
 #include <soc/heci.h>
 #include <soc/intel/common/vbt.h>
 #include <soc/iomap.h>
 #include <soc/itss.h>
-#include <soc/nvs.h>
 #include <soc/pci_devs.h>
 #include <soc/pm.h>
 #include <soc/systemagent.h>
 #include <spi-generic.h>
 #include <timer.h>
+#include <soc/ramstage.h>
+#include <soc/soc_chip.h>
 
 #include "chip.h"
 
@@ -102,6 +87,10 @@
 /* IOSF Gasket Backbone Local Clock Gating Enable */
 #define IOSFGBLCGE		(1 << 0)
 
+#define CFG_XHCPMCTRL		0x80a4
+/* BIT[7:4] LFPS periodic sampling for USB3 Ports */
+#define LFPS_PM_DISABLE_MASK    0xFFFFFF0F
+
 const char *soc_acpi_name(const struct device *dev)
 {
 	if (dev->path.type == DEVICE_PATH_DOMAIN)
@@ -124,7 +113,7 @@ const char *soc_acpi_name(const struct device *dev)
 			case 6: return "HS07";
 			case 7: return "HS08";
 			case 8:
-				if (CONFIG(SOC_INTEL_GLK))
+				if (CONFIG(SOC_INTEL_GEMINILAKE))
 					return "HS09";
 			}
 			break;
@@ -150,9 +139,6 @@ const char *soc_acpi_name(const struct device *dev)
 	/* DSDT: acpi/northbridge.asl */
 	case SA_DEVFN_ROOT:
 		return "MCHC";
-	/* DSDT: acpi/lpc.asl */
-	case PCH_DEVFN_LPC:
-		return "LPCB";
 	/* DSDT: acpi/xhci.asl */
 	case PCH_DEVFN_XHCI:
 		return "XHCI";
@@ -209,27 +195,18 @@ const char *soc_acpi_name(const struct device *dev)
 	return NULL;
 }
 
-static void pci_domain_set_resources(struct device *dev)
-{
-	assign_resources(dev->link_list);
-}
-
 static struct device_operations pci_domain_ops = {
 	.read_resources = pci_domain_read_resources,
 	.set_resources = pci_domain_set_resources,
-	.enable_resources = NULL,
-	.init = NULL,
 	.scan_bus = pci_domain_scan_bus,
 	.acpi_name = &soc_acpi_name,
 };
 
 static struct device_operations cpu_bus_ops = {
-	.read_resources = DEVICE_NOOP,
-	.set_resources = DEVICE_NOOP,
-	.enable_resources = DEVICE_NOOP,
+	.read_resources = noop_read_resources,
+	.set_resources = noop_set_resources,
 	.init = apollolake_init_cpus,
-	.scan_bus = NULL,
-	.acpi_fill_ssdt_generator = generate_cpu_entries,
+	.acpi_fill_ssdt = generate_cpu_entries,
 };
 
 static void enable_dev(struct device *dev)
@@ -239,6 +216,8 @@ static void enable_dev(struct device *dev)
 		dev->ops = &pci_domain_ops;
 	else if (dev->path.type == DEVICE_PATH_CPU_CLUSTER)
 		dev->ops = &cpu_bus_ops;
+	else if (dev->path.type == DEVICE_PATH_GPIO)
+		block_gpio_enable(dev);
 }
 
 /*
@@ -255,7 +234,7 @@ static void pcie_update_device_tree(unsigned int devfn0, int num_funcs)
 	int i;
 	unsigned int inc = PCI_DEVFN(0, 1);
 
-	func0 = dev_find_slot(0, devfn0);
+	func0 = pcidev_path_on_root(devfn0);
 	if (func0 == NULL)
 		return;
 
@@ -266,12 +245,12 @@ static void pcie_update_device_tree(unsigned int devfn0, int num_funcs)
 	devfn = devfn0 + inc;
 
 	/*
-	 * Increase funtion by 1.
+	 * Increase function by 1.
 	 * Then find first enabled device to replace func0
 	 * as that port was move to func0.
 	 */
 	for (i = 1; i < num_funcs; i++, devfn += inc) {
-		struct device *dev = dev_find_slot(0, devfn);
+		struct device *dev = pcidev_path_on_root(devfn);
 		if (dev == NULL)
 			continue;
 
@@ -290,92 +269,13 @@ static void pcie_override_devicetree_after_silicon_init(void)
 	pcie_update_device_tree(PCH_DEVFN_PCIE5, 2);
 }
 
-/* Configure package power limits */
-static void set_power_limits(void)
-{
-	static struct soc_intel_apollolake_config *cfg;
-	struct device *dev = SA_DEV_ROOT;
-	msr_t rapl_msr_reg, limit;
-	uint32_t power_unit;
-	uint32_t tdp, min_power, max_power;
-	uint32_t pl2_val;
-
-	if (CONFIG(APL_SKIP_SET_POWER_LIMITS)) {
-		printk(BIOS_INFO, "Skip the RAPL settings.\n");
-		return;
-	}
-
-	if (!dev || !dev->chip_info) {
-		printk(BIOS_ERR, "BUG! Could not find SOC devicetree config\n");
-		return;
-	}
-
-	cfg = dev->chip_info;
-
-	/* Get units */
-	rapl_msr_reg = rdmsr(MSR_PKG_POWER_SKU_UNIT);
-	power_unit = 1 << (rapl_msr_reg.lo & 0xf);
-
-	/* Get power defaults for this SKU */
-	rapl_msr_reg = rdmsr(MSR_PKG_POWER_SKU);
-	tdp = rapl_msr_reg.lo & PKG_POWER_LIMIT_MASK;
-	pl2_val = rapl_msr_reg.hi & PKG_POWER_LIMIT_MASK;
-	min_power = (rapl_msr_reg.lo >> 16) & PKG_POWER_LIMIT_MASK;
-	max_power = rapl_msr_reg.hi & PKG_POWER_LIMIT_MASK;
-
-	if (min_power > 0 && tdp < min_power)
-		tdp = min_power;
-
-	if (max_power > 0 && tdp > max_power)
-		tdp = max_power;
-
-	/* Set PL1 override value */
-	tdp = (cfg->tdp_pl1_override_mw == 0) ?
-		tdp : (cfg->tdp_pl1_override_mw * power_unit) / 1000;
-	/* Set PL2 override value */
-	pl2_val = (cfg->tdp_pl2_override_mw == 0) ?
-		pl2_val : (cfg->tdp_pl2_override_mw * power_unit) / 1000;
-
-	/* Set long term power limit to TDP */
-	limit.lo = tdp & PKG_POWER_LIMIT_MASK;
-	/* Set PL1 Pkg Power clamp bit */
-	limit.lo |= PKG_POWER_LIMIT_CLAMP;
-
-	limit.lo |= PKG_POWER_LIMIT_EN;
-	limit.lo |= (MB_POWER_LIMIT1_TIME_DEFAULT &
-		PKG_POWER_LIMIT_TIME_MASK) << PKG_POWER_LIMIT_TIME_SHIFT;
-
-	/* Set short term power limit PL2 */
-	limit.hi = pl2_val & PKG_POWER_LIMIT_MASK;
-	limit.hi |= PKG_POWER_LIMIT_EN;
-
-	/* Program package power limits in RAPL MSR */
-	wrmsr(MSR_PKG_POWER_LIMIT, limit);
-	printk(BIOS_INFO, "RAPL PL1 %d.%dW\n", tdp / power_unit,
-				100 * (tdp % power_unit) / power_unit);
-	printk(BIOS_INFO, "RAPL PL2 %d.%dW\n", pl2_val / power_unit,
-				100 * (pl2_val % power_unit) / power_unit);
-
-	/* Setting RAPL MMIO register for Power limits.
-	* RAPL driver is using MSR instead of MMIO.
-	* So, disabled LIMIT_EN bit for MMIO. */
-	MCHBAR32(MCHBAR_RAPL_PPL) = limit.lo & ~PKG_POWER_LIMIT_EN;
-	MCHBAR32(MCHBAR_RAPL_PPL + 4) =  limit.hi & ~PKG_POWER_LIMIT_EN;
-}
-
 /* Overwrites the SCI IRQ if another IRQ number is given by device tree. */
 static void set_sci_irq(void)
 {
-	static struct soc_intel_apollolake_config *cfg;
-	struct device *dev = SA_DEV_ROOT;
+	struct soc_intel_apollolake_config *cfg;
 	uint32_t scis;
 
-	if (!dev || !dev->chip_info) {
-		printk(BIOS_ERR, "BUG! Could not find SOC devicetree config\n");
-		return;
-	}
-
-	cfg = dev->chip_info;
+	cfg = config_of_soc();
 
 	/* Change only if a device tree entry exists. */
 	if (cfg->sci_irq) {
@@ -388,13 +288,20 @@ static void set_sci_irq(void)
 
 static void soc_init(void *data)
 {
-	struct global_nvs_t *gnvs;
+	struct soc_power_limits_config *soc_config;
+	config_t *config;
 
 	/* Snapshot the current GPIO IRQ polarities. FSP is setting a
 	 * default policy that doesn't honor boards' requirements. */
 	itss_snapshot_irq_polarities(GPIO_IRQ_START, GPIO_IRQ_END);
 
-	fsp_silicon_init(romstage_handoff_is_resume());
+	/*
+	 * Clear the GPI interrupt status and enable registers. These
+	 * registers do not get reset to default state when booting from S5.
+	 */
+	gpi_clear_int_cfg();
+
+	fsp_silicon_init();
 
 	/* Restore GPIO IRQ polarities back to previous settings. */
 	itss_restore_irq_polarities(GPIO_IRQ_START, GPIO_IRQ_END);
@@ -410,11 +317,14 @@ static void soc_init(void *data)
 	 */
 	p2sb_unhide();
 
-	/* Allocate ACPI NVS in CBMEM */
-	gnvs = cbmem_add(CBMEM_ID_ACPI_GNVS, sizeof(*gnvs));
-
-	/* Set RAPL MSR for Package power limits*/
-	set_power_limits();
+	if (CONFIG(APL_SKIP_SET_POWER_LIMITS)) {
+		printk(BIOS_INFO, "Skip setting RAPL per configuration\n");
+	} else {
+		config = config_of_soc();
+		/* Set RAPL MSR for Package power limits */
+		soc_config = &config->power_limits_config;
+		set_power_limits(MOBILE_SKU_PL1_TIME_SEC, soc_config);
+	}
 
 	/*
 	* FSP-S routes SCI to IRQ 9. With the help of this function you can
@@ -425,15 +335,19 @@ static void soc_init(void *data)
 
 static void soc_final(void *data)
 {
-	/* Disable global reset, just in case */
-	pmc_global_reset_enable(0);
 	/* Make sure payload/OS can't trigger global reset */
-	pmc_global_reset_lock();
+	pmc_global_reset_disable_and_lock();
 }
 
 static void disable_dev(struct device *dev, FSP_S_CONFIG *silconfig)
 {
 	switch (dev->path.pci.devfn) {
+	case PCH_DEVFN_NPK:
+		/*
+		 * Disable this device in the parse_devicetree_setting() function
+		 * in romstage.c
+		 */
+		break;
 	case PCH_DEVFN_ISH:
 		silconfig->IshEnable = 0;
 		break;
@@ -527,7 +441,7 @@ static void disable_dev(struct device *dev, FSP_S_CONFIG *silconfig)
 	case PCH_DEVFN_SMBUS:
 		silconfig->SmbusEnable = 0;
 		break;
-#if !CONFIG(SOC_INTEL_GLK)
+#if !CONFIG(SOC_INTEL_GEMINILAKE)
 	case SA_DEVFN_IPU:
 		silconfig->IpuEn = 0;
 		break;
@@ -545,7 +459,7 @@ static void disable_dev(struct device *dev, FSP_S_CONFIG *silconfig)
 
 static void parse_devicetree(FSP_S_CONFIG *silconfig)
 {
-	struct device *dev = SA_DEV_ROOT;
+	struct device *dev = pcidev_path_on_root(SA_DEVFN_ROOT);
 
 	if (!dev) {
 		printk(BIOS_ERR, "Could not find root device\n");
@@ -561,11 +475,18 @@ static void parse_devicetree(FSP_S_CONFIG *silconfig)
 static void apl_fsp_silicon_init_params_cb(struct soc_intel_apollolake_config
 	*cfg, FSP_S_CONFIG *silconfig)
 {
-#if !CONFIG(SOC_INTEL_GLK) /* GLK FSP does not have these
-					 fields in FspsUpd.h yet */
+#if !CONFIG(SOC_INTEL_GEMINILAKE) /* GLK FSP does not have these fields in FspsUpd.h yet */
 	uint8_t port;
 
 	for (port = 0; port < APOLLOLAKE_USB2_PORT_MAX; port++) {
+		if (cfg->usb_config_override) {
+			if (!cfg->usb2_port[port].enable)
+				continue;
+
+			silconfig->PortUsb20Enable[port] = 1;
+			silconfig->PortUs20bOverCurrentPin[port] = cfg->usb2_port[port].oc_pin;
+		}
+
 		if (cfg->usb2eye[port].Usb20PerPortTxPeHalf != 0)
 			silconfig->PortUsb20PerPortTxPeHalf[port] =
 				cfg->usb2eye[port].Usb20PerPortTxPeHalf;
@@ -594,14 +515,25 @@ static void apl_fsp_silicon_init_params_cb(struct soc_intel_apollolake_config
 			silconfig->PortUsb20HsNpreDrvSel[port] =
 				cfg->usb2eye[port].Usb20HsNpreDrvSel;
 	}
+
+	if (cfg->usb_config_override) {
+		for (port = 0; port < APOLLOLAKE_USB3_PORT_MAX; port++) {
+			if (!cfg->usb3_port[port].enable)
+				continue;
+
+			silconfig->PortUsb30Enable[port] = 1;
+			silconfig->PortUs30bOverCurrentPin[port] = cfg->usb3_port[port].oc_pin;
+		}
+	}
 #endif
 }
 
 static void glk_fsp_silicon_init_params_cb(
 	struct soc_intel_apollolake_config *cfg, FSP_S_CONFIG *silconfig)
 {
-#if CONFIG(SOC_INTEL_GLK)
+#if CONFIG(SOC_INTEL_GEMINILAKE)
 	uint8_t port;
+	struct device *dev;
 
 	for (port = 0; port < APOLLOLAKE_USB2_PORT_MAX; port++) {
 		if (!cfg->usb2eye[port].Usb20OverrideEn)
@@ -617,7 +549,8 @@ static void glk_fsp_silicon_init_params_cb(
 			cfg->usb2eye[port].Usb20IUsbTxEmphasisEn;
 	}
 
-	silconfig->Gmm = 0;
+	dev = pcidev_path_on_root(SA_GLK_DEVFN_GMM);
+	silconfig->Gmm = is_dev_enabled(dev);
 
 	/* On Geminilake, we need to override the default FSP PCIe de-emphasis
 	 * settings using the device tree settings. This is because PCIe
@@ -673,21 +606,16 @@ void __weak mainboard_devtree_update(struct device *dev)
 void platform_fsp_silicon_init_params_cb(FSPS_UPD *silupd)
 {
 	FSP_S_CONFIG *silconfig = &silupd->FspsConfig;
-	static struct soc_intel_apollolake_config *cfg;
+	struct soc_intel_apollolake_config *cfg;
+	struct device *dev;
 
 	/* Load VBT before devicetree-specific config. */
 	silconfig->GraphicsConfigPtr = (uintptr_t)vbt_get();
 
-	struct device *dev = SA_DEV_ROOT;
-
-	if (!dev || !dev->chip_info) {
-		printk(BIOS_ERR, "BUG! Could not find SOC devicetree config\n");
-		return;
-	}
+	dev = pcidev_path_on_root(SA_DEVFN_ROOT);
+	cfg = config_of(dev);
 
 	mainboard_devtree_update(dev);
-
-	cfg = dev->chip_info;
 
 	/* Parse device tree and disable unused device*/
 	parse_devicetree(silconfig);
@@ -733,10 +661,10 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *silupd)
 	/* Disable monitor mwait since it is broken due to a hardware bug
 	 * without a fix. Specific to Apollolake.
 	 */
-	if (!CONFIG(SOC_INTEL_GLK))
+	if (!CONFIG(SOC_INTEL_GEMINILAKE))
 		silconfig->MonitorMwaitEnable = 0;
 
-	silconfig->SkipMpInit = !CONFIG_USE_INTEL_FSP_MP_INIT;
+	silconfig->SkipMpInit = !CONFIG(USE_INTEL_FSP_MP_INIT);
 
 	/* Disable setting of EISS bit in FSP. */
 	silconfig->SpiEiss = 0;
@@ -747,21 +675,30 @@ void platform_fsp_silicon_init_params_cb(FSPS_UPD *silupd)
 	/* Enable Audio clk gate and power gate */
 	silconfig->HDAudioClkGate = cfg->hdaudio_clk_gate_enable;
 	silconfig->HDAudioPwrGate = cfg->hdaudio_pwr_gate_enable;
-	/* Bios config lockdown Audio clk and power gate */
+	/* BIOS config lockdown Audio clk and power gate */
 	silconfig->BiosCfgLockDown = cfg->hdaudio_bios_config_lockdown;
-	if (CONFIG(SOC_INTEL_GLK))
+	if (CONFIG(SOC_INTEL_GEMINILAKE))
 		glk_fsp_silicon_init_params_cb(cfg, silconfig);
 	else
 		apl_fsp_silicon_init_params_cb(cfg, silconfig);
 
 	/* Enable xDCI controller if enabled in devicetree and allowed */
-	dev = dev_find_slot(0, PCH_DEVFN_XDCI);
+	dev = pcidev_path_on_root(PCH_DEVFN_XDCI);
 	if (!xdci_can_enable())
 		dev->enabled = 0;
 	silconfig->UsbOtg = dev->enabled;
 
+	silconfig->VmxEnable = CONFIG(ENABLE_VMX);
+
 	/* Set VTD feature according to devicetree */
 	silconfig->VtdEnable = cfg->enable_vtd;
+
+	dev = pcidev_path_on_root(SA_DEVFN_IGD);
+	silconfig->PeiGraphicsPeimInit = CONFIG(RUN_FSP_GOP) && is_dev_enabled(dev);
+
+	silconfig->PavpEnable = CONFIG(PAVP);
+
+	mainboard_silicon_init_params(silconfig);
 }
 
 struct chip_operations soc_intel_apollolake_ops = {
@@ -774,7 +711,7 @@ struct chip_operations soc_intel_apollolake_ops = {
 static void drop_privilege_all(void)
 {
 	/* Drop privilege level on all the CPUs */
-	if (mp_run_on_all_cpus(&cpu_enable_untrusted_mode, NULL, 1000) < 0)
+	if (mp_run_on_all_cpus(&cpu_enable_untrusted_mode, NULL) < 0)
 		printk(BIOS_ERR, "failed to enable untrusted mode\n");
 }
 
@@ -818,6 +755,30 @@ static int check_xdci_enable(void)
 	return !!dev->enabled;
 }
 
+static void disable_xhci_lfps_pm(void)
+{
+	struct soc_intel_apollolake_config *cfg;
+
+	cfg = config_of_soc();
+
+	if (cfg->disable_xhci_lfps_pm) {
+		void *addr;
+		const struct resource *res;
+		uint32_t reg;
+		struct device *xhci_dev = PCH_DEV_XHCI;
+
+		res = find_resource(xhci_dev, PCI_BASE_ADDRESS_0);
+		addr = (void *)(uintptr_t)(res->base + CFG_XHCPMCTRL);
+		reg = read32(addr);
+		printk(BIOS_DEBUG, "XHCI PM: control reg=0x%x.\n", reg);
+		if (reg) {
+			reg &= LFPS_PM_DISABLE_MASK;
+			write32(addr, reg);
+			printk(BIOS_INFO, "XHCI PM: Disable xHCI LFPS as configured in devicetree.\n");
+		}
+	}
+}
+
 void platform_fsp_notify_status(enum fsp_notify_phase phase)
 {
 	if (phase == END_OF_FIRMWARE) {
@@ -848,9 +809,9 @@ void platform_fsp_notify_status(enum fsp_notify_phase phase)
 
 		/*
 		 * Override GLK xhci clock gating register(XHCLKGTEN) to
-		 * mitigate usb device suspend and resume failure.
+		 * mitigate USB device suspend and resume failure.
 		 */
-		if (CONFIG(SOC_INTEL_GLK)) {
+		if (CONFIG(SOC_INTEL_GEMINILAKE)) {
 			uint32_t *cfg;
 			const struct resource *res;
 			uint32_t reg;
@@ -865,6 +826,9 @@ void platform_fsp_notify_status(enum fsp_notify_phase phase)
 				IOSFGBLCGE;
 			write32(cfg, reg);
 		}
+
+		/* Disable XHCI LFPS power management if the option in dev tree is set. */
+		disable_xhci_lfps_pm();
 	}
 }
 
@@ -877,6 +841,18 @@ void platform_fsp_notify_status(enum fsp_notify_phase phase)
 static void spi_flash_init_cb(void *unused)
 {
 	fast_spi_init();
+}
+
+__weak
+void mainboard_silicon_init_params(FSP_S_CONFIG *silconfig)
+{
+	printk(BIOS_DEBUG, "WEAK: %s/%s called\n", __FILE__, __func__);
+}
+
+/* Handle FSP logo params */
+void soc_load_logo(FSPS_UPD *supd)
+{
+	bmp_load_logo(&supd->FspsConfig.LogoPtr, &supd->FspsConfig.LogoSize);
 }
 
 BOOT_STATE_INIT_ENTRY(BS_PRE_DEVICE, BS_ON_ENTRY, spi_flash_init_cb, NULL);

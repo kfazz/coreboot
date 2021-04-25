@@ -1,33 +1,16 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2017 Google Inc.
- * Copyright (C) 2018 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpigen.h>
+#include <acpi/acpigen.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
 #include <intelblocks/sd.h>
 
 #if CONFIG(HAVE_ACPI_TABLES)
-static void sd_fill_ssdt(struct device *dev)
+static void sd_fill_ssdt(const struct device *dev)
 {
 	const char *path;
 	struct acpi_gpio default_gpio = { 0 };
 	struct acpi_dp *dp;
-
-	if (!dev->enabled)
-		return;
 
 	if (sd_fill_soc_gpio_info(&default_gpio, dev) != 0)
 		return;
@@ -56,13 +39,13 @@ static void sd_fill_ssdt(struct device *dev)
 #endif
 
 static struct device_operations dev_ops = {
-	.read_resources			= pci_dev_read_resources,
-	.set_resources			= pci_dev_set_resources,
-	.enable_resources		= pci_dev_enable_resources,
+	.read_resources		= pci_dev_read_resources,
+	.set_resources		= pci_dev_set_resources,
+	.enable_resources	= pci_dev_enable_resources,
 #if CONFIG(HAVE_ACPI_TABLES)
-	.acpi_fill_ssdt_generator	= sd_fill_ssdt,
+	.acpi_fill_ssdt		= sd_fill_ssdt,
 #endif
-	.ops_pci			= &pci_dev_ops_pci,
+	.ops_pci		= &pci_dev_ops_pci,
 };
 
 static const unsigned short pci_device_ids[] = {
@@ -73,6 +56,9 @@ static const unsigned short pci_device_ids[] = {
 	PCI_DEVICE_ID_INTEL_CNP_H_SD,
 	PCI_DEVICE_ID_INTEL_ICL_SD,
 	PCI_DEVICE_ID_INTEL_CMP_SD,
+	PCI_DEVICE_ID_INTEL_CMP_H_SD,
+	PCI_DEVICE_ID_INTEL_MCC_SD,
+	PCI_DEVICE_ID_INTEL_JSP_SD,
 	0
 };
 

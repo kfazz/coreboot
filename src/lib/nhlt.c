@@ -1,19 +1,6 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <cbfs.h>
 #include <commonlib/endian.h>
 #include <console/console.h>
@@ -162,9 +149,8 @@ int nhlt_endpoint_add_formats(struct nhlt_endpoint *endp,
 
 	for (i = 0; i < num_formats; i++) {
 		struct nhlt_format *fmt;
-		struct cbfsf file;
-		struct region_device settings;
 		void *settings_data;
+		size_t size;
 		const struct nhlt_format_config *cfg = &formats[i];
 
 		fmt = nhlt_add_format(endp, cfg->num_channels,
@@ -180,23 +166,16 @@ int nhlt_endpoint_add_formats(struct nhlt_endpoint *endp,
 			continue;
 
 		/* Find the settings file in CBFS and place it in format. */
-		if (cbfs_boot_locate(&file, cfg->settings_file, NULL))
+		settings_data = cbfs_map(cfg->settings_file, &size);
+		if (!settings_data)
 			return -1;
 
-		cbfs_file_data(&settings, &file);
-
-		settings_data = rdev_mmap_full(&settings);
-
-		if (settings_data == NULL)
-			return -1;
-
-		if (nhlt_format_append_config(fmt, settings_data,
-					region_device_sz(&settings))) {
-			rdev_munmap(&settings, settings_data);
+		if (nhlt_format_append_config(fmt, settings_data, size)) {
+			cbfs_unmap(settings_data);
 			return -1;
 		}
 
-		rdev_munmap(&settings, settings_data);
+		cbfs_unmap(settings_data);
 	}
 
 	return 0;

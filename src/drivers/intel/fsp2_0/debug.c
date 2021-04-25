@@ -1,13 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2016 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <console/console.h>
 #include <console/streams.h>
@@ -18,6 +9,27 @@ asmlinkage size_t fsp_write_line(uint8_t *buffer, size_t number_of_bytes)
 {
 	console_write_line(buffer, number_of_bytes);
 	return number_of_bytes;
+}
+
+enum fsp_call_phase {
+	BEFORE_FSP_CALL,
+	AFTER_FSP_CALL,
+};
+
+static void fsp_gpio_config_check(enum fsp_call_phase phase, const char *call_str)
+{
+	switch (phase) {
+	case BEFORE_FSP_CALL:
+		printk(BIOS_SPEW, "Snapshot all GPIOs before %s.\n", call_str);
+		gpio_snapshot();
+		break;
+	case AFTER_FSP_CALL:
+		printk(BIOS_SPEW, "Verify GPIO snapshot after %s...", call_str);
+		printk(BIOS_SPEW, "%zd changes detected!\n", gpio_verify_snapshot());
+		break;
+	default:
+		break;
+	}
 }
 
 /*-----------
@@ -37,9 +49,9 @@ void fsp_debug_before_memory_init(fsp_memory_init_fn memory_init,
 	/* Display the call entry point and parameters */
 	if (!CONFIG(DISPLAY_FSP_CALLS_AND_STATUS))
 		return;
-	printk(BIOS_SPEW, "Calling FspMemoryInit: 0x%p\n", memory_init);
-	printk(BIOS_SPEW, "\t0x%p: raminit_upd\n", fspm_new_upd);
-	printk(BIOS_SPEW, "\t0x%p: &hob_list_ptr\n", fsp_get_hob_list_ptr());
+	printk(BIOS_SPEW, "Calling FspMemoryInit: %p\n", memory_init);
+	printk(BIOS_SPEW, "\t%p: raminit_upd\n", fspm_new_upd);
+	printk(BIOS_SPEW, "\t%p: &hob_list_ptr\n", fsp_get_hob_list_ptr());
 }
 
 void fsp_debug_after_memory_init(uint32_t status)
@@ -71,6 +83,9 @@ void fsp_debug_before_silicon_init(fsp_silicon_init_fn silicon_init,
 	const FSPS_UPD *fsps_old_upd,
 	const FSPS_UPD *fsps_new_upd)
 {
+	if (CONFIG(CHECK_GPIO_CONFIG_CHANGES))
+		fsp_gpio_config_check(BEFORE_FSP_CALL, "FSP Silicon Init");
+
 	display_mtrrs();
 
 	/* Display the UPD values */
@@ -80,12 +95,15 @@ void fsp_debug_before_silicon_init(fsp_silicon_init_fn silicon_init,
 	/* Display the call to FSP SiliconInit */
 	if (!CONFIG(DISPLAY_FSP_CALLS_AND_STATUS))
 		return;
-	printk(BIOS_SPEW, "Calling FspSiliconInit: 0x%p\n", silicon_init);
-	printk(BIOS_SPEW, "\t0x%p: upd\n", fsps_new_upd);
+	printk(BIOS_SPEW, "Calling FspSiliconInit: %p\n", silicon_init);
+	printk(BIOS_SPEW, "\t%p: upd\n", fsps_new_upd);
 }
 
 void fsp_debug_after_silicon_init(uint32_t status)
 {
+	if (CONFIG(CHECK_GPIO_CONFIG_CHANGES))
+		fsp_gpio_config_check(AFTER_FSP_CALL, "FSP Silicon Init");
+
 	if (CONFIG(DISPLAY_FSP_CALLS_AND_STATUS))
 		printk(BIOS_SPEW, "FspSiliconInit returned 0x%08x\n", status);
 
@@ -103,17 +121,23 @@ void fsp_debug_after_silicon_init(uint32_t status)
 void fsp_before_debug_notify(fsp_notify_fn notify,
 	const struct fsp_notify_params *notify_params)
 {
+	if (CONFIG(CHECK_GPIO_CONFIG_CHANGES))
+		fsp_gpio_config_check(BEFORE_FSP_CALL, "FSP Notify");
+
 	/* Display the call to FspNotify */
 	if (!CONFIG(DISPLAY_FSP_CALLS_AND_STATUS))
 		return;
 	printk(BIOS_SPEW, "0x%08x: notify_params->phase\n",
 		notify_params->phase);
-	printk(BIOS_SPEW, "Calling FspNotify: 0x%p\n", notify);
-	printk(BIOS_SPEW, "\t0x%p: notify_params\n", notify_params);
+	printk(BIOS_SPEW, "Calling FspNotify: %p\n", notify);
+	printk(BIOS_SPEW, "\t%p: notify_params\n", notify_params);
 }
 
 void fsp_debug_after_notify(uint32_t status)
 {
+	if (CONFIG(CHECK_GPIO_CONFIG_CHANGES))
+		fsp_gpio_config_check(AFTER_FSP_CALL, "FSP Notify");
+
 	if (CONFIG(DISPLAY_FSP_CALLS_AND_STATUS))
 		printk(BIOS_SPEW, "FspNotify returned 0x%08x\n", status);
 

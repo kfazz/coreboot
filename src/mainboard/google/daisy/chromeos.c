@@ -1,68 +1,23 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/coreboot_tables.h>
-#include <console/console.h>
 #include <ec/google/chromeec/ec.h>
 #include <ec/google/chromeec/ec_commands.h>
 #include <soc/cpu.h>
 #include <soc/gpio.h>
-#include <string.h>
 #include <vendorcode/google/chromeos/chromeos.h>
 #include <bootmode.h>
 
 void fill_lb_gpios(struct lb_gpios *gpios)
 {
-	int count = 0;
+	struct lb_gpio chromeos_gpios[] = {
+		/* Lid: active high (LID_GPIO) */
+		{EXYNOS5_GPX3, ACTIVE_HIGH, gpio_get_value(GPIO_X35), "lid"},
 
-	/* Write Protect: active low */
-	gpios->gpios[count].port = EXYNOS5_GPD1;
-	gpios->gpios[count].polarity = ACTIVE_LOW;
-	gpios->gpios[count].value = gpio_get_value(GPIO_D16); // WP_GPIO
-	strncpy((char *)gpios->gpios[count].name, "write protect",
-		GPIO_MAX_NAME_LENGTH);
-	count++;
-
-	/* Recovery: active low */
-	gpios->gpios[count].port = -1;
-	gpios->gpios[count].polarity = ACTIVE_HIGH;
-	gpios->gpios[count].value = get_recovery_mode_switch();
-	strncpy((char *)gpios->gpios[count].name, "recovery",
-		GPIO_MAX_NAME_LENGTH);
-	count++;
-
-	/* Lid: active high */
-	gpios->gpios[count].port = EXYNOS5_GPX3;
-	gpios->gpios[count].polarity = ACTIVE_HIGH;
-	gpios->gpios[count].value = gpio_get_value(GPIO_X35); // LID_GPIO
-	strncpy((char *)gpios->gpios[count].name, "lid", GPIO_MAX_NAME_LENGTH);
-	count++;
-
-	/* Power: virtual GPIO active low */
-	gpios->gpios[count].port = EXYNOS5_GPX1;
-	gpios->gpios[count].polarity = ACTIVE_LOW;
-	gpios->gpios[count].value =
-		gpio_get_value(GPIO_X13); // POWER_GPIO
-	strncpy((char *)gpios->gpios[count].name, "power",
-		GPIO_MAX_NAME_LENGTH);
-	count++;
-
-	gpios->size = sizeof(*gpios) + (count * sizeof(struct lb_gpio));
-	gpios->count = count;
-
-	printk(BIOS_ERR, "Added %d GPIOS size %d\n", count, gpios->size);
+		/* Power: virtual GPIO active low (POWER_GPIO) */
+		{EXYNOS5_GPX1, ACTIVE_LOW, gpio_get_value(GPIO_X13), "power"},
+	};
+	lb_add_gpios(gpios, chromeos_gpios, ARRAY_SIZE(chromeos_gpios));
 }
 
 int get_recovery_mode_switch(void)

@@ -1,21 +1,11 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <assert.h>
+#include <console/console.h>
+#include <delay.h>
 #include <soc/pmic_wrap.h>
 #include <soc/mt6358.h>
+#include <timer.h>
 
 static struct pmic_setting init_setting[] = {
 	/* [15:0]: TMA_KEY */
@@ -493,6 +483,12 @@ static struct pmic_setting init_setting[] = {
 	/* [2:1]: RG_LDO_VSRAM_PROC12_TRACK_ON_CTRL */
 	/* [2:2]: RG_LDO_VSRAM_PROC12_TRACK_VPROC12_ON_CTRL */
 	{0x1B6C, 0x6, 0x6, 0},
+
+	/* Vproc11/Vproc12 to 1.05V */
+	/* [6:0]: RG_BUCK_VPROC11_VOSEL */
+	{0x13a6, 0x58, 0x7F, 0},
+	/* [6:0]: RG_BUCK_VPROC12_VOSEL */
+	{0x1426, 0x58, 0x7F, 0},
 };
 
 static struct pmic_setting lp_setting[] = {
@@ -723,9 +719,216 @@ static struct pmic_setting lp_setting[] = {
 	{0x1DA6, 0x0, 0x1, 3},
 };
 
+static struct pmic_setting scp_setting[] = {
+	/* scp voltage initialization */
+	/* [6:0]: RG_BUCK_VCORE_SSHUB_VOSEL */
+	{0x14A6, 0x20, 0x7F, 0},
+	/* [14:8]: RG_BUCK_VCORE_SSHUB_VOSEL_SLEEP */
+	{0x14A6, 0x20, 0x7F, 8},
+	/* [0:0]: RG_BUCK_VCORE_SSHUB_EN */
+	{0x14A4, 0x1, 0x1, 0},
+	/* [1:1]: RG_BUCK_VCORE_SSHUB_SLEEP_VOSEL_EN */
+	{0x14A4, 0x0, 0x1, 1},
+	/* [6:0]: RG_LDO_VSRAM_OTHERS_SSHUB_VOSEL */
+	{0x1BC6, 0x40, 0x7F, 0},
+	/* [14:8]: RG_LDO_VSRAM_OTHERS_SSHUB_VOSEL_SLEEP */
+	{0x1BC6, 0x40, 0x7F, 8},
+	/* [0:0]: RG_LDO_VSRAM_OTHERS_SSHUB_EN */
+	{0x1BC4, 0x1, 0x1, 0},
+	/* [1:1]: RG_LDO_VSRAM_OTHERS_SSHUB_SLEEP_VOSEL_EN */
+	{0x1BC4, 0x0, 0x1, 1},
+	/* [4:4]: RG_SRCVOLTEN_LP_EN */
+	{0x134, 0x1, 0x1, 4},
+};
+
+static const int vddq_votrim[] = {
+	0, -10000, -20000, -30000, -40000, -50000, -60000, -70000,
+	80000, 70000, 60000, 50000, 40000, 30000, 20000, 10000,
+};
+
+static unsigned int pmic_read_efuse(int i)
+{
+	unsigned int efuse_data = 0;
+
+	/* 1. Enable efuse ctrl engine clock */
+	pwrap_write_field(PMIC_TOP_CKHWEN_CON0_CLR, 0x1, 0x1, 2);
+	pwrap_write_field(PMIC_TOP_CKPDN_CON0_CLR, 0x1, 0x1, 4);
+
+	/* 2. */
+	pwrap_write_field(PMIC_OTP_CON11, 0x1, 0x1, 0);
+
+	/* 3. Set row to read */
+	pwrap_write_field(PMIC_OTP_CON0, i * 2, 0xFF, 0);
+
+	/* 4. Toggle RG_OTP_RD_TRIG */
+	if (pwrap_read_field(PMIC_OTP_CON8, 0x1, 0) == 0)
+		pwrap_write_field(PMIC_OTP_CON8, 0x1, 0x1, 0);
+	else
+		pwrap_write_field(PMIC_OTP_CON8, 0, 0x1, 0);
+
+	/* 5. Polling RG_OTP_RD_BUSY = 0 */
+	udelay(300);
+	while (pwrap_read_field(PMIC_OTP_CON13, 0x1, 0) == 1)
+		;
+
+	/* 6. Read RG_OTP_DOUT_SW */
+	udelay(100);
+	efuse_data = pwrap_read_field(PMIC_OTP_CON12, 0xFFFF, 0);
+
+	/* 7. Disable efuse ctrl engine clock */
+	pwrap_write_field(PMIC_TOP_CKHWEN_CON0_SET, 0x1, 0x1, 2);
+	pwrap_write_field(PMIC_TOP_CKPDN_CON0_SET, 0x1, 0x1, 4);
+
+	return efuse_data;
+}
+
+static int pmic_get_efuse_votrim(void)
+{
+	const unsigned int cali_efuse = pmic_read_efuse(104) & 0xF;
+	assert(cali_efuse < ARRAY_SIZE(vddq_votrim));
+	return vddq_votrim[cali_efuse];
+}
+
 void pmic_set_power_hold(bool enable)
 {
 	pwrap_write_field(PMIC_PWRHOLD, (enable) ? 1 : 0, 0x1, 0);
+}
+
+void pmic_init_scp_voltage(void)
+{
+	for (size_t i = 0; i < ARRAY_SIZE(scp_setting); i++)
+		pwrap_write_field(
+			scp_setting[i].addr, scp_setting[i].val,
+			scp_setting[i].mask, scp_setting[i].shift);
+}
+
+void pmic_set_vsim2_cali(unsigned int vsim2_mv)
+{
+	u16 vsim2_reg, cali_mv;
+
+	cali_mv = vsim2_mv % 100;
+	assert(cali_mv % 10 == 0);
+
+	switch (vsim2_mv - cali_mv) {
+	case 1700:
+		vsim2_reg = 0x3;
+		break;
+
+	case 1800:
+		vsim2_reg = 0x4;
+		break;
+
+	case 2700:
+		vsim2_reg = 0x8;
+		break;
+
+	case 3000:
+		vsim2_reg = 0xb;
+		break;
+
+	case 3100:
+		vsim2_reg = 0xc;
+		break;
+
+	default:
+		BUG();
+		return;
+	};
+
+	/* [11:8]=0x8, RG_VSIM2_VOSEL */
+	pwrap_write_field(PMIC_VSIM2_ANA_CON0, vsim2_reg, 0xF, 8);
+
+	/* [3:0], RG_VSIM2_VOCAL */
+	pwrap_write_field(PMIC_VSIM2_ANA_CON0, cali_mv / 10, 0xF, 0);
+}
+
+unsigned int pmic_get_vcore_vol(void)
+{
+	unsigned int vol_reg;
+
+	vol_reg = pwrap_read_field(PMIC_VCORE_DBG0, 0x7F, 0);
+	return 500000 + vol_reg * 6250;
+}
+
+void pmic_set_vcore_vol(unsigned int vcore_uv)
+{
+	unsigned int vol_reg;
+
+	assert(vcore_uv >= 500000);
+	assert(vcore_uv <= 1100000);
+
+	vol_reg = (vcore_uv - 500000) / 6250;
+
+	pwrap_write_field(PMIC_VCORE_OP_EN, 1, 0x7F, 0);
+	pwrap_write_field(PMIC_VCORE_VOSEL, vol_reg, 0x7F, 0);
+	udelay(1);
+}
+
+unsigned int pmic_get_vdram1_vol(void)
+{
+	unsigned int vol_reg;
+
+	vol_reg = pwrap_read_field(PMIC_VDRAM1_DBG0, 0x7F, 0);
+	return 500000 + vol_reg * 12500;
+}
+
+void pmic_set_vdram1_vol(unsigned int vdram_uv)
+{
+	unsigned int vol_reg;
+
+	assert(vdram_uv >= 500000);
+	assert(vdram_uv <= 1300000);
+
+	vol_reg = (vdram_uv - 500000) / 12500;
+
+	pwrap_write_field(PMIC_VDRAM1_OP_EN, 1, 0x7F, 0);
+	pwrap_write_field(PMIC_VDRAM1_VOSEL, vol_reg, 0x7F, 0);
+	udelay(1);
+}
+
+unsigned int pmic_get_vddq_vol(void)
+{
+	int efuse_votrim;
+	unsigned int cali_trim;
+
+	if (!pwrap_read_field(PMIC_VDDQ_OP_EN, 0x1, 15))
+		return 0;
+
+	efuse_votrim = pmic_get_efuse_votrim();
+	cali_trim = pwrap_read_field(PMIC_VDDQ_ELR_0, 0xF, 0);
+	assert(cali_trim < ARRAY_SIZE(vddq_votrim));
+	return 600 * 1000 - efuse_votrim + vddq_votrim[cali_trim];
+}
+
+void pmic_set_vddq_vol(unsigned int vddq_uv)
+{
+	int target_mv, dram2_ori_mv, cali_offset_uv, cali_trim;
+
+	assert(vddq_uv >= 530000);
+	assert(vddq_uv <= 680000);
+
+	/* Round down to multiple of 10 */
+	target_mv = (vddq_uv / 1000) / 10 * 10;
+
+	dram2_ori_mv = 600 - pmic_get_efuse_votrim() / 1000;
+	cali_offset_uv = 1000 * (target_mv - dram2_ori_mv);
+
+	if (cali_offset_uv >= 80000)
+		cali_trim = 8;
+	else if (cali_offset_uv <= -70000)
+		cali_trim = 7;
+	else {
+		cali_trim = 0;
+		while (cali_trim < ARRAY_SIZE(vddq_votrim) &&
+		       vddq_votrim[cali_trim] != cali_offset_uv)
+			++cali_trim;
+		assert(cali_trim < ARRAY_SIZE(vddq_votrim));
+	}
+
+	pwrap_write_field(PMIC_TOP_TMA_KEY, 0x9CA7, 0xFFFF, 0);
+	pwrap_write_field(PMIC_VDDQ_ELR_0, cali_trim, 0xF, 0);
+	pwrap_write_field(PMIC_TOP_TMA_KEY, 0, 0xFFFF, 0);
+	udelay(1);
 }
 
 static void pmic_wdt_set(void)
@@ -771,13 +974,18 @@ static void mt6358_lp_setting(void)
 
 void mt6358_init(void)
 {
+	struct stopwatch voltage_settled;
+
 	if (pwrap_init())
 		die("ERROR - Failed to initialize pmic wrap!");
 
 	pmic_set_power_hold(true);
 	pmic_wdt_set();
 	mt6358_init_setting();
+	stopwatch_init_usecs_expire(&voltage_settled, 200);
 	wk_sleep_voltage_by_ddr();
 	wk_power_down_seq();
 	mt6358_lp_setting();
+	while (!stopwatch_expired(&voltage_settled))
+		/* wait for voltages to settle */;
 }

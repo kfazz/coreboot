@@ -1,6 +1,4 @@
 /*
- * This file is part of the coreboot project.
- *
  * Copyright 2017-present Facebook, Inc.
  *
  * SPDX-License-Identifier: BSD-3-Clause

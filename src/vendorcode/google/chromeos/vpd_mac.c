@@ -1,20 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/coreboot_tables.h>
 #include <console/console.h>
+#include <ctype.h>
 #include <string.h>
 
 #include <drivers/vpd/vpd.h>
@@ -85,7 +73,7 @@ void lb_table_add_macs_from_vpd(struct lb_header *header)
 			 * in the VPD - move on.
 			 */
 			if (!vpd_gets(mac_addr_key, mac_addr_str,
-					   sizeof(mac_addr_str), VPD_ANY))
+					   sizeof(mac_addr_str), VPD_RO_THEN_RW))
 				break;
 
 			if (!macs) {

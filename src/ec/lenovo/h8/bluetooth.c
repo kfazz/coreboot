@@ -1,23 +1,11 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Patrick Rudolph <siro@das-labor.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <southbridge/intel/common/gpio.h>
 #include <console/console.h>
 #include <device/device.h>
 #include <ec/acpi/ec.h>
 #include <option.h>
+#include <types.h>
 
 #include "h8.h"
 #include "chip.h"
@@ -36,7 +24,7 @@ void h8_bluetooth_enable(int on)
 /*
  * Detect BDC on supported MBs.
  */
-bool h8_has_bdc(struct device *dev)
+bool h8_has_bdc(const struct device *dev)
 {
 	struct ec_lenovo_h8_config *conf = dev->chip_info;
 
@@ -60,10 +48,5 @@ bool h8_has_bdc(struct device *dev)
  */
 bool h8_bluetooth_nv_enable(void)
 {
-	u8 val;
-
-	if (get_option(&val, "bluetooth") != CB_SUCCESS)
-		return true;
-
-	return val;
+	return get_int_option("bluetooth", true);
 }

@@ -1,22 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _BROADWELL_ME_H_
 #define _BROADWELL_ME_H_
 
-#include <commonlib/loglevel.h>
+#include <stdint.h>
 
 #define ME_RETRY		100000	/* 1 second */
 #define ME_DELAY		10	/* 10 us */
@@ -493,11 +480,7 @@ struct me_fwcaps {
 
 void intel_me_hsio_version(uint16_t *version, uint16_t *checksum);
 
-#if (CONFIG_DEFAULT_CONSOLE_LOGLEVEL >= BIOS_DEBUG)
 /* Defined in me_status.c for both romstage and ramstage */
 void intel_me_status(void);
-#else
-static inline void intel_me_status(void) { }
-#endif
 
 #endif

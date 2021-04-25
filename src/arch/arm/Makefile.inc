@@ -1,21 +1,4 @@
-################################################################################
-##
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2012-2013 The ChromiumOS Authors
-## Copyright (C) 2012 Alexandru Gagniuc <mr.nuke.me@gmail.com>
-## Copyright (C) 2009-2010 coresystems GmbH
-## Copyright (C) 2009 Ronald G. Minnich
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+## SPDX-License-Identifier: GPL-2.0-only
 
 ###############################################################################
 # ARM specific options
@@ -44,11 +27,6 @@ endif # CONFIG_ARCH_ARM
 
 ifeq ($(CONFIG_ARCH_BOOTBLOCK_ARM),y)
 
-decompressor-y += id.S
-bootblock-y += id.S
-$(call src-to-obj,decompressor,$(dir)/id.S): $(obj)/build.h
-$(call src-to-obj,bootblock,$(dir)/id.S): $(obj)/build.h
-
 decompressor-y += boot.c
 bootblock-y += boot.c
 decompressor-y += div0.c
@@ -67,11 +45,11 @@ bootblock-y += stages.c
 
 $(objcbfs)/bootblock.debug: $$(bootblock-objs)
 	@printf "    LINK       $(subst $(obj)/,,$(@))\n"
-	$(LD_bootblock) $(LDFLAGS_bootblock) -o $@ -L$(obj) -T $(call src-to-obj,bootblock,src/mainboard/$(MAINBOARDDIR)/memlayout.ld) --whole-archive --start-group $(filter-out %.ld,$(bootblock-objs)) --end-group
+	$(LD_bootblock) $(LDFLAGS_bootblock) -o $@ -L$(obj) -T $(call src-to-obj,bootblock,$(CONFIG_MEMLAYOUT_LD_FILE)) --whole-archive --start-group $(filter-out %.ld,$(bootblock-objs)) --end-group
 
 $(objcbfs)/decompressor.debug: $$(decompressor-objs)
 	@printf "    LINK       $(subst $(obj)/,,$(@))\n"
-	$(LD_bootblock) $(LDFLAGS_bootblock) -o $@ -L$(obj) -T $(call src-to-obj,decompressor,src/mainboard/$(MAINBOARDDIR)/memlayout.ld) --whole-archive --start-group $(filter-out %.ld,$(decompressor-objs)) --end-group
+	$(LD_bootblock) $(LDFLAGS_bootblock) -o $@ -L$(obj) -T $(call src-to-obj,decompressor,$(CONFIG_MEMLAYOUT_LD_FILE)) --whole-archive --start-group $(filter-out %.ld,$(decompressor-objs)) --end-group
 
 endif # CONFIG_ARCH_BOOTBLOCK_ARM
 
@@ -83,7 +61,7 @@ ifeq ($(CONFIG_ARCH_VERSTAGE_ARM),y)
 
 $(objcbfs)/verstage.debug: $$(verstage-objs)
 	@printf "    LINK       $(subst $(obj)/,,$(@))\n"
-	$(LD_verstage) $(LDFLAGS_verstage) -o $@ -L$(obj) -T $(call src-to-obj,verstage,src/mainboard/$(MAINBOARDDIR)/memlayout.ld) --whole-archive --start-group $(filter-out %.ld,$(verstage-objs)) --end-group
+	$(LD_verstage) $(LDFLAGS_verstage) -o $@ -L$(obj) -T $(call src-to-obj,verstage,$(CONFIG_MEMLAYOUT_LD_FILE)) --whole-archive --start-group $(filter-out %.ld,$(verstage-objs)) --end-group
 
 verstage-y += boot.c
 verstage-y += div0.c
@@ -116,7 +94,7 @@ rmodules_arm-y += eabi_compat.c
 
 $(objcbfs)/romstage.debug: $$(romstage-objs)
 	@printf "    LINK       $(subst $(obj)/,,$(@))\n"
-	$(LD_romstage) $(LDFLAGS_romstage) -o $@ -L$(obj) -T $(call src-to-obj,romstage,src/mainboard/$(MAINBOARDDIR)/memlayout.ld) --whole-archive --start-group $(filter-out %.ld,$(romstage-objs)) --end-group
+	$(LD_romstage) $(LDFLAGS_romstage) -o $@ -L$(obj) -T $(call src-to-obj,romstage,$(CONFIG_MEMLAYOUT_LD_FILE)) --whole-archive --start-group $(filter-out %.ld,$(romstage-objs)) --end-group
 
 endif # CONFIG_ARCH_ROMSTAGE_ARM
 
@@ -136,6 +114,8 @@ ramstage-y += memset.S
 ramstage-y += memcpy.S
 ramstage-y += memmove.S
 ramstage-y += clock.c
+ramstage-y += boot_linux.S
+ramstage-$(CONFIG_PAYLOAD_FIT_SUPPORT) += fit_payload.c
 
 rmodules_arm-y += memset.S
 rmodules_arm-y += memcpy.S
@@ -145,6 +125,6 @@ ramstage-srcs += $(wildcard src/mainboard/$(MAINBOARDDIR)/mainboard.c)
 
 $(objcbfs)/ramstage.debug: $$(ramstage-objs)
 	@printf "    CC         $(subst $(obj)/,,$(@))\n"
-	$(LD_ramstage) $(LDFLAGS_ramstage) -o $@ -L$(obj) -T $(call src-to-obj,ramstage,src/mainboard/$(MAINBOARDDIR)/memlayout.ld) --whole-archive --start-group $(filter-out %.ld,$(ramstage-objs)) --end-group
+	$(LD_ramstage) $(LDFLAGS_ramstage) -o $@ -L$(obj) -T $(call src-to-obj,ramstage,$(CONFIG_MEMLAYOUT_LD_FILE)) --whole-archive --start-group $(filter-out %.ld,$(ramstage-objs)) --end-group
 
 endif # CONFIG_ARCH_RAMSTAGE_ARM

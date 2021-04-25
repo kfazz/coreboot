@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2016 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef BASEBOARD_EC_H
 #define BASEBOARD_EC_H
@@ -72,7 +59,6 @@
 /* Enable LID switch and provide wake pin for EC */
 #define EC_ENABLE_LID_SWITCH
 #define EC_ENABLE_WAKE_PIN	GPE_EC_WAKE
-
 
 #define SIO_EC_MEMMAP_ENABLE     /* EC Memory Map Resources */
 #define SIO_EC_HOST_ENABLE       /* EC Host Interface Resources */

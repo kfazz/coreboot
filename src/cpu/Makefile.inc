@@ -1,13 +1,10 @@
 ################################################################################
 ## Subdirectories
 ################################################################################
-subdirs-y += allwinner
 subdirs-y += amd
 subdirs-y += armltd
-subdirs-y += imgtec
 subdirs-y += intel
 subdirs-y += ti
-subdirs-y += via
 subdirs-$(CONFIG_ARCH_X86) += x86
 subdirs-$(CONFIG_CPU_QEMU_X86) += qemu-x86
 
@@ -16,9 +13,7 @@ $(eval $(call create_class_compiler,cpu_microcode,x86_32))
 ## Rules for building the microcode blob in CBFS
 ################################################################################
 
-ifneq ($(CONFIG_CPU_MICROCODE_MULTIPLE_FILES), y)
 cbfs-files-$(CONFIG_USE_CPU_MICROCODE_CBFS_BINS) += cpu_microcode_blob.bin
-endif
 
 ifeq ($(CONFIG_CPU_MICROCODE_CBFS_EXTERNAL_HEADER),y)
 cbfs-files-y  += cpu_microcode_blob.bin
@@ -30,7 +25,7 @@ $(objgenerated)/microcode.bin: $(call strip_quotes,$(CONFIG_CPU_MICROCODE_HEADER
 endif
 
 ifeq ($(CONFIG_CPU_MICROCODE_CBFS_EXTERNAL_BINS),y)
-cpu_microcode_bins := $(call strip_quotes,$(CONFIG_CPU_UCODE_BINARIES))
+$(obj)/cpu_microcode_blob.bin: cpu_microcode_bins := $(call strip_quotes,$(CONFIG_CPU_UCODE_BINARIES))
 endif
 # otherwise `cpu_microcode_bins` should be filled by platform makefiles
 
@@ -61,9 +56,8 @@ $(obj)/cpu_microcode_blob.bin: $$(wildcard $$(cpu_microcode_bins))
 
 cpu_microcode_blob.bin-file ?= $(obj)/cpu_microcode_blob.bin
 cpu_microcode_blob.bin-type := microcode
+cpu_microcode_blob.bin-align := 16
 
 ifneq ($(CONFIG_CPU_MICROCODE_CBFS_LOC),)
 cpu_microcode_blob.bin-COREBOOT-position := $(CONFIG_CPU_MICROCODE_CBFS_LOC)
-else
-cpu_microcode_blob.bin-align := 16
 endif

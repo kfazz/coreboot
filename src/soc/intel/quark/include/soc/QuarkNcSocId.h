@@ -1,22 +1,13 @@
-/** @file
-QuarkNcSocId Register Definitions
-
-Copyright (c) 2013-2017 Intel Corporation.
-
-This program and the accompanying materials are licensed and made available
-under the terms and conditions of the BSD License.  The full text of the license
-may be found at http://opensource.org/licenses/bsd-license.php
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
-
-Definitions beginning with "R_" are registers
-Definitions beginning with "B_" are bits within registers
-Definitions beginning with "V_" are meaningful values of bits within registers
-Definitions beginning with "S_" are register sizes
-Definitions beginning with "N_" are the bit position
-
-**/
+/* SPDX-License-Identifier: BSD-2-Clause */
+/*
+ * QuarkNcSocId Register Definitions
+ * Definitions beginning with "R_" are registers
+ * Definitions beginning with "B_" are bits within registers
+ * Definitions beginning with "V_" are meaningful values of bits within registers
+ * Definitions beginning with "S_" are register sizes
+ * Definitions beginning with "N_" are the bit position
+ *
+ */
 
 #ifndef _QUARK_NC_SOC_ID_H_
 #define _QUARK_NC_SOC_ID_H_
@@ -75,7 +66,6 @@ Definitions beginning with "N_" are the bit position
 #define   QUARK2_MC_DEVICE_ID     0x12C0
 #define   QNC_MC_REV_ID_A0      0x00
 
-
 //
 // MCR - B0:D0:F0:RD0h (WO)- Message control register (Datasheet 12.5)
 // [31:24] Message opcode - D0 read; E0 write;
@@ -127,7 +117,6 @@ Definitions beginning with "N_" are the bit position
 //
 #define QUARK_OPCODE_IO_READ           0x02 // Message bus "IO read" opcode
 #define QUARK_OPCODE_IO_WRITE          0x03 // Message bus "IO write" opcode
-
 
 #define QUARK_DRAM_BASE_ADDR_READY     0x78 // Message bus "RMU Main binary
 					    // shadow" opcode
@@ -509,7 +498,6 @@ Definitions beginning with "N_" are the bit position
 #define   B_QNC_PM1BLK_PM1S_GLOB          (BIT5)
 #define   B_QNC_PM1BLK_PM1S_TO            (BIT0)
 #define    N_QNC_PM1BLK_PM1S_RTC           10
-
 
 #define R_QNC_PM1BLK_PM1E               0x02
 #define  S_QNC_PM1BLK_PM1E               2

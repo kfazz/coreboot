@@ -1,22 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/pci_def.h>
 #include <device/device.h>
-#include <stdlib.h>
-#include <OEM.h>		/* SMBUS0_BASE_ADDRESS */
+#include <OEM.h>
 
 /* warning: Porting.h includes an open #pragma pack(1) */
 #include <Porting.h>
@@ -54,7 +40,7 @@ AGESA_STATUS AmdMemoryReadSPD (UINT32 unused1, UINTN unused2, AGESA_READ_SPD_PAR
 	if (spdAddress == 0)
 		return AGESA_ERROR;
 
-	int err = smbus_readSpd(spdAddress, (void *) info->Buffer, 128);
+	int err = smbus_readSpd(spdAddress, (void *) info->Buffer, DDR3_SPD_SIZE);
 	if (err)
 		return AGESA_ERROR;
 	return AGESA_SUCCESS;

@@ -1,53 +1,44 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2016 Kyösti Mälkki
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <Porting.h>
 #include <AGESA.h>
-
+#include <amdblocks/biosram.h>
 #include <arch/io.h>
-#include <cbmem.h>
 #include <cf9_reset.h>
+#include <console/console.h>
 #include <device/device.h>
 #include <device/pci_def.h>
 #include <device/pci_ops.h>
 #include <smp/node.h>
 #include <northbridge/amd/agesa/state_machine.h>
 #include <northbridge/amd/agesa/agesa_helper.h>
-
 #include <sb_cimx.h>
 
 void platform_BeforeInitReset(struct sysinfo *cb, AMD_RESET_PARAMS *Reset)
 {
+	if (!boot_cpu())
+		return;
+
+	sb_Poweron_Init();
+
 	/* Reboots with outb(3,0x92), outb(4,0xcf9) or triple-fault all
 	 * would fail later in AmdInitPost(), when DRAM is already configured
 	 * and C6DramLock bit has been set.
 	 *
 	 * As a workaround, do a hard reset to clear C6DramLock bit.
 	 */
+
 #ifdef __SIMPLE_DEVICE__
 	pci_devfn_t dev = PCI_DEV(0, 0x18, 2);
 #else
 	struct device *dev = pcidev_on_root(0x18, 2);
 #endif
-	if (boot_cpu()) {
-		u32 mct_cfg_lo = pci_read_config32(dev, 0x118);
-		if (mct_cfg_lo & (1<<19)) {
-			printk(BIOS_CRIT, "C6DramLock is set, resetting\n");
-			system_reset();
-		}
+	u32 mct_cfg_lo = pci_read_config32(dev, 0x118);
+	if (mct_cfg_lo & (1<<19)) {
+		printk(BIOS_CRIT, "C6DramLock is set, resetting\n");
+		system_reset();
 	}
+
 }
 
 void platform_BeforeInitEarly(struct sysinfo *cb, AMD_EARLY_PARAMS *Early)
@@ -56,6 +47,8 @@ void platform_BeforeInitEarly(struct sysinfo *cb, AMD_EARLY_PARAMS *Early)
 
 void platform_BeforeInitPost(struct sysinfo *cb, AMD_POST_PARAMS *Post)
 {
+	Post->MemConfig.BottomIo = (UINT16)(MIN(0xE0000000,
+			MAX(0x28000000, CONFIG_BOTTOMIO_POSITION)) >> 24) & 0xF8;
 }
 
 void platform_AfterInitPost(struct sysinfo *cb, AMD_POST_PARAMS *Post)
@@ -97,6 +90,10 @@ void platform_BeforeInitMid(struct sysinfo *cb, AMD_MID_PARAMS *Mid)
 	sb_Mid_Post_Init();
 
 	amd_initcpuio();
+}
+
+void platform_BeforeInitLate(struct sysinfo *cb, AMD_LATE_PARAMS *Late)
+{
 }
 
 void platform_AfterInitLate(struct sysinfo *cb, AMD_LATE_PARAMS *Late)

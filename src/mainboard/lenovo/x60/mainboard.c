@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- * Copyright (C) 2011 Sven Schnelle <svens@stackframe.org>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/pci_def.h>
 #include <device/pci_ids.h>
@@ -22,49 +7,13 @@
 #include <arch/io.h>
 #include <ec/acpi/ec.h>
 #include <northbridge/intel/i945/i945.h>
+#include <southbridge/intel/i82801gx/chip.h>
 #include "dock.h"
 #include <drivers/intel/gma/int15.h>
 #include <drivers/lenovo/lenovo.h>
-#include <arch/acpigen.h>
+#include <acpi/acpigen.h>
 
 #define PANEL INT15_5F35_CL_DISPLAY_DEFAULT
-
-#define MWAIT_RES(state, sub_state)                         \
-	{						    \
-		.space_id = ACPI_ADDRESS_SPACE_FIXED,	    \
-		.bit_width = ACPI_FFIXEDHW_VENDOR_INTEL,    \
-		.bit_offset = ACPI_FFIXEDHW_CLASS_MWAIT,    \
-		.access_size = 0,			    \
-		.addrl = (((state) << 4) | (sub_state)),    \
-		.addrh = 0,				    \
-			 }
-
-static acpi_cstate_t cst_entries[] = {
-	{
-		.ctype = 1,
-		.latency = 1,
-		.power = 1000,
-		.resource = MWAIT_RES(0, 0),
-	},
-	{
-		.ctype = 2,
-		.latency = 1,
-		.power = 500,
-		.resource = MWAIT_RES(1, 0),
-	},
-	{
-		.ctype = 3,
-		.latency = 17,
-		.power = 250,
-		.resource = MWAIT_RES(2, 0),
-	},
-};
-
-int get_cst_entries(acpi_cstate_t **entries)
-{
-	*entries = cst_entries;
-	return ARRAY_SIZE(cst_entries);
-}
 
 static void mainboard_init(struct device *dev)
 {
@@ -112,7 +61,7 @@ static void mainboard_init(struct device *dev)
 	}
 }
 
-static void fill_ssdt(struct device *device)
+static void fill_ssdt(const struct device *device)
 {
 	drivers_lenovo_serial_ports_ssdt_generate("\\_SB.PCI0.LPCB", 1);
 }
@@ -120,7 +69,7 @@ static void fill_ssdt(struct device *device)
 static void mainboard_enable(struct device *dev)
 {
 	dev->ops->init = mainboard_init;
-	dev->ops->acpi_fill_ssdt_generator = fill_ssdt;
+	dev->ops->acpi_fill_ssdt = fill_ssdt;
 }
 
 struct chip_operations mainboard_ops = {

@@ -1,17 +1,5 @@
-/*
- * ifwitool, CLI utility for IFWI manipulation
- *
- * Copyright 2016 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* ifwitool, CLI utility for IFWI manipulation */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <commonlib/endian.h>
 #include <getopt.h>
@@ -34,9 +22,13 @@
  */
 #define BPDT_SIGNATURE				(0x000055AA)
 
+#define LBP1					(0)
+#define LBP2					(1)
+
 /* Parameters passed in by caller. */
 static struct param {
 	const char *file_name;
+	size_t logical_boot_partition;
 	const char *subpart_name;
 	const char *image_name;
 	bool dir_ops;
@@ -383,7 +375,7 @@ static void alloc_buffer(struct buffer *b, size_t s, const char *n)
 
 /*
  * Read header/entry members in little-endian format.
- * Returns the offset upto which the read was performed.
+ * Returns the offset up to which the read was performed.
 */
 static size_t read_member(void *src, size_t offset, size_t size_bytes,
 			  void *dst)
@@ -411,7 +403,7 @@ static size_t read_member(void *src, size_t offset, size_t size_bytes,
 
 /*
  * Convert to little endian format.
- * Returns the offset upto which the fixup was performed.
+ * Returns the offset up to which the fixup was performed.
  */
 static size_t fix_member(void *data, size_t offset, size_t size_bytes)
 {
@@ -673,7 +665,7 @@ static size_t read_subpart_buf(void *data, size_t size, struct bpdt_entry *e,
 
 		/*
 		 * Sub-partitions in IFWI image are not in the same order as
-		 * in BPDT entries. BPDT entires are in header_order whereas
+		 * in BPDT entries. BPDT entries are in header_order whereas
 		 * sub-partition offsets in the image are in pack_order.
 		 */
 		if ((e[i].offset + e[i].size) > max_offset)
@@ -851,6 +843,18 @@ static void parse_subpart_dir(struct buffer *subpart_dir_buf,
 	print_subpart_dir(subpart_dir);
 }
 
+/* Parse the bpdt entries to compute the size of the BPDT */
+static size_t bpdt_size(void *data)
+{
+	struct bpdt *b = (struct bpdt *)data;
+	size_t i, size = 0;
+
+	for (i = 0; i < b->h.descriptor_count; i++)
+		size = MAX(size, b->e[i].offset + b->e[i].size);
+
+	return size;
+}
+
 /* Parse input image file to identify different sub-partitions. */
 static int ifwi_parse(void)
 {
@@ -867,17 +871,22 @@ static int ifwi_parse(void)
 	INFO("Buffer %p size 0x%zx\n", buff->data, buff->size);
 
 	/* Look for BPDT signature at 4K intervals. */
-	size_t offset = 0;
+	size_t offset = 0, lbp = LBP1;
 	void *data = buffer_get(buff);
 
 	while (offset < buffer_size(buff)) {
-		if (read_at_le32(data, offset) == BPDT_SIGNATURE)
-			break;
-		offset += 4 * KiB;
+		if (read_at_le32(data, offset) == BPDT_SIGNATURE) {
+			if (lbp == param.logical_boot_partition)
+				break;
+			offset += bpdt_size((uint8_t *)data + offset);
+			lbp++;
+		} else
+			offset += 4 * KiB;
 	}
 
 	if (offset >= buffer_size(buff)) {
-		ERROR("Image does not contain BPDT!!\n");
+		ERROR("Image does not contain BPDT for LBP=%zd!!\n",
+		      param.logical_boot_partition);
 		return -1;
 	}
 
@@ -1850,12 +1859,12 @@ struct command {
 };
 
 static const struct command commands[] = {
-	{"add", "f:n:e:dvh?", ifwi_add},
-	{"create", "f:vh?", ifwi_create},
-	{"delete", "f:n:vh?", ifwi_delete},
-	{"extract", "f:n:e:dvh?", ifwi_extract},
-	{"print", "dh?", ifwi_print},
-	{"replace", "f:n:e:dvh?", ifwi_replace},
+	{"add", "f:n:e:dsvh?", ifwi_add},
+	{"create", "f:svh?", ifwi_create},
+	{"delete", "f:n:svh?", ifwi_delete},
+	{"extract", "f:n:e:dsvh?", ifwi_extract},
+	{"print", "dsh?", ifwi_print},
+	{"replace", "f:n:e:dsvh?", ifwi_replace},
 };
 
 static struct option long_options[] = {
@@ -1865,6 +1874,7 @@ static struct option long_options[] = {
 	{"name",	    required_argument, 0, 'n'},
 	{"dir_ops",         no_argument,       0, 'd'},
 	{"verbose",	    no_argument,       0, 'v'},
+	{"second_lbp",	    no_argument,       0, 's'},
 	{NULL,		    0,                 0,  0 }
 };
 
@@ -1875,14 +1885,15 @@ static void usage(const char *name)
 	       " %s [-h]\n"
 	       " %s FILE COMMAND [PARAMETERS]\n\n"
 	       "COMMANDs:\n"
-	       " add -f FILE -n NAME [-d -e ENTRY]\n"
-	       " create -f FILE\n"
-	       " delete -n NAME\n"
-	       " extract -f FILE -n NAME [-d -e ENTRY]\n"
-	       " print [-d]\n"
-	       " replace -f FILE -n NAME [-d -e ENTRY]\n"
+	       " add -f FILE -n NAME [-d -e ENTRY] [-s]\n"
+	       " create -f FILE [-s]\n"
+	       " delete -n NAME [-s]\n"
+	       " extract -f FILE -n NAME [-d -e ENTRY] [-s]\n"
+	       " print [-d] [-s]\n"
+	       " replace -f FILE -n NAME [-d -e ENTRY] [-s]\n"
 	       "OPTIONs:\n"
 	       " -f FILE : File to read/write/create/extract\n"
+	       " -s      : Use the second Logical Boot Partition\n"
 	       " -d      : Perform directory operation\n"
 	       " -e ENTRY: Name of directory entry to operate on\n"
 	       " -v      : Verbose level\n"
@@ -1906,6 +1917,7 @@ int main(int argc, char **argv)
 	}
 
 	param.image_name = argv[1];
+	param.logical_boot_partition = LBP1;
 	char *cmd = argv[2];
 	optind += 2;
 
@@ -1936,6 +1948,9 @@ int main(int argc, char **argv)
 			switch (c) {
 			case 'n':
 				param.subpart_name = optarg;
+				break;
+			case 's':
+				param.logical_boot_partition = LBP2;
 				break;
 			case 'f':
 				param.file_name = optarg;

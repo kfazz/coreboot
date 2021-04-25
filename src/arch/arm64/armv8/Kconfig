@@ -1,18 +1,20 @@
 config ARCH_BOOTBLOCK_ARMV8_64
-	def_bool n
+	bool
 	select ARCH_BOOTBLOCK_ARM64
 
 config ARCH_VERSTAGE_ARMV8_64
-	def_bool n
+	bool
 	select ARCH_VERSTAGE_ARM64
 
 config ARCH_ROMSTAGE_ARMV8_64
-	def_bool n
+	bool
 	select ARCH_ROMSTAGE_ARM64
 
 config ARCH_RAMSTAGE_ARMV8_64
-	def_bool n
+	bool
 	select ARCH_RAMSTAGE_ARM64
+
+if ARCH_ARM64
 
 config ARCH_ARMV8_EXTENSION
 	int
@@ -25,3 +27,5 @@ config ARCH_ARMV8_EXTENSION
 	  All ARMv8 implementations are downwards-compatible, so this does not
 	  need to be changed unless specific features (e.g. new instructions)
 	  are used by the SoC's coreboot code.
+
+endif # ARCH_ARM64

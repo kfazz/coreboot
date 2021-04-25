@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2008-2010 coresystems GmbH
  *
@@ -30,6 +29,7 @@
 //#define USB_DEBUG
 
 #include <arch/virtual.h>
+#include <inttypes.h>
 #include <usb/usb.h>
 #include "uhci.h"
 #include "uhci_private.h"
@@ -80,14 +80,14 @@ static void td_dump(td_t *td)
 	(td->ptr & (1UL << 2)) >> 2, (td->ptr & (1UL << 1)) >> 1, td->ptr & 1UL);
 	usb_debug("|:+-----------------------------------------------+:|\n");
 	usb_debug("|:|   T   | Maximum Length               | [%04lx] |:|\n", (td->token & (0x7FFUL << 21)) >> 21);
-	usb_debug("|:|   O   | PID CODE                     | [%04lx] |:|\n", td->token & 0xFF);
-	usb_debug("|:|   K   | Endpoint                     | [%04lx] |:|\n", (td->token & TD_EP_MASK) >> TD_EP_SHIFT);
+	usb_debug("|:|   O   | PID CODE                     | [%04"PRIx32"] |:|\n", td->token & 0xFF);
+	usb_debug("|:|   K   | Endpoint                     | [%04"PRIx32"] |:|\n", (td->token & TD_EP_MASK) >> TD_EP_SHIFT);
 	usb_debug("|:|   E   | Device Address               | [%04lx] |:|\n", (td->token & (0x7FUL << 8)) >> 8);
 	usb_debug("|:|   N   | Data Toggle                  |    [%lx] |:|\n", (td->token & (1UL << 19)) >> 19);
 	usb_debug("|:+-----------------------------------------------+:|\n");
 	usb_debug("|:|   C   | Short Packet Detector        |    [%lx] |:|\n", (td->ctrlsts & (1UL << 29)) >> 29);
 	usb_debug("|:|   O   | Error Counter                |    [%lx] |:|\n",
-		(td->ctrlsts & (3UL << TD_COUNTER_SHIFT)) >> TD_COUNTER_SHIFT);
+		  (td->ctrlsts & (3UL << TD_COUNTER_SHIFT)) >> TD_COUNTER_SHIFT);
 	usb_debug("|:|   N   | Low Speed Device             |    [%lx] |:|\n", (td->ctrlsts & (1UL << 26)) >> 26);
 	usb_debug("|:|   T   | Isochronous Select           |    [%lx] |:|\n", (td->ctrlsts & (1UL << 25)) >> 25);
 	usb_debug("|:|   R   | Interrupt on Complete (IOC)  |    [%lx] |:|\n", (td->ctrlsts & (1UL << 24)) >> 24);
@@ -102,7 +102,7 @@ static void td_dump(td_t *td)
 	usb_debug("|:|   S   ----------------------------------------|:|\n");
 	usb_debug("|:|       | Actual Length                | [%04lx] |:|\n", td->ctrlsts & 0x7FFUL);
 	usb_debug("|:+-----------------------------------------------+:|\n");
-	usb_debug("|:| Buffer pointer  [0x%08lx]                  |:|\n", td->bufptr);
+	usb_debug("|:| Buffer pointer  [0x%08"PRIx32"]                  |:|\n", td->bufptr);
 	usb_debug("|:|-----------------------------------------------|:|\n");
 	usb_debug("|...................................................|\n");
 	usb_debug("+---------------------------------------------------+\n");
@@ -272,21 +272,23 @@ uhci_stop (hci_t *controller)
 			 uhci_reg_read16(controller, USBCMD) & ~1);	// stop work on schedule
 }
 
+#define UHCI_SLEEP_TIME_US 30
+#define UHCI_TIMEOUT (USB_MAX_PROCESSING_TIME_US / UHCI_SLEEP_TIME_US)
 #define GET_TD(x) ((void*)(((unsigned int)(x))&~0xf))
 
 static td_t *
 wait_for_completed_qh (hci_t *controller, qh_t *qh)
 {
-	int timeout = 1000;	/* max 30 ms. */
+	int timeout = UHCI_TIMEOUT;
 	void *current = GET_TD (qh->elementlinkptr);
 	while (((qh->elementlinkptr & FLISTP_TERMINATE) == 0) && (timeout-- > 0)) {
 		if (current != GET_TD (qh->elementlinkptr)) {
 			current = GET_TD (qh->elementlinkptr);
-			timeout = 1000;
+			timeout = UHCI_TIMEOUT;
 		}
 		uhci_reg_write16(controller, USBSTS,
 				 uhci_reg_read16(controller, USBSTS) | 0);	// clear resettable registers
-		udelay (30);
+		udelay(UHCI_SLEEP_TIME_US);
 	}
 	return (GET_TD (qh->elementlinkptr) ==
 		0) ? 0 : GET_TD (phys_to_virt (qh->elementlinkptr));
@@ -317,6 +319,8 @@ uhci_control (usbdev_t *dev, direction_t dir, int drlen, void *devreq, int dalen
 	unsigned short req = ((unsigned short *) devreq)[0];
 	int i;
 	td_t *tds = memalign (16, sizeof (td_t) * count);
+	if (!tds)
+		fatal("Not enough memory for uhci control.\n");
 	memset (tds, 0, sizeof (td_t) * count);
 	count--;		/* to compensate for 0-indexed array */
 	for (i = 0; i < count; i++) {
@@ -386,6 +390,8 @@ create_schedule (int numpackets)
 	if (numpackets == 0)
 		return 0;
 	td_t *tds = memalign (16, sizeof (td_t) * numpackets);
+	if (!tds)
+		fatal("Not enough memory for packets scheduling.\n");
 	memset (tds, 0, sizeof (td_t) * numpackets);
 	int i;
 	for (i = 0; i < numpackets; i++) {

@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2012 secunet Security Networks AG
  *
@@ -33,7 +32,6 @@
 #include <stdint.h>
 
 #include "storage.h"
-
 
 /* ATA commands */
 enum {

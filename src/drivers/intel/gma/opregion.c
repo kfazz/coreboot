@@ -1,20 +1,6 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Patrick Rudolph <siro@das-labor.org>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2, or (at your option)
- * any later version of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <types.h>
 #include <string.h>
 #include <cbfs.h>
@@ -33,7 +19,7 @@ const char *mainboard_vbt_filename(void)
 	return "vbt.bin";
 }
 
-static char vbt_data[8 * KiB];
+static char vbt_data[CONFIG_VBT_DATA_SIZE_KB * KiB];
 static size_t vbt_data_sz;
 
 void *locate_vbt(size_t *vbt_size)
@@ -48,8 +34,7 @@ void *locate_vbt(size_t *vbt_size)
 
 	const char *filename = mainboard_vbt_filename();
 
-	size_t file_size = cbfs_boot_load_file(filename,
-		vbt_data, sizeof(vbt_data), CBFS_TYPE_RAW);
+	size_t file_size = cbfs_load(filename, vbt_data, sizeof(vbt_data));
 
 	if (file_size == 0)
 		return NULL;
@@ -71,7 +56,7 @@ void *locate_vbt(size_t *vbt_size)
 }
 
 /* Write ASLS PCI register and prepare SWSCI register. */
-void intel_gma_opregion_register(uintptr_t opregion)
+static void intel_gma_opregion_register(uintptr_t opregion)
 {
 	struct device *igd;
 	u16 reg16;
@@ -108,17 +93,16 @@ void intel_gma_opregion_register(uintptr_t opregion)
 }
 
 /* Restore ASLS register on S3 resume and prepare SWSCI. */
-void intel_gma_restore_opregion(void)
+static enum cb_err intel_gma_restore_opregion(void)
 {
-	if (acpi_is_wakeup_s3()) {
-		const void *const gnvs = cbmem_find(CBMEM_ID_ACPI_GNVS);
-		uintptr_t aslb;
-
-		if (gnvs && (aslb = gma_get_gnvs_aslb(gnvs)))
-			intel_gma_opregion_register(aslb);
-		else
-			printk(BIOS_ERR, "Error: GNVS or ASLB not set.\n");
+	const igd_opregion_t *const opregion = cbmem_find(CBMEM_ID_IGD_OPREGION);
+	if (!opregion) {
+		printk(BIOS_ERR, "GMA: Failed to find IGD OpRegion.\n");
+		return CB_ERR;
 	}
+	/* Write ASLS PCI register and prepare SWSCI register. */
+	intel_gma_opregion_register((uintptr_t)opregion);
+	return CB_SUCCESS;
 }
 
 static enum cb_err vbt_validate(struct region_device *rdev)
@@ -144,16 +128,14 @@ static enum cb_err locate_vbt_vbios(const u8 *vbios, struct region_device *rdev)
 	size_t offset;
 
 	// FIXME: caller should supply a region_device instead of vbios pointer
-	if (rdev_chain(&rd, &addrspace_32bit.rdev, (uintptr_t)vbios,
-	    sizeof(*oprom)))
+	if (rdev_chain_mem(&rd, vbios, sizeof(*oprom)))
 		return CB_ERR;
 
 	if (rdev_readat(&rd, &opromsize, offsetof(optionrom_header_t, size),
 	    sizeof(opromsize)) != sizeof(opromsize) || !opromsize)
 		return CB_ERR;
 
-	if (rdev_chain(&rd, &addrspace_32bit.rdev, (uintptr_t)vbios,
-	    opromsize * 512))
+	if (rdev_chain_mem(&rd, vbios, opromsize * 512))
 		return CB_ERR;
 
 	oprom = rdev_mmap(&rd, 0, sizeof(*oprom));
@@ -171,7 +153,7 @@ static enum cb_err locate_vbt_vbios(const u8 *vbios, struct region_device *rdev)
 		return CB_ERR;
 	}
 
-	printk(BIOS_DEBUG, "GMA: locate_vbt_vbios: %x %x %x %x %x\n",
+	printk(BIOS_DEBUG, "GMA: %s: %x %x %x %x %x\n", __func__,
 		oprom->signature, pcir->vendor, pcir->classcode[0],
 		pcir->classcode[1], pcir->classcode[2]);
 
@@ -216,8 +198,7 @@ static enum cb_err locate_vbt_cbfs(struct region_device *rdev)
 	if (vbt == NULL)
 		return CB_ERR;
 
-	if (rdev_chain(rdev, &addrspace_32bit.rdev, (uintptr_t)vbt,
-	    vbt_data_size))
+	if (rdev_chain_mem(rdev, vbt, vbt_data_size))
 		return CB_ERR;
 
 	printk(BIOS_INFO, "GMA: Found VBT in CBFS\n");
@@ -238,13 +219,16 @@ static enum cb_err locate_vbt_vbios_cbfs(struct region_device *rdev)
 }
 
 /* Initialize IGD OpRegion, called from ACPI code and OS drivers */
-enum cb_err
-intel_gma_init_igd_opregion(igd_opregion_t *opregion)
+enum cb_err intel_gma_init_igd_opregion(void)
 {
+	igd_opregion_t *opregion;
 	struct region_device rdev;
 	optionrom_vbt_t *vbt = NULL;
 	optionrom_vbt_t *ext_vbt;
 	bool found = false;
+
+	if (acpi_is_wakeup_s3())
+		return intel_gma_restore_opregion();
 
 	/* Search for vbt.bin in CBFS. */
 	if (locate_vbt_cbfs(&rdev) == CB_SUCCESS &&
@@ -284,6 +268,12 @@ intel_gma_init_igd_opregion(igd_opregion_t *opregion)
 	if (vbt->hdr_vbt_size > region_device_sz(&rdev)) {
 		printk(BIOS_ERR, "GMA: Error mapped only a partial VBT\n");
 		rdev_munmap(&rdev, vbt);
+		return CB_ERR;
+	}
+
+	opregion = cbmem_add(CBMEM_ID_IGD_OPREGION, sizeof(*opregion));
+	if (!opregion) {
+		printk(BIOS_ERR, "GMA: Failed to add IGD OpRegion to CBMEM.\n");
 		return CB_ERR;
 	}
 

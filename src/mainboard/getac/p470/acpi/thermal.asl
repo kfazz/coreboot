@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2010 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 // Thermal Zone
 
@@ -31,11 +17,11 @@ Scope (\_TZ)
 		// Convert from °C to 1/10 Kelvin
 		Method(DEGR, 1, NotSerialized)
 		{
-			Store(Arg0, Local0)
+			Local0 = Arg0
 			// 10ths of degrees
-			Multiply(Local0, 10, Local0)
+			Local0 *= 10
 			// 0°C is 273.15 K, we need to round it.
-			Add(Local0, 2732, Local0)
+			Local0 += 2732
 			Return(Local0)
 		}
 
@@ -49,24 +35,24 @@ Scope (\_TZ)
 		// Critical shutdown temperature
 		Method (_CRT, 0, Serialized)
 		{
-			Store(\_SB.PCI0.LPCB.EC0.CRTT, Local0)
-			Store(DEGR(Local0), Local0)
+			Local0 = \_SB.PCI0.LPCB.EC0.CRTT
+			Local0 = DEGR (Local0)
 			Return(Local0)
 		}
 
 		// CPU throttling start temperature
 		Method (_PSV, 0, Serialized)
 		{
-			Store(\_SB.PCI0.LPCB.EC0.CTRO, Local0)
-			Store(DEGR(Local0), Local0)
+			Local0 = \_SB.PCI0.LPCB.EC0.CTRO
+			Local0 = DEGR (Local0)
 			Return(Local0)
 		}
 
 		// Get DTS Temperature
 		Method (_TMP, 0, Serialized)
 		{
-			Store(\_SB.PCI0.LPCB.EC0.CTMP, Local0)
-			Store(DEGR(Local0), Local0)
+			Local0 = \_SB.PCI0.LPCB.EC0.CTMP
+			Local0 = DEGR (Local0)
 			Return(Local0)
 		}
 
@@ -74,9 +60,9 @@ Scope (\_TZ)
 		Method (_PSL, 0, Serialized)
 		{
 			If (MPEN) {
-				Return (Package() {\_PR.CP00, \_PR.CP01})
+				Return (Package() {\_SB.CP00, \_SB.CP01})
 			}
-			Return (Package() {\_PR.CP00})
+			Return (Package() {\_SB.CP00})
 		}
 
 		// TC1 value for passive cooling

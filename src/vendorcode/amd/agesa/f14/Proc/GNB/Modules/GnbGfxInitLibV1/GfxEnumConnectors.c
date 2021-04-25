@@ -239,7 +239,7 @@ GfxIntegratedExtConnectorInfo (
   )
 {
   UINTN Index;
-  for (Index = 0; Index < (sizeof (ConnectorInfoTable) / sizeof (EXT_CONNECTOR_INFO)); Index++) {
+  for (Index = 0; Index < ARRAY_SIZE(ConnectorInfoTable); Index++) {
     if (ConnectorInfoTable[Index].ConnectorType == ConnectorType) {
       return &ConnectorInfoTable[Index];
     }
@@ -317,7 +317,7 @@ GfxIntegratedExtDisplayDeviceInfo (
   UINT8 Index;
   UINT8 LastIndex;
   LastIndex = 0xff;
-  for (Index = 0; Index < (sizeof (DisplayDeviceInfoTable) / sizeof (EXT_DISPLAY_DEVICE_INFO)); Index++) {
+  for (Index = 0; Index < ARRAY_SIZE(DisplayDeviceInfoTable); Index++) {
     if (DisplayDeviceInfoTable[Index].DisplayDeviceEnum == DisplayDeviceEnum) {
       LastIndex = Index;
       if (DisplayDeviceInfoTable[Index].DeviceIndex == DisplayDeviceIndex) {
@@ -474,13 +474,11 @@ GfxIntegratedEnumConnectorsForDevice (
     if (ExtDisplayDeviceInfo == NULL) {
       //Run out of supported display device types
       AGESA_STATUS_UPDATE (AGESA_ERROR, ConnectorEnumInfo.Status);
-      Status = AGESA_ERROR;
       PcieConfigDisableEngine (ConnectorEnumInfo.Engine);
     }
 
     if ((Gfx->Gnb3dStereoPinIndex != 0) && (ConnectorEnumInfo.Engine->Type.Ddi.DdiData.HdpIndex == (Gfx->Gnb3dStereoPinIndex - 1))) {
       AGESA_STATUS_UPDATE (AGESA_ERROR, ConnectorEnumInfo.Status);
-      Status = AGESA_ERROR;
       PcieConfigDisableEngine (ConnectorEnumInfo.Engine);
     }
 

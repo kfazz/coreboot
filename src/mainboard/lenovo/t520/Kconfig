@@ -14,7 +14,7 @@ config BOARD_LENOVO_BASEBOARD_T520
 	select HAVE_CMOS_DEFAULT
 	select HAVE_ACPI_RESUME
 	select INTEL_INT15
-	select GFX_GMA_INTERNAL_IS_LVDS
+	select GFX_GMA_PANEL_1_ON_LVDS
 	select MAINBOARD_HAS_LIBGFXINIT
 	select MAINBOARD_HAS_LPC_TPM
 	select MAINBOARD_HAS_TPM1
@@ -27,6 +27,21 @@ config BOARD_LENOVO_BASEBOARD_T520
 
 if BOARD_LENOVO_BASEBOARD_T520
 
+config VBOOT
+	select VBOOT_VBNV_CMOS
+	select GBB_FLAG_DISABLE_LID_SHUTDOWN
+	select GBB_FLAG_DISABLE_PD_SOFTWARE_SYNC
+	select GBB_FLAG_DISABLE_EC_SOFTWARE_SYNC
+	select GBB_FLAG_DISABLE_FWMP
+	select HAS_RECOVERY_MRC_CACHE
+
+config VBOOT_SLOTS_RW_A
+	default y
+
+config VBOOT_VBNV_OFFSET
+	hex
+	default 0x2a
+
 config VARIANT_DIR
 	string
 	default "t520" if BOARD_LENOVO_T520
@@ -34,20 +49,20 @@ config VARIANT_DIR
 
 config MAINBOARD_DIR
 	string
-	default lenovo/t520
+	default "lenovo/t520"
 
-config DEVICETREE
+config OVERRIDE_DEVICETREE
 	string
-	default "variants/$(CONFIG_VARIANT_DIR)/devicetree.cb"
+	default "variants/\$(CONFIG_VARIANT_DIR)/overridetree.cb"
+
+config FMDFILE
+	string
+	default "src/mainboard/\$(CONFIG_MAINBOARD_DIR)/vboot-rwa.fmd" if VBOOT
 
 config MAINBOARD_PART_NUMBER
 	string
 	default "ThinkPad T520" if BOARD_LENOVO_T520
 	default "ThinkPad W520" if BOARD_LENOVO_W520
-
-config MAX_CPUS
-	int
-	default 8
 
 config USBDEBUG_HCD_INDEX
 	int
@@ -65,16 +80,13 @@ config VGA_BIOS_FILE
 	string
 	default "pci8086,0126.rom"
 
-config MAINBOARD_PCI_SUBSYSTEM_VENDOR_ID
-	hex
-	default 0x17aa
+config PS2K_EISAID
+	default "PNP0303"
 
-config MAINBOARD_PCI_SUBSYSTEM_DEVICE_ID
-	hex
-	default 0x21cf
+config PS2M_EISAID
+	default "LEN0015"
 
-config ONBOARD_VGA_IS_PRIMARY
-	bool
-	default y
+config THINKPADEC_HKEY_EISAID
+	default "LEN0068"
 
 endif

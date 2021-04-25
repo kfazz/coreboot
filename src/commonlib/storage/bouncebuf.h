@@ -1,18 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Generic bounce buffer implementation
- *
- * Copyright (C) 2012 Marek Vasut <marex@denx.de>
- * Copyright 2013 Google Inc.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __COMMONLIB_STORAGE_BOUNCEBUF_H__
@@ -88,7 +76,7 @@ int bounce_buffer_stop(struct bounce_buffer *state);
 #define ALLOC_CACHE_ALIGN_BUFFER(type, name, size)                   \
 	char __##name[ROUND(size * sizeof(type), DMA_MINALIGN) +     \
 		      DMA_MINALIGN - 1];                             \
-	type *name = (type *) ALIGN((uintptr_t)__##name, DMA_MINALIGN)
+	type *name = (type *) ALIGN_UP((uintptr_t)__##name, DMA_MINALIGN)
 #ifndef ARCH_DMA_MINALIGN
 #define ARCH_DMA_MINALIGN (DMA_MINALIGN)
 #endif

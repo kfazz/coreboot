@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 Device(EC0)
 {
@@ -77,8 +63,8 @@ Device(EC0)
 		// This method is needed by Windows XP/2000 for
 		// EC initialization before a driver is loaded
 
-		If (LEqual(Arg0, 0x03)) {
-			Store (Arg1, ECON)
+		If (Arg0 == 0x03) {
+			ECON = Arg1
 		}
 	}
 
@@ -86,20 +72,20 @@ Device(EC0)
 
 	Method (_Q11, 0)
 	{
-		Store("_Q11: Fn-F8 (Sleep Button) pressed", Debug)
+		Debug = "_Q11: Fn-F8 (Sleep Button) pressed"
 		Notify(SLPB, 0x80)
 	}
 
 	Method (_Q12, 0)
 	{
-		Store("_Q12: Fn-F9 (Display Switch) pressed", Debug)
+		Debug = "_Q12: Fn-F9 (Display Switch) pressed"
 		Notify (\_SB.PCI0.GFX0, 0x82)
-		// Store(1, TLST)
+		// TLST = 1
 	}
 
 	Method (_Q30, 0)
 	{
-		Store("_Q30: AC In/Out", Debug)
+		Debug = "_Q30: AC In/Out"
 		Notify(ADP1, 0x80)	// Tell the Power Adapter
 		PNOT()			// and the CPU and Battery
 		// Notify the Batteries
@@ -109,16 +95,16 @@ Device(EC0)
 
 	Method (_Q31, 0)
 	{
-		Store("_Q31: LID Open/Close", Debug)
+		Debug = "_Q31: LID Open/Close"
 		Notify(LID0, 0x80)
 	}
 
 	Method (_Q32, 0)
 	{
-		Store("_Q32: Battery 1 In/Out", Debug)
+		Debug = "_Q32: Battery 1 In/Out"
 		If (ECON) {
-			Store (P62S, Local0)
-			If (Not(Local0)) {
+			Local0 = P62S
+			If (~Local0) {
 				Notify(BAT1, 0x80)
 			}
 		}
@@ -126,10 +112,10 @@ Device(EC0)
 
 	Method (_Q33, 0)
 	{
-		Store("_Q33: Battery 2 In/Out", Debug)
+		Debug = "_Q33: Battery 2 In/Out"
 		If (ECON) {
-			Store (P63S, Local0)
-			If (Not(Local0)) {
+			Local0 = P63S
+			If (~Local0) {
 				Notify(BAT2, 0x80)
 			}
 		}
@@ -137,33 +123,33 @@ Device(EC0)
 
 	Method (_Q34, 0)
 	{
-		Store("_Q34: LPT/FDD", Debug)
+		Debug = "_Q34: LPT/FDD"
 		// PHSS(0x70)
 	}
 
 	Method (_Q35, 0)
 	{
-		Store("_Q35: Processor is hot", Debug)
+		Debug = "_Q35: Processor is hot"
 	}
 
 	Method (_Q36, 0)
 	{
-		Store("_Q36: Thermal Warning", Debug)
+		Debug = "_Q36: Thermal Warning"
 	}
 
 	Method (_Q37, 0)
 	{
-		Store("_Q37: PME", Debug)
+		Debug = "_Q37: PME"
 	}
 
 	Method (_Q38, 0)
 	{
-		Store("_Q38: Thermal", Debug)
+		Debug = "_Q38: Thermal"
 	}
 
 	Method (_Q39, 0)
 	{
-		Store("_Q39: Thermal", Debug)
+		Debug = "_Q39: Thermal"
 	}
 
 	// TODO Scope _SB devices for AC power, LID, Power button

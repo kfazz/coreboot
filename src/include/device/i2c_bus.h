@@ -1,20 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _DEVICE_I2C_BUS_H_
 #define _DEVICE_I2C_BUS_H_
 
-#include <stdlib.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <device/i2c.h>
 #include <device/device.h>
@@ -88,5 +77,13 @@ int i2c_dev_readb_at(struct device *, uint8_t off);
  * Returns 0 on success, negative `enum cb_err` value on error.
  */
 int i2c_dev_writeb_at(struct device *, uint8_t off, uint8_t val);
+
+/*
+ * Sends the 16-bit register offset `off` and reads `len` bytes into `buf`.
+ *
+ * Returns the number of bytes read on success, negative `enum cb_err`
+ * value on error.
+ */
+int i2c_dev_read_at16(struct device *, uint8_t *buf, size_t len, uint16_t off);
 
 #endif	/* _DEVICE_I2C_BUS_H_ */

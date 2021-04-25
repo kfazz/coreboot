@@ -1,22 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <baseboard/variants.h>
 #include <bootblock_common.h>
 #include <soc/gpio.h>
 #include <soc/southbridge.h>
+#include <amdblocks/lpc.h>
 #include <variant/ec.h>
 #include <variant/gpio.h>
 
@@ -28,8 +16,11 @@ void bootblock_mainboard_early_init(void)
 	/* Enable the EC as soon as we have visibility */
 	mainboard_ec_init();
 
+	gpios = variant_wlan_rst_early_gpio_table(&num_gpios);
+	program_gpios(gpios, num_gpios);
+
 	gpios = variant_early_gpio_table(&num_gpios);
-	sb_program_gpios(gpios, num_gpios);
+	program_gpios(gpios, num_gpios);
 }
 
 void bootblock_mainboard_init(void)
@@ -61,5 +52,5 @@ void bootblock_mainboard_init(void)
 	}
 
 	/* Setup TPM decode before verstage */
-	sb_tpm_decode_spi();
+	lpc_tpm_decode_spi();
 }

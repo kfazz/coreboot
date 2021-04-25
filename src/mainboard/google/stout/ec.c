@@ -1,35 +1,15 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 The Chromium OS Authors. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <bootmode.h>
 #include <types.h>
 #include <console/console.h>
 #include <ec/quanta/it8518/ec.h>
 #include <device/device.h>
-#include <device/pci.h>
 #include <southbridge/intel/bd82x6x/pch.h>
 #include <southbridge/intel/common/pmbase.h>
-#include <elog.h>
 #include "ec.h"
 
-#ifdef __SMM__
-#include <cpu/x86/smm.h>
-#endif
-
-#ifndef __SMM__
 void stout_ec_init(void)
 {
 
@@ -59,8 +39,6 @@ void stout_ec_init(void)
 	// TODO: Power Limit Setting
 }
 
-#else // SMM
-
 void stout_ec_finalize_smm(void)
 {
 	u8 ec_reg, critical_shutdown = 0;
@@ -75,21 +53,13 @@ void stout_ec_finalize_smm(void)
 	if (ec_reg & 0x8) {
 		printk(BIOS_ERR, "  EC Fan Error\n");
 		critical_shutdown = 1;
-#if CONFIG(ELOG_GSMI)
-		elog_add_event_word(EC_EVENT_BATTERY_CRITICAL, EC_EVENT_FAN_ERROR);
-#endif
 	}
-
 
 	/* Thermal Device Error : Peripheral Status 3 (0x35) bit 8 */
 	if (ec_reg & 0x80) {
 		printk(BIOS_ERR, "  EC Thermal Device Error\n");
 		critical_shutdown = 1;
-#if CONFIG(ELOG_GSMI)
-		elog_add_event_word(EC_EVENT_BATTERY_CRITICAL, EC_EVENT_THERMAL);
-#endif
 	}
-
 
 	/* Critical Battery Error */
 	ec_reg = ec_read(EC_MBAT_STATUS);
@@ -97,18 +67,11 @@ void stout_ec_finalize_smm(void)
 	if ((ec_reg & 0xCF) == 0xC0) {
 		printk(BIOS_ERR, "  EC Critical Battery Error\n");
 		critical_shutdown = 1;
-#if CONFIG(ELOG_GSMI)
-		elog_add_event_word(ELOG_TYPE_EC_EVENT, EC_EVENT_BATTERY_CRITICAL);
-#endif
 	}
 
 	if ((ec_reg & 0x8F) == 0x8F) {
 		printk(BIOS_ERR, "  EC Read Battery Error\n");
-#if CONFIG(ELOG_GSMI)
-		elog_add_event_word(ELOG_TYPE_EC_EVENT, EC_EVENT_BATTERY);
-#endif
 	}
-
 
 	if (critical_shutdown) {
 		printk(BIOS_ERR, "EC critical_shutdown");
@@ -117,4 +80,3 @@ void stout_ec_finalize_smm(void)
 		write_pmbase32(PM1_CNT, read_pmbase32(PM1_CNT) | (0xf << 10));
 	}
 }
-#endif //__SMM__

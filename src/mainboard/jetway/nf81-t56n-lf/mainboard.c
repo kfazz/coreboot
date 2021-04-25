@@ -1,21 +1,6 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Advanced Micro Devices, Inc.
- * Copyright (C) 2014 Sage Electronic Engineering, LLC.
- * Copyright (C) 2014 Edward O'Callaghan <eocallaghan@alterapraxis.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-
+#include <amdblocks/acpimmio.h>
 #include <device/mmio.h>
 #include <console/console.h>
 #include <device/device.h>
@@ -23,7 +8,6 @@
 #include <southbridge/amd/common/amd_pci_util.h>
 #include <southbridge/amd/cimx/sb800/SBPLATFORM.h>
 #include <southbridge/amd/cimx/sb800/pci_devs.h>
-#include <southbridge/amd/cimx/cimx_util.h>
 #include <northbridge/amd/agesa/family14/pci_devs.h>
 
 /***********************************************************
@@ -115,7 +99,7 @@ static const struct pirq_struct mainboard_pirq_data[] = {
 static void pirq_setup(void)
 {
 	pirq_data_ptr = mainboard_pirq_data;
-	pirq_data_size = sizeof(mainboard_pirq_data) / sizeof(struct pirq_struct);
+	pirq_data_size = ARRAY_SIZE(mainboard_pirq_data);
 	intr_data_ptr = mainboard_intr_data;
 	picr_data_ptr = mainboard_picr_data;
 }
@@ -125,16 +109,13 @@ static void pirq_setup(void)
  **********************************************/
 static void mainboard_enable(struct device *dev)
 {
-	printk(BIOS_INFO, "Mainboard " CONFIG_MAINBOARD_PART_NUMBER " Enable.\n");
-
 	/* enable GPP CLK0 thru CLK3 (interleaved) */
 	/* disable GPP CLK4 thru SLT_GFX_CLK */
-	u8 *misc_mem_clk_cntrl = (u8 *)(ACPI_MMIO_BASE + MISC_BASE);
-	write8(misc_mem_clk_cntrl + 0, 0xFF);
-	write8(misc_mem_clk_cntrl + 1, 0xFF);
-	write8(misc_mem_clk_cntrl + 2, 0x00);
-	write8(misc_mem_clk_cntrl + 3, 0x00);
-	write8(misc_mem_clk_cntrl + 4, 0x00);
+	misc_write8(0, 0xff);
+	misc_write8(1, 0xff);
+	misc_write8(2, 0);
+	misc_write8(3, 0);
+	misc_write8(4, 0);
 
 	/*
 	 * Initialize ASF registers to an arbitrary address because someone
@@ -142,8 +123,8 @@ static void mainboard_enable(struct device *dev)
 	 * SPD read code has been made generic and moved out of the board
 	 * directory, so the ASF init is being done here.
 	 */
-	pm_iowrite(0x29, 0x80);
-	pm_iowrite(0x28, 0x61);
+	pm_write8(0x29, 0x80);
+	pm_write8(0x28, 0x61);
 
 	/* Initialize the PIRQ data structures for consumption */
 	pirq_setup();

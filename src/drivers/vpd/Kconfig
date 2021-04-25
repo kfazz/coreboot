@@ -1,20 +1,26 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2012 The Chromium OS Authors.  All rights reserved.
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+## SPDX-License-Identifier: GPL-2.0-only
 
 config VPD
 	bool "Support for Vital Product Data tables"
 	default n
 	help
 	  Enable support for flash based vital product data.
+
+config VPD_FMAP_NAME
+	string
+	depends on VPD
+	default "RO_VPD"
+	help
+	  Name of the FMAP region created in the default FMAP to store VPD tables.
+
+config VPD_FMAP_SIZE
+	hex
+	depends on VPD
+	default 0x4000
+	help
+	  Size in bytes of the FMAP region created to store VPD tables.
+
+config SMBIOS_SERIAL_FROM_VPD
+	bool "Load device serial from VPD"
+	depends on VPD && GENERATE_SMBIOS_TABLES
+	default n

@@ -63,7 +63,7 @@ recommended, since coreboot may not boot on the first try.
 
 Disassemble your computer and find the flash chip(s). Since there could be
 more than one, this guide will refer to "flash chips" as one or more chips.
-Refer to <http://flashrom.org/Technology> as a reference. The flash chip is
+Refer to <https://flashrom.org/Technology> as a reference. The flash chip is
 usually in a `SOIC-8` (2x4 pins, 200mil) or `SOIC-16` (2x8 pins) package. As
 it can be seen on flashrom's wiki, the former package is like any other 8-pin
 chip on the mainboard, but it is slightly larger. The latter package is much
@@ -120,6 +120,7 @@ on the vendor firmware with just one module in channel 0, slot 0, and check the 
 the EEPROM has. Under Linux, you can use these commands to see what is on SMBus:
 
 	$ sudo modprobe i2c-dev
+	$ sudo modprobe i2c-i801
 	$ sudo i2cdetect -l
 	i2c-0	i2c		i915 gmbus ssc				I2C adapter
 	i2c-1	i2c		i915 gmbus vga				I2C adapter
@@ -154,10 +155,10 @@ the SPD array must be `0x50`. After testing all the slots, your `mainboard_get_s
 should look similar to this:
 
 	void mainboard_get_spd(spd_raw_data *spd) {
-		read_spd (&spd[0], 0x50);
-		read_spd (&spd[1], 0x51);
-		read_spd (&spd[2], 0x52);
-		read_spd (&spd[3], 0x53);
+		read_spd(&spd[0], 0x50);
+		read_spd(&spd[1], 0x51);
+		read_spd(&spd[2], 0x52);
+		read_spd(&spd[3], 0x53);
 	}
 
 Note that there should be one line per memory slot on the mainboard.
@@ -267,6 +268,12 @@ If several slots are soldered there are two ways to handle them:
   not forget to copy the data on all the array elements that need it.
 * If they use different data, use several files.
 
+If memory initialization is not working, in particular write training (timB)
+on DIMM's second rank fails, try enabling rank 1 mirroring, which can't be
+detected by inteltool. It is described by SPD field "Address Mapping from Edge
+Connector to DRAM", byte `63` (`0x3f`). Bit 0 describes Rank 1 Mapping,
+0 = standard, 1 = mirrored; set it to 1. Bits 1-7 are reserved.
+
 ### `board_info.txt`
 
 `board_info.txt` is a text file used in the board status page to list all
@@ -275,7 +282,7 @@ cannot be detected by autoport. Common entries are:
 
 * `ROM package`, `ROM protocol` and `ROM socketed`:
   These refer to the flash chips you found earlier. You can visit
-  <http://flashrom.org/Technology> for more information.
+  <https://flashrom.org/Technology> for more information.
 
 * `Release year`: Use the power of Internet to find that information.
 * `Category`: This describes the type of mainboard you have.
@@ -328,14 +335,14 @@ this value is correct. This can also be determined from the board's schematics.
 
 ## GNVS
 
-`acpi_create_gnvs` sets values in GNVS, which then ACPI makes use of for
+`mainboard_fill_gnvs` sets values in GNVS, which then ACPI makes use of for
 various power-related functions. Normally, there is no need to modify it
 on laptops (desktops have no "lid"!) but it makes sense to proofread it.
 
 ## `gfx.ndid` and `gfx.did`
 
 Those describe which video outputs are declared in ACPI tables.
-Normally, there is no need to adjust these values, but if you miss some
+Normally, there is no need to have these values, but if you miss some
 non-standard video output, you can declare it there. Bit 31 is set to
 indicate the presence of the output. Byte 1 is the type and byte 0 is
 used for disambigution so that ID composed of byte 1 and 0 is unique.
@@ -348,9 +355,9 @@ Types are:
 
 ## `c*_acpower` and `c*_battery`
 
-Which mwait states to match to which ACPI levels. Normall, there is no
-need to modify anything unless your device has very special power
-saving requirements.
+Which mwait states to match to which ACPI levels. Normally, there is no
+need to modify anything unless your device has very special power saving
+requirements.
 
 ## `install_intel_vga_int15_handler`
 
@@ -400,9 +407,9 @@ Keep `GPE_EC_WAKE` and `GPE_EC_SCI` in sync with `gpi*_routing`.
 `gpi*_routing` matching `GPE_EC_WAKE` or `GPE_EC_SCI` is set to `2`
 and all others are absent.
 
-If your dock has LPC wires or needs some special treatement you
-need to fill `h8_mainboard_init_dock` and add support code to
-DSDT. See the code for `x60`, `x200` or `x201`
+If your dock has LPC wires or needs some special treatement you may
+need to add codes to initialize the dock and support code to
+DSDT. See the `init_dock()` for `x60`, `x200` or `x201`.
 
 ## EC (generic laptop)
 

@@ -1,19 +1,7 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
+#include <cpu/amd/microcode.h>
 #include <cpu/x86/msr.h>
 #include <cpu/amd/msr.h>
 #include <cpu/x86/mtrr.h>
@@ -98,6 +86,8 @@ static void model_16_init(struct device *dev)
 	msr = rdmsr(HWCR_MSR);
 	msr.lo |= (1 << 0);
 	wrmsr(HWCR_MSR, msr);
+
+	amd_update_microcode_from_cbfs();
 }
 
 static struct device_operations cpu_dev_ops = {

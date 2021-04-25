@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2010 Samsung Electronics
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef CPU_SAMSUNG_EXYNOS5420_GPIO_H
 #define CPU_SAMSUNG_EXYNOS5420_GPIO_H
@@ -465,7 +452,7 @@ void gpio_set_rate(int gpio, int mode);
  * @return -1 if the value cannot be determined. Otherwise returns
  *              the corresponding MVL3 enum value.
  */
-int gpio_read_mvl3(unsigned gpio);
+int gpio_read_mvl3(unsigned int gpio);
 
 void gpio_info(void);
 
@@ -493,7 +480,7 @@ void gpio_info(void);
  * @param gpio	GPIO number
  * @return 0 if ok, -1 on error
  */
-int gpio_direction_input(unsigned gpio);
+int gpio_direction_input(unsigned int gpio);
 
 /**
  * Make a GPIO an output, and set its value.
@@ -502,7 +489,7 @@ int gpio_direction_input(unsigned gpio);
  * @param value	GPIO value (0 for low or 1 for high)
  * @return 0 if ok, -1 on error
  */
-int gpio_direction_output(unsigned gpio, int value);
+int gpio_direction_output(unsigned int gpio, int value);
 
 /**
  * Get a GPIO's value. This will work whether the GPIO is an input
@@ -511,7 +498,7 @@ int gpio_direction_output(unsigned gpio, int value);
  * @param gpio	GPIO number
  * @return 0 if low, 1 if high, -1 on error
  */
-int gpio_get_value(unsigned gpio);
+int gpio_get_value(unsigned int gpio);
 
 /**
  * Set an output GPIO's value. The GPIO must already be an output or
@@ -521,7 +508,7 @@ int gpio_get_value(unsigned gpio);
  * @param value	GPIO value (0 for low or 1 for high)
  * @return 0 if ok, -1 on error
  */
-int gpio_set_value(unsigned gpio, int value);
+int gpio_set_value(unsigned int gpio, int value);
 
 /*
  * Many-value logic (3 states). This can be used for inputs whereby presence

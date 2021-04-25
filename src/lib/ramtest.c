@@ -1,9 +1,9 @@
 #include <stdint.h>
-#include <lib.h> /* Prototypes */
+#include <lib.h>
 #include <console/console.h>
 #include <device/mmio.h>
 
-#if CONFIG(ARCH_X86) && CONFIG(SSE2)
+#if ENV_X86 && CONFIG(SSE2)
 /* Assembler in lib/ is ugly. */
 static void write_phys(uintptr_t addr, u32 value)
 {
@@ -67,7 +67,7 @@ static inline void test_pattern(unsigned short int idx,
  *
  * @param start   System memory offset, aligned to 128bytes
  */
-static int ram_bitset_nodie(unsigned long start)
+static int ram_bitset_nodie(uintptr_t start)
 {
 	unsigned long addr, value, value2;
 	unsigned short int idx;
@@ -117,7 +117,7 @@ static int ram_bitset_nodie(unsigned long start)
 }
 
 
-void ram_check(unsigned long start, unsigned long stop)
+void ram_check(uintptr_t start)
 {
 	/*
 	 * This is much more of a "Is my DRAM properly configured?"
@@ -131,7 +131,7 @@ void ram_check(unsigned long start, unsigned long stop)
 }
 
 
-int ram_check_nodie(unsigned long start, unsigned long stop)
+int ram_check_nodie(uintptr_t start)
 {
 	int ret;
 	/*
@@ -146,7 +146,7 @@ int ram_check_nodie(unsigned long start, unsigned long stop)
 	return ret;
 }
 
-int ram_check_noprint_nodie(unsigned long start, unsigned long stop)
+int ram_check_noprint_nodie(uintptr_t start)
 {
 	unsigned long addr, value, value2;
 	unsigned short int idx;
@@ -171,7 +171,10 @@ int ram_check_noprint_nodie(unsigned long start, unsigned long stop)
 	return failures;
 }
 
-static void __quick_ram_check(uintptr_t dst)
+/* Assumption is 32-bit addressable UC memory at dst. This also executes
+ * on S3 resume path so target memory must be restored.
+ */
+void quick_ram_check_or_die(uintptr_t dst)
 {
 	int fail = 0;
 	u32 backup;
@@ -199,9 +202,4 @@ static void __quick_ram_check(uintptr_t dst)
 		die("RAM INIT FAILURE!\n");
 	}
 	phys_memory_barrier();
-}
-
-void quick_ram_check(void)
-{
-	__quick_ram_check(0x100000);
 }

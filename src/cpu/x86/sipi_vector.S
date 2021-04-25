@@ -1,30 +1,15 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <cpu/x86/cr.h>
 #include <cpu/amd/mtrr.h>
 #include <cpu/x86/msr.h>
+#include <arch/ram_segs.h>
+
+#define __RAMSTAGE__
 
 /* The SIPI vector is responsible for initializing the APs in the system. It
  * loads microcode, sets up MSRs, and enables caching before calling into
  * C code. */
-
-/* These segment selectors need to match the gdt entries in c_start.S. */
-#define CODE_SEG 0x10
-#define DATA_SEG 0x18
 
 .section ".module_parameters", "aw", @progbits
 ap_start_params:
@@ -85,10 +70,10 @@ _start:
 	orl	$CR0_SET_FLAGS, %eax
 	movl	%eax, %cr0
 
-	ljmpl	$CODE_SEG, $1f
+	ljmpl	$RAM_CODE_SEG, $1f
 1:
 	.code32
-	movw	$DATA_SEG, %ax
+	movw	$RAM_DATA_SEG, %ax
 	movw	%ax, %ds
 	movw	%ax, %es
 	movw	%ax, %ss
@@ -99,10 +84,9 @@ _start:
 	mov	idt_ptr, %ebx
 	lidt	(%ebx)
 
-	/* Obtain CPU number. */
-	movl	ap_count, %eax
 1:
-	movl	%eax, %ecx
+	/* Obtain CPU number. */
+	movl	ap_count, %ecx
 	inc	%ecx
 	lock cmpxchg %ecx, ap_count
 	jnz	1b
@@ -118,12 +102,23 @@ _start:
 	/* Save CPU number. */
 	mov	%ecx, %esi
 
+	/*
+	 * The following code only needs to run on Intel platforms and thus the caller
+	 * doesn't provide a microcode_ptr if not on Intel.
+	 * On Intel platforms which update microcode using FIT the version check will
+	 * also skip the microcode update.
+	 */
+
 	/* Determine if one should check microcode versions. */
 	mov	microcode_ptr, %edi
 	test	%edi, %edi
 	jz	microcode_done /* Bypass if no microde exists. */
 
 	/* Get the Microcode version. */
+	xorl	%eax, %eax
+	xorl	%edx, %edx
+	movl	$IA32_BIOS_SIGN_ID, %ecx
+	wrmsr
 	mov	$1, %eax
 	cpuid
 	mov	$IA32_BIOS_SIGN_ID, %ecx
@@ -132,13 +127,23 @@ _start:
 	test	%edx, %edx
 	jnz	microcode_done
 
+	/*
+	 * Intel SDM and various BWGs specify to use a semaphore to update microcode
+	 * on one thread per core on Hyper-Threading enabled CPUs. Due to this complex
+	 * code would be necessary to determine the core #ID, initializing and picking
+	 * the right semaphore out of CONFIG_MAX_CPUS / 2.
+	 * Instead of the per core approachm, as recommended, use one global spinlock.
+	 * Assuming that only pre-FIT platforms with Hyper-Threading enabled and at
+	 * most 8 threads will ever run into this condition, the boot delay is negligible.
+	 */
+
 	/* Determine if parallel microcode loading is allowed. */
 	cmpl	$0xffffffff, microcode_lock
 	je	load_microcode
 
 	/* Protect microcode loading. */
 lock_microcode:
-	lock bts $0, microcode_lock
+	lock btsl $0, microcode_lock
 	jc	lock_microcode
 
 load_microcode:
@@ -209,11 +214,24 @@ load_msr:
 	mov	%eax, %cr4
 #endif
 
+#ifdef __x86_64__
+	/* entry64.inc preserves ebx. */
+#include <cpu/x86/64bit/entry64.inc>
+
+	mov	%rsi, %rdi	/* cpu_num */
+
+	movl	c_handler, %eax
+	call	*%rax
+#else
 	/* c_handler(cpu_num), preserve proper stack alignment */
 	sub	$12, %esp
 	push	%esi	/* cpu_num */
+
 	mov	c_handler, %eax
 	call	*%eax
+#endif
+
+
 halt_jump:
 	hlt
 	jmp	halt_jump

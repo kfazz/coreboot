@@ -1,22 +1,6 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Rockchip Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
-#include <delay.h>
-#include <stdlib.h>
-#include <stddef.h>
 #include <soc/addressmap.h>
 #include <soc/clock.h>
 #include <soc/edp.h>
@@ -61,7 +45,7 @@ void rkvop_prepare(u32 vop_id, const struct edid *edid)
 	write32(&preg->win0_dsp_info, V_DSP_WIDTH(hactive - 1) |
 				      V_DSP_HEIGHT(vactive - 1));
 
-	clrsetbits_le32(&preg->win0_color_key, M_WIN0_KEY_EN | M_WIN0_KEY_COLOR,
+	clrsetbits32(&preg->win0_color_key, M_WIN0_KEY_EN | M_WIN0_KEY_COLOR,
 						V_WIN0_KEY_EN(0) |
 						V_WIN0_KEY_COLOR(0));
 
@@ -90,10 +74,10 @@ void rkvop_prepare(u32 vop_id, const struct edid *edid)
 	else
 		lb_mode = LB_RGB_1280X8;
 
-	clrsetbits_le32(&preg->win0_ctrl0,
-			M_WIN0_LB_MODE | M_WIN0_DATA_FMT | M_WIN0_EN,
-			V_WIN0_LB_MODE(lb_mode) |
-			V_WIN0_DATA_FMT(rgb_mode) | V_WIN0_EN(1));
+	clrsetbits32(&preg->win0_ctrl0,
+		     M_WIN0_LB_MODE | M_WIN0_DATA_FMT | M_WIN0_EN,
+		     V_WIN0_LB_MODE(lb_mode) |
+		     V_WIN0_DATA_FMT(rgb_mode) | V_WIN0_EN(1));
 }
 
 void rkvop_mode_set(u32 vop_id, const struct edid *edid, u32 mode)
@@ -112,34 +96,34 @@ void rkvop_mode_set(u32 vop_id, const struct edid *edid, u32 mode)
 	switch (mode) {
 
 	case VOP_MODE_HDMI:
-		clrsetbits_le32(&preg->sys_ctrl,
-				M_ALL_OUT_EN, V_HDMI_OUT_EN(1));
+		clrsetbits32(&preg->sys_ctrl,
+			     M_ALL_OUT_EN, V_HDMI_OUT_EN(1));
 		dsp_out_mode = 15;
 		break;
 	case VOP_MODE_MIPI:
-		clrsetbits_le32(&preg->sys_ctrl, M_ALL_OUT_EN,
-				V_MIPI_OUT_EN(1));
+		clrsetbits32(&preg->sys_ctrl, M_ALL_OUT_EN,
+			     V_MIPI_OUT_EN(1));
 		dsp_out_mode = 0;
 		break;
 	case VOP_MODE_DUAL_MIPI:
-		clrsetbits_le32(&preg->sys_ctrl, M_ALL_OUT_EN,
-				V_MIPI_OUT_EN(1) | V_DUAL_MIPI_EN(1));
+		clrsetbits32(&preg->sys_ctrl, M_ALL_OUT_EN,
+			     V_MIPI_OUT_EN(1) | V_DUAL_MIPI_EN(1));
 		dsp_out_mode = 0;
 		break;
 	case VOP_MODE_EDP:
 	default:
-		clrsetbits_le32(&preg->sys_ctrl,
-				M_ALL_OUT_EN, V_EDP_OUT_EN(1));
+		clrsetbits32(&preg->sys_ctrl,
+			     M_ALL_OUT_EN, V_EDP_OUT_EN(1));
 		dsp_out_mode = 15;
 		break;
 	}
 
-	clrsetbits_le32(&preg->dsp_ctrl0,
-			M_DSP_OUT_MODE | M_DSP_VSYNC_POL |
-			M_DSP_HSYNC_POL,
-			V_DSP_OUT_MODE(dsp_out_mode) |
-			V_DSP_HSYNC_POL(edid->mode.phsync == '+') |
-			V_DSP_VSYNC_POL(edid->mode.pvsync == '+'));
+	clrsetbits32(&preg->dsp_ctrl0,
+		     M_DSP_OUT_MODE | M_DSP_VSYNC_POL |
+		     M_DSP_HSYNC_POL,
+		     V_DSP_OUT_MODE(dsp_out_mode) |
+		     V_DSP_HSYNC_POL(edid->mode.phsync == '+') |
+		     V_DSP_VSYNC_POL(edid->mode.pvsync == '+'));
 
 	write32(&preg->dsp_htotal_hs_end, V_HSYNC(hsync_len) |
 		V_HORPRD(hsync_len + hback_porch + hactive + hfront_porch));

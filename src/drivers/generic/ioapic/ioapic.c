@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
 #include <console/console.h>
 #include <device/device.h>
 #include "chip.h"
@@ -19,7 +21,7 @@ static void ioapic_init(struct device *dev)
 	ioapic_base = config->base;
 	ioapic_id = config->apicid;
 
-	printk(BIOS_DEBUG, "IOAPIC: Initializing IOAPIC at 0x%p\n",
+	printk(BIOS_DEBUG, "IOAPIC: Initializing IOAPIC at %p\n",
 	       ioapic_base);
 	printk(BIOS_DEBUG, "IOAPIC: Bootstrap Processor Local APIC = 0x%02x\n",
 	       bsp_lapicid);
@@ -92,8 +94,7 @@ static void ioapic_read_resources(struct device *dev)
 
 static struct device_operations ioapic_operations = {
 	.read_resources   = ioapic_read_resources,
-	.set_resources    = DEVICE_NOOP,
-	.enable_resources = DEVICE_NOOP,
+	.set_resources    = noop_set_resources,
 	.init             = ioapic_init,
 };
 

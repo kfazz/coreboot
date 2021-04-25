@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreinfo project.
- *
- * Copyright (C) 2008 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/io.h>
 #include <pci.h>
@@ -51,7 +38,7 @@ static void swap(struct pci_devices *a, struct pci_devices *b)
 
 static int partition(struct pci_devices *list, int len)
 {
-	int val = list[len / 2].device;
+	pcidev_t val = list[len / 2].device;
 	int index = 0;
 	int i;
 
@@ -103,14 +90,9 @@ static void show_config_space(WINDOW *win, int row, int col, int index)
 static int pci_module_redraw(WINDOW *win)
 {
 	unsigned int bus, slot, func;
-	int i, last;
+	int i;
 
 	print_module_title(win, "PCI Device List");
-
-	last = menu_first + MENU_VISIBLE;
-
-	if (last > devices_index)
-		last = devices_index;
 
 	for (i = 0; i < MENU_VISIBLE; i++) {
 		int item = menu_first + i;
@@ -169,7 +151,7 @@ static int pci_module_redraw(WINDOW *win)
 	return 0;
 }
 
-static void pci_scan_bus(int bus)
+static void ci_pci_scan_bus(int bus)
 {
 	int slot, func;
 	unsigned int val;
@@ -214,7 +196,7 @@ static void pci_scan_bus(int bus)
 
 				busses = pci_read_config32(dev, REG_PRIMARY_BUS);
 
-				pci_scan_bus((busses >> 8) & 0xff);
+				ci_pci_scan_bus((busses >> 8) & 0xff);
 
 			}
 		}
@@ -258,7 +240,7 @@ static int pci_module_handle(int key)
 
 static int pci_module_init(void)
 {
-	pci_scan_bus(0);
+	ci_pci_scan_bus(0);
 	return 0;
 }
 

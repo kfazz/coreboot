@@ -1,29 +1,14 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <bootstate.h>
-#include <intelblocks/chip.h>
+#include <intelblocks/cfg.h>
+#include <intelblocks/dmi.h>
 #include <intelblocks/fast_spi.h>
 #include <intelblocks/pcr.h>
 #include <intelpch/lockdown.h>
 #include <soc/pci_devs.h>
 #include <soc/pcr_ids.h>
 #include <soc/soc_chip.h>
-
-#define PCR_DMI_GCS		0x274C
-#define PCR_DMI_GCS_BILD	(1 << 0)
 
 /*
  * This function will get lockdown config specific to soc.
@@ -53,6 +38,12 @@ static void dmi_lockdown_cfg(void)
 	 *	"1b": LPC/eSPI
 	 */
 	pcr_or8(PID_DMI, PCR_DMI_GCS, PCR_DMI_GCS_BILD);
+
+	/*
+	 * Set Secure Register Lock (SRL) bit in DMI control register to lock
+	 * DMI configuration.
+	 */
+	pcr_or32(PID_DMI, PCR_DMI_DMICTL, PCR_DMI_DMICTL_SRLOCK);
 }
 
 static void fast_spi_lockdown_cfg(int chipset_lockdown)
@@ -69,13 +60,16 @@ static void fast_spi_lockdown_cfg(int chipset_lockdown)
 	/* Lock FAST_SPIBAR */
 	fast_spi_lock_bar();
 
-	/* Set Bios Interface Lock, Bios Lock */
+	/* Set BIOS Interface Lock, BIOS Lock */
 	if (chipset_lockdown == CHIPSET_LOCKDOWN_COREBOOT) {
-		/* Bios Interface Lock */
+		/* BIOS Interface Lock */
 		fast_spi_set_bios_interface_lock_down();
 
-		/* Bios Lock */
+		/* BIOS Lock */
 		fast_spi_set_lock_enable();
+
+		/* EXT BIOS Lock */
+		fast_spi_set_ext_bios_lock_enable();
 	}
 }
 

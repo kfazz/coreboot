@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2008 coresystems GmbH
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef SOC_SKYLAKE_SYSTEMAGENT_H
 #define SOC_SKYLAKE_SYSTEMAGENT_H
@@ -48,9 +33,29 @@
 
 bool soc_is_vtd_capable(void);
 
-static const struct sa_mmio_descriptor soc_vtd_resources[] = {
-	{ GFXVTBAR, GFXVT_BASE_ADDRESS, GFXVT_BASE_SIZE, "GFXVTBAR" },
-	{ VTVC0BAR, VTVC0_BASE_ADDRESS, VTVC0_BASE_SIZE, "VTVC0BAR" },
+static const struct sa_mmio_descriptor soc_gfxvt_mmio_descriptor = {
+	GFXVTBAR,
+	GFXVT_BASE_ADDRESS,
+	GFXVT_BASE_SIZE,
+	"GFXVTBAR"
 };
+
+static const struct sa_mmio_descriptor soc_vtvc0_mmio_descriptor = {
+	VTVC0BAR,
+	VTVC0_BASE_ADDRESS,
+	VTVC0_BASE_SIZE,
+	"VTVC0BAR"
+};
+
+/* Hardcoded default values for PCI Bus:Dev.Fun for IOAPIC and HPET */
+#define V_P2SB_IBDF_BUS	250
+#define V_P2SB_IBDF_DEV	31
+#define V_P2SB_IBDF_FUN	0
+#define V_DEFAULT_IBDF	((V_P2SB_IBDF_BUS << 8) | PCI_DEVFN(V_P2SB_IBDF_DEV, V_P2SB_IBDF_FUN))
+
+#define V_P2SB_HBDF_BUS	250
+#define V_P2SB_HBDF_DEV	15
+#define V_P2SB_HBDF_FUN	0
+#define V_DEFAULT_HBDF	((V_P2SB_HBDF_BUS << 8) | PCI_DEVFN(V_P2SB_HBDF_DEV, V_P2SB_HBDF_FUN))
 
 #endif

@@ -1,46 +1,54 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _SOC_SKYLAKE_PCI_DEVS_H_
 #define _SOC_SKYLAKE_PCI_DEVS_H_
 
 #include <device/pci_def.h>
 
-#define _SA_DEVFN(slot)		PCI_DEVFN(SA_DEV_SLOT_ ## slot, 0)
 #define _PCH_DEVFN(slot, func)	PCI_DEVFN(PCH_DEV_SLOT_ ## slot, func)
 
 #if !defined(__SIMPLE_DEVICE__)
 #include <device/device.h>
-#define _SA_DEV(slot)		dev_find_slot(0, _SA_DEVFN(slot))
-#define _PCH_DEV(slot, func)	dev_find_slot(0, _PCH_DEVFN(slot, func))
+#define _PCH_DEV(slot, func)	pcidev_path_on_root_debug(_PCH_DEVFN(slot, func), __func__)
 #else
-#define _SA_DEV(slot)		PCI_DEV(0, SA_DEV_SLOT_ ## slot, 0)
 #define _PCH_DEV(slot, func)	PCI_DEV(0, PCH_DEV_SLOT_ ## slot, func)
 #endif
 
 /* System Agent Devices */
 
 #define SA_DEV_SLOT_ROOT	0x00
-#define  SA_DEVFN_ROOT		_SA_DEVFN(ROOT)
-#define  SA_DEV_ROOT		_SA_DEV(ROOT)
+#define  SA_DEVFN_ROOT		PCI_DEVFN(SA_DEV_SLOT_ROOT, 0)
+#if defined(__SIMPLE_DEVICE__)
+#define  SA_DEV_ROOT		PCI_DEV(0, SA_DEV_SLOT_ROOT, 0)
+#endif
+
+#define SA_DEV_SLOT_PEG		0x01
+#define  SA_DEVFN_PEG0		PCI_DEVFN(SA_DEV_SLOT_PEG, 0)
+#define  SA_DEVFN_PEG1		PCI_DEVFN(SA_DEV_SLOT_PEG, 1)
+#define  SA_DEVFN_PEG2		PCI_DEVFN(SA_DEV_SLOT_PEG, 2)
+#define  SA_DEV_PEG0		PCI_DEV(0, SA_DEV_SLOT_PEG, 0)
+#define  SA_DEV_PEG1		PCI_DEV(0, SA_DEV_SLOT_PEG, 1)
+#define  SA_DEV_PEG2		PCI_DEV(0, SA_DEV_SLOT_PEG, 2)
 
 #define SA_DEV_SLOT_IGD		0x02
-#define  SA_DEVFN_IGD		_SA_DEVFN(IGD)
-#define  SA_DEV_IGD		_SA_DEV(IGD)
+#define  SA_DEVFN_IGD		PCI_DEVFN(SA_DEV_SLOT_IGD, 0)
+#define  SA_DEV_IGD		PCI_DEV(0, SA_DEV_SLOT_IGD, 0)
 
+#define SA_DEV_SLOT_TS		0x04
+#define  SA_DEVFN_TS		PCI_DEVFN(SA_DEV_SLOT_TS, 0)
+#define  SA_DEV_TS		PCI_DEV(0, SA_DEV_SLOT_TS, 0)
+
+#define SA_DEV_SLOT_IMGU	0x05
+#define  SA_DEVFN_IMGU		PCI_DEVFN(SA_DEV_SLOT_IMGU, 0)
+#define  SA_DEV_IMGU		PCI_DEV(0, SA_DEV_SLOT_IMGU, 0)
+
+#define SA_DEV_SLOT_CHAP	0x07
+#define  SA_DEVFN_CHAP		PCI_DEVFN(SA_DEV_SLOT_CHAP, 0)
+#define  SA_DEV_CHAP		PCI_DEV(0, SA_DEV_SLOT_CHAP, 0)
+
+#define SA_DEV_SLOT_GMM		0x08
+#define  SA_DEVFN_GMM		PCI_DEVFN(SA_DEV_SLOT_GMM, 0)
+#define  SA_DEV_GMM		PCI_DEV(0, SA_DEV_SLOT_GMM, 0)
 /* PCH Devices */
 
 #define PCH_DEV_SLOT_ISH	0x13

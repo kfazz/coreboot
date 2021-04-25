@@ -1,20 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 The ChromiumOS Authors.  All rights reserved.
- * Copyright (C) 2016 secunet Security Networks AG
- * Copyright (C) 2019 Protectli
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef SUPERIO_ITE_ENV_CTRL_H
 #define SUPERIO_ITE_ENV_CTRL_H
@@ -50,6 +34,14 @@
 #define   ITE_EC_FAN_PWM_SMOOTHING_256HZ	(1 << 6)
 #define   ITE_EC_FAN_PWM_SMOOTHING_64HZ		(2 << 6)
 #define   ITE_EC_FAN_PWM_SMOOTHING_16HZ		(3 << 6)
+/* ITE IT8786E PWM_SMOOTHING_FREQ */
+#define   ITE_EC_FAN_ALT_PWM_SMOOTHING_16HZ	(1 << 6)
+#define   ITE_EC_FAN_ALT_PWM_SMOOTHING_8HZ	(2 << 6)
+#define   ITE_EC_FAN_ALT_PWM_SMOOTHING_4HZ	(3 << 6)
+#define   ITE_EC_FAN_CTL5_SEL(FAN_CTLx)		((((FAN_CTLx)-1) & 3) << 2)
+#define   ITE_EC_FAN_CTL5_SEL_NONE		(3 << 2)
+#define   ITE_EC_FAN_CTL4_SEL(FAN_CTLx)		(((FAN_CTLx)-1) & 3)
+#define   ITE_EC_FAN_CTL4_SEL_NONE		(3 << 0)
 
 #define ITE_EC_FAN_TAC_COUNTER_ENABLE		0x0c
 #define   ITE_EC_FAN_TAC_16BIT_ENABLE(x)	(1 << ((x)-1))
@@ -67,6 +59,14 @@
 						? (0x85 + ((x)-4) * 2)	\
 						: (0x1b + ((x)-1))	\
 	)
+
+#define ITE_EC_FAN_TAC_CNTRL			0x0c
+#define   ITE_EC_TMPIN3_ENHANCED_INT_MODE	(1 << 7)
+#define   ITE_EC_TMPIN2_ENHANCED_INT_MODE	(1 << 6)
+#define   ITE_EC_FAN_TAC5_EN			(1 << 5)
+#define   ITE_EC_FAN_TAC4_EN			(1 << 4)
+#define   ITE_EC_TMPIN1_ENHANCED_INT_MODE	(1 << 3)
+#define   ITE_EC_AMDTSI_ERR_EN			(1 << 0)
 
 #define ITE_EC_FAN_MAIN_CTL			0x13
 #define   ITE_EC_FAN_MAIN_CTL_TAC_EN(x)		(1 << ((x)+3))
@@ -91,6 +91,7 @@
 						? (0x1e + ((x)-4))	\
 						: (0x15 + ((x)-1))	\
 	)
+#define   ITE_EC_FAN_PWM_CLSD_LOOP		(1 << 2)
 
 #if CONFIG(SUPERIO_ITE_ENV_CTRL_5FANS)
 #define   ITE_EC_FAN_CTL_TEMPIN_MASK		(7 << 3)
@@ -110,6 +111,13 @@
 			? ITE_EC_FAN_MAX_PWM			\
 			: (_p * ITE_EC_FAN_MAX_PWM) / 100;	\
 	  })
+#define   ITE_EC_FAN_CTL_PWM_RPM(p)		\
+	  ({					\
+		const unsigned int _p = p;			\
+		(_p >= 4080)					\
+			? 0xFF			\
+			: (_p / 16);	\
+	  })
 
 #define ITE_EC_HIGH_TEMP_LIMIT(x)		(0x40 + ((x-1) * 2))
 #define ITE_EC_LOW_TEMP_LIMIT(x)		(0x41 + ((x-1) * 2))
@@ -121,6 +129,7 @@
 #define   ITE_EC_ADC_TEMP_RESISTOR_MODE(x)	(1 << ((x)+2))
 #define   ITE_EC_ADC_TEMP_DIODE_MODE(x)		(1 << ((x)-1))
 #define ITE_EC_ADC_TEMP_EXTRA_CHANNEL_ENABLE	0x55
+#define   ITE_EC_ADC_TEMP_EXTRA_TMPIN3_EXT	(1 << 7)
 
 /* Matches length of ITE_EC_TMPIN_CNT */
 static const u8 ITE_EC_TEMP_ADJUST[] = { 0x56, 0x57, 0x59 };
@@ -178,6 +187,7 @@ static const u8 ITE_EC_TEMP_ADJUST[] = { 0x56, 0x57, 0x59 };
 /* Common for ITE_EC_FAN_CTL_PWM_START */
 #define   ITE_EC_FAN_CTL_PWM_SLOPE_BIT6(s)	(((s) & 0x40) << 1)
 #define   ITE_EC_FAN_CTL_PWM_START_DUTY(p)	ITE_EC_FAN_CTL_PWM_DUTY(p)
+#define   ITE_EC_FAN_CTL_PWM_START_RPM(p)	ITE_EC_FAN_CTL_PWM_RPM(p)
 
 /* Common for ITE_EC_FAN_CTL_PWM_AUTO */
 #define   ITE_EC_FAN_CTL_AUTO_SMOOTHING_EN	(1 << 7)
@@ -185,6 +195,9 @@ static const u8 ITE_EC_TEMP_ADJUST[] = { 0x56, 0x57, 0x59 };
 
 /* Common for ITE_EC_FAN_CTL_DELTA_TEMP */
 #define   ITE_EC_FAN_CTL_DELTA_TEMP_INTRVL(c)	((c) & 0x1f)
+#define   ITE_EC_FAN_CTL_FULL_AT_THRML_LMT(x)   (((x) & 0x1) << 6)
+#define ITE_EC_FAN_CTL_TARGET_ZONE(x)		(0x66 + ((x)-1) * 8)
+#define   ITE_EC_FAN_CTL_TARGET_ZONE_MASK	0x0f
 
 #define ITE_EC_EXTEMP_STATUS			0x88
 #define   ITE_EC_EXTEMP_STATUS_HOST_BUSY	(1 << 0)

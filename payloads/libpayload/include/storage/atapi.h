@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2012 secunet Security Networks AG
  *
@@ -34,7 +33,6 @@
 
 #include "storage.h"
 #include "ata.h"
-
 
 /* ATAPI commands */
 enum {

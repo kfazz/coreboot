@@ -1,21 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot_device.h>
 #include <endian.h>
-#include <stdlib.h>
+#include <spi_flash.h>
 
 /* The ROM is memory mapped just below 4GiB. Form a pointer for the base. */
 #define rom_base ((void *)(uintptr_t)(0x100000000ULL-CONFIG_ROM_SIZE))
@@ -26,4 +13,13 @@ static const struct mem_region_device boot_dev =
 const struct region_device *boot_device_ro(void)
 {
 	return &boot_dev.rdev;
+}
+
+uint32_t spi_flash_get_mmap_windows(struct flash_mmap_window *table)
+{
+	table->flash_base = 0;
+	table->host_base = (uint32_t)(uintptr_t)rom_base;
+	table->size = CONFIG_ROM_SIZE;
+
+	return 1;
 }

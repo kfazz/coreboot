@@ -1,17 +1,4 @@
-/*
- * Copyright (C) 2009 coresystems GmbH
- *                 written by Patrick Georgi <patrick.georgi@coresystems.de>
- * Copyright (C) 2012 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __CBFSTOOL_COMMON_H
 #define __CBFSTOOL_COMMON_H
@@ -22,13 +9,18 @@
 #include <string.h>
 #include <assert.h>
 
+#include <commonlib/bsd/cbfs_serialized.h>
 #include <commonlib/helpers.h>
 #include <console/console.h>
 
-/* Endianness */
 #include "swab.h"
 
-#define IS_TOP_ALIGNED_ADDRESS(x)	((uint32_t)(x) > 0x80000000)
+/*
+ * There are two address spaces that this tool deals with - SPI flash address space and host
+ * address space. This macros checks if the address is greater than 2GiB under the assumption
+ * that the low MMIO lives in the top half of the 4G address space of the host.
+ */
+#define IS_HOST_SPACE_ADDRESS(addr)	((uint32_t)(addr) > 0x80000000)
 
 #define unused __attribute__((unused))
 
@@ -160,51 +152,34 @@ typedef int (*comp_func_ptr) (char *in, int in_len, char *out, int *out_len);
 typedef int (*decomp_func_ptr) (char *in, int in_len, char *out, int out_len,
 				size_t *actual_size);
 
-enum comp_algo {
-	CBFS_COMPRESS_NONE = 0,
-	CBFS_COMPRESS_LZMA = 1,
-	CBFS_COMPRESS_LZ4 = 2,
-};
-
-struct typedesc_t {
-	uint32_t type;
-	const char *name;
-};
-
-static const struct typedesc_t types_cbfs_compression[] = {
-	{CBFS_COMPRESS_NONE, "none"},
-	{CBFS_COMPRESS_LZMA, "LZMA"},
-	{CBFS_COMPRESS_LZ4, "LZ4"},
-	{0, NULL},
-};
-
-comp_func_ptr compression_function(enum comp_algo algo);
-decomp_func_ptr decompression_function(enum comp_algo algo);
+comp_func_ptr compression_function(enum cbfs_compression algo);
+decomp_func_ptr decompression_function(enum cbfs_compression algo);
 
 uint64_t intfiletype(const char *name);
 
 /* cbfs-mkpayload.c */
 int parse_elf_to_payload(const struct buffer *input, struct buffer *output,
-			 enum comp_algo algo);
+			 enum cbfs_compression algo);
 int parse_fv_to_payload(const struct buffer *input, struct buffer *output,
-			enum comp_algo algo);
+			enum cbfs_compression algo);
 int parse_fit_to_payload(const struct buffer *input, struct buffer *output,
-			 enum comp_algo algo);
+			 enum cbfs_compression algo);
 int parse_bzImage_to_payload(const struct buffer *input,
 			     struct buffer *output, const char *initrd,
-			     char *cmdline, enum comp_algo algo);
+			     char *cmdline, enum cbfs_compression algo);
 int parse_flat_binary_to_payload(const struct buffer *input,
 				 struct buffer *output,
 				 uint32_t loadaddress,
 				 uint32_t entrypoint,
-				 enum comp_algo algo);
+				 enum cbfs_compression algo);
 /* cbfs-mkstage.c */
 int parse_elf_to_stage(const struct buffer *input, struct buffer *output,
-		       enum comp_algo algo, uint32_t *location,
-		       const char *ignore_section);
+		       const char *ignore_section,
+		       struct cbfs_file_attr_stageheader *stageheader);
 /* location is TOP aligned. */
 int parse_elf_to_xip_stage(const struct buffer *input, struct buffer *output,
-				uint32_t *location, const char *ignore_section);
+			   uint32_t *location, const char *ignore_section,
+			   struct cbfs_file_attr_stageheader *stageheader);
 
 void print_supported_architectures(void);
 void print_supported_filetypes(void);

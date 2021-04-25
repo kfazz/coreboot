@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Google Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 Scope (\_SB)
 {
@@ -23,14 +9,14 @@ Scope (\_SB)
 
 		Method (_LID, 0)
 		{
-			Store (\_SB.PCI0.LPCB.EC0.HPLD, \LIDS)
+			\LIDS = \_SB.PCI0.LPCB.EC0.HPLD
 			Return (\LIDS)
 		}
 
 		Method (_PSW, 1)
 		{
 			// Enable/Disable LID as a wake source
-			Store (Arg0, \_SB.PCI0.LPCB.EC0.HWLO)
+			\_SB.PCI0.LPCB.EC0.HWLO = Arg0
 		}
 	}
 }

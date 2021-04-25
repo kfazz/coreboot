@@ -1,23 +1,9 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2009 coresystems GmbH
-## Copyright (C) 2016 Arthur Heymans <arthur@ahemans.xyz
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+## SPDX-License-Identifier: GPL-2.0-only
+
 if BOARD_GIGABYTE_GA_945GCM_S2L || BOARD_GIGABYTE_GA_945GCM_S2C
 
 config BOARD_SPECIFIC_OPTIONS
 	def_bool y
-	select ARCH_X86
 	select CPU_INTEL_SOCKET_LGA775
 	select NORTHBRIDGE_INTEL_I945
 	select NORTHBRIDGE_INTEL_SUBTYPE_I945GC
@@ -29,14 +15,13 @@ config BOARD_SPECIFIC_OPTIONS
 	select HAVE_ACPI_TABLES
 	select HAVE_ACPI_RESUME
 	select BOARD_ROMSIZE_KB_512
-	select CHANNEL_XOR_RANDOMIZATION
 	select MAINBOARD_HAS_NATIVE_VGA_INIT
 	select REALTEK_8168_RESET if BOARD_GIGABYTE_GA_945GCM_S2L
 	select INTEL_GMA_HAVE_VBT
 
 config MAINBOARD_DIR
 	string
-	default gigabyte/ga-945gcm-s2l
+	default "gigabyte/ga-945gcm-s2l"
 
 config VARIANT_DIR
 	string
@@ -58,6 +43,6 @@ config MAX_CPUS
 
 # Override the default variant behavior, since the data.vbt is the same
 config INTEL_GMA_VBT_FILE
-	default "src/mainboard/$(MAINBOARDDIR)/data.vbt"
+	default "src/mainboard/\$(MAINBOARDDIR)/data.vbt"
 
 endif

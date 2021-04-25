@@ -1,39 +1,24 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2009-2010 coresystems GmbH
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+## SPDX-License-Identifier: GPL-2.0-only
 
 config ARCH_X86
 	bool
-	default n
 	select PCI
 	select RELOCATABLE_MODULES
+	select HAVE_ASAN_IN_RAMSTAGE
 
 # stage selectors for x86
 
 config ARCH_BOOTBLOCK_X86_32
 	bool
-	default n
 	select ARCH_X86
-	select BOOTBLOCK_CUSTOM if !C_ENVIRONMENT_BOOTBLOCK
 
 config ARCH_VERSTAGE_X86_32
 	bool
-	default n
+	select ARCH_X86
 
 config ARCH_ROMSTAGE_X86_32
 	bool
-	default n
+	select ARCH_X86
 
 config ARCH_POSTCAR_X86_32
 	bool
@@ -41,23 +26,28 @@ config ARCH_POSTCAR_X86_32
 
 config ARCH_RAMSTAGE_X86_32
 	bool
-	default n
+	select ARCH_X86
+
+config ARCH_ALL_STAGES_X86_32
+	bool
+	select ARCH_BOOTBLOCK_X86_32
+	select ARCH_VERSTAGE_X86_32
+	select ARCH_ROMSTAGE_X86_32
+	select ARCH_RAMSTAGE_X86_32
 
 # stage selectors for x64
 
 config ARCH_BOOTBLOCK_X86_64
 	bool
-	default n
 	select ARCH_X86
-	select BOOTBLOCK_CUSTOM if !C_ENVIRONMENT_BOOTBLOCK
 
 config ARCH_VERSTAGE_X86_64
 	bool
-	default n
+	select ARCH_X86
 
 config ARCH_ROMSTAGE_X86_64
 	bool
-	default n
+	select ARCH_X86
 
 config ARCH_POSTCAR_X86_64
 	bool
@@ -65,7 +55,24 @@ config ARCH_POSTCAR_X86_64
 
 config ARCH_RAMSTAGE_X86_64
 	bool
-	default n
+	select ARCH_X86
+
+config ARCH_ALL_STAGES_X86_64
+	bool
+	select ARCH_BOOTBLOCK_X86_64
+	select ARCH_VERSTAGE_X86_64
+	select ARCH_ROMSTAGE_X86_64
+	select ARCH_RAMSTAGE_X86_64
+
+if ARCH_X86
+
+config ARCH_X86_64_PGTBL_LOC
+	hex "x86_64 page table location in CBFS"
+	depends on ARCH_BOOTBLOCK_X86_64
+	default 0xfffe9000
+	help
+	  The position where to place pagetables. Needs to be known at
+	  compile time. Must not overlap other files in CBFS.
 
 config USE_MARCH_586
 	def_bool n
@@ -80,6 +87,14 @@ config AP_IN_SIPI_WAIT
 	bool
 	default n
 	depends on ARCH_X86 && SMP
+
+config RESET_VECTOR_IN_RAM
+	bool
+	depends on ARCH_X86
+	select NO_XIP_EARLY_STAGES
+	help
+	  Select this option if the x86 processor's reset vector is in
+	  preinitialized DRAM instead of the traditional 0xfffffff0 location.
 
 # Aligns 16bit entry code in bootblock so that hyper-threading CPUs
 # can boot AP CPUs to enable their shared caches.
@@ -123,26 +138,18 @@ config NUM_IPI_STARTS
 	int
 	default 2
 
-config CBMEM_TOP_BACKUP
-	def_bool n
-	help
-	  Platform implements non-volatile storage to cache cbmem_top()
-	  over stage transitions and optionally also over S3 suspend.
-
 config PRERAM_CBMEM_CONSOLE_SIZE
 	hex
 	default 0xc00
 	help
 	  Increase this value if preram cbmem console is getting truncated
 
-config EARLY_EBDA_INIT
-	bool
-	default n
+config CBFS_MCACHE_SIZE
+	hex
+	depends on !NO_CBFS_MCACHE
+	default 0x2000
 	help
-	  Initialize BIOS EBDA area early in romstage to allow bootloader to
-	  use this region for storing data which can be available across
-	  various stages. If user is selecting this option then its users
-	  responsibility to perform EBDA initialization call during romstage.
+	  Increase this value if you see CBFS mcache overflow warnings.
 
 config PC80_SYSTEM
 	bool
@@ -155,35 +162,14 @@ config BOOTBLOCK_DEBUG_SPINLOOP
 	  Add a spin (JMP .) in bootblock_crt0.S during early bootblock to wait
 	  for a JTAG debugger to break into the execution sequence.
 
-config BOOTBLOCK_MAINBOARD_INIT
-	string
-
-config BOOTBLOCK_NORTHBRIDGE_INIT
-	string
-
-config BOOTBLOCK_RESETS
-	string
-
-config BOOTBLOCK_SAVE_BIST_AND_TIMESTAMP
-	bool
-	default n
-	help
-	  Select this value to provide a routine to save the BIST and timestamp
-	  values.  The default code places the BIST value in MM0 and the
-	  timestamp value in MM2:MM1.  Another file is necessary when the CPU
-	  does not support the MMx register set.
-
 config HAVE_CMOS_DEFAULT
 	def_bool n
 	depends on HAVE_OPTION_TABLE
 
 config CMOS_DEFAULT_FILE
 	string
-	default "src/mainboard/$(MAINBOARDDIR)/cmos.default"
+	default "src/mainboard/\$(MAINBOARDDIR)/cmos.default"
 	depends on HAVE_CMOS_DEFAULT
-
-config BOOTBLOCK_SOUTHBRIDGE_INIT
-	string
 
 config IOAPIC_INTERRUPTS_ON_FSB
 	bool
@@ -200,14 +186,16 @@ config HPET_ADDRESS
 	hex
 	default 0xfed00000 if !HPET_ADDRESS_OVERRIDE
 
-config ID_SECTION_OFFSET
-	hex
-	default 0x80
-
-# 64KiB default bootblock size when employing C_ENVIRONMENT_BOOTBLOCK.
 config C_ENV_BOOTBLOCK_SIZE
 	hex
-	default 0x10000
+	default 0x40000 if !FIXED_BOOTBLOCK_SIZE
+	help
+	   This is only the default maximum of bootblock size for linking
+	   purposes. Platforms may provide different limit and need to
+	   specify this when FIXED_BOOTBLOCK_SIZE is selected.
+
+config FIXED_BOOTBLOCK_SIZE
+	bool
 
 # Default address romstage is to be linked at
 config ROMSTAGE_ADDR
@@ -222,8 +210,9 @@ config VERSTAGE_ADDR
 # Use the post CAR infrastructure for tearing down cache-as-ram
 # from a program loaded in RAM and subsequently loading ramstage.
 config POSTCAR_STAGE
-	def_bool n
-	select NO_CAR_GLOBAL_MIGRATION
+	def_bool y
+	depends on ARCH_X86
+	depends on !RESET_VECTOR_IN_RAM
 
 config VERSTAGE_DEBUG_SPINLOOP
 	bool
@@ -242,19 +231,16 @@ config ROMSTAGE_DEBUG_SPINLOOP
 choice
 	prompt "Bootblock behaviour"
 	default BOOTBLOCK_SIMPLE
+	depends on !VBOOT
 
 config BOOTBLOCK_SIMPLE
 	bool "Always load fallback"
 
 config BOOTBLOCK_NORMAL
+	select CONFIGURABLE_CBFS_PREFIX
 	bool "Switch to normal if CMOS says so"
 
 endchoice
-
-config BOOTBLOCK_SOURCE
-	string
-	default "bootblock_simple.c" if BOOTBLOCK_SIMPLE
-	default "bootblock_normal.c" if BOOTBLOCK_NORMAL
 
 config SKIP_MAX_REBOOT_CNT_CLEAR
 	bool "Do not clear reboot count after successful boot"
@@ -265,14 +251,11 @@ config SKIP_MAX_REBOOT_CNT_CLEAR
 	  Note that it is the responsibility of the payload to reset the
 	  normal boot bit to 1 after each successful boot.
 
-config ACPI_CPU_STRING
-	string
-	default "\\_PR.CP%02d"
+config ACPI_BERT
+	bool
 	depends on HAVE_ACPI_TABLES
 	help
-	  Sets the ACPI name string in the processor scope as written by
-	  the acpigen function. Default is \_PR.CPxx. Note that you need
-	  the \ escape character in the string.
+	  Build an ACPI Boot Error Record Table.
 
 config COLLECT_TIMESTAMPS_NO_TSC
 	bool
@@ -318,3 +301,31 @@ config HAVE_CF9_RESET
 config HAVE_CF9_RESET_PREPARE
 	bool
 	depends on HAVE_CF9_RESET
+
+config PIRQ_ROUTE
+	bool
+	default n
+
+config MAX_PIRQ_LINKS
+	int
+	default 4
+	depends on PIRQ_ROUTE
+	help
+	  This variable specifies the number of PIRQ interrupt links which are
+	  routable. On most chipsets, this is 4, INTA through INTD. Some
+	  chipsets offer more than four links, commonly up to INTH. They may
+	  also have a separate link for ATA or IOAPIC interrupts. When the PIRQ
+	  table specifies links greater than 4, pirq_route_irqs will not
+	  function properly, unless this variable is correctly set.
+
+config MAX_ACPI_TABLE_SIZE_KB
+	int
+	default 144
+	help
+	  Set the maximum size of all ACPI tables in KiB.
+
+config MEMLAYOUT_LD_FILE
+	string
+	default "src/arch/x86/memlayout.ld"
+
+endif

@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008 Advanced Micro Devices, Inc.
- * Copyright (C) 2008-2009 coresystems GmbH
- * Copyright (C) 2011 The ChromiumOS Authors.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <device/device.h>
@@ -21,8 +6,8 @@
 #include <device/pci_ids.h>
 #include <device/pci_ops.h>
 #include <device/mmio.h>
-#include <delay.h>
 #include <device/azalia_device.h>
+
 #include "pch.h"
 #include "hda_verb.h"
 
@@ -48,7 +33,7 @@ static void azalia_pch_init(struct device *dev, u8 *base)
 	u16 reg16;
 	u32 reg32;
 
-	if (RCBA32(0x2030) & (1UL << 31)) {
+	if (RCBA32(0x2030) & (1 << 31)) {
 		reg32 = pci_read_config32(dev, 0x120);
 		reg32 &= 0xf8ffff01;
 		reg32 |= (1 << 25);
@@ -56,9 +41,7 @@ static void azalia_pch_init(struct device *dev, u8 *base)
 		pci_write_config32(dev, 0x120, reg32);
 
 		if (!pch_is_lp()) {
-			reg16 = pci_read_config16(dev, 0x78);
-			reg16 &= ~(1 << 11);
-			pci_write_config16(dev, 0x78, reg16);
+			pci_and_config16(dev, 0x78, ~(1 << 11));
 		}
 	} else
 		printk(BIOS_DEBUG, "Azalia: V1CTL disabled.\n");
@@ -68,13 +51,12 @@ static void azalia_pch_init(struct device *dev, u8 *base)
 	pci_write_config32(dev, 0x114, reg32);
 
 	// Set VCi enable bit
-	if (pci_read_config32(dev, 0x120) & ((1 << 24) |
-						(1 << 25) | (1 << 26))) {
+	if (pci_read_config32(dev, 0x120) & ((1 << 24) | (1 << 25) | (1 << 26))) {
 		reg32 = pci_read_config32(dev, 0x120);
 		if (pch_is_lp())
-			reg32 &= ~(1UL << 31);
+			reg32 &= ~(1 << 31);
 		else
-			reg32 |= (1UL << 31);
+			reg32 |= (1 << 31);
 		pci_write_config32(dev, 0x120, reg32);
 	}
 
@@ -85,11 +67,8 @@ static void azalia_pch_init(struct device *dev, u8 *base)
 		reg8 |= (1 << 4);
 	pci_write_config8(dev, 0x43, reg8);
 
-	if (!pch_is_lp()) {
-		reg32 = pci_read_config32(dev, 0xc0);
-		reg32 |= (1 << 17);
-		pci_write_config32(dev, 0xc0, reg32);
-	}
+	if (!pch_is_lp())
+		pci_or_config32(dev, 0xc0, 1 << 17);
 
 	/* Additional programming steps */
 	reg32 = pci_read_config32(dev, 0xc4);
@@ -99,19 +78,11 @@ static void azalia_pch_init(struct device *dev, u8 *base)
 		reg32 |= (1 << 14);
 	pci_write_config32(dev, 0xc4, reg32);
 
-	if (!pch_is_lp()) {
-		reg32 = pci_read_config32(dev, 0xd0);
-		reg32 &= ~(1UL << 31);
-		pci_write_config32(dev, 0xd0, reg32);
-	}
+	if (!pch_is_lp())
+		pci_and_config32(dev, 0xd0, ~(1 << 31));
 
-	reg8 = pci_read_config8(dev, 0x40); // Audio Control
-	reg8 |= 1; // Select Azalia mode
-	pci_write_config8(dev, 0x40, reg8);
-
-	reg8 = pci_read_config8(dev, 0x4d); // Docking Status
-	reg8 &= ~(1 << 7); // Docking not supported
-	pci_write_config8(dev, 0x4d, reg8);
+	// Docking not supported
+	pci_and_config8(dev, 0x4d, (u8)~(1 << 7)); // Docking Status
 
 	if (pch_is_lp()) {
 		reg16 = read32(base + 0x0012);
@@ -119,9 +90,7 @@ static void azalia_pch_init(struct device *dev, u8 *base)
 		write32(base + 0x0012, reg16);
 
 		/* disable Auto Voltage Detector */
-		reg8 = pci_read_config8(dev, 0x42);
-		reg8 |= (1 << 2);
-		pci_write_config8(dev, 0x42, reg8);
+		pci_or_config8(dev, 0x42, 1 << 2);
 	}
 }
 
@@ -130,7 +99,6 @@ static void azalia_init(struct device *dev)
 	u8 *base;
 	struct resource *res;
 	u32 codec_mask;
-	u32 reg32;
 
 	/* Find base address */
 	res = find_resource(dev, PCI_BASE_ADDRESS_0);
@@ -141,8 +109,7 @@ static void azalia_init(struct device *dev)
 	printk(BIOS_DEBUG, "Azalia: base = %p\n", base);
 
 	/* Set Bus Master */
-	reg32 = pci_read_config32(dev, PCI_COMMAND);
-	pci_write_config32(dev, PCI_COMMAND, reg32 | PCI_COMMAND_MASTER);
+	pci_or_config16(dev, PCI_COMMAND, PCI_COMMAND_MASTER);
 
 	azalia_pch_init(dev, base);
 
@@ -154,20 +121,26 @@ static void azalia_init(struct device *dev)
 	}
 }
 
-static struct pci_operations azalia_pci_ops = {
-	.set_subsystem    = pci_dev_set_subsystem,
-};
+static void azalia_final(struct device *dev)
+{
+	/* Set HDCFG.BCLD */
+	pci_or_config16(dev, 0x40, 1 << 1);
+}
 
 static struct device_operations azalia_ops = {
 	.read_resources		= pci_dev_read_resources,
 	.set_resources		= pci_dev_set_resources,
 	.enable_resources	= pci_dev_enable_resources,
 	.init			= azalia_init,
-	.scan_bus		= 0,
-	.ops_pci		= &azalia_pci_ops,
+	.final			= azalia_final,
+	.ops_pci		= &pci_dev_ops_pci,
 };
 
-static const unsigned short pci_device_ids[] = { 0x8c20, 0x9c20, 0 };
+static const unsigned short pci_device_ids[] = {
+	PCI_DEVICE_ID_INTEL_LPT_H_AUDIO,
+	PCI_DEVICE_ID_INTEL_LPT_LP_AUDIO,
+	0
+};
 
 static const struct pci_driver pch_azalia __pci_driver = {
 	.ops	 = &azalia_ops,

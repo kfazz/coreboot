@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 Google LLC
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 Device (EC0)
 {
@@ -21,6 +7,8 @@ Device (EC0)
 	Name (_GPE, EC_SCI_GPI)
 	Name (_STA, 0xf)
 	Name (DBUG, Zero)
+	Name (ISSX, Zero) /* Is the EC in S0ix mode? */
+	Name (UCEP, Zero) /* Is there a pending UCSI event? */
 
 	Name (_CRS, ResourceTemplate() {
 		IO (Decode16,
@@ -57,6 +45,12 @@ Device (EC0)
 		If (\DPTE == One) {
 			W (DWST, Arg1)
 		}
+
+		/* Initialize UCSI */
+		^UCSI.INIT ()
+
+		// Initialize LID switch state
+		\LIDS = R (P1LC)
 	}
 
 	/*
@@ -148,12 +142,25 @@ Device (EC0)
 	 */
 	Method (S0IX, 1, Serialized)
 	{
+		^ISSX = Arg0 /* Update S0ix state. */
+
 		If (Arg0) {
 			Printf ("EC Enter S0ix")
 			W (CSEX, One)
+
+			/*
+			 * Read back from EC RAM after enabling S0ix
+			 * to prevent EC from aborting S0ix entry.
+			 */
+			R (EVT1)
 		} Else {
 			Printf ("EC Exit S0ix")
 			W (CSEX, Zero)
+
+			/* If UCSI event happened during S0ix send it now. */
+			If (^UCEP == One) {
+				^_Q79 ()
+			}
 		}
 	}
 
@@ -165,7 +172,11 @@ Device (EC0)
 	#include "lid.asl"
 	#include "platform.asl"
 	#include "vbtn.asl"
+	#include "ucsi.asl"
 #ifdef EC_ENABLE_DPTF
 	#include "dptf.asl"
+#endif
+#ifdef EC_ENABLE_PRIVACY
+	#include "privacy.asl"
 #endif
 }

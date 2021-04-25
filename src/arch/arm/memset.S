@@ -1,18 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  linux/arch/arm/lib/memset.S
+ * Based on linux/arch/arm/lib/memset.S
  *
- *  Copyright (C) 1995-2000 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- *  ASM optimised string functions
+ * ASM optimised string functions
  */
 
 #include <arch/asm.h>

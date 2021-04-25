@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- * Copyright (C) 2015 Intel Corp.
- * Copyright (C) 2018 Eltan B.V.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _SOC_IRQ_H_
 #define _SOC_IRQ_H_
@@ -141,7 +126,6 @@
 #define GPIO_S0_DED_IRQ(slot)		_GPIO_N_DED_IRQ(slot)
 #define GPIO_S5_DED_IRQ(slot)		_GPIO_E_DED_IRQ(slot)
 
-
 /* PIC IRQ settings. */
 #define PIRQ_PIC_IRQDISABLE		0x80
 #define PIRQ_PIC_IRQ3			0x3
@@ -179,7 +163,7 @@
 # define SCIS_IRQ23				0x07
 
 /*
- * In each mainbaord directory there should exist a header file irqroute.h that
+ * In each mainboard directory there should exist a header file irqroute.h that
  * defines the PCI_DEV_PIRQ_ROUTES and PIRQ_PIC_ROUTES macros which
  * consist of PCI_DEV_PIRQ_ROUTE and PIRQ_PIC entries.
  */

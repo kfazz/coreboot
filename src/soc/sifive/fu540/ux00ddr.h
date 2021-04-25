@@ -1,4 +1,3 @@
-/* Copyright (c) 2018 SiFive, Inc */
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* See the file LICENSE for further information */
@@ -47,7 +46,6 @@ static inline void phy_reset(volatile uint32_t *ddrphyreg, const uint32_t *physe
     /*if (physet!=0)*/ ddrphyreg[i] = physet;
   }
 }
-
 
 static inline void ux00ddr_writeregmap(size_t ahbregaddr, const uint32_t *ctlsettings, const uint32_t *physettings) {
   volatile uint32_t *ddrctlreg = (volatile uint32_t *) ahbregaddr;

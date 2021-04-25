@@ -1,19 +1,13 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2011 Advanced Micro Devices, Inc.
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+# SPDX-License-Identifier: GPL-2.0-only
 
 # Generic Nuvoton romstage driver - Just enough UART initialisation code for
 # pre-ram.
 config SUPERIO_NUVOTON_COMMON_PRE_RAM
 	bool
+
+config SUPERIO_NUVOTON_COMMON_COM_A
+	bool
+	depends on SUPERIO_NUVOTON_COMMON_PRE_RAM
+	help
+	  When enabled, the 'nuvoton_enable_serial()' function will unset
+	  global CR 0x2a bit 7 to route COM A to the GPIO8 pin group.

@@ -1,36 +1,23 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
-#include "variant/ec.h"
-#include "variant/gpio.h"
+#include <acpi/acpi.h>
+#include <baseboard/ec.h>
+#include <baseboard/gpio.h>
 
 DefinitionBlock(
 	"dsdt.aml",
 	"DSDT",
-	0x02,		// DSDT revision: ACPI v2.0 and up
+	ACPI_DSDT_REV_2,
 	OEM_ID,
 	ACPI_TABLE_CREATOR,
 	0x20110725	// OEM revision
 )
 {
-	// Some generic macros
-	#include <soc/intel/icelake/acpi/platform.asl>
+	#include <acpi/dsdt_top.asl>
+	#include <soc/intel/common/block/acpi/acpi/platform.asl>
 
 	// global NVS and variables
-	#include <soc/intel/icelake/acpi/globalnvs.asl>
+	#include <soc/intel/common/block/acpi/acpi/globalnvs.asl>
 
 	// CPU
 	#include <cpu/intel/common/acpi/cpu.asl>
@@ -38,15 +25,10 @@ DefinitionBlock(
 	Scope (\_SB) {
 		Device (PCI0)
 		{
-			#include <soc/intel/icelake/acpi/northbridge.asl>
+			#include <soc/intel/common/block/acpi/acpi/northbridge.asl>
 			#include <soc/intel/icelake/acpi/southbridge.asl>
 		}
 	}
-
-#if CONFIG(CHROMEOS)
-	// Chrome OS specific
-	#include <vendorcode/google/chromeos/acpi/chromeos.asl>
-#endif
 
 #if CONFIG(EC_GOOGLE_CHROMEEC)
 	/* Chrome OS Embedded Controller */
@@ -59,10 +41,5 @@ DefinitionBlock(
 		}
 #endif
 
-	// Chipset specific sleep states
-	#include <soc/intel/icelake/acpi/sleepstates.asl>
-
-	// Mainboard specific
-	#include "acpi/mainboard.asl"
-
+	#include <southbridge/intel/common/acpi/sleepstates.asl>
 }

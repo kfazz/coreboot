@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- * Copyright (C) 2015-2017 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <bootblock_common.h>
 #include <console/console.h>
 #include <cpu/x86/mtrr.h>
@@ -82,7 +68,7 @@ asmlinkage void bootblock_c_entry(uint64_t base_timestamp)
 	if (CONFIG(ENABLE_DEBUG_LED_BOOTBLOCK_ENTRY))
 		light_sd_led();
 
-	bootblock_main_with_timestamp(base_timestamp, NULL, 0);
+	bootblock_main_with_basetime(base_timestamp);
 }
 
 void bootblock_soc_early_init(void)
@@ -118,6 +104,6 @@ void bootblock_soc_init(void)
 void platform_prog_run(struct prog *prog)
 {
 	/* Display the program entry point */
-	printk(BIOS_SPEW, "Calling %s, 0x%p(0x%p)\n", prog->name,
+	printk(BIOS_SPEW, "Calling %s, %p(%p)\n", prog->name,
 		prog->entry, prog->arg);
 }

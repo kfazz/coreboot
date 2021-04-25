@@ -1,19 +1,5 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <stdint.h>
 #include <cbfs.h>
 #include <console/console.h>
 #include <soc/gpio.h>
@@ -55,32 +41,25 @@ static void *get_spd_pointer(char *spd_file_content, int total_spds, int *dual)
 	return &spd_file_content[SPD_SIZE * ram_id];
 }
 
-void mainboard_romstage_entry(struct romstage_params *rp)
+void mainboard_fill_mrc_params(struct mrc_params *mp)
 {
 	void *spd_content;
 	int dual_channel = 0;
 	void *spd_file;
 	size_t spd_fsize;
 
-	struct mrc_params mp = {
-		.mainboard = {
-			.dram_type = DRAM_DDR3L,
-			.dram_info_location = DRAM_INFO_SPD_MEM,
-			.weaker_odt_settings = 1,
-		},
-	};
-
-	spd_file = cbfs_boot_map_with_leak("spd.bin", CBFS_TYPE_SPD,
-						&spd_fsize);
+	spd_file = cbfs_map("spd.bin", &spd_fsize);
 	if (!spd_file)
 		die("SPD data not found.");
 
 	spd_content = get_spd_pointer(spd_file, spd_fsize / SPD_SIZE,
 	                              &dual_channel);
-	mp.mainboard.dram_data[0] = spd_content;
-	if (dual_channel)
-		mp.mainboard.dram_data[1] = spd_content;
 
-	rp->mrc_params = &mp;
-	romstage_common(rp);
+	mp->mainboard.dram_type = DRAM_DDR3L;
+	mp->mainboard.dram_info_location = DRAM_INFO_SPD_MEM,
+	mp->mainboard.weaker_odt_settings = 1,
+
+	mp->mainboard.dram_data[0] = spd_content;
+	if (dual_channel)
+		mp->mainboard.dram_data[1] = spd_content;
 }

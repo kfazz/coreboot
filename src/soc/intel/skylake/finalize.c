@@ -1,24 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2015-2018 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/io.h>
 #include <device/mmio.h>
 #include <device/pci_ops.h>
 #include <bootstate.h>
-#include <chip.h>
 #include <console/console.h>
 #include <console/post_codes.h>
 #include <cpu/x86/mp.h>
@@ -28,7 +12,9 @@
 #include <intelblocks/lpc_lib.h>
 #include <intelblocks/p2sb.h>
 #include <intelblocks/pcr.h>
-#include <reg_script.h>
+#include <intelblocks/pmclib.h>
+#include <intelblocks/tco.h>
+#include <intelblocks/thermal.h>
 #include <spi-generic.h>
 #include <soc/me.h>
 #include <soc/p2sb.h>
@@ -37,21 +23,12 @@
 #include <soc/pm.h>
 #include <soc/smbus.h>
 #include <soc/systemagent.h>
-#include <soc/thermal.h>
-#include <stdlib.h>
-#include <timer.h>
+
+#include "chip.h"
 
 #define PSF_BASE_ADDRESS	0xA00
 #define PCR_PSFX_T0_SHDW_PCIEN	0x1C
 #define PCR_PSFX_T0_SHDW_PCIEN_FUNDIS	(1 << 8)
-
-static void disable_sideband_access(void)
-{
-	p2sb_disable_sideband_access();
-
-	/* hide p2sb device */
-	p2sb_hide();
-}
 
 static void pch_disable_heci(void)
 {
@@ -62,21 +39,19 @@ static void pch_disable_heci(void)
 	pcr_or32(PID_PSF1, PSF_BASE_ADDRESS + PCR_PSFX_T0_SHDW_PCIEN,
 		PCR_PSFX_T0_SHDW_PCIEN_FUNDIS);
 
-	disable_sideband_access();
+	p2sb_disable_sideband_access();
 }
 
 static void pch_finalize_script(struct device *dev)
 {
-	uint32_t reg32;
-	uint8_t *pmcbase;
 	config_t *config;
-	u8 reg8;
+
+	tco_lockdown();
 
 	/* Display me status before we hide it */
 	intel_me_status();
 
-	pmcbase = pmc_mmio_regs();
-	config = dev->chip_info;
+	config = config_of(dev);
 
 	/*
 	 * Set low maximum temp value used for dynamic thermal sensor
@@ -87,29 +62,12 @@ static void pch_finalize_script(struct device *dev)
 	 */
 	pch_thermal_configuration();
 
-	/*
-	 * Disable ACPI PM timer based on dt policy
-	 *
-	 * Disabling ACPI PM timer is necessary for XTAL OSC shutdown.
-	 * Disabling ACPI PM timer also switches off TCO
-	 */
-
-	if (config->PmTimerDisabled) {
-		reg8 = read8(pmcbase + PCH_PWRM_ACPI_TMR_CTL);
-		reg8 |= (1 << 1);
-		write8(pmcbase + PCH_PWRM_ACPI_TMR_CTL, reg8);
-	}
-
-	/* Disable XTAL shutdown qualification for low power idle. */
-	if (config->s0ix_enable) {
-		reg32 = read32(pmcbase + CIR31C);
-		reg32 |= XTALSDQDIS;
-		write32(pmcbase + CIR31C, reg32);
-	}
-
 	/* we should disable Heci1 based on the devicetree policy */
 	if (config->HeciEnabled == 0)
 		pch_disable_heci();
+
+	/* Hide p2sb device as the OS must not change BAR0. */
+	p2sb_hide();
 }
 
 static void soc_lockdown(struct device *dev)
@@ -117,7 +75,7 @@ static void soc_lockdown(struct device *dev)
 	struct soc_intel_skylake_config *config;
 	u8 reg8;
 
-	config = dev->chip_info;
+	config = config_of(dev);
 
 	/* Global SMI Lock */
 	if (config->LockDownConfigGlobalSmi == 0) {
@@ -125,6 +83,13 @@ static void soc_lockdown(struct device *dev)
 		reg8 |= SMI_LOCK;
 		pci_write_config8(dev, GEN_PMCON_A, reg8);
 	}
+
+	/*
+	 * Lock chipset memory registers to protect SMM.
+	 * When SkipMpInit=0, this is done by FSP.
+	 */
+	if (!CONFIG(USE_INTEL_FSP_MP_INIT))
+		cpu_lt_lock_memory();
 }
 
 static void soc_finalize(void *unused)
@@ -134,20 +99,15 @@ static void soc_finalize(void *unused)
 	dev = PCH_DEV_PMC;
 
 	/* Check if PMC is enabled, else return */
-	if (dev == NULL || dev->chip_info == NULL)
+	if (dev == NULL)
 		return;
 
 	printk(BIOS_DEBUG, "Finalizing chipset.\n");
 
 	pch_finalize_script(dev);
 
-	printk(BIOS_DEBUG, "Clearing MCA.\n");
-	mp_run_on_all_cpus(mca_configure, NULL, 17 * USECS_PER_SEC);
-
 	soc_lockdown(dev);
-
-	printk(BIOS_DEBUG, "Finalizing SMM.\n");
-	outb(APM_CNT_FINALIZE, APM_CNT);
+	apm_control(APM_CNT_FINALIZE);
 
 	/* Indicate finalize step with post code */
 	post_code(POST_OS_BOOT);

@@ -1,25 +1,11 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2009 Dynon Avionics
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <device/device.h>
 #include <device/pnp.h>
 #include <superio/conf_mode.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <pc80/keyboard.h>
+
 #include "w83627uhg.h"
 
 /*
@@ -43,10 +29,10 @@ static void set_uart_clock_source(struct device *dev, u8 uart_clock)
 
 	pnp_enter_conf_mode(dev);
 	pnp_set_logical_device(dev);
-	value = pnp_read_config(dev, 0xf0);
+	value = pnp_read_config(dev, PNP_IDX_MSC0);
 	value &= ~0x03;
 	value |= (uart_clock & 0x03);
-	pnp_write_config(dev, 0xf0, value);
+	pnp_write_config(dev, PNP_IDX_MSC0, value);
 	pnp_exit_conf_mode(dev);
 }
 

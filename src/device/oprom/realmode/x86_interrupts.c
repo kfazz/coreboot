@@ -1,25 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2001 Ronald G. Minnich
- * Copyright (C) 2005 Nick.Barker9@btinternet.com
- * Copyright (C) 2007-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/registers.h>
 #include <console/console.h>
 #include <device/pci.h>
 #include <device/pci_ops.h>
-#include <string.h>
 
 /* we use x86emu's register file representation */
 #include <x86emu/regs.h>
@@ -174,7 +158,7 @@ int int1a_handler(void)
 		devfn = X86_EBX & 0xff;
 		bus = X86_EBX >> 8;
 		reg = X86_EDI;
-		dev = dev_find_slot(bus, devfn);
+		dev = pcidev_path_on_bus(bus, devfn);
 		if (!dev) {
 			printk(BIOS_DEBUG, "0x%x: BAD DEVICE bus %d devfn 0x%x\n", func, bus, devfn);
 			// Or are we supposed to return PCIBIOS_NODEV?

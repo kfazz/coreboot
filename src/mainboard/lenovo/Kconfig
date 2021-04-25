@@ -10,7 +10,10 @@ endchoice
 source "src/mainboard/lenovo/*/Kconfig"
 
 config MAINBOARD_VENDOR
-	string
 	default "LENOVO"
+
+config MAINBOARD_FAMILY
+	string
+	default MAINBOARD_PART_NUMBER
 
 endif # VENDOR_LENOVO

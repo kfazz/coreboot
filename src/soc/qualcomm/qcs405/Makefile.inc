@@ -2,32 +2,29 @@
 ifeq ($(CONFIG_SOC_QUALCOMM_QCS405),y)
 
 ################################################################################
+all-y += clock.c
+all-y += spi.c
+all-y += ../common/timer.c
+all-y += gpio.c
+all-y += i2c.c
+all-y += qup.c
+all-y += blsp.c
+all-$(CONFIG_DRIVERS_UART) += uart.c
+
+################################################################################
 bootblock-y += bootblock.c
-bootblock-y += timer.c
-bootblock-y += spi.c
 bootblock-y += mmu.c
 
 ################################################################################
-verstage-y += timer.c
-verstage-y += spi.c
-
-################################################################################
-romstage-y += timer.c
-romstage-y += spi.c
 romstage-y += cbmem.c
+romstage-y += usb.c
 
 ################################################################################
 ramstage-y += soc.c
-ramstage-y += timer.c
-ramstage-y += spi.c
-ramstage-y += cbmem.c
+ramstage-y += usb.c
 
 ################################################################################
 
 CPPFLAGS_common += -Isrc/soc/qualcomm/qcs405/include
-
-$(objcbfs)/bootblock.bin: $(objcbfs)/bootblock.raw.bin
-	@printf "Generating: $(subst $(obj)/,,$(@))\n"
-	cp $(objcbfs)/bootblock.raw.bin $(objcbfs)/bootblock.bin
 
 endif

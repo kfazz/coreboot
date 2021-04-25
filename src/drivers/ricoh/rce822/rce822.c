@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Vladimir Serbinenko
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/device.h>
 #include <device/pci.h>
@@ -60,7 +46,6 @@ static struct device_operations rce822_ops = {
 	.enable_resources	= pci_dev_enable_resources,
 	.init			= rce822_init,
 	.enable			= rce822_enable,
-	.scan_bus		= 0,
 	.ops_pci		= &lops_pci,
 };
 
@@ -70,4 +55,8 @@ static const struct pci_driver rce822 __pci_driver = {
 	.ops	 = &rce822_ops,
 	.vendor	 = PCI_VENDOR_ID_RICOH,
 	.devices = pci_device_ids,
+};
+
+struct chip_operations drivers_ricoh_rce822_ops = {
+	CHIP_NAME("RICOH RCE822")
 };

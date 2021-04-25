@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _SOC_IRQ_H_
 #define _SOC_IRQ_H_
@@ -76,6 +62,14 @@
 #define PCIE_10_IRQ 17
 #define PCIE_11_IRQ 18
 #define PCIE_12_IRQ 19
+#define PCIE_14_IRQ 16
+#define PCIE_15_IRQ 17
+#define PCIE_16_IRQ 18
+#define PCIE_17_IRQ 19
+#define PCIE_18_IRQ 16
+#define PCIE_19_IRQ 17
+#define PCIE_20_IRQ 18
+#define PCIE_21_IRQ 19
 
 #define SATA_IRQ 16
 

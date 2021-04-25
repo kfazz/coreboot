@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2012 Samsung Electronics
- *
- * Author: Donghwa Lee <dh09.lee@samsung.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <console/console.h>
 #include <delay.h>
@@ -21,9 +7,7 @@
 #include <soc/i2c.h>
 #include <soc/power.h>
 #include <soc/sysreg.h>
-#include <stdlib.h>
 #include <string.h>
-#include <timer.h>
 
 /*
  * Here is the rough outline of how we bring up the display:
@@ -46,7 +30,6 @@
  *     parameters and recovers stream clock.
  * 11. Source sends video data.
  */
-
 
 static int exynos_dp_init_dp(void)
 {
@@ -858,7 +841,6 @@ static unsigned int exynos_dp_config_video(struct edp_device_info *edp_info)
 int exynos_init_dp(struct edp_device_info *edp_info)
 {
 	unsigned int ret;
-
 
 	dp_phy_control(1);
 

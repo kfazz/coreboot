@@ -1,7 +1,4 @@
-/* Copyright (c) 2013 The Chromium OS Authors. All rights reserved.
- * Use of this source code is governed by a BSD-style license that can be
- * found in the LICENSE file.
- */
+/* SPDX-License-Identifier: BSD-3-Clause */
 
 /*
  * TPM Lightweight Command Library.
@@ -12,7 +9,6 @@
 #ifndef TSS_H_
 #define TSS_H_
 
-#include <stdint.h>
 #include <types.h>
 
 #include <security/tpm/tss/common/tss_common.h>
@@ -66,10 +62,20 @@ uint32_t tlcl_define_space(uint32_t space_index, size_t space_size,
 			   const uint8_t *nv_policy, size_t nv_policy_size);
 
 /*
+ * Issue TPM2_GetCapability command
+ */
+uint32_t tlcl_get_capability(TPM_CAP capability, uint32_t property,
+			     uint32_t property_count,
+			     TPMS_CAPABILITY_DATA *capability_data);
+
+/*
  * Makes tpm_process_command available for on top implementations of
  * custom tpm standards like cr50
  */
 void *tpm_process_command(TPM_CC command, void *command_body);
+
+/* Return digest size of hash algorithm */
+uint16_t tlcl_get_hash_size_from_algo(TPMI_ALG_HASH hash_algo);
 
 #endif
 
@@ -144,7 +150,7 @@ uint32_t tlcl_assert_physical_presence(void);
 uint32_t tlcl_physical_presence_cmd_enable(void);
 
 /**
- * Finalize the physical presence settings: sofware PP is enabled, hardware PP
+ * Finalize the physical presence settings: software PP is enabled, hardware PP
  * is disabled, and the lifetime lock is set.  The TPM error code is returned.
  */
 uint32_t tlcl_finalize_physical_presence(void);
@@ -158,6 +164,11 @@ uint32_t tlcl_set_nv_locked(void);
  * Issue a ForceClear.  The TPM error code is returned.
  */
 uint32_t tlcl_force_clear(void);
+
+/**
+ * Set Clear Control. The TPM error code is returned.
+ */
+uint32_t tlcl_clear_control(bool disable);
 
 /**
  * Set the bGlobalLock flag, which only a reboot can clear.  The TPM error
@@ -180,5 +191,10 @@ uint32_t tlcl_extend(int pcr_num, const uint8_t *in_digest,
  * Disable platform hierarchy. Specific to TPM2. The TPM error code is returned.
  */
 uint32_t tlcl_disable_platform_hierarchy(void);
+
+/**
+ * Get the permission bits for the NVRAM space with |index|.
+ */
+uint32_t tlcl_get_permissions(uint32_t index, uint32_t *permissions);
 
 #endif /* TSS_H_ */

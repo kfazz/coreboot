@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <gpio.h>
@@ -63,8 +50,7 @@ void gpio_set_mode(gpio_t gpio, int mode)
 
 	pos_bit_calc_for_mode(gpio, &pos, &bit);
 
-	clrsetbits_le32(&mtk_gpio->mode[pos].val,
-			mask << bit, mode << bit);
+	clrsetbits32(&mtk_gpio->mode[pos].val, mask << bit, mode << bit);
 }
 
 int gpio_get(gpio_t gpio)

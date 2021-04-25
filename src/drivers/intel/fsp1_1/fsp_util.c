@@ -1,21 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013-2014 Sage Electronic Engineering, LLC.
- * Copyright (C) 2015 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <bootstate.h>
 #include <cbmem.h>
+#include <commonlib/helpers.h>
 #include <console/console.h>
 #include <console/streams.h>
 #include <fsp/util.h>
@@ -104,22 +91,22 @@ void print_fsp_info(FSP_INFO_HEADER *fsp_header)
 			(u8)(fsp_header->ImageRevision  & 0xff));
 #if CONFIG(DISPLAY_FSP_ENTRY_POINTS)
 	printk(BIOS_SPEW, "FSP Entry Points:\n");
-	printk(BIOS_SPEW, "    0x%p: Image Base\n", fsp_base);
-	printk(BIOS_SPEW, "    0x%p: TempRamInit\n",
+	printk(BIOS_SPEW, "    %p: Image Base\n", fsp_base);
+	printk(BIOS_SPEW, "    %p: TempRamInit\n",
 		&fsp_base[fsp_header->TempRamInitEntryOffset]);
-	printk(BIOS_SPEW, "    0x%p: FspInit\n",
+	printk(BIOS_SPEW, "    %p: FspInit\n",
 		&fsp_base[fsp_header->FspInitEntryOffset]);
 	if (fsp_header->HeaderRevision >= FSP_HEADER_REVISION_2) {
-		printk(BIOS_SPEW, "    0x%p: MemoryInit\n",
+		printk(BIOS_SPEW, "    %p: MemoryInit\n",
 			&fsp_base[fsp_header->FspMemoryInitEntryOffset]);
-		printk(BIOS_SPEW, "    0x%p: TempRamExit\n",
+		printk(BIOS_SPEW, "    %p: TempRamExit\n",
 			&fsp_base[fsp_header->TempRamExitEntryOffset]);
-		printk(BIOS_SPEW, "    0x%p: SiliconInit\n",
+		printk(BIOS_SPEW, "    %p: SiliconInit\n",
 			&fsp_base[fsp_header->FspSiliconInitEntryOffset]);
 	}
-	printk(BIOS_SPEW, "    0x%p: NotifyPhase\n",
+	printk(BIOS_SPEW, "    %p: NotifyPhase\n",
 		&fsp_base[fsp_header->NotifyPhaseEntryOffset]);
-	printk(BIOS_SPEW, "    0x%p: Image End\n",
+	printk(BIOS_SPEW, "    %p: Image End\n",
 			&fsp_base[fsp_header->ImageSize]);
 #endif
 }
@@ -186,7 +173,6 @@ struct fsp_runtime {
 	uint32_t fih;
 	uint32_t hob_list;
 } __packed;
-
 
 void fsp_set_runtime(FSP_INFO_HEADER *fih, void *hob_list)
 {
@@ -281,11 +267,4 @@ void fsp_display_upd_value(const char *name, uint32_t size, uint64_t old,
 			break;
 		}
 	}
-}
-
-__attribute__((cdecl)) size_t fsp_write_line(uint8_t *buffer,
-	size_t number_of_bytes)
-{
-	console_write_line(buffer, number_of_bytes);
-	return number_of_bytes;
 }

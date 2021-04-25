@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Intel Corporation.
- * Copyright (C) 2017 Siemens AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <stdint.h>
 #include <commonlib/helpers.h>
@@ -134,7 +120,7 @@ void itss_restore_irq_polarities(int start, int end)
 		if (end < irq_start)
 			break;
 
-		/* Track bits within the bounds of of the register. */
+		/* Track bits within the bounds of the register. */
 		irq_start = MAX(start, irq_start) % IRQS_PER_IPC;
 		irq_end = MIN(end, irq_end) % IRQS_PER_IPC;
 

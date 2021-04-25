@@ -1,23 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
-#include <arch/byteorder.h>
+/* SPDX-License-Identifier: GPL-2.0-only */
+
 #include <arch/cpu.h>
-#include <console/console.h>
 #include <intelblocks/mp_init.h>
 #include <stdint.h>
 #include <string.h>
+
 #include "../board_id.h"
 #include "spd.h"
 
@@ -114,11 +101,11 @@ void mainboard_fill_rcomp_res_data(void *rcomp_ptr)
 void mainboard_fill_rcomp_strength_data(void *rcomp_strength_ptr)
 {
 	/* Rcomp target */
-	static const u16 RcompTarget_DDR4[RCOMP_TARGET_PARAMS] = {
+	static const u16 RcompTarget_DDR4[5] = {
 			100, 33, 32, 33, 28 };
-	static const u16 RcompTarget_LPDDR4_Ax[RCOMP_TARGET_PARAMS] = {
+	static const u16 RcompTarget_LPDDR4_Ax[5] = {
 			80, 40, 40, 40, 30 };
-	static const u16 RcompTarget_LPDDR4_Bx[RCOMP_TARGET_PARAMS] = {
+	static const u16 RcompTarget_LPDDR4_Bx[5] = {
 			60, 20, 20, 20, 20 };
 
 	switch (get_spd_index()) {

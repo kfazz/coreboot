@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __SOC_MEDIATEK_MT8183_PMIC_WRAP_H__
 #define __SOC_MEDIATEK_MT8183_PMIC_WRAP_H__
@@ -364,22 +351,22 @@ enum {
 };
 
 enum {
-	STA_PD_98_5_US = 0X5,
+	STA_PD_98_5_US = 0x5,
 };
 
 enum {
-	WATCHDOG_TIMER_7_5_MS = 0XF,
+	WATCHDOG_TIMER_7_5_MS = 0xF,
 };
 
 enum {
-	WDT_MONITOR_ALL = 0XFFFF,
+	WDT_MONITOR_ALL = 0xFFFF,
 };
 
 enum {
 	MONITOR_LATCH_MATCHED_TRANS = 0x1 << 28,
 	STARV_15 = 0x1 << 24,
 	DCXO = 0x1 << 19,
-	MONITOR_ALL_INT = 0XFFFFFFFF,
+	MONITOR_ALL_INT = 0xFFFFFFFF,
 	INT0_MONITOR = MONITOR_ALL_INT,
 	INT1_MONITOR = MONITOR_ALL_INT &
 		~MONITOR_LATCH_MATCHED_TRANS & ~STARV_15 & ~DCXO,
@@ -409,6 +396,6 @@ enum {
 };
 
 enum {
-	DUMMY_READ_CYCLES = 0X8,
+	DUMMY_READ_CYCLES = 0x8,
 };
 #endif /* __SOC_MEDIATEK_MT8183_PMIC_WRAP_H__ */

@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 - 2012 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <cpu/x86/mtrr.h>
 #include <cpu/amd/msr.h>
@@ -65,43 +52,4 @@ void amd_initcpuio(void)
 	PciAddress.AddressValue = MAKE_SBDFO(0, 0, 0x18, 1, 0xC0);
 	PciData = 0x00000003;
 	LibAmdPciWrite(AccessWidth32, PciAddress, &PciData, &StdHeader);
-}
-
-void amd_initmmio(void)
-{
-	UINT64                        MsrReg;
-	UINT32                        PciData;
-	PCI_ADDR                      PciAddress;
-	AMD_CONFIG_PARAMS             StdHeader;
-
-	/*
-	 * Set the MMIO Configuration Base Address and
-	 * Bus Range onto MMIO configuration base
-	 * Address MSR register.
-	 */
-	MsrReg = CONFIG_MMCONF_BASE_ADDRESS |
-		(LibAmdBitScanReverse(CONFIG_MMCONF_BUS_NUMBER) << 2) | 1;
-	LibAmdMsrWrite(MMIO_CONF_BASE, &MsrReg, &StdHeader);
-
-	/* For serial port */
-	PciData = 0xFF03FFD5;
-	PciAddress.AddressValue = MAKE_SBDFO(0, 0, 0x14, 0x3, 0x44);
-	LibAmdPciWrite(AccessWidth32, PciAddress, &PciData, &StdHeader);
-
-	/* PSP */
-	//PciData = 0xD;
-	//PciAddress.AddressValue = MAKE_SBDFO (0, 0, 0x8, 0x0, 0x48);
-	//LibAmdPciWrite(AccessWidth32, PciAddress, &PciData, &StdHeader);
-
-	/* Set ROM cache onto WP to decrease post time */
-	MsrReg = (0x0100000000ull - CACHE_ROM_SIZE) | 5ull;
-	LibAmdMsrWrite(MTRR_PHYS_BASE(6), &MsrReg, &StdHeader);
-	MsrReg = ((1ULL << CONFIG_CPU_ADDR_BITS) - CACHE_ROM_SIZE) | 0x800ull;
-	LibAmdMsrWrite(MTRR_PHYS_MASK(6), &MsrReg, &StdHeader);
-
-	if (CONFIG(UDELAY_LAPIC)) {
-		LibAmdMsrRead(0x1B, &MsrReg, &StdHeader);
-		MsrReg |= 1 << 11;
-		LibAmdMsrWrite(0x1B, &MsrReg, &StdHeader);
-	}
 }

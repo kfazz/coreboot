@@ -1,22 +1,11 @@
-/*
- * Memory information
- *
- * Copyright (C) 2014, Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* Memory information */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _MEMORY_INFO_H_
 #define _MEMORY_INFO_H_
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #define DIMM_INFO_SERIAL_SIZE		4
 #define DIMM_INFO_PART_NUMBER_SIZE	33
@@ -39,6 +28,10 @@ struct dimm_info {
 	 * See the smbios.h smbios_memory_type enum.
 	 */
 	uint16_t ddr_type;
+	/*
+	 * ddr_frequency is deprecated.
+	 * Use max_speed_mts and configured_speed_mts instead.
+	 */
 	uint16_t ddr_frequency;
 	uint8_t rank_per_dimm;
 	uint8_t channel_num;
@@ -86,11 +79,42 @@ struct dimm_info {
 	 * See the smbios.h smbios_memory_bus_width enum.
 	 */
 	uint8_t bus_width;
+	/*
+	 * Voltage Level
+	 */
+	uint16_t vdd_voltage;
+	/*
+	 * Max speed in MT/s
+	 * If the value is 0, ddr_frequency should be used instead.
+	 */
+	uint16_t max_speed_mts;
+	/*
+	 * Configured speed in MT/s
+	 * If the value is 0, ddr_frequency should be used instead.
+	 */
+	uint16_t configured_speed_mts;
 } __packed;
 
 struct memory_info {
+	/*
+	 * SMBIOS error correction type.
+	 * See the smbios.h smbios_memory_array_ecc enum.
+	 */
+	uint8_t ecc_type;
+	/* Maximum capacity the DRAM controller/mainboard supports */
+	uint32_t max_capacity_mib;
+	/* Maximum number of DIMMs the DRAM controller/mainboard supports */
+	uint16_t number_of_devices;
+
+	/* active DIMM configuration */
 	uint8_t dimm_cnt;
 	struct dimm_info dimm[DIMM_INFO_TOTAL];
 } __packed;
 
+/*
+ * mainboard_get_dram_part_num returns a DRAM part number override string
+ *  return NULL = no part number override provided by mainboard
+ *  return non-NULL = pointer to a string terminating in '\0'
+ */
+const char *mainboard_get_dram_part_num(void);
 #endif

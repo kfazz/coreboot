@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2016 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include "gpio.h"
 
@@ -292,6 +279,9 @@ const struct pad_config *gpio_table(size_t *num)
 
 /* GPIOs needed prior to ramstage. */
 static const struct pad_config early_gpio_table_config[] = {
+	PAD_CFG_NF(GPIO_46, UP_20K, DEEP, NF1), /* LPSS_UART2_RXD */
+	PAD_CFG_NF(GPIO_47, UP_20K, DEEP, NF1), /* LPSS_UART2_TXD */
+
 	PAD_CFG_NF(GPIO_134, UP_20K, DEEP, NF2), /* ISH_I2C0_SDA/IO-OD */
 	PAD_CFG_NF(GPIO_135, UP_20K, DEEP, NF2), /* ISH_I2C0_SCL/IO-OD */
 	PAD_CFG_NF(GPIO_136, UP_20K, DEEP, NF2), /* ISH_I2C1_SDA/IO-OD */

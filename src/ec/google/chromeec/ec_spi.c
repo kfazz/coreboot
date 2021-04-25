@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <delay.h>
@@ -20,8 +7,6 @@
 #include <spi-generic.h>
 #include <timer.h>
 
-/* This is assuming that this driver is not used on x86. If that changes, this
-   might need to become a CAR_GLOBAL or maybe even more complicated. */
 static struct stopwatch cs_cooldown_sw;
 static const long cs_cooldown_us = 200;
 
@@ -115,10 +100,8 @@ int google_chromeec_command(struct chromeec_command *cec_command)
 	return crosec_command_proto(cec_command, crosec_spi_io, &slave);
 }
 
-#ifndef __PRE_RAM__
 u8 google_chromeec_get_event(void)
 {
 	printk(BIOS_ERR, "%s: Not supported.\n", __func__);
 	return 0;
 }
-#endif

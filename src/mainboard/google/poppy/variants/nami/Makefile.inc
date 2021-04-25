@@ -35,7 +35,7 @@ ramstage-y += gpio.c
 ramstage-y += nhlt.c
 ramstage-y += mainboard.c
 
-smm-$(CONFIG_HAVE_SMI_HANDLER) += smihandler.c
+smm-y += smihandler.c
 
 # Add OEM ID table
 cbfs-files-y += oem.bin
@@ -43,3 +43,6 @@ oem.bin-file := $(call strip_quotes,$(CONFIG_OEM_BIN_FILE))
 oem.bin-type := raw
 
 $(call add_vbt_to_cbfs, vbt-bard.bin, bard-data.vbt)
+$(call add_vbt_to_cbfs, vbt-akali.bin, akali-data.vbt)
+$(call add_vbt_to_cbfs, vbt-pantheon.bin, pantheon-data.vbt)
+$(call add_vbt_to_cbfs, vbt-vayne.bin, vayne-data.vbt)

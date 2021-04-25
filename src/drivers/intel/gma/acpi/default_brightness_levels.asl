@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#include "gma.asl"
+
 Scope (GFX0)
 {
 	Name (BRIG, Package (0x12)

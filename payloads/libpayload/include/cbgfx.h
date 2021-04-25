@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2015 Google, Inc.
  *
@@ -57,6 +56,8 @@
 #define CBGFX_ERROR_FRAMEBUFFER_ADDR	0x15
 /* portrait screen not supported */
 #define CBGFX_ERROR_PORTRAIT_SCREEN	0x16
+/* cannot use buffered I/O */
+#define CBGFX_ERROR_GRAPHICS_BUFFER	0x17
 
 struct fraction {
 	int32_t n;
@@ -113,6 +114,41 @@ struct rgb_color {
  * return: CBGFX_* error codes
  */
 int draw_box(const struct rect *box, const struct rgb_color *rgb);
+
+/**
+ * Draw a box with rounded corners on screen.
+ *
+ * @param[in] pos_rel	Coordinate of the top left corner of the box relative to
+ *                      the canvas.
+ * @param[in] dim_rel	Width and height of the image relative to the canvas.
+ * @param[in] rgb       Color of the border of the box.
+ * @param[in] thickness Thickness of the border relative to the canvas. If zero
+ *                      is given, the box will be filled with the rgb color.
+ * @param[in] radius    Radius of the rounded corners relative to the canvas. A
+ *                      zero value indicates sharp corners will be drawn.
+ *
+ * @return CBGFX_* error codes
+ */
+int draw_rounded_box(const struct scale *pos_rel, const struct scale *dim_rel,
+		     const struct rgb_color *rgb,
+		     const struct fraction *thickness,
+		     const struct fraction *radius);
+
+/**
+ * Draw a horizontal or vertical line segment on screen. If horizontal, pos1
+ * must be the left endpoint. If vertical, pos1 must be the top endpoint. When
+ * the specified thickness is zero (or truncated to zero), a line with 1-pixel
+ * width will be drawn.
+ *
+ * @param[in] pos1	Start position of the line relative to the canvas.
+ * @param[in] pos2	End position of the line relative to the canvas.
+ * @param[in] thickness Thickness of the line relative to the canvas.
+ * @param[in] rgb       Color of the line.
+ *
+ * @return CBGFX_* error codes
+ */
+int draw_line(const struct scale *pos1, const struct scale *pos2,
+	      const struct fraction *thickness, const struct rgb_color *rgb);
 
 /**
  * Clear the canvas
@@ -192,3 +228,70 @@ int draw_bitmap_direct(const void *bitmap, size_t size,
  * in the original size are returned.
  */
 int get_bitmap_dimension(const void *bitmap, size_t sz, struct scale *dim_rel);
+
+/**
+ * Setup color mappings of background and foreground colors. Black and white
+ * pixels will be mapped to the background and foreground colors, respectively.
+ * Call clear_color_map() to disabled color mapping.
+ *
+ * @param[in] background	Background color.
+ * @param[in] foreground	Foreground color.
+ *
+ * @return CBGFX_* error codes
+ */
+int set_color_map(const struct rgb_color *background,
+		  const struct rgb_color *foreground);
+
+/**
+ * Clear color mappings.
+ */
+void clear_color_map(void);
+
+/**
+ * Setup alpha and rgb values for alpha blending.  When alpha is != 0,
+ * this enables a translucent layer of color (defined by rgb) to be
+ * blended at a given translucency (alpha) to all things drawn.  Call
+ * clear_blend() to disable alpha blending.
+ *
+ * @param[in] rgb       Color for transparency
+ * @param[in] alpha     Opacity of color, from 0-255 where
+ *                      0   = completely transparent (no blending)
+ *                      255 = max alpha argument
+ *
+ * @return CBGFX_* error codes
+ */
+int set_blend(const struct rgb_color *rgb, uint8_t alpha);
+
+/**
+ * Clear alpha and rgb values, thus disabling any alpha blending.
+ */
+void clear_blend(void);
+
+/**
+ * For calculating Alpha value from % opacity
+ * For reference:
+ *	255 = max alpha argument
+ *	0   = min alpha argument, 0% opacity
+ */
+#define ALPHA(percentage) MIN(255, (256 * percentage / 100))
+
+/**
+ * Enable buffered I/O. All CBGFX operations will be redirected to a working
+ * buffer, and only updated (redrawn) when flush_graphics_buffer() is called.
+ *
+ * @return CBGFX_* error codes
+ */
+int enable_graphics_buffer(void);
+
+/**
+ * Redraw buffered graphics data to real screen if graphics buffer is already
+ * enabled.
+ *
+ * @return CBGFX_* error codes
+ */
+int flush_graphics_buffer(void);
+
+/**
+ * Stop using buffered I/O and release allocated memory.
+ */
+void disable_graphics_buffer(void);
