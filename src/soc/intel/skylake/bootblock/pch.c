@@ -1,31 +1,17 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2015-2018 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <device/pci_ops.h>
 #include <device/device.h>
 #include <device/pci_def.h>
 #include <intelblocks/cse.h>
+#include <intelblocks/dmi.h>
 #include <intelblocks/fast_spi.h>
+#include <intelblocks/gspi.h>
 #include <intelblocks/itss.h>
 #include <intelblocks/lpc_lib.h>
 #include <intelblocks/p2sb.h>
 #include <intelblocks/pcr.h>
 #include <intelblocks/pmclib.h>
 #include <intelblocks/rtc.h>
-#include <intelblocks/smbus.h>
-#include <intelblocks/tco.h>
 #include <soc/bootblock.h>
 #include <soc/iomap.h>
 #include <soc/p2sb.h>
@@ -34,12 +20,8 @@
 #include <soc/pcr_ids.h>
 #include <soc/pm.h>
 #include <soc/pmc.h>
-#include <soc/smbus.h>
-
 #include "../chip.h"
 
-#define PCR_DMI_DMICTL		0x2234
-#define  PCR_DMI_DMICTL_SRLOCK	(1 << 31)
 #define PCR_DMI_ACPIBA		0x27B4
 #define PCR_DMI_ACPIBDID	0x27B8
 #define PCR_DMI_PMBASEA		0x27AC
@@ -47,9 +29,14 @@
 
 void bootblock_pch_early_init(void)
 {
-	fast_spi_early_init(SPI_BASE_ADDRESS);
+	/*
+	 * Perform P2SB configuration before any another controller initialization as the
+	 * controller might want to perform PCR settings.
+	 */
 	p2sb_enable_bar();
 	p2sb_configure_hpet();
+
+	fast_spi_early_init(SPI_BASE_ADDRESS);
 }
 
 static void soc_config_acpibase(void)
@@ -112,45 +99,30 @@ static void soc_config_pwrmbase(void)
 		pcr_write32(PID_DMI, PCR_DMI_PMBASEC, 0x800023a0);
 }
 
-static int pch_check_decode_enable(void)
-{
-	uint32_t dmi_control;
-
-	/*
-	 * This cycle decoding is only allowed to set when
-	 * DMICTL.SRLOCK is 0.
-	 */
-	dmi_control = pcr_read32(PID_DMI, PCR_DMI_DMICTL);
-	if (dmi_control & PCR_DMI_DMICTL_SRLOCK)
-		return -1;
-	return 0;
-}
-
 void pch_early_iorange_init(void)
 {
 	uint16_t io_enables = LPC_IOE_SUPERIO_2E_2F | LPC_IOE_KBC_60_64 |
 			LPC_IOE_EC_62_66;
 
-	/* IO Decode Range */
-	if (CONFIG(DRIVERS_UART_8250IO))
-		lpc_io_setup_comm_a_b();
+	const config_t *config = config_of_soc();
+
+	if (config->lpc_ioe) {
+		io_enables = config->lpc_ioe & 0x3f0f;
+		lpc_set_fixed_io_ranges(config->lpc_iod, 0x1377);
+	} else {
+		/* IO Decode Range */
+		if (CONFIG(DRIVERS_UART_8250IO))
+			lpc_io_setup_comm_a_b();
+	}
 
 	/* IO Decode Enable */
-	if (pch_check_decode_enable() == 0) {
-		io_enables = lpc_enable_fixed_io_ranges(io_enables);
-		/*
-		 * As per PCH BWG 2.5.16.
-		 * Set up LPC IO Enables PCR[DMI] + 2774h [15:0] to the same
-		 * value program in LPC PCI offset 82h.
-		 */
-		pcr_write16(PID_DMI, PCR_DMI_LPCIOE, io_enables);
-	}
+	lpc_enable_fixed_io_ranges(io_enables);
 
 	/* Program generic IO Decode Range */
 	pch_enable_lpc();
 }
 
-void pch_early_init(void)
+void bootblock_pch_init(void)
 {
 	/*
 	 * Enabling ABASE for accessing PM1_STS, PM1_EN, PM1_CNT,
@@ -164,12 +136,6 @@ void pch_early_init(void)
 	 */
 	soc_config_pwrmbase();
 
-	/* Programming TCO_BASE_ADDRESS and TCO Timer Halt */
-	tco_configure();
-
-	/* Program SMBUS_BASE_ADDRESS and Enable it */
-	smbus_common_init();
-
 	/* Set up GPE configuration */
 	pmc_gpe_init();
 
@@ -177,4 +143,6 @@ void pch_early_init(void)
 
 	/* initialize Heci interface */
 	heci_init(HECI1_BASE_ADDRESS);
+
+	gspi_early_bar_init();
 }

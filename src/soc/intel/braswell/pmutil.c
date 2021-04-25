@@ -1,24 +1,15 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- * Copyright (C) 2015 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
+#define __SIMPLE_DEVICE__
+
+#include <acpi/acpi.h>
 #include <arch/io.h>
+#include <assert.h>
+#include <bootmode.h>
+#include <device/device.h>
 #include <device/mmio.h>
+#include <device/pci.h>
 #include <device/pci_ops.h>
-#include <cbmem.h>
 #include <console/console.h>
 #include <soc/iomap.h>
 #include <soc/lpc.h>
@@ -26,37 +17,13 @@
 #include <soc/pm.h>
 #include <stdint.h>
 #include <security/vboot/vbnv.h>
-#include <security/vboot/vboot_common.h>
-
-#if defined(__SIMPLE_DEVICE__)
-
-static const pci_devfn_t pcu_dev = PCI_DEV(0, PCU_DEV, 0);
-
-static inline pci_devfn_t get_pcu_dev(void)
-{
-	return pcu_dev;
-}
-
-#else /* ENV_SMM */
-#include <device/device.h>
-#include <device/pci.h>
-
-static struct device *pcu_dev;
-static struct device *get_pcu_dev(void)
-{
-	if (pcu_dev == NULL)
-		pcu_dev = pcidev_on_root(PCU_DEV, 0);
-	return pcu_dev;
-}
-#endif /* ENV_SMM */
 
 uint16_t get_pmbase(void)
 {
-	return pci_read_config16(get_pcu_dev(), ABASE) & 0xfff8;
+	return pci_read_config16(PCI_DEV(0, PCU_DEV, 0), ABASE) & 0xfff8;
 }
 
-static void print_num_status_bits(int num_bits, uint32_t status,
-				  const char *const bit_names[])
+static void print_num_status_bits(int num_bits, uint32_t status, const char *const bit_names[])
 {
 	int i;
 
@@ -244,7 +211,6 @@ void disable_all_gpe(void)
 	disable_gpe(~0);
 }
 
-
 static uint32_t reset_gpe_status(void)
 {
 	uint16_t pmbase = get_pmbase();
@@ -312,16 +278,16 @@ static uint32_t print_alt_sts(uint32_t alt_gpio_smi)
 {
 	uint32_t alt_gpio_sts;
 	static const char *const alt_gpio_smi_sts_bits[] = {
-		[0] = "SUS_GPIO_0",
-		[1] = "SUS_GPIO_1",
-		[2] = "SUS_GPIO_2",
-		[3] = "SUS_GPIO_3",
-		[4] = "SUS_GPIO_4",
-		[5] = "SUS_GPIO_5",
-		[6] = "SUS_GPIO_6",
-		[7] = "SUS_GPIO_7",
-		[8] = "CORE_GPIO_0",
-		[9] = "CORE_GPIO_1",
+		[0]  = "SUS_GPIO_0",
+		[1]  = "SUS_GPIO_1",
+		[2]  = "SUS_GPIO_2",
+		[3]  = "SUS_GPIO_3",
+		[4]  = "SUS_GPIO_4",
+		[5]  = "SUS_GPIO_5",
+		[6]  = "SUS_GPIO_6",
+		[7]  = "SUS_GPIO_7",
+		[8]  = "CORE_GPIO_0",
+		[9]  = "CORE_GPIO_1",
 		[10] = "CORE_GPIO_2",
 		[11] = "CORE_GPIO_3",
 		[12] = "CORE_GPIO_4",
@@ -364,15 +330,14 @@ int rtc_failure(void)
 {
 	uint32_t gen_pmcon1;
 	int rtc_fail;
-	struct chipset_power_state *ps = cbmem_find(CBMEM_ID_POWER_STATE);
 
-	if (ps != NULL)
-		gen_pmcon1 = ps->gen_pmcon1;
-	else
-		gen_pmcon1 = read32((u32 *)(PMC_BASE_ADDRESS + GEN_PMCON1));
+	/* not usable in ramstage as GEN_PMCON1 gets reset */
+	if (ENV_RAMSTAGE)
+		dead_code();
+
+	gen_pmcon1 = read32((u32 *)(PMC_BASE_ADDRESS + GEN_PMCON1));
 
 	rtc_fail = !!(gen_pmcon1 & RPS);
-
 	if (rtc_fail)
 		printk(BIOS_DEBUG, "RTC failure.\n");
 
@@ -384,7 +349,7 @@ int vbnv_cmos_failed(void)
 	return rtc_failure();
 }
 
-int vboot_platform_is_resuming(void)
+int platform_is_resuming(void)
 {
 	if (!(inw(ACPI_BASE_ADDRESS + PM1_STS) & WAK_STS))
 		return 0;

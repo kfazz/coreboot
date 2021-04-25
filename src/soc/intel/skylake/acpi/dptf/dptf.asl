@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 Device (DPTF)
 {
@@ -38,7 +24,7 @@ Device (DPTF)
 
 	Method (_STA)
 	{
-		If (LEqual (\DPTE, One)) {
+		If (\DPTE == 1) {
 			Return (0xF)
 		} Else {
 			Return (0x0)
@@ -55,7 +41,7 @@ Device (DPTF)
 	Method (_OSC, 4, Serialized)
 	{
 		/* Check for Passive Policy UUID */
-		If (LEqual (DeRefOf (Index (IDSP, 0)), Arg0)) {
+		If (DeRefOf (IDSP [0]) == Arg0) {
 			/* Initialize Thermal Devices */
 			^TINI ()
 
@@ -87,10 +73,10 @@ Device (DPTF)
 	/* Convert from Degrees C to 1/10 Kelvin for ACPI */
 	Method (CTOK, 1) {
 		/* 10th of Degrees C */
-		Multiply (Arg0, 10, Local0)
+		Local0 = Arg0 * 10
 
 		/* Convert to Kelvin */
-		Add (Local0, 2732, Local0)
+		Local0 += 2732
 
 		Return (Local0)
 	}

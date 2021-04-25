@@ -5,11 +5,7 @@ chip soc/intel/skylake
 	register "deep_s3_enable_dc" = "0"
 
 	# FSP Configuration
-	register "ScsEmmcEnabled" = "0"
 	register "ScsEmmcHs400Enabled" = "0"
-	register "ScsSdCardEnabled" = "0"
-	register "HeciEnabled" = "0"
-	register "PmTimerDisabled" = "0"
 
 	register "serirq_mode" = "SERIRQ_CONTINUOUS"
 
@@ -24,59 +20,61 @@ chip soc/intel/skylake
 	#| Psi4Enable     | 1     | 1     | 1           | 1           | 1     |
 	#| ImonSlope      | 0     | 0     | 0           | 0           | 0     |
 	#| ImonOffset     | 0     | 0     | 0           | 0           | 0     |
-	#| IccMax         | 7A    | 34A   | 34A         | 35A         | 35A   |
-	#| VrVoltageLimit | 1.52V | 1.52V | 1.52V       | 1.52V       | 1.52V |
+	#| IccMax         | Auto  | Auto  | Auto        | Auto        | Auto  |
+	#| VrVoltageLimit*| 0     | 0     | 0           | 0           | 0     |
 	#+----------------+-------+-------+-------------+-------------+-------+
+	#* VrVoltageLimit command not sent.
+
 	register "domain_vr_config[VR_SYSTEM_AGENT]" = "{
 		.vr_config_enable = 1, \
-		.psi1threshold = 0x50, \
-		.psi2threshold = 0x10, \
-		.psi3threshold = 0x4, \
+		.psi1threshold = VR_CFG_AMP(20), \
+		.psi2threshold = VR_CFG_AMP(4), \
+		.psi3threshold = VR_CFG_AMP(1), \
 		.psi3enable = 1, \
 		.psi4enable = 1, \
-		.imon_slope = 0x0, \
-		.imon_offset = 0x0, \
-		.icc_max = 0x0, \
-		.voltage_limit = 0x0 \
+		.imon_slope = 0, \
+		.imon_offset = 0, \
+		.icc_max = 0, \
+		.voltage_limit = 0 \
 	}"
 
 	register "domain_vr_config[VR_IA_CORE]" = "{
 		.vr_config_enable = 1, \
-		.psi1threshold = 0x50, \
-		.psi2threshold = 0x14, \
-		.psi3threshold = 0x4, \
+		.psi1threshold = VR_CFG_AMP(20), \
+		.psi2threshold = VR_CFG_AMP(5), \
+		.psi3threshold = VR_CFG_AMP(1), \
 		.psi3enable = 1, \
 		.psi4enable = 1, \
-		.imon_slope = 0x0, \
-		.imon_offset = 0x0, \
-		.icc_max = 0x0, \
-		.voltage_limit = 0x0 \
+		.imon_slope = 0, \
+		.imon_offset = 0, \
+		.icc_max = 0, \
+		.voltage_limit = 0 \
 	}"
 
 	register "domain_vr_config[VR_GT_UNSLICED]" = "{
 		.vr_config_enable = 1, \
-		.psi1threshold = 0x50, \
-		.psi2threshold = 0x14, \
-		.psi3threshold = 0x4, \
+		.psi1threshold = VR_CFG_AMP(20), \
+		.psi2threshold = VR_CFG_AMP(5), \
+		.psi3threshold = VR_CFG_AMP(1), \
 		.psi3enable = 1, \
 		.psi4enable = 1, \
-		.imon_slope = 0x0, \
-		.imon_offset = 0x0, \
-		.icc_max = 0x0 ,\
-		.voltage_limit = 0x0 \
+		.imon_slope = 0, \
+		.imon_offset = 0, \
+		.icc_max = 0 ,\
+		.voltage_limit = 0 \
 	}"
 
 	register "domain_vr_config[VR_GT_SLICED]" = "{
 		.vr_config_enable = 1, \
-		.psi1threshold = 0x50, \
-		.psi2threshold = 0x14, \
-		.psi3threshold = 0x4, \
+		.psi1threshold = VR_CFG_AMP(20), \
+		.psi2threshold = VR_CFG_AMP(5), \
+		.psi3threshold = VR_CFG_AMP(1), \
 		.psi3enable = 1, \
 		.psi4enable = 1, \
-		.imon_slope = 0x0, \
-		.imon_offset = 0x0, \
-		.icc_max = 0x0, \
-		.voltage_limit = 0x0 \
+		.imon_slope = 0, \
+		.imon_offset = 0, \
+		.icc_max = 0, \
+		.voltage_limit = 0 \
 	}"
 
 	# Enable Root port.
@@ -125,7 +123,6 @@ chip soc/intel/skylake
 
 	register "SsicPortEnable" = "1" # Enable SSIC for WWAN
 
-	register "EnableSata" = "1"
 	register "SataSalpSupport" = "1"
 	register "SataPortsEnable" = "{ \
 		[0]	= 1, \
@@ -154,10 +151,12 @@ chip soc/intel/skylake
 	}"
 
 	# PL2 override 25W
-	register "tdp_pl2_override" = "25"
+	register "power_limits_config" = "{
+		.tdp_pl2_override = 25,
+	}"
 
 	# Use default SD card detect GPIO configuration
-	#register "sdcard_cd_gpio_default" = "GPP_D10"
+	#register "sdcard_cd_gpio" = "GPP_D10"
 
 	device domain 0 on
 		device pci 17.0 on  end # SATA
@@ -170,6 +169,7 @@ chip soc/intel/skylake
 		device pci 1e.2 on  end # GSPI #0
 		device pci 1e.3 on  end # GSPI #1
 		device pci 1e.4 off end # eMMC
+		device pci 1e.6 off end # SDXC
 		device pci 1f.0 on
 			#chip drivers/pc80/tpm
 			#	device pnp 0c31.0 on end

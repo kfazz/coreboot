@@ -11,8 +11,6 @@
 #define TSC_SYNC
 #endif
 
-#define MSR_PLATFORM_INFO 0xce
-
 struct tsc_struct {
 	unsigned int lo;
 	unsigned int hi;
@@ -30,7 +28,6 @@ static inline tsc_t rdtsc(void)
 	return res;
 }
 
-#if !defined(__ROMCC__)
 /* Simple 32- to 64-bit multiplication. Uses 16-bit words to avoid overflow.
  * This code is used to prevent use of libgcc's umoddi3.
  */
@@ -44,25 +41,22 @@ static inline void multiply_to_tsc(tsc_t *const tsc, const u32 a, const u32 b)
 	tsc->hi = ((a >> 16) * (b >> 16)) + (tsc->hi >> 16);
 }
 
-/* Too many registers for ROMCC */
-static inline unsigned long long rdtscll(void)
-{
-	unsigned long long val;
-	asm volatile (
-		TSC_SYNC
-		"rdtsc"
-		: "=A" (val)
-	);
-	return val;
-}
-
 static inline uint64_t tsc_to_uint64(tsc_t tstamp)
 {
 	return (((uint64_t)tstamp.hi) << 32) + tstamp.lo;
 }
-#endif
+
+static inline unsigned long long rdtscll(void)
+{
+	return tsc_to_uint64(rdtsc());
+}
 
 /* Provided by CPU/chipset code for the TSC rate in MHz. */
 unsigned long tsc_freq_mhz(void);
+
+static inline int tsc_constant_rate(void)
+{
+	return !CONFIG(UNKNOWN_TSC_RATE);
+}
 
 #endif /* CPU_X86_TSC_H */

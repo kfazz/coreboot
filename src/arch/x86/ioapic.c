@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2010 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <arch/ioapic.h>
@@ -75,7 +62,7 @@ void set_ioapic_id(void *ioapic_base, u8 ioapic_id)
 	u32 bsp_lapicid = lapicid();
 	int i;
 
-	printk(BIOS_DEBUG, "IOAPIC: Initializing IOAPIC at 0x%p\n",
+	printk(BIOS_DEBUG, "IOAPIC: Initializing IOAPIC at %p\n",
 	       ioapic_base);
 	printk(BIOS_DEBUG, "IOAPIC: Bootstrap Processor Local APIC = 0x%02x\n",
 	       bsp_lapicid);

@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 Google LLC
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <variant/gpio.h>
 #include <vendorcode/google/chromeos/chromeos.h>
@@ -31,7 +18,7 @@ static const struct pad_config gpio_table[] = {
 /* CLKOUT_LPC1 */	PAD_NC(GPP_A10, NONE),
 /* PME# */		PAD_NC(GPP_A11, NONE),
 			/* ISH_LID_CL#_TAB */
-/* BM_BUSY# */		PAD_CFG_NF(GPP_A12, NONE, DEEP, NF1),
+/* ISH_GP6 */		PAD_CFG_NF(GPP_A12, NONE, DEEP, NF2),
 /* SUSWARN# */		PAD_NC(GPP_A13, NONE),
 /* ESPI_RESET# */
 /* SUSACK# */		PAD_NC(GPP_A15, NONE),
@@ -211,7 +198,6 @@ static const struct pad_config gpio_table[] = {
 /* I2C4_SCL */		PAD_CFG_NF(GPP_H9, NONE, DEEP, NF1), /* I2C_SCL_H1 */
 /* I2C5_SDA */		PAD_NC(GPP_H10, NONE), /* ISH_I2C2_SDA */
 /* I2C5_SCL */		PAD_NC(GPP_H11, NONE), /* ISH_I2C2_SCL */
-/* M2_SKT2_CFG1 */	PAD_CFG_GPO(GPP_H13, 1, DEEP), /* M.2 SSD D3 cold */
 /* M2_SKT2_CFG2 */	PAD_NC(GPP_H14, NONE),
 /* M2_SKT2_CFG3 */      PAD_CFG_GPO(GPP_H15, 1, DEEP), /* BT_RADIO_DIS# */
 /* DDPF_CTRLCLK */	PAD_NC(GPP_H16, NONE),
@@ -239,6 +225,7 @@ static const struct pad_config gpio_table[] = {
 
 /* Early pad configuration in bootblock */
 static const struct pad_config early_gpio_table[] = {
+/* M2_SKT2_CFG1 */	PAD_CFG_GPO(GPP_H13, 1, DEEP), /* M.2 SSD D3 cold */
 /* SSD RESET pin will stay low first */
 /* M2_SKT2_CFG0 */	PAD_CFG_GPO(GPP_H12, 0, DEEP), /* D3 cold RST */
 /* UART2_RXD */		PAD_CFG_NF(GPP_C20, NONE, DEEP, NF1), /* SERVOTX_UART */

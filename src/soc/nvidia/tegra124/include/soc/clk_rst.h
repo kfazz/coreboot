@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _TEGRA124_CLK_RST_H_
 #define _TEGRA124_CLK_RST_H_
@@ -270,7 +257,7 @@ struct  __packed clk_rst_ctlr {
 	u32 spare_reg0;			/* _SPARE_REG0,             0x55c */
 	u32 _rsv32[4];                  /*                    0x560-0x56c */
 	u32 plld2_ss_cfg;               /* _PLLD2_SS_CFG            0x570 */
-	u32 _rsv32_1[7];			/*                      0x574-58c */
+	u32 _rsv32_1[7];		/*                      0x574-58c */
 	u32 plldp_base;			/* _PLLDP_BASE,             0x590 */
 	u32 plldp_misc;			/* _PLLDP_MISC,             0x594 */
 	u32 plldp_ss_cfg;		/* _PLLDP_SS_CFG,           0x598 */

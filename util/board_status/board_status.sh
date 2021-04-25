@@ -1,9 +1,5 @@
-#!/bin/sh
+#!/usr/bin/env sh
 #
-# This file is part of the coreboot project.
-#
-# Copyright (C) 2013 Google Inc.
-# Copyright (C) 2014 Sage Electronic Engineering, LLC.
 #
 
 EXIT_SUCCESS=0
@@ -26,6 +22,23 @@ NONFATAL=1
 
 # Used if cbmem is not in default $PATH, e.g. not installed or when using `sudo`
 CBMEM_PATH=""
+
+# Used if nvramtool is not in default $PATH, e.g. not installed or when using `sudo`
+NVRAMTOOL_PATH=""
+
+case $(uname) in
+	FreeBSD)
+		if [ ! -x /usr/local/bin/gmake ]; then
+			echo "Please install gmake, or build and install devel/gmake from ports."
+			exit $EXIT_FAILURE
+		else
+			MAKE='gmake'
+		fi
+		;;
+	*)
+		MAKE='make'
+		;;
+esac
 
 # test a command
 #
@@ -176,6 +189,8 @@ show_help() {
 Options
     -c, --cbmem
         Path to cbmem on device under test (DUT).
+    -n, --nvramtool
+        Path to nvramtool on device under test (DUT).
     -C, --clobber
         Clobber temporary output when finished. Useful for debugging.
     -h, --help
@@ -197,7 +212,21 @@ Long options:
 "
 }
 
-getopt -T
+case $(uname) in
+	FreeBSD)
+		if [ ! -x /usr/local/bin/getopt ]; then
+			echo "Please install getopt, or build and install misc/getopt from ports."
+			exit $EXIT_FAILURE
+		else
+			GETOPT=/usr/local/bin/getopt
+		fi
+		;;
+	*)
+	GETOPT=/usr/bin/getopt
+	;;
+esac
+
+$GETOPT -T
 if [ $? -ne 4 ]; then
 	echo "GNU-compatible getopt(1) required."
 	exit $EXIT_FAILURE
@@ -207,7 +236,7 @@ LONGOPTS="cbmem:,clobber,help,image:,remote-host:,upload-results"
 LONGOPTS="${LONGOPTS},serial-device:,serial-speed:"
 LONGOPTS="${LONGOPTS},ssh-port:"
 
-ARGS=$(getopt -o c:Chi:r:s:S:u -l "$LONGOPTS" -n "$0" -- "$@");
+ARGS=$($GETOPT -o c:n:Chi:r:s:S:u -l "$LONGOPTS" -n "$0" -- "$@");
 if [ $? != 0 ] ; then echo "Terminating..." >&2 ; exit 1 ; fi
 eval set -- "$ARGS"
 while true ; do
@@ -216,6 +245,10 @@ while true ; do
 		-c|--cbmem)
 			shift
 			CBMEM_PATH="$1"
+			;;
+		-n|--nvramtool)
+			shift
+			NVRAMTOOL_PATH="$1"
 			;;
 		-C|--clobber)
 			CLOBBER_OUTPUT=1
@@ -282,7 +315,14 @@ fi
 
 # Results will be placed in a temporary location until we're ready to upload.
 # If the user does not wish to upload, results will remain in /tmp.
-tmpdir=$(mktemp -d --tmpdir coreboot_board_status.XXXXXXXX)
+case $(uname) in
+	FreeBSD)
+		tmpdir=$(mktemp -d -t coreboot_board_status)
+		;;
+	*)
+		tmpdir=$(mktemp -d --tmpdir coreboot_board_status.XXXXXXXX)
+		;;
+esac
 
 # Obtain coreboot config by running cbfstool on the ROM image. cbfstool may
 # already exist in build/ or util/cbfstool/, but if not then we'll build it
@@ -297,7 +337,7 @@ if [ ! -x $cbfstool_cmd ]; then
 			exit $EXIT_FAILURE
 		fi
 	else
-		make -C util/cbfstool/
+		$MAKE -C util/cbfstool/
 		do_clean_cbfstool=1
 	fi
 fi
@@ -308,7 +348,7 @@ echo "Extracting config.txt from $COREBOOT_IMAGE"
 $cbfstool_cmd "$COREBOOT_IMAGE" extract -n config -f "${tmpdir}/config.txt" >/dev/null 2>&1
 mv "${tmpdir}/config.txt" "${tmpdir}/config.short.txt"
 cp "${tmpdir}/config.short.txt" "${tmpcfg}"
-yes "" | make "DOTCONFIG=${tmpcfg}" oldconfig 2>/dev/null >/dev/null
+yes "" | $MAKE "DOTCONFIG=${tmpcfg}" oldconfig 2>/dev/null >/dev/null
 mv "${tmpcfg}" "${tmpdir}/config.txt"
 rm -f "${tmpcfg}.old"
 $cbfstool_cmd "$COREBOOT_IMAGE" print > "${tmpdir}/cbfs.txt"
@@ -321,10 +361,17 @@ if [ -n "$(echo $rom_contents | grep payload_version)" ]; then
 	echo "Extracting payload_version from $COREBOOT_IMAGE"
 	$cbfstool_cmd "$COREBOOT_IMAGE" extract -n payload_version -f "${tmpdir}/payload_version.txt" >/dev/null 2>&1
 fi
-md5sum -b "$COREBOOT_IMAGE" > "${tmpdir}/rom_checksum.txt"
+case $(uname) in
+	FreeBSD)
+		md5 "$COREBOOT_IMAGE" > "${tmpdir}/rom_checksum.txt"
+		;;
+	*)
+		md5sum -b "$COREBOOT_IMAGE" > "${tmpdir}/rom_checksum.txt"
+		;;
+esac
 
 if test $do_clean_cbfstool -eq 1; then
-	make -C util/cbfstool clean
+	$MAKE -C util/cbfstool clean
 fi
 
 # Obtain board and revision info to form the directory structure:
@@ -370,6 +417,17 @@ else
 	cbmem_cmd="cbmem"
 fi
 
+cmos_enabled=0
+if grep -q "CONFIG_USE_OPTION_TABLE=y" "${tmpdir}/${results}/config.short.txt" > /dev/null; then
+	cmos_enabled=1
+fi
+
+if [ -n "$NVRAMTOOL_PATH" ]; then
+	nvramtool_cmd="$NVRAMTOOL_PATH"
+else
+	nvramtool_cmd="nvramtool"
+fi
+
 if [ -n "$SERIAL_DEVICE" ]; then
 	get_serial_bootlog "$SERIAL_DEVICE" "$SERIAL_PORT_SPEED" "${tmpdir}/${results}/coreboot_console.txt"
 elif [ -n "$REMOTE_HOST" ]; then
@@ -379,6 +437,13 @@ elif [ -n "$REMOTE_HOST" ]; then
 	cmd $REMOTE "$cbmem_cmd -1" "${tmpdir}/${results}/coreboot_console.txt"
 	echo "Getting timestamp data"
 	cmd_nonfatal $REMOTE "$cbmem_cmd -t" "${tmpdir}/${results}/coreboot_timestamps.txt"
+
+	if [ "$cmos_enabled" -eq 1 ]; then
+		echo "Verifying that nvramtool is available on remote device"
+		test_cmd $REMOTE "$nvramtool_cmd"
+		echo "Getting all CMOS values"
+		cmd $REMOTE "$nvramtool_cmd -a" "${tmpdir}/${results}/cmos_values.txt"
+	fi
 
 	echo "Getting remote dmesg"
 	cmd $REMOTE dmesg "${tmpdir}/${results}/kernel_log.txt"
@@ -399,11 +464,47 @@ else
 
 	echo "Getting coreboot boot log"
 	cmd $LOCAL "$cbmem_cmd -1" "${tmpdir}/${results}/coreboot_console.txt"
+
 	echo "Getting timestamp data"
 	cmd_nonfatal $LOCAL "$cbmem_cmd -t" "${tmpdir}/${results}/coreboot_timestamps.txt"
 
+	if [ "$cmos_enabled" -eq 1 ]; then
+		echo "Verifying that nvramtool is available"
+		if [ $(id -u) -ne 0 ]; then
+			command -v "$nvramtool_cmd" >/dev/null
+			if [ $? -ne 0 ]; then
+				echo "Failed to run $nvramtool_cmd. Check \$PATH or" \
+				"use -n to specify path to nvramtool binary."
+				exit $EXIT_FAILURE
+			else
+				nvramtool_cmd="sudo $nvramtool_cmd"
+			fi
+		else
+			test_cmd $LOCAL "$nvramtool_cmd"
+		fi
+
+		echo "Getting all CMOS values"
+		cmd $LOCAL "$nvramtool_cmd -a" "${tmpdir}/${results}/cmos_values.txt"
+	fi
+
 	echo "Getting local dmesg"
 	cmd $LOCAL "sudo dmesg" "${tmpdir}/${results}/kernel_log.txt"
+fi
+
+#
+# Check files
+#
+if [ $(grep -- -dirty "${tmpdir}/${results}/coreboot_console.txt") ]; then
+	echo "coreboot or the payload are built from a source tree in a" \
+	"dirty state, making it hard to reproduce the result. Please" \
+	"check in your source tree with 'git status'."
+	exit $EXIT_FAILURE
+fi
+
+if [ $(grep -- unknown "${tmpdir}/${results}/coreboot_timestamps.txt") ]; then
+	echo "Unknown timestamps found in 'coreboot_timestamps.txt'." \
+	"Please rebuild the 'cbmem' utility and try again."
+	exit $EXIT_FAILURE
 fi
 
 #

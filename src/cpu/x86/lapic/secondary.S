@@ -1,18 +1,7 @@
-/*
- * This file is part of the coreboot project.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <cpu/x86/mtrr.h>
 #include <cpu/x86/lapic_def.h>
+#include <arch/ram_segs.h>
 
 	.text
 	.globl _secondary_start, _secondary_start_end, _secondary_gdt_addr
@@ -38,24 +27,28 @@ _secondary_start:
 	orl	$0x60000001, %eax /* CD, NW, PE = 1 */
 	movl	%eax, %cr0
 
-	ljmpl	$0x10, $__ap_protected_start
+	ljmpl	$RAM_CODE_SEG, $__ap_protected_start
 
 	/* This will get filled in by C code. */
 _secondary_gdt_addr:
 gdtaddr:
 	.word   0	/* the table limit */
+#if ENV_X86_64
+	.quad   0
+#else
 	.long   0	/* we know the offset */
+#endif
 
 _secondary_start_end:
 
 ap_protected_start:
 	.code32
 	lgdt	gdtaddr
-	ljmpl	$0x10, $__ap_protected_start
+	ljmpl	$RAM_CODE_SEG, $__ap_protected_start
 
 __ap_protected_start:
 
-	movw	$0x18, %ax
+	movw	$RAM_DATA_SEG, %ax
 	movw	%ax, %ds
 	movw	%ax, %es
 	movw	%ax, %ss
@@ -65,14 +58,23 @@ __ap_protected_start:
 	/* Load the Interrupt descriptor table */
 	lidt	idtarg
 
+#if ENV_X86_64
+	/* entry64.inc preserves ebx. */
+	#include <cpu/x86/64bit/entry64.inc>
+	mov	secondary_stack, %rsp
+	andl	$0xfffffff0, %esp
+	mov	secondary_cpu_index, %rdi
+#else
 	/* Set the stack pointer, and flag that we are done */
 	xorl	%eax, %eax
 	movl	secondary_stack, %esp
+
 	andl	$0xfffffff0, %esp
 	sub	$12, %esp /* maintain 16-byte alignment for the call below */
 	movl	secondary_cpu_index, %edi
 	pushl	%edi
 	movl	%eax, secondary_stack
+#endif
 
 	call	secondary_cpu_init
 1:	hlt

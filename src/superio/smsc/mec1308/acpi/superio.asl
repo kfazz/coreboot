@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 The ChromiumOS Authors.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 // Scope is \_SB.PCI0.LPCB
 
@@ -50,30 +37,30 @@ Device (SIO) {
 
 	Method (ENTR, 0, NotSerialized)
 	{
-		Store (0x55, SI2E)
+		SI2E = 0x55
 	}
 
 	Method (EXIT, 0, NotSerialized)
 	{
-		Store (0xaa, SI2E)
+		SI2E = 0xaa
 	}
 
 	/* Parse activate register for an LDN */
 	Method (ISEN, 1, NotSerialized)
 	{
 		ENTR ()
-		Store (Arg0, SLDN)
-		Store (SACT, Local0)
+		SLDN = Arg0
+		Local0 = SACT
 		EXIT ()
 
 		/* Check if it exists */
-		If (LEqual (Local0, 0xFF))
+		If (Local0 == 0xFF)
 		{
 			Return (0x00)
 		}
 
 		/* Check if activated */
-		If (LEqual (Local0, One))
+		If (Local0 == 1)
 		{
 			Return (0x0F)
 		}
@@ -87,8 +74,8 @@ Device (SIO) {
 	Method (SENA, 1, NotSerialized)
 	{
 		ENTR ()
-		Store (Arg0, SLDN)
-		Store (One, SACT)
+		SLDN = Arg0
+		SACT = 1
 		EXIT ()
 	}
 
@@ -96,8 +83,8 @@ Device (SIO) {
 	Method (SDIS, 1, NotSerialized)
 	{
 		ENTR ()
-		Store (Arg0, SLDN)
-		Store (Zero, SACT)
+		SLDN = Arg0
+		SACT = 0
 		EXIT ()
 	}
 

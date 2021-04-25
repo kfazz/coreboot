@@ -1,22 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2018 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <soc/gpio_defs.h>
+#include <soc/intel/common/block/acpi/acpi/gpio_op.asl>
 #include <soc/irq.h>
 #include <soc/pcr_ids.h>
-#include "gpio_op.asl"
+#include <intelblocks/gpio.h>
 
 Device (GPIO)
 {
@@ -74,7 +61,7 @@ Device (GPIO)
 Method (GADD, 1, NotSerialized)
 {
 	/* GPIO Community 0 */
-	If (LAnd (LGreaterEqual (Arg0, GPP_A0), LLessEqual (Arg0, GPIO_RSVD_11)))
+	If (LAnd (LGreaterEqual (Arg0, GPP_A0), LLessEqual (Arg0, SPI0_CLK_LOOPBK)))
 	{
 		Store (PID_GPIOCOM0, Local0)
 		Subtract (Arg0, GPP_A0, Local1)
@@ -86,19 +73,19 @@ Method (GADD, 1, NotSerialized)
 		Subtract (Arg0, GPP_D0, Local1)
 	}
 	/* GPIO Community 2 */
-	If (LAnd (LGreaterEqual (Arg0, GPD0), LLessEqual (Arg0, GPD11)))
+	If (LAnd (LGreaterEqual (Arg0, GPD0), LLessEqual (Arg0, DRAM_RESET_B)))
 	{
-		Store (PID_GPIOCOM1, Local0)
+		Store (PID_GPIOCOM2, Local0)
 		Subtract (Arg0, GPD0, Local1)
 	}
 	/* GPIO Community 3 */
-	If (LAnd (LGreaterEqual (Arg0, HDA_BCLK), LLessEqual (Arg0, GPIO_RSVD_38)))
+	If (LAnd (LGreaterEqual (Arg0, HDA_BCLK), LLessEqual (Arg0, TRIGGER_OUT)))
 	{
-		Store (PID_GPIOCOM1, Local0)
+		Store (PID_GPIOCOM3, Local0)
 		Subtract (Arg0, HDA_BCLK, Local1)
 	}
-	/* GPIO Community 04*/
-	If (LAnd (LGreaterEqual (Arg0, GPP_C0), LLessEqual (Arg0, GPIO_RSVD_27)))
+	/* GPIO Community 4*/
+	If (LAnd (LGreaterEqual (Arg0, GPP_C0), LLessEqual (Arg0, CL_RST_B)))
 	{
 		Store (PID_GPIOCOM4, Local0)
 		Subtract (Arg0, GPP_C0, Local1)
@@ -106,4 +93,94 @@ Method (GADD, 1, NotSerialized)
 	Store (PCRB (Local0), Local2)
 	Add (Local2, PAD_CFG_BASE, Local2)
 	Return (Add (Local2, Multiply (Local1, 16)))
+}
+
+/*
+ * Return PCR Port ID of GPIO Communities
+ *
+ * Arg0: GPIO Community (0-4)
+ */
+Method (GPID, 1, Serialized)
+{
+	Switch (ToInteger (Arg0))
+	{
+		Case (0) {
+			Store (PID_GPIOCOM0, Local0)
+		}
+		Case (1) {
+			Store (PID_GPIOCOM1, Local0)
+		}
+		Case (2) {
+			Store (PID_GPIOCOM2, Local0)
+		}
+		Case (3) {
+			Store (PID_GPIOCOM3, Local0)
+		}
+		Case (4) {
+			Store (PID_GPIOCOM4, Local0)
+		}
+		Default {
+			Return (0)
+		}
+	}
+
+	Return (Local0)
+}
+
+/*
+ * Configure GPIO Power Management bits
+ *
+ * Arg0: GPIO community (0-4)
+ * Arg1: PM bits in MISCCFG
+ */
+Method (CGPM, 2, Serialized)
+{
+	Store (GPID (Arg0), Local0)
+	If (LNotEqual (Local0, 0)) {
+		/* Mask off current PM bits */
+		PCRA (Local0, GPIO_MISCCFG, Not (MISCCFG_GPIO_PM_CONFIG_BITS))
+		/* Mask in requested bits */
+		PCRO (Local0, GPIO_MISCCFG, And (Arg1, MISCCFG_GPIO_PM_CONFIG_BITS))
+	}
+}
+
+/* GPIO Power Management bits */
+Name(GPMB, Package(TOTAL_GPIO_COMM) {0, 0, 0, 0, 0})
+
+/*
+ * Save GPIO Power Management bits
+ */
+Method (SGPM, 0, Serialized)
+{
+	For (Local0 = 0, Local0 < TOTAL_GPIO_COMM, Local0++)
+	{
+		Local1 = GPID (Local0)
+		GPMB[Local0] = PCRR (Local1, GPIO_MISCCFG)
+	}
+}
+
+/*
+ * Restore GPIO Power Management bits
+ */
+Method (RGPM, 0, Serialized)
+{
+	For (Local0 = 0, Local0 < TOTAL_GPIO_COMM, Local0++)
+	{
+		CGPM (Local0, DerefOf(GPMB[Local0]))
+	}
+}
+
+/*
+ * Save current setting of GPIO Power Management bits and
+ * enable all Power Management bits for all communities
+ */
+Method (EGPM, 0, Serialized)
+{
+	/* Save current setting and will restore it when resuming */
+	SGPM ()
+	/* Enable PM bits */
+	For (Local0 = 0, Local0 < TOTAL_GPIO_COMM, Local0++)
+	{
+		CGPM (Local0, MISCCFG_GPIO_PM_CONFIG_BITS)
+	}
 }

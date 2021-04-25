@@ -1,23 +1,7 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- * Copyright (C) 2015 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <mainboard/google/cyan/irqroute.h>
 #include <soc/gpio.h>
-#include <stdlib.h>
-
 
 /* South East Community */
 static const struct soc_gpio_map gpse_gpio_map[] = {
@@ -79,7 +63,6 @@ static const struct soc_gpio_map gpse_gpio_map[] = {
 	Native_M1, /* 85 SDMMC3_1P8_EN */
 	GPIO_END
 };
-
 
 /* South West Community */
 static const struct soc_gpio_map  gpsw_gpio_map[] = {
@@ -147,7 +130,6 @@ static const struct soc_gpio_map  gpsw_gpio_map[] = {
 	GPIO_END
 };
 
-
 /* North Community */
 static const struct soc_gpio_map  gpn_gpio_map[] = {
 	GPIO_NC, /* 00 GPIO_DFX0 */
@@ -164,9 +146,9 @@ static const struct soc_gpio_map  gpn_gpio_map[] = {
 	GPO_FUNC(NA, NA), /* 16 SEC_GPIO_SUS10 */
 	GPI(trig_edge_low, L0, P_1K_H, non_maskable, NA, NA, NA),
 	/* 17 GPIO_SUS3 */
-	GPI(trig_level_low, L1, P_1K_H, 0, NA, UNMASK_WAKE, NA),
-	/* 18 GPIO_SUS7 */
 	GPI(trig_level_low, L1, P_1K_H, non_maskable, NA, UNMASK_WAKE, NA),
+	/* 18 GPIO_SUS7 */
+	GPI(trig_level_low, L3, P_1K_H, non_maskable, NA, UNMASK_WAKE, NA),
 	/* 19 GPIO_SUS1 */
 	GPIO_NC, /* 20 GPIO_SUS5 */
 	GPIO_NC, /* 21 SEC_GPIO_SUS11 */
@@ -217,7 +199,6 @@ static const struct soc_gpio_map  gpn_gpio_map[] = {
 	GPIO_END
 };
 
-
 /* East Community */
 static const struct soc_gpio_map  gpe_gpio_map[] = {
 	Native_M1, /* 00 PMU_SLP_S3_B */
@@ -246,7 +227,6 @@ static const struct soc_gpio_map  gpe_gpio_map[] = {
 	GPIO_NC, /* 26 MF_I2C1_SDA */
 	GPIO_END
 };
-
 
 static struct soc_gpio_config gpio_config = {
 	/* BSW */

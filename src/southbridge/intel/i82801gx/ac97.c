@@ -1,23 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
+#include <device/pci_def.h>
 #include <arch/io.h>
 #include <device/pci_ops.h>
 #include <delay.h>
@@ -46,7 +33,6 @@
 
 #define MBAR		0x14
 #define   SEC_CODEC	0x40
-
 
 /* FIXME. This table is probably mainboard specific */
 static u16 ac97_function[16*2][4] = {
@@ -110,7 +96,7 @@ static void init_cnr(void)
 
 static void program_sigid(struct device *dev, u32 id)
 {
-	pci_write_config32(dev, 0x2c, id);
+	pci_write_config32(dev, PCI_SUBSYSTEM_VENDOR_ID, id);
 }
 
 static void ac97_audio_init(struct device *dev)
@@ -247,18 +233,13 @@ static void ac97_modem_init(struct device *dev)
 	}
 }
 
-static struct pci_operations ac97_pci_ops = {
-	.set_subsystem    = pci_dev_set_subsystem,
-};
-
 static struct device_operations ac97_audio_ops = {
 	.read_resources		= pci_dev_read_resources,
 	.set_resources		= pci_dev_set_resources,
 	.enable_resources	= pci_dev_enable_resources,
 	.init			= ac97_audio_init,
-	.scan_bus		= 0,
 	.enable			= i82801gx_enable,
-	.ops_pci		= &ac97_pci_ops,
+	.ops_pci		= &pci_dev_ops_pci,
 };
 
 static struct device_operations ac97_modem_ops = {
@@ -266,9 +247,8 @@ static struct device_operations ac97_modem_ops = {
 	.set_resources		= pci_dev_set_resources,
 	.enable_resources	= pci_dev_enable_resources,
 	.init			= ac97_modem_init,
-	.scan_bus		= 0,
 	.enable			= i82801gx_enable,
-	.ops_pci		= &ac97_pci_ops,
+	.ops_pci		= &pci_dev_ops_pci,
 };
 
 /* 82801GB/GR/GDH/GBM/GHM (ICH7/ICH7R/ICH7DH/ICH7-M/ICH7-M DH) */

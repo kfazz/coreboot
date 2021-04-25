@@ -1,21 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2016 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 Device (TFN1)
 {
-	Name (_HID, "INT3404")
+	Name (_HID, DPTF_FAN_DEVICE)
+
 	Name (_UID, 0)
 	Name (_STR, Unicode("Fan Control"))
 
@@ -45,19 +33,19 @@ Device (TFN1)
 	Method (_FST, 0, Serialized,,PkgObj)
 	{
 		/* Fill in TFST with current control. */
-		Store (\_SB.PCI0.LPCB.EC0.FAND, Index (TFST, 1))
+		TFST[1] = \_SB.PCI0.LPCB.EC0.FAND
 		Return (TFST)
 	}
 
 	/* _FSL: Fan Speed Level */
 	Method (_FSL, 1, Serialized)
 	{
-		Store (Arg0, \_SB.PCI0.LPCB.EC0.FAND)
+		\_SB.PCI0.LPCB.EC0.FAND = Arg0
 	}
 
 	Method (_STA)
 	{
-		If (LEqual (\DPTE, One))
+		If (\DPTE == 1)
 		{
 			Return (0xF)
 		} Else {

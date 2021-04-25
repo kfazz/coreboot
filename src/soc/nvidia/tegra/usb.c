@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <delay.h>
 #include <device/mmio.h>
@@ -149,7 +136,7 @@ void usb_setup_utmip(void *usb_base)
 	int khz = clock_get_pll_input_khz();
 
 	/* Stop UTMI+ crystal clock while we mess with its settings */
-	clrbits_le32(&usb->utmip.misc1, 1 << 30);	/* PHY_XTAL_CLKEN */
+	clrbits32(&usb->utmip.misc1, 1 << 30);	/* PHY_XTAL_CLKEN */
 	udelay(1);
 
 	/* Take stuff out of pwrdn and add some magic numbers from U-Boot */
@@ -203,7 +190,7 @@ void usb_setup_utmip(void *usb_base)
 		25 * khz / 10 <<  0);	/* TODO: what's this, really? */
 
 	udelay(1);
-	setbits_le32(&usb->utmip.misc1, 1 << 30); /* PHY_XTAL_CLKEN */
+	setbits32(&usb->utmip.misc1, 1 << 30); /* PHY_XTAL_CLKEN */
 
 	write32(&usb->suspend_ctrl,
 		  1 << 12 |		/* UTMI+ enable */

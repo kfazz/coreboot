@@ -1,41 +1,16 @@
-/*
- * Copyright 2008, Network Appliance Inc.
- * Jason McMullan <mcmullan@netapp.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <console/console.h>
-#include <stdlib.h>
+#include <commonlib/helpers.h>
 #include <spi_flash.h>
 #include <spi-generic.h>
-#include <string.h>
 #include <delay.h>
 #include <lib.h>
 
 #include "spi_flash_internal.h"
 #include "spi_winbond.h"
 
-struct winbond_spi_flash_params {
-	uint16_t id;
-	uint8_t l2_page_size_shift;
-	uint8_t pages_per_sector_shift : 4;
-	uint8_t sectors_per_block_shift : 4;
-	uint8_t nr_blocks_shift;
-	uint8_t bp_bits : 3;
-	uint8_t protection_granularity_shift : 5;
-	char name[10];
-};
-
-union status_reg1_bp3 {
+union status_reg1 {
 	uint8_t u;
 	struct {
 		uint8_t busy : 1;
@@ -44,18 +19,14 @@ union status_reg1_bp3 {
 		uint8_t tb   : 1;
 		uint8_t sec  : 1;
 		uint8_t srp0 : 1;
-	};
-};
-
-union status_reg1_bp4 {
-	uint8_t u;
+	} bp3;
 	struct {
 		uint8_t busy : 1;
 		uint8_t wel  : 1;
 		uint8_t bp   : 4;
 		uint8_t tb   : 1;
 		uint8_t srp0 : 1;
-	};
+	} bp4;
 };
 
 union status_reg2 {
@@ -75,15 +46,9 @@ struct status_regs {
 		struct {
 #if defined(__BIG_ENDIAN)
 			union status_reg2 reg2;
-			union {
-				union status_reg1_bp3 reg1_bp3;
-				union status_reg1_bp4 reg1_bp4;
-			};
+			union status_reg1 reg1;
 #else
-			union {
-				union status_reg1_bp3 reg1_bp3;
-				union status_reg1_bp4 reg1_bp4;
-			};
+			union status_reg1 reg1;
 			union status_reg2 reg2;
 #endif
 		};
@@ -91,239 +56,157 @@ struct status_regs {
 	};
 };
 
-static const struct winbond_spi_flash_params winbond_spi_flash_table[] = {
+static const struct spi_flash_part_id flash_table[] = {
 	{
-		.id				= 0x2014,
-		.l2_page_size_shift		= 8,
-		.pages_per_sector_shift		= 4,
-		.sectors_per_block_shift	= 4,
-		.nr_blocks_shift		= 4,
-		.name				= "W25P80",
+		/* W25P80 */
+		.id[0]				= 0x2014,
+		.nr_sectors_shift		= 8,
 	},
 	{
-		.id				= 0x2015,
-		.l2_page_size_shift		= 8,
-		.pages_per_sector_shift		= 4,
-		.sectors_per_block_shift	= 4,
-		.nr_blocks_shift		= 5,
-		.name				= "W25P16",
+		/* W25P16 */
+		.id[0]				= 0x2015,
+		.nr_sectors_shift		= 9,
 	},
 	{
-		.id				= 0x2016,
-		.l2_page_size_shift		= 8,
-		.pages_per_sector_shift		= 4,
-		.sectors_per_block_shift	= 4,
-		.nr_blocks_shift		= 6,
-		.name				= "W25P32",
+		/* W25P32 */
+		.id[0]				= 0x2016,
+		.nr_sectors_shift		= 10,
 	},
 	{
-		.id				= 0x3014,
-		.l2_page_size_shift		= 8,
-		.pages_per_sector_shift		= 4,
-		.sectors_per_block_shift	= 4,
-		.nr_blocks_shift		= 4,
-		.name				= "W25X80",
+		/* W25X80 */
+		.id[0]				= 0x3014,
+		.nr_sectors_shift		= 8,
+		.fast_read_dual_output_support	= 1,
 	},
 	{
-		.id				= 0x3015,
-		.l2_page_size_shift		= 8,
-		.pages_per_sector_shift		= 4,
-		.sectors_per_block_shift	= 4,
-		.nr_blocks_shift		= 5,
-		.name				= "W25X16",
+		/* W25X16 */
+		.id[0]				= 0x3015,
+		.nr_sectors_shift		= 9,
+		.fast_read_dual_output_support	= 1,
 	},
 	{
-		.id				= 0x3016,
-		.l2_page_size_shift		= 8,
-		.pages_per_sector_shift		= 4,
-		.sectors_per_block_shift	= 4,
-		.nr_blocks_shift		= 6,
-		.name				= "W25X32",
+		/* W25X32 */
+		.id[0]				= 0x3016,
+		.nr_sectors_shift		= 10,
+		.fast_read_dual_output_support	= 1,
 	},
 	{
-		.id				= 0x3017,
-		.l2_page_size_shift		= 8,
-		.pages_per_sector_shift		= 4,
-		.sectors_per_block_shift	= 4,
-		.nr_blocks_shift		= 7,
-		.name				= "W25X64",
+		/* W25X64 */
+		.id[0]				= 0x3017,
+		.nr_sectors_shift		= 11,
+		.fast_read_dual_output_support	= 1,
 	},
 	{
-		.id				= 0x4014,
-		.l2_page_size_shift		= 8,
-		.pages_per_sector_shift		= 4,
-		.sectors_per_block_shift	= 4,
-		.nr_blocks_shift		= 4,
-		.name				= "W25Q80_V",
+		/* W25Q80_V */
+		.id[0]				= 0x4014,
+		.nr_sectors_shift		= 8,
+		.fast_read_dual_output_support	= 1,
 	},
 	{
-		.id				= 0x4015,
-		.l2_page_size_shift		= 8,
-		.pages_per_sector_shift		= 4,
-		.sectors_per_block_shift	= 4,
-		.nr_blocks_shift		= 5,
-		.name				= "W25Q16_V",
+		/* W25Q16_V */
+		.id[0]				= 0x4015,
+		.nr_sectors_shift		= 9,
+		.fast_read_dual_output_support	= 1,
 		.protection_granularity_shift	= 16,
 		.bp_bits			= 3,
 	},
 	{
-		.id				= 0x6015,
-		.l2_page_size_shift		= 8,
-		.pages_per_sector_shift		= 4,
-		.sectors_per_block_shift	= 4,
-		.nr_blocks_shift		= 5,
-		.name				= "W25Q16DW",
+		/* W25Q16DW */
+		.id[0]				= 0x6015,
+		.nr_sectors_shift		= 9,
+		.fast_read_dual_output_support	= 1,
 		.protection_granularity_shift	= 16,
 		.bp_bits			= 3,
 	},
 	{
-		.id				= 0x4016,
-		.l2_page_size_shift		= 8,
-		.pages_per_sector_shift		= 4,
-		.sectors_per_block_shift	= 4,
-		.nr_blocks_shift		= 6,
-		.name				= "W25Q32_V",
+		/* W25Q32_V */
+		.id[0]				= 0x4016,
+		.nr_sectors_shift		= 10,
+		.fast_read_dual_output_support	= 1,
 		.protection_granularity_shift	= 16,
 		.bp_bits			= 3,
 	},
 	{
-		.id				= 0x6016,
-		.l2_page_size_shift		= 8,
-		.pages_per_sector_shift		= 4,
-		.sectors_per_block_shift	= 4,
-		.nr_blocks_shift		= 6,
-		.name				= "W25Q32DW",
+		/* W25Q32DW */
+		.id[0]				= 0x6016,
+		.nr_sectors_shift		= 10,
+		.fast_read_dual_output_support	= 1,
 		.protection_granularity_shift	= 16,
 		.bp_bits			= 3,
 	},
 	{
-		.id				= 0x4017,
-		.l2_page_size_shift		= 8,
-		.pages_per_sector_shift		= 4,
-		.sectors_per_block_shift	= 4,
-		.nr_blocks_shift		= 7,
-		.name				= "W25Q64_V",
+		/* W25Q64_V */
+		.id[0]				= 0x4017,
+		.nr_sectors_shift		= 11,
+		.fast_read_dual_output_support	= 1,
 		.protection_granularity_shift	= 17,
 		.bp_bits			= 3,
 	},
 	{
-		.id				= 0x6017,
-		.l2_page_size_shift		= 8,
-		.pages_per_sector_shift		= 4,
-		.sectors_per_block_shift	= 4,
-		.nr_blocks_shift		= 7,
-		.name				= "W25Q64DW",
+		/* W25Q64DW */
+		.id[0]				= 0x6017,
+		.nr_sectors_shift		= 11,
+		.fast_read_dual_output_support	= 1,
 		.protection_granularity_shift	= 17,
 		.bp_bits			= 3,
 	},
 	{
-		.id				= 0x4018,
-		.l2_page_size_shift		= 8,
-		.pages_per_sector_shift		= 4,
-		.sectors_per_block_shift	= 4,
-		.nr_blocks_shift		= 8,
-		.name				= "W25Q128_V",
+		/* W25Q64JW */
+		.id[0]				= 0x8017,
+		.nr_sectors_shift		= 11,
+		.fast_read_dual_output_support	= 1,
+		.protection_granularity_shift	= 17,
+		.bp_bits			= 3,
+	},
+	{
+		/* W25Q128_V */
+		.id[0]				= 0x4018,
+		.nr_sectors_shift		= 12,
+		.fast_read_dual_output_support	= 1,
 		.protection_granularity_shift	= 18,
 		.bp_bits			= 3,
 	},
 	{
-		.id				= 0x6018,
-		.l2_page_size_shift		= 8,
-		.pages_per_sector_shift		= 4,
-		.sectors_per_block_shift	= 4,
-		.nr_blocks_shift		= 8,
-		.name				= "W25Q128FW",
+		/* W25Q128FW */
+		.id[0]				= 0x6018,
+		.nr_sectors_shift		= 12,
+		.fast_read_dual_output_support	= 1,
 		.protection_granularity_shift	= 18,
 		.bp_bits			= 3,
 	},
 	{
-		.id				= 0x7018,
-		.l2_page_size_shift		= 8,
-		.pages_per_sector_shift		= 4,
-		.sectors_per_block_shift	= 4,
-		.nr_blocks_shift		= 8,
-		.name				= "W25Q128J",
+		/* W25Q128J */
+		.id[0]				= 0x7018,
+		.nr_sectors_shift		= 12,
+		.fast_read_dual_output_support	= 1,
 		.protection_granularity_shift	= 18,
 		.bp_bits			= 3,
 	},
 	{
-		.id				= 0x4019,
-		.l2_page_size_shift		= 8,
-		.pages_per_sector_shift		= 4,
-		.sectors_per_block_shift	= 4,
-		.nr_blocks_shift		= 9,
-		.name				= "W25Q256_V",
+		/* W25Q128JW */
+		.id[0]				= 0x8018,
+		.nr_sectors_shift		= 12,
+		.fast_read_dual_output_support	= 1,
+		.protection_granularity_shift	= 18,
+		.bp_bits			= 3,
+	},
+	{
+		/* W25Q256_V */
+		.id[0]				= 0x4019,
+		.nr_sectors_shift		= 13,
+		.fast_read_dual_output_support	= 1,
 		.protection_granularity_shift	= 16,
 		.bp_bits			= 4,
 	},
 	{
-		.id				= 0x7019,
-		.l2_page_size_shift		= 8,
-		.pages_per_sector_shift		= 4,
-		.sectors_per_block_shift	= 4,
-		.nr_blocks_shift		= 9,
-		.name				= "W25Q256J",
+		/* W25Q256J */
+		.id[0]				= 0x7019,
+		.nr_sectors_shift		= 13,
+		.fast_read_dual_output_support	= 1,
 		.protection_granularity_shift	= 16,
 		.bp_bits			= 4,
 	},
 };
-
-static int winbond_write(const struct spi_flash *flash, u32 offset, size_t len,
-			const void *buf)
-{
-	unsigned long byte_addr;
-	unsigned long page_size;
-	size_t chunk_len;
-	size_t actual;
-	int ret = 0;
-	u8 cmd[4];
-
-	page_size = flash->page_size;
-
-	for (actual = 0; actual < len; actual += chunk_len) {
-		byte_addr = offset % page_size;
-		chunk_len = min(len - actual, page_size - byte_addr);
-		chunk_len = spi_crop_chunk(&flash->spi, sizeof(cmd), chunk_len);
-
-		cmd[0] = CMD_W25_PP;
-		cmd[1] = (offset >> 16) & 0xff;
-		cmd[2] = (offset >> 8) & 0xff;
-		cmd[3] = offset & 0xff;
-#if CONFIG(DEBUG_SPI_FLASH)
-		printk(BIOS_SPEW, "PP: 0x%p => cmd = { 0x%02x 0x%02x%02x%02x }"
-		        " chunk_len = %zu\n", buf + actual,
-			cmd[0], cmd[1], cmd[2], cmd[3], chunk_len);
-#endif
-
-		ret = spi_flash_cmd(&flash->spi, CMD_W25_WREN, NULL, 0);
-		if (ret < 0) {
-			printk(BIOS_WARNING, "SF: Enabling Write failed\n");
-			goto out;
-		}
-
-		ret = spi_flash_cmd_write(&flash->spi, cmd, sizeof(cmd),
-				buf + actual, chunk_len);
-		if (ret < 0) {
-			printk(BIOS_WARNING, "SF: Winbond Page Program failed\n");
-			goto out;
-		}
-
-		ret = spi_flash_cmd_wait_ready(flash, SPI_FLASH_PROG_TIMEOUT);
-		if (ret)
-			goto out;
-
-		offset += chunk_len;
-	}
-
-#if CONFIG(DEBUG_SPI_FLASH)
-	printk(BIOS_SPEW, "SF: Winbond: Successfully programmed %zu bytes @"
-			" 0x%lx\n", len, (unsigned long)(offset - len));
-#endif
-	ret = 0;
-
-out:
-	return ret;
-}
 
 /*
  * Convert BPx, TB and CMP to a region.
@@ -337,7 +220,7 @@ static void winbond_bpbits_to_region(const size_t granularity,
 				     struct region *out)
 {
 	size_t protected_size =
-		min(bp ? granularity << (bp - 1) : 0, flash_size);
+		MIN(bp ? granularity << (bp - 1) : 0, flash_size);
 
 	if (cmp) {
 		protected_size = flash_size - protected_size;
@@ -361,42 +244,41 @@ static void winbond_bpbits_to_region(const size_t granularity,
 static int winbond_get_write_protection(const struct spi_flash *flash,
 					const struct region *region)
 {
-	const struct winbond_spi_flash_params *params;
+	const struct spi_flash_part_id *params;
 	struct region wp_region;
 	union status_reg2 reg2;
 	u8 bp, tb;
 	int ret;
 
-	params = (const struct winbond_spi_flash_params *)flash->driver_private;
+	params = flash->part;
+
+	if (!params)
+		return -1;
+
 	const size_t granularity = (1 << params->protection_granularity_shift);
 
+	union status_reg1 reg1 = { .u = 0 };
+
+	ret = spi_flash_cmd(&flash->spi, flash->status_cmd, &reg1.u,
+			    sizeof(reg1.u));
+	if (ret)
+		return ret;
+
 	if (params->bp_bits == 3) {
-		union status_reg1_bp3 reg1_bp3 = { .u = 0 };
-
-		ret = spi_flash_cmd(&flash->spi, flash->status_cmd, &reg1_bp3.u,
-				    sizeof(reg1_bp3.u));
-
-		if (reg1_bp3.sec) {
+		if (reg1.bp3.sec) {
 			// FIXME: not supported
 			return -1;
 		}
 
-		bp = reg1_bp3.bp;
-		tb = reg1_bp3.tb;
+		bp = reg1.bp3.bp;
+		tb = reg1.bp3.tb;
 	} else if (params->bp_bits == 4) {
-		union status_reg1_bp4 reg1_bp4 = { .u = 0 };
-
-		ret = spi_flash_cmd(&flash->spi, flash->status_cmd, &reg1_bp4.u,
-				    sizeof(reg1_bp4.u));
-
-		bp = reg1_bp4.bp;
-		tb = reg1_bp4.tb;
+		bp = reg1.bp4.bp;
+		tb = reg1.bp4.tb;
 	} else {
 		// FIXME: not supported
 		return -1;
 	}
-	if (ret)
-		return ret;
 
 	ret = spi_flash_cmd(&flash->spi, CMD_W25_RDSR2, &reg2.u,
 			    sizeof(reg2.u));
@@ -413,8 +295,7 @@ static int winbond_get_write_protection(const struct spi_flash *flash,
 	}
 
 	printk(BIOS_DEBUG, "WINBOND: flash protected range 0x%08zx-0x%08zx\n",
-	       region_offset(&wp_region),
-	       region_offset(&wp_region) + region_sz(&wp_region));
+	       region_offset(&wp_region), region_end(&wp_region));
 
 	return region_is_subregion(&wp_region, region);
 }
@@ -526,7 +407,6 @@ static int winbond_flash_cmd_status(const struct spi_flash *flash,
  *
  * @param flash: The flash to operate on
  * @param region: The region to write protect
- * @param non_volatile: Make setting permanent
  * @param mode: Optional status register lock-down mode
  *
  * @return 0 on success
@@ -534,21 +414,20 @@ static int winbond_flash_cmd_status(const struct spi_flash *flash,
 static int
 winbond_set_write_protection(const struct spi_flash *flash,
 			     const struct region *region,
-			     const bool non_volatile,
 			     const enum spi_flash_status_reg_lockdown mode)
 {
-	const struct winbond_spi_flash_params *params;
+	const struct spi_flash_part_id *params;
 	struct status_regs mask, val;
 	struct region wp_region;
 	u8 cmp, bp, tb;
 	int ret;
 
 	/* Need to touch TOP or BOTTOM */
-	if (region_offset(region) != 0 &&
-	    (region_offset(region) + region_sz(region)) != flash->size)
+	if (region_offset(region) != 0 && region_end(region) != flash->size)
 		return -1;
 
-	params = (const struct winbond_spi_flash_params *)flash->driver_private;
+	params = flash->part;
+
 	if (!params)
 		return -1;
 
@@ -588,13 +467,19 @@ winbond_set_write_protection(const struct spi_flash *flash,
 	/* Write block protection bits */
 
 	if (params->bp_bits == 3) {
-		val.reg1_bp3 = (union status_reg1_bp3) { .bp = bp, .tb = tb,
-							.sec = 0 };
-		mask.reg1_bp3 = (union status_reg1_bp3) { .bp = ~0, .tb = 1,
-							.sec = 1 };
+		val.reg1 = (union status_reg1) {
+			.bp3 = { .bp = bp, .tb = tb, .sec = 0 }
+		};
+		mask.reg1 = (union status_reg1) {
+			.bp3 = { .bp = ~0, .tb = 1, .sec = 1 }
+		};
 	} else {
-		val.reg1_bp4 = (union status_reg1_bp4) { .bp = bp, .tb = tb };
-		mask.reg1_bp4 = (union status_reg1_bp4) { .bp = ~0, .tb = 1 };
+		val.reg1 = (union status_reg1) {
+			.bp4 = { .bp = bp, .tb = tb }
+		};
+		mask.reg1 = (union status_reg1) {
+			.bp4 = { .bp = ~0, .tb = 1 }
+		};
 	}
 
 	val.reg2 = (union status_reg2) { .cmp = cmp };
@@ -620,74 +505,39 @@ winbond_set_write_protection(const struct spi_flash *flash,
 		}
 
 		if (params->bp_bits == 3) {
-			val.reg1_bp3.srp0 = !!(srp & 1);
-			mask.reg1_bp3.srp0 = 1;
+			val.reg1.bp3.srp0 = !!(srp & 1);
+			mask.reg1.bp3.srp0 = 1;
 		} else {
-			val.reg1_bp4.srp0 = !!(srp & 1);
-			mask.reg1_bp4.srp0 = 1;
+			val.reg1.bp4.srp0 = !!(srp & 1);
+			mask.reg1.bp4.srp0 = 1;
 		}
 
 		val.reg2.srp1 = !!(srp & 2);
 		mask.reg2.srp1 = 1;
 	}
 
-	ret = winbond_flash_cmd_status(flash, mask.u, val.u, non_volatile);
+	ret = winbond_flash_cmd_status(flash, mask.u, val.u, true);
 	if (ret)
 		return ret;
 
 	printk(BIOS_DEBUG, "WINBOND: write-protection set to range "
-	       "0x%08zx-0x%08zx\n", region_offset(region),
-	       region_offset(region) + region_sz(region));
+	       "0x%08zx-0x%08zx\n", region_offset(region), region_end(region));
 
 	return ret;
 }
 
-static const struct spi_flash_ops spi_flash_ops = {
-	.write = winbond_write,
-	.erase = spi_flash_cmd_erase,
-	.status = spi_flash_cmd_status,
-#if CONFIG(SPI_FLASH_NO_FAST_READ)
-	.read = spi_flash_cmd_read_slow,
-#else
-	.read = spi_flash_cmd_read_fast,
-#endif
-	.get_write_protection = winbond_get_write_protection,
-	.set_write_protection = winbond_set_write_protection,
+static const struct spi_flash_protection_ops spi_flash_protection_ops = {
+	.get_write = winbond_get_write_protection,
+	.set_write = winbond_set_write_protection,
 };
 
-int spi_flash_probe_winbond(const struct spi_slave *spi, u8 *idcode,
-			    struct spi_flash *flash)
-{
-	const struct winbond_spi_flash_params *params;
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(winbond_spi_flash_table); i++) {
-		params = &winbond_spi_flash_table[i];
-		if (params->id == ((idcode[1] << 8) | idcode[2]))
-			break;
-	}
-
-	if (i == ARRAY_SIZE(winbond_spi_flash_table)) {
-		printk(BIOS_WARNING, "SF: Unsupported Winbond ID %02x%02x\n",
-				idcode[1], idcode[2]);
-		return -1;
-	}
-
-	memcpy(&flash->spi, spi, sizeof(*spi));
-	flash->name = params->name;
-
-	/* Params are in power-of-two. */
-	flash->page_size = 1 << params->l2_page_size_shift;
-	flash->sector_size = flash->page_size *
-			(1 << params->pages_per_sector_shift);
-	flash->size = flash->sector_size *
-			(1 << params->sectors_per_block_shift) *
-			(1 << params->nr_blocks_shift);
-	flash->erase_cmd = CMD_W25_SE;
-	flash->status_cmd = CMD_W25_RDSR;
-
-	flash->ops = &spi_flash_ops;
-	flash->driver_private = params;
-
-	return 0;
-}
+const struct spi_flash_vendor_info spi_flash_winbond_vi = {
+	.id = VENDOR_ID_WINBOND,
+	.page_size_shift = 8,
+	.sector_size_kib_shift = 2,
+	.match_id_mask[0] = 0xffff,
+	.ids = flash_table,
+	.nr_part_ids = ARRAY_SIZE(flash_table),
+	.desc = &spi_flash_pp_0x20_sector_desc,
+	.prot_ops = &spi_flash_protection_ops,
+};

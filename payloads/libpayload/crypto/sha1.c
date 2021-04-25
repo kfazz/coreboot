@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * It has originally been taken from the OpenBSD project.
  */
@@ -116,7 +115,6 @@ SHA1Transform(u_int32_t state[5], const u_int8_t buffer[SHA1_BLOCK_LENGTH])
 	a = b = c = d = e = 0;
 }
 
-
 /*
  * SHA1Init - Initialize new context
  */
@@ -132,7 +130,6 @@ SHA1Init(SHA1_CTX *context)
 	context->state[3] = 0x10325476;
 	context->state[4] = 0xC3D2E1F0;
 }
-
 
 /*
  * Run your data through this.
@@ -155,7 +152,6 @@ SHA1Update(SHA1_CTX *context, const u_int8_t *data, size_t len)
 	}
 	(void)memcpy(&context->buffer[j], &data[i], len - i);
 }
-
 
 /*
  * Add padding and return the message digest.

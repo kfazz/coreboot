@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #undef ENABLE_TOUCH_WAKE
 
@@ -43,8 +30,8 @@ Scope (\_SB.PCI0.I2C0)
 
 		Method (_DSW, 3, NotSerialized)
 		{
-			Store (BOARD_TRACKPAD_WAKE_GPIO, Local0)
-			If (LEqual (Arg0, 1)) {
+			Local0 = BOARD_TRACKPAD_WAKE_GPIO
+			If (Arg0 == 1) {
 				// Enable GPIO as wake source
 				\_SB.PCI0.LPCB.GPIO.GWAK (Local0)
 			}
@@ -52,7 +39,7 @@ Scope (\_SB.PCI0.I2C0)
 
 		Method (_STA)
 		{
-			If (LEqual (\S1EN, 1)) {
+			If (\S1EN == 1) {
 				Return (0xF)
 			} Else {
 				Return (0x0)
@@ -154,8 +141,8 @@ Scope (\_SB.PCI0.I2C0)
 
 		Method (_DSW, 3, NotSerialized)
 		{
-			Store (BOARD_CODEC_WAKE_GPIO, Local0)
-			If (LEqual (Arg0, 1)) {
+			Local0 = BOARD_CODEC_WAKE_GPIO
+			If (Arg0 == 1) {
 				// Enable GPIO as wake source
 				\_SB.PCI0.LPCB.GPIO.GWAK (Local0)
 			}
@@ -163,7 +150,7 @@ Scope (\_SB.PCI0.I2C0)
 
 		Method (_STA)
 		{
-			If (LEqual (\S1EN, 1)) {
+			If (\S1EN == 1) {
 				Return (0xF)
 			} Else {
 				Return (0x0)
@@ -201,8 +188,8 @@ Scope (\_SB.PCI0.I2C1)
 
 		Method (_DSW, 3, NotSerialized)
 		{
-			Store (BOARD_CODEC_WAKE_GPIO, Local0)
-			If (LEqual (Arg0, 1)) {
+			Local0 = BOARD_CODEC_WAKE_GPIO
+			If (Arg0 == 1) {
 				// Enable GPIO as wake source
 				\_SB.PCI0.LPCB.GPIO.GWAK (Local0)
 			}
@@ -211,7 +198,7 @@ Scope (\_SB.PCI0.I2C1)
 
 		Method (_STA)
 		{
-			If (LEqual (\S2EN, 1)) {
+			If (\S2EN == 1) {
 				Return (0xF)
 			} Else {
 				Return (0x0)

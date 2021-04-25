@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Google Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <stdint.h>
 #include <arch/io.h>
@@ -24,14 +11,13 @@
 
 static u16 get_gpio_base(void)
 {
-#if defined(__PRE_RAM__) || defined(__SMM__)
+#ifdef __SIMPLE_DEVICE__
 	return pci_read_config16(PCH_LPC_DEV, GPIO_BASE) & 0xfffc;
 #else
 	return pci_read_config16(pcidev_on_root(0x1f, 0),
 				 GPIO_BASE) & 0xfffc;
 #endif
 }
-
 
 /*
  * This function will return a number that indicates which PIRQ
@@ -127,11 +113,11 @@ int get_gpio(int gpio_num)
  * get a number comprised of multiple GPIO values. gpio_num_array points to
  * the array of gpio pin numbers to scan, terminated by -1.
  */
-unsigned get_gpios(const int *gpio_num_array)
+unsigned int get_gpios(const int *gpio_num_array)
 {
 	int gpio;
-	unsigned bitmask = 1;
-	unsigned vector = 0;
+	unsigned int bitmask = 1;
+	unsigned int vector = 0;
 
 	while (bitmask &&
 	       ((gpio = *gpio_num_array++) != -1)) {

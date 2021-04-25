@@ -1,21 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2016 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <assert.h>
+#include <commonlib/helpers.h>
 #include <spi-generic.h>
+#include <stddef.h>
 #include <string.h>
 
 int spi_claim_bus(const struct spi_slave *slave)
@@ -113,7 +101,7 @@ unsigned int spi_crop_chunk(const struct spi_slave *slave, unsigned int cmd_len,
 	if (deduct_cmd_len && (ctrlr_max > cmd_len))
 		ctrlr_max -= cmd_len;
 
-	return min(ctrlr_max, buf_len);
+	return MIN(ctrlr_max, buf_len);
 }
 
 void __weak spi_init(void)

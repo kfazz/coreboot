@@ -1,19 +1,5 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/io.h>
 #include <device/mmio.h>
 #include <device/pci_ops.h>
 #include <console/console.h>
@@ -24,19 +10,26 @@
 #include <stdint.h>
 #include <reg_script.h>
 
-#if CONFIG(ARCH_X86)
+#if ENV_X86
 #include <cpu/x86/msr.h>
 #endif
 
-#define HAS_IOSF (CONFIG(SOC_INTEL_BAYTRAIL) || \
-		CONFIG(SOC_INTEL_FSP_BAYTRAIL))
+#if ENV_X86
+#include <arch/io.h>
+#define HAS_ARCH_IO 1
+#else
+#define HAS_ARCH_IO 0
+#endif
+
+#define HAS_IOSF (CONFIG(SOC_INTEL_BAYTRAIL))
 
 #if HAS_IOSF
 #include <soc/iosf.h>	/* TODO: wrap in <soc/reg_script.h, remove #ifdef? */
 #endif
 
 #define POLL_DELAY 100 /* 100us */
-#if defined(__PRE_RAM__)
+
+#ifdef __SIMPLE_DEVICE__
 #define EMPTY_DEV 0
 #else
 #define EMPTY_DEV NULL
@@ -68,7 +61,7 @@ reg_script_get_step(struct reg_script_context *ctx)
 
 static struct resource *reg_script_get_resource(struct reg_script_context *ctx)
 {
-#if defined(__PRE_RAM__)
+#ifdef __SIMPLE_DEVICE__
 	return NULL;
 #else
 	struct resource *res;
@@ -117,6 +110,7 @@ static void reg_script_write_pci(struct reg_script_context *ctx)
 	}
 }
 
+#if HAS_ARCH_IO
 static uint32_t reg_script_read_io(struct reg_script_context *ctx)
 {
 	const struct reg_script *step = reg_script_get_step(ctx);
@@ -148,6 +142,7 @@ static void reg_script_write_io(struct reg_script_context *ctx)
 		break;
 	}
 }
+#endif
 
 static uint32_t reg_script_read_mmio(struct reg_script_context *ctx)
 {
@@ -155,11 +150,11 @@ static uint32_t reg_script_read_mmio(struct reg_script_context *ctx)
 
 	switch (step->size) {
 	case REG_SCRIPT_SIZE_8:
-		return read8((u8 *)step->reg);
+		return read8((u8 *)(uintptr_t)step->reg);
 	case REG_SCRIPT_SIZE_16:
-		return read16((u16 *)step->reg);
+		return read16((u16 *)(uintptr_t)step->reg);
 	case REG_SCRIPT_SIZE_32:
-		return read32((u32 *)step->reg);
+		return read32((u32 *)(uintptr_t)step->reg);
 	}
 	return 0;
 }
@@ -170,13 +165,13 @@ static void reg_script_write_mmio(struct reg_script_context *ctx)
 
 	switch (step->size) {
 	case REG_SCRIPT_SIZE_8:
-		write8((u8 *)step->reg, step->value);
+		write8((u8 *)(uintptr_t)step->reg, step->value);
 		break;
 	case REG_SCRIPT_SIZE_16:
-		write16((u16 *)step->reg, step->value);
+		write16((u16 *)(uintptr_t)step->reg, step->value);
 		break;
 	case REG_SCRIPT_SIZE_32:
-		write32((u32 *)step->reg, step->value);
+		write32((u32 *)(uintptr_t)step->reg, step->value);
 		break;
 	}
 }
@@ -376,7 +371,7 @@ static void reg_script_write_iosf(struct reg_script_context *ctx)
 
 static uint64_t reg_script_read_msr(struct reg_script_context *ctx)
 {
-#if CONFIG(ARCH_X86)
+#if ENV_X86
 	const struct reg_script *step = reg_script_get_step(ctx);
 	msr_t msr = rdmsr(step->reg);
 	uint64_t value = msr.hi;
@@ -388,7 +383,7 @@ static uint64_t reg_script_read_msr(struct reg_script_context *ctx)
 
 static void reg_script_write_msr(struct reg_script_context *ctx)
 {
-#if CONFIG(ARCH_X86)
+#if ENV_X86
 	const struct reg_script *step = reg_script_get_step(ctx);
 	msr_t msr;
 	msr.hi = step->value >> 32;
@@ -454,10 +449,12 @@ static uint64_t reg_script_read(struct reg_script_context *ctx)
 		ctx->display_prefix = "PCI";
 		value = reg_script_read_pci(ctx);
 		break;
+#if HAS_ARCH_IO
 	case REG_SCRIPT_TYPE_IO:
 		ctx->display_prefix = "IO";
 		value = reg_script_read_io(ctx);
 		break;
+#endif
 	case REG_SCRIPT_TYPE_MMIO:
 		ctx->display_prefix = "MMIO";
 		value = reg_script_read_mmio(ctx);
@@ -508,10 +505,12 @@ static void reg_script_write(struct reg_script_context *ctx)
 		ctx->display_prefix = "PCI";
 		reg_script_write_pci(ctx);
 		break;
+#if HAS_ARCH_IO
 	case REG_SCRIPT_TYPE_IO:
 		ctx->display_prefix = "IO";
 		reg_script_write_io(ctx);
 		break;
+#endif
 	case REG_SCRIPT_TYPE_MMIO:
 		ctx->display_prefix = "MMIO";
 		reg_script_write_mmio(ctx);

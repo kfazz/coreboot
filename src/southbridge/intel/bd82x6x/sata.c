@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <device/pci_ops.h>
@@ -20,9 +6,12 @@
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
+#include <option.h>
+#include <acpi/acpi_sata.h>
+#include <types.h>
+
+#include "chip.h"
 #include "pch.h"
-#include <pc80/mc146818rtc.h>
-#include <acpi/sata.h>
 
 typedef struct southbridge_intel_bd82x6x_config config_t;
 
@@ -38,13 +27,69 @@ static inline void sir_write(struct device *dev, int idx, u32 value)
 	pci_write_config32(dev, SATA_SIRD, value);
 }
 
+static void sata_read_resources(struct device *dev)
+{
+	struct resource *res;
+
+	pci_dev_read_resources(dev);
+
+	/* Assign fixed resources for IDE legacy mode */
+
+	u8 sata_mode = get_int_option("sata_mode", 0);
+	if (sata_mode != 2)
+		return;
+
+	res = probe_resource(dev, PCI_BASE_ADDRESS_0);
+	if (res) {
+		res->base = 0x1f0;
+		res->size = 8;
+		res->flags = IORESOURCE_IO | IORESOURCE_ASSIGNED | IORESOURCE_FIXED;
+	}
+
+	res = probe_resource(dev, PCI_BASE_ADDRESS_1);
+	if (res) {
+		res->base = 0x3f4;
+		res->size = 4;
+		res->flags = IORESOURCE_IO | IORESOURCE_ASSIGNED | IORESOURCE_FIXED;
+	}
+
+	res = probe_resource(dev, PCI_BASE_ADDRESS_2);
+	if (res) {
+		res->base = 0x170;
+		res->size = 8;
+		res->flags = IORESOURCE_IO | IORESOURCE_ASSIGNED | IORESOURCE_FIXED;
+	}
+
+	res = probe_resource(dev, PCI_BASE_ADDRESS_3);
+	if (res) {
+		res->base = 0x374;
+		res->size = 4;
+		res->flags = IORESOURCE_IO | IORESOURCE_ASSIGNED | IORESOURCE_FIXED;
+	}
+}
+
+static void sata_set_resources(struct device *dev)
+{
+	/* work around bug in pci_dev_set_resources(), it bails out on FIXED */
+	u8 sata_mode = get_int_option("sata_mode", 0);
+	if (sata_mode == 2) {
+		unsigned int i;
+		for (i = PCI_BASE_ADDRESS_0; i <= PCI_BASE_ADDRESS_3; i += 4) {
+			struct resource *const res = probe_resource(dev, i);
+			if (res)
+				res->flags &= ~IORESOURCE_FIXED;
+		}
+	}
+
+	pci_dev_set_resources(dev);
+}
+
 static void sata_init(struct device *dev)
 {
 	u32 reg32;
 	u16 reg16;
 	/* Get the chip configuration */
 	config_t *config = dev->chip_info;
-	u8 sata_mode;
 
 	printk(BIOS_DEBUG, "SATA: Initializing...\n");
 
@@ -53,14 +98,14 @@ static void sata_init(struct device *dev)
 		return;
 	}
 
-	if (get_option(&sata_mode, "sata_mode") != CB_SUCCESS)
-		/* Default to AHCI */
-		sata_mode = 0;
+	/* Default to AHCI */
+	u8 sata_mode = get_int_option("sata_mode", 0);
 
 	/* SATA configuration */
 
 	/* Enable BARs */
-	pci_write_config16(dev, PCI_COMMAND, 0x0007);
+	pci_write_config16(dev, PCI_COMMAND,
+			   PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY | PCI_COMMAND_IO);
 
 	/* AHCI */
 	if (sata_mode == 0) {
@@ -68,24 +113,8 @@ static void sata_init(struct device *dev)
 
 		printk(BIOS_DEBUG, "SATA: Controller in AHCI mode.\n");
 
-		/* Set Interrupt Line */
-		/* Interrupt Pin is set by D31IP.PIP */
-		pci_write_config8(dev, INTR_LN, 0x0a);
-
-		/* Set timings */
-		pci_write_config16(dev, IDE_TIM_PRI, IDE_DECODE_ENABLE |
-				IDE_ISP_3_CLOCKS | IDE_RCT_1_CLOCKS |
-				IDE_PPE0 | IDE_IE0 | IDE_TIME0);
-		pci_write_config16(dev, IDE_TIM_SEC, IDE_DECODE_ENABLE |
-				IDE_ISP_5_CLOCKS | IDE_RCT_4_CLOCKS);
-
-		/* Sync DMA */
-		pci_write_config16(dev, IDE_SDMA_CNT, IDE_PSDE0);
-		pci_write_config16(dev, IDE_SDMA_TIM, 0x0001);
-
-		/* Set IDE I/O Configuration */
-		reg32 = SIG_MODE_PRI_NORMAL | FAST_PCB1 | FAST_PCB0 | PCB1 | PCB0;
-		pci_write_config32(dev, IDE_CONFIG, reg32);
+		pci_write_config16(dev, IDE_TIM_PRI, IDE_DECODE_ENABLE);
+		pci_write_config16(dev, IDE_TIM_SEC, IDE_DECODE_ENABLE);
 
 		/* for AHCI, Port Enable is managed in memory mapped space */
 		reg16 = pci_read_config16(dev, 0x92);
@@ -94,8 +123,7 @@ static void sata_init(struct device *dev)
 		pci_write_config16(dev, 0x92, reg16);
 
 		/* SATA Initialization register */
-		pci_write_config32(dev, 0x94,
-			   ((config->sata_port_map ^ 0x3f) << 24) | 0x183);
+		pci_write_config32(dev, 0x94, ((config->sata_port_map ^ 0x3f) << 24) | 0x183);
 
 		/* Initialize AHCI memory-mapped space */
 		abar = (u8 *)pci_read_config32(dev, PCI_BASE_ADDRESS_5);
@@ -126,50 +154,29 @@ static void sata_init(struct device *dev)
 		write32(abar + 0xa0, reg32);
 	} else {
 	        /* IDE */
-		printk(BIOS_DEBUG, "SATA: Controller in plain mode.\n");
 
-		/* No AHCI: clear AHCI base */
-		pci_write_config32(dev, 0x24, 0x00000000);
+		/* Without AHCI BAR no memory decoding */
+		pci_and_config16(dev, PCI_COMMAND, ~PCI_COMMAND_MEMORY);
 
-		/* And without AHCI BAR no memory decoding */
-		reg16 = pci_read_config16(dev, PCI_COMMAND);
-		reg16 &= ~PCI_COMMAND_MEMORY;
-		pci_write_config16(dev, PCI_COMMAND, reg16);
+		if (sata_mode == 1) {
+			/* Native mode on both primary and secondary. */
+			pci_or_config8(dev, 0x09, 0x05);
+			printk(BIOS_DEBUG, "SATA: Controller in IDE compat mode.\n");
+		} else {
+			/* Legacy mode on both primary and secondary. */
+			pci_and_config8(dev, 0x09, ~0x05);
+			printk(BIOS_DEBUG, "SATA: Controller in IDE legacy mode.\n");
+		}
 
-		/* Native mode capable on both primary and secondary (0xa)
-		 * or'ed with enabled (0x50) = 0xf
-		 */
-		pci_write_config8(dev, 0x09, 0x8f);
+		/* Enable I/O decoding */
+		pci_write_config16(dev, IDE_TIM_PRI, IDE_DECODE_ENABLE);
+		pci_write_config16(dev, IDE_TIM_SEC, IDE_DECODE_ENABLE);
 
-		/* Set Interrupt Line */
-		/* Interrupt Pin is set by D31IP.PIP */
-		pci_write_config8(dev, INTR_LN, 0xff);
-
-		/* Set timings */
-		pci_write_config16(dev, IDE_TIM_PRI, IDE_DECODE_ENABLE |
-				IDE_ISP_3_CLOCKS | IDE_RCT_1_CLOCKS |
-				IDE_PPE0 | IDE_IE0 | IDE_TIME0);
-		pci_write_config16(dev, IDE_TIM_SEC, IDE_DECODE_ENABLE |
-				IDE_SITRE | IDE_ISP_3_CLOCKS |
-				IDE_RCT_1_CLOCKS | IDE_IE0 | IDE_TIME0);
-
-		/* Sync DMA */
-		pci_write_config16(dev, IDE_SDMA_CNT, IDE_SSDE0 | IDE_PSDE0);
-		pci_write_config16(dev, IDE_SDMA_TIM, 0x0201);
-
-		/* Set IDE I/O Configuration */
-		reg32 = SIG_MODE_PRI_NORMAL | FAST_PCB1 | FAST_PCB0 | PCB1 | PCB0;
-		pci_write_config32(dev, IDE_CONFIG, reg32);
-
-		/* Port enable */
-		reg16 = pci_read_config16(dev, 0x92);
-		reg16 &= ~0x3f;
-		reg16 |= config->sata_port_map;
-		pci_write_config16(dev, 0x92, reg16);
+		/* Port enable + OOB retry mode */
+		pci_update_config16(dev, 0x92, ~0x3f, config->sata_port_map | 0x8000);
 
 		/* SATA Initialization register */
-		pci_write_config32(dev, 0x94,
-			   ((config->sata_port_map ^ 0x3f) << 24) | 0x183);
+		pci_write_config32(dev, 0x94, ((config->sata_port_map ^ 0x3f) << 24) | 0x183);
 	}
 
 	/* Set Gen3 Transmitter settings if needed */
@@ -207,6 +214,11 @@ static void sata_init(struct device *dev)
 
 	pch_iobp_update(0xea004001, 0x3fffffff, 0xc0000000);
 	pch_iobp_update(0xea00408a, 0xfffffcff, 0x00000100);
+
+	pci_update_config32(dev, 0x98,
+		~(1 << 16 | 0x3f << 7 | 3 << 5 | 3 << 3),
+		1 << 24 | 1 << 22 | 1 << 20 | 1 << 19 |
+		1 << 18 | 1 << 14 | 0x04 << 7 | 1 << 3);
 }
 
 static void sata_enable(struct device *dev)
@@ -214,13 +226,11 @@ static void sata_enable(struct device *dev)
 	/* Get the chip configuration */
 	config_t *config = dev->chip_info;
 	u16 map = 0;
-	u8 sata_mode;
 
 	if (!config)
 		return;
 
-	if (get_option(&sata_mode, "sata_mode") != CB_SUCCESS)
-		sata_mode = 0;
+	u8 sata_mode = get_int_option("sata_mode", 0);
 
 	/*
 	 * Set SATA controller mode early so the resource allocator can
@@ -239,26 +249,20 @@ static const char *sata_acpi_name(const struct device *dev)
 	return "SATA";
 }
 
-static void sata_fill_ssdt(struct device *dev)
+static void sata_fill_ssdt(const struct device *dev)
 {
 	config_t *config = dev->chip_info;
 	generate_sata_ssdt_ports("\\_SB_.PCI0.SATA", config->sata_port_map);
 }
 
-static struct pci_operations sata_pci_ops = {
-	.set_subsystem    = pci_dev_set_subsystem,
-};
-
 static struct device_operations sata_ops = {
-	.read_resources		= pci_dev_read_resources,
-	.set_resources		= pci_dev_set_resources,
+	.read_resources		= sata_read_resources,
+	.set_resources		= sata_set_resources,
 	.enable_resources	= pci_dev_enable_resources,
-	.acpi_fill_ssdt_generator
-				= sata_fill_ssdt,
+	.acpi_fill_ssdt		= sata_fill_ssdt,
 	.init			= sata_init,
 	.enable			= sata_enable,
-	.scan_bus		= 0,
-	.ops_pci		= &sata_pci_ops,
+	.ops_pci		= &pci_dev_ops_pci,
 	.acpi_name		= sata_acpi_name,
 };
 

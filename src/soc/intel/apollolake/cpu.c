@@ -1,53 +1,36 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015-2017 Intel Corp.
- * Copyright (C) 2017-2019 Siemens AG
- * (Written by Andrey Petrov <andrey.petrov@intel.com> for Intel Corp.)
- * (Written by Alexandru Gagniuc <alexandrux.gagniuc@intel.com> for Intel Corp.)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <assert.h>
 #include <console/console.h>
 #include "chip.h"
 #include <cpu/cpu.h>
-#include <cpu/x86/cache.h>
 #include <cpu/x86/lapic.h>
 #include <cpu/x86/mp.h>
 #include <cpu/intel/microcode.h>
 #include <cpu/intel/turbo.h>
+#include <cpu/intel/common/common.h>
 #include <cpu/x86/msr.h>
 #include <cpu/x86/mtrr.h>
+#include <cpu/x86/smm.h>
+#include <cpu/intel/em64t100_save_state.h>
+#include <cpu/intel/smm_reloc.h>
 #include <device/device.h>
 #include <device/pci.h>
 #include <fsp/api.h>
-#include <fsp/memmap.h>
 #include <intelblocks/cpulib.h>
 #include <intelblocks/fast_spi.h>
 #include <intelblocks/mp_init.h>
 #include <intelblocks/msr.h>
 #include <intelblocks/sgx.h>
-#include <intelblocks/smm.h>
 #include <reg_script.h>
-#include <romstage_handoff.h>
 #include <soc/cpu.h>
 #include <soc/iomap.h>
 #include <soc/pci_devs.h>
 #include <soc/pm.h>
 
 static const struct reg_script core_msr_script[] = {
-#if !CONFIG(SOC_INTEL_GLK)
+#if !CONFIG(SOC_INTEL_GEMINILAKE)
 	/* Enable C-state and IO/MWAIT redirect */
 	REG_MSR_WRITE(MSR_PKG_CST_CONFIG_CONTROL,
 		(PKG_C_STATE_LIMIT_C2_MASK | CORE_C_STATE_LIMIT_C10_MASK
@@ -60,36 +43,32 @@ static const struct reg_script core_msr_script[] = {
 #endif
 	/* Disable C1E */
 	REG_MSR_RMW(MSR_POWER_CTL, ~POWER_CTL_C1E_MASK, 0),
-	/*
-	 * Enable and Lock the Advanced Encryption Standard (AES-NI)
-	 * feature register
-	 */
-	REG_MSR_RMW(MSR_FEATURE_CONFIG, ~FEATURE_CONFIG_RESERVED_MASK,
-		FEATURE_CONFIG_LOCK),
 	REG_SCRIPT_END
 };
 
 void soc_core_init(struct device *cpu)
 {
+	/* Configure Core PRMRR for SGX. */
+	if (CONFIG(SOC_INTEL_COMMON_BLOCK_SGX_ENABLE))
+		prmrr_core_configure();
+
 	/* Clear out pending MCEs */
 	/* TODO(adurbin): Some of these banks are core vs package
 			  scope. For now every CPU clears every bank. */
-	if (CONFIG(SOC_INTEL_COMMON_BLOCK_SGX) ||
-	    acpi_get_sleep_type() == ACPI_S5)
-		mca_configure(NULL);
+	if (CONFIG(SOC_INTEL_COMMON_BLOCK_SGX_ENABLE) || acpi_get_sleep_type() == ACPI_S5)
+		mca_configure();
 
 	/* Set core MSRs */
 	reg_script_run(core_msr_script);
+
+	set_aesni_lock();
+
 	/*
 	 * Enable ACPI PM timer emulation, which also lets microcode know
 	 * location of ACPI_BASE_ADDRESS. This also enables other features
 	 * implemented in microcode.
 	*/
 	enable_pm_timer_emulation();
-
-	/* Configure Core PRMRR for SGX. */
-	if (CONFIG(SOC_INTEL_COMMON_BLOCK_SGX))
-		prmrr_core_configure();
 
 	/* Set Max Non-Turbo ratio if RAPL is disabled. */
 	if (CONFIG(APL_SKIP_SET_POWER_LIMITS)) {
@@ -119,6 +98,7 @@ static const struct cpu_device_id cpu_table[] = {
 	{ X86_VENDOR_INTEL, CPUID_APOLLOLAKE_E0 },
 	{ X86_VENDOR_INTEL, CPUID_GLK_A0 },
 	{ X86_VENDOR_INTEL, CPUID_GLK_B0 },
+	{ X86_VENDOR_INTEL, CPUID_GLK_R0 },
 	{ 0, 0 },
 };
 
@@ -159,7 +139,7 @@ static struct smm_relocation_attrs relo_attrs;
 static void pre_mp_init(void)
 {
 	if (CONFIG(SOC_INTEL_COMMON_BLOCK_CPU_MPINIT)) {
-		fsps_load(romstage_handoff_is_resume());
+		fsps_load();
 		return;
 	}
 	x86_setup_mtrrs_with_detect();
@@ -204,24 +184,24 @@ void get_microcode_info(const void **microcode, int *parallel)
 static void get_smm_info(uintptr_t *perm_smbase, size_t *perm_smsize,
 				size_t *smm_save_state_size)
 {
-	void *smm_base;
+	uintptr_t smm_base;
 	size_t smm_size;
-	void *handler_base;
+	uintptr_t handler_base;
 	size_t handler_size;
 
 	/* All range registers are aligned to 4KiB */
 	const uint32_t rmask = ~((1 << 12) - 1);
 
 	/* Initialize global tracking state. */
-	smm_region_info(&smm_base, &smm_size);
+	smm_region(&smm_base, &smm_size);
 	smm_subregion(SMM_SUBREGION_HANDLER, &handler_base, &handler_size);
 
-	relo_attrs.smbase = (uint32_t)smm_base;
+	relo_attrs.smbase = smm_base;
 	relo_attrs.smrr_base = relo_attrs.smbase | MTRR_TYPE_WRBACK;
 	relo_attrs.smrr_mask = ~(smm_size - 1) & rmask;
 	relo_attrs.smrr_mask |= MTRR_PHYS_MASK_VALID;
 
-	*perm_smbase = (uintptr_t)handler_base;
+	*perm_smbase = handler_base;
 	*perm_smsize = handler_size;
 	*smm_save_state_size = sizeof(em64t100_smm_state_save_area_t);
 }
@@ -251,10 +231,10 @@ static void relocation_handler(int cpu, uintptr_t curr_smbase,
 
 static void post_mp_init(void)
 {
-	smm_southbridge_enable(PWRBTN_EN | GBL_EN);
+	global_smi_enable();
 
-	if (CONFIG(SOC_INTEL_COMMON_BLOCK_SGX))
-		mp_run_on_all_cpus(sgx_configure, NULL, 2000);
+	if (CONFIG(SOC_INTEL_COMMON_BLOCK_SGX_ENABLE))
+		mp_run_on_all_cpus(sgx_configure, NULL);
 }
 
 static const struct mp_ops mp_ops = {
@@ -284,25 +264,4 @@ void apollolake_init_cpus(struct device *dev)
 	if (CONFIG(BOOT_DEVICE_MEMORY_MAPPED) &&
 		CONFIG(BOOT_DEVICE_SPI_FLASH))
 		fast_spi_cache_bios_region();
-}
-
-void cpu_lock_sgx_memory(void)
-{
-	/* Do nothing because MCHECK while loading microcode and enabling
-	 * IA untrusted mode takes care of necessary locking */
-}
-
-int soc_fill_sgx_param(struct sgx_param *sgx_param)
-{
-	struct device *dev = SA_DEV_ROOT;
-	assert(dev != NULL);
-	config_t *conf = dev->chip_info;
-
-	if (!conf) {
-		printk(BIOS_ERR, "Failed to get chip_info for SGX param\n");
-		return -1;
-	}
-
-	sgx_param->enable = conf->sgx_enable;
-	return 0;
 }

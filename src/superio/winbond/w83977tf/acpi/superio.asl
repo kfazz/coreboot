@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Christoph Grenz <christophg+cb@grenz-bonn.de>
- * Copyright (C) 2013 secunet Security Networks AG
- * Copyright (C) 2017 Keith Hui <buurin@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /*
  * Include this file into a southbridge ASL block and it will
@@ -77,34 +62,40 @@ IndexField (PNP_ADDR_REG, PNP_DATA_REG, ByteAcc, NoLock, Preserve)
 	PNP_IRQ1,		8,
 	Offset (0x74),
 	PNP_DMA0,		8,
+	/* MSWK and KBWK are for ACPI logical device, LDN 0xA */
+	Offset (0xE0),
+	MSWK,			8,
+	Offset (0xE4),
+	KBWK,			8,
 	Offset (0xF0),
-	OPT1,			8
+	OPT1,			8,
+	OPT2,			8
 }
 
-#define PNP_ENTER_MAGIC_1ST     0x87
-#define PNP_ENTER_MAGIC_2ND     0x87
-#define PNP_EXIT_MAGIC_1ST      0xaa
+#define PNP_ENTER_MAGIC_1ST	0x87
+#define PNP_ENTER_MAGIC_2ND	0x87
+#define PNP_EXIT_MAGIC_1ST	0xaa
 #include <superio/acpi/pnp_config.asl>
 
-/* PM: indicate IPD (Immediate Power Down) bit state as D0/D2 */
+/* PM: indicate IPD (Immediate Power Down) bit state as D0/D3 */
 Method (_PSC) {
-	ENTER_CONFIG_MODE (0xFF)
-	Store (IPD, Local0)
+	ENTER_CONFIG_MODE (PNP_NO_LDN_CHANGE)
+	Local0 = IPD
 	EXIT_CONFIG_MODE ()
-	If (Local0) { Return (2) }
+	If (Local0) { Return (3) }
 	Else { Return (0) }
 }
 
 #ifdef SUPERIO_SHOW_FDC
 Device (FDC0)
 {
-	Name (_HID, EisaId ("PNP0700"))  // _HID: Hardware ID
-	Method (_STA, 0, NotSerialized)  // _STA: Status
+	Name (_HID, EisaId ("PNP0700")) // _HID: Hardware ID
+	Method (_STA, 0, NotSerialized) // _STA: Status
 	{
 		PNP_GENERIC_STA(W83977TF_FDC)
 	}
 
-	Method (_DIS, 0, NotSerialized)  // _DIS: Disable Device
+	Method (_DIS, 0, NotSerialized) // _DIS: Disable Device
 	{
 		PNP_GENERIC_DIS(W83977TF_FDC)
 	}
@@ -127,11 +118,11 @@ Device (FDC0)
 		PNP_READ_IO(PNP_IO0, BUF0, IO0)
 		/* Store xx7 range first so the value isn't overwritten
 		 * for below */
-		Add(IO0I, 7, IO1I)
-		Store(IO1I, IO1A)
+		IO1I += 7
+		IO1A = IO1I
 		/* Store xx2 range */
-		Add(IO0I, 2, IO0I)
-		Store(IO0I, IO0A)
+		IO0I += 2
+		IO0A = IO0I
 		/* End OEM BIOS deficiency */
 		PNP_READ_IRQ(PNP_IRQ0, BUF0, Y08)
 		PNP_READ_DMA(PNP_DMA0, BUF0, Y09)
@@ -156,11 +147,11 @@ Device (FDC0)
 		CreateByteField (Arg0, 0x15, DMAV)
 		ENTER_CONFIG_MODE(W83977TF_FDC)
 		/* FDC base port on 8-byte boundary. */
-		And (IOLO, 0xF8, PNP_IO0_LOW_BYTE)
-		Store (IOHI, PNP_IO0_HIGH_BYTE)
-		Subtract (FindSetLeftBit (IRQW), 1, PNP_IRQ0)
-		Subtract (FindSetLeftBit (DMAV), 1, PNP_DMA0)
-		Store (One, PNP_DEVICE_ACTIVE)
+		PNP_IO0_LOW_BYTE = IOLO & 0xF8
+		PNP_IO0_HIGH_BYTE = IOHI
+		PNP_IRQ0 = FindSetLeftBit (IRQW) - 1
+		PNP_DMA0 = FindSetLeftBit (DMAV) - 1
+		PNP_DEVICE_ACTIVE = 1
 		EXIT_CONFIG_MODE()
 	}
 }
@@ -174,11 +165,11 @@ Device (LPT)
 	Method (_STA, 0, NotSerialized)
 	{
 		ENTER_CONFIG_MODE(W83977TF_PP)
-		And (OPT1, 0x02, Local0)
-		If (LOr (IO0H, IO0L))
+		Local0 = OPT1 & 0x02
+		If (IO0H || IO0L)
 		{
 			/* Report device not present if ECP is enabled */
-			If (LEqual (Local0, 0x02))
+			If (Local0 == 0x02)
 			{
 				EXIT_CONFIG_MODE()
 				Return (0x00)
@@ -248,10 +239,10 @@ Device (LPT)
 		CreateByteField (Arg0, 0x03, IOHI)
 		CreateWordField (Arg0, 0x09, IRQW)
 		ENTER_CONFIG_MODE(W83977TF_PP)
-		Store (IOLO, PNP_IO0_LOW_BYTE)
-		Store (IOHI, PNP_IO0_HIGH_BYTE)
-		Subtract (FindSetLeftBit (IRQW), 1, PNP_IRQ0)
-		Store (One, PNP_DEVICE_ACTIVE)
+		PNP_IO0_LOW_BYTE = IOLO
+		PNP_IO0_HIGH_BYTE = IOHI
+		PNP_IRQ0 = FindSetLeftBit (IRQW) - 1
+		PNP_DEVICE_ACTIVE = 1
 		EXIT_CONFIG_MODE()
 	}
 }
@@ -263,10 +254,10 @@ Device (ECP)
 	Method (_STA, 0, NotSerialized)
 	{
 		ENTER_CONFIG_MODE(W83977TF_PP)
-		And (OPT1, 0x02, Local0)
-		If (LOr (IO0H, IO0L))
+		Local0 = OPT1 & 0x02
+		If (IO0H || IO0L)
 		{
-			If (LEqual (Local0, 0x02))
+			If (Local0 == 0x02)
 			{
 				If (PNP_DEVICE_ACTIVE)
 				{
@@ -314,7 +305,7 @@ Device (ECP)
 		Return (BUF6)
 	}
 
-	Name (_PRS, ResourceTemplate ()  // _PRS: Possible Resource Settings
+	Name (_PRS, ResourceTemplate () // _PRS: Possible Resource Settings
 	{
 		StartDependentFn (0x01, 0x01)
 		{
@@ -340,7 +331,7 @@ Device (ECP)
 		EndDependentFn ()
 	})
 
-	Method (_SRS, 1, NotSerialized)  // _SRS: Set Resource Settings
+	Method (_SRS, 1, NotSerialized) // _SRS: Set Resource Settings
 	{
 		CreateByteField (Arg0, 0x02, IOLO)
 		CreateByteField (Arg0, 0x03, IOHI)
@@ -348,11 +339,11 @@ Device (ECP)
 		CreateByteField (Arg0, 0x15, DMAC)
 
 		ENTER_CONFIG_MODE(W83977TF_PP)
-		Store (IOLO, PNP_IO0_LOW_BYTE)
-		Store (IOHI, PNP_IO0_HIGH_BYTE)
-		Subtract (FindSetLeftBit (IRQW), 1, PNP_IRQ0)
-		Subtract (FindSetLeftBit (DMAC), 1, PNP_DMA0)
-		Store (One, PNP_DEVICE_ACTIVE)
+		PNP_IO0_LOW_BYTE = IOLO
+		PNP_IO0_HIGH_BYTE = IOHI
+		PNP_IRQ0 = FindSetLeftBit (IRQW) - 1
+		PNP_DMA0 = FindSetLeftBit (DMAC) - 1
+		PNP_DEVICE_ACTIVE = 1
 		EXIT_CONFIG_MODE()
 	}
 }
@@ -365,12 +356,16 @@ Device (ECP)
 	#define SUPERIO_UART_LDN W83977TF_SP1
 	#define SUPERIO_UART_PM_REG UAPW
 	#include <superio/acpi/pnp_uart.asl>
+	#undef SUPERIO_UART_LDN
+	#undef SUPERIO_UART_PM_REG
 #endif
 
 #ifdef SUPERIO_SHOW_UARTB
 	#define SUPERIO_UART_LDN W83977TF_SP2
 	#define SUPERIO_UART_PM_REG UBPW
 	#include <superio/acpi/pnp_uart.asl>
+	#undef SUPERIO_UART_LDN
+	#undef SUPERIO_UART_PM_REG
 #endif
 
 /*
@@ -380,5 +375,5 @@ Device (ECP)
  */
 
 #define SUPERIO_KBC_LDN W83977TF_KBC
-#define SUPERIO_KBC_PS2M  /* Mouse shares same LDN */
+#define SUPERIO_KBC_PS2M /* Mouse shares same LDN */
 #include <superio/acpi/pnp_kbc.asl>

@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreinfo project.
- *
- * Copyright (C) 2008 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include "coreinfo.h"
 #include <coreboot_tables.h>
@@ -37,7 +24,7 @@ static struct {
 
 static int tables_good = 0;
 
-int coreboot_module_redraw(WINDOW *win)
+static int coreboot_module_redraw(WINDOW *win)
 {
 	int row = 2;
 	int i;
@@ -195,7 +182,7 @@ static int parse_header(void *addr, int len)
 	/* Now, walk the tables. */
 	ptr += header->header_bytes;
 
-	for (i = 0; i < header->table_entries; i++) {
+	for (u32 j = 0; j < header->table_entries; j++) {
 		struct cb_record *rec = (struct cb_record *)ptr;
 
 		switch (rec->tag) {

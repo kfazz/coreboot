@@ -1,25 +1,11 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/i2c_simple.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 #include "ps8625.h"
 
-void parade_ps8625_bridge_setup(unsigned bus, unsigned chip_base,
+void parade_ps8625_bridge_setup(unsigned int bus, unsigned int chip_base,
 				const struct parade_write *parade_writes,
 				int parade_write_count)
 {

@@ -1,17 +1,5 @@
-/*
- * CBFS Image Manipulation
- *
- * Copyright (C) 2013 The Chromium OS Authors. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* CBFS Image Manipulation */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __CBFS_IMAGE_H
 #define __CBFS_IMAGE_H
@@ -54,7 +42,7 @@ int cbfs_image_create(struct cbfs_image *image, size_t entries_size);
 /* Creates an empty CBFS image by given size, and description to its content
  * (bootblock, align, header location, starting offset of CBFS entries).
  * The output image will contain a valid cbfs_header, with one cbfs_file
- * entry with type CBFS_COMPONENT_NULL, with max available size.
+ * entry with type CBFS_TYPE_NULL, with max available size.
  * Only call this if you want a legacy CBFS with a master header.
  * Returns 0 on success, otherwise nonzero. */
 int cbfs_legacy_image_create(struct cbfs_image *image,
@@ -106,7 +94,8 @@ int cbfs_export_entry(struct cbfs_image *image, const char *entry_name,
  * Never pass this function a top-aligned address: convert it to an offset.
  * Returns 0 on success, otherwise non-zero. */
 int cbfs_add_entry(struct cbfs_image *image, struct buffer *buffer,
-		   uint32_t content_offset, struct cbfs_file *header);
+		   uint32_t content_offset, struct cbfs_file *header,
+		   const size_t len_align);
 
 /* Removes an entry from CBFS image. Returns 0 on success, otherwise non-zero. */
 int cbfs_remove_entry(struct cbfs_image *image, const char *name);
@@ -128,16 +117,18 @@ int cbfs_create_empty_entry(struct cbfs_file *entry, int type,
 int32_t cbfs_locate_entry(struct cbfs_image *image, size_t size,
 			  size_t page_size, size_t align, size_t metadata_size);
 
-/* Callback function used by cbfs_walk.
+/* Callback function used by cbfs_legacy_walk.
  * Returns 0 on success, or non-zero to stop further iteration. */
 typedef int (*cbfs_entry_callback)(struct cbfs_image *image,
 				   struct cbfs_file *file,
 				   void *arg);
 
 /* Iterates through all entries in CBFS image, and invoke with callback.
- * Stops if callback returns non-zero values.
+ * Stops if callback returns non-zero values. Unlike the commonlib cbfs_walk(),
+ * this can deal with different alignments in legacy CBFS (with master header).
  * Returns number of entries invoked. */
-int cbfs_walk(struct cbfs_image *image, cbfs_entry_callback callback, void *arg);
+int cbfs_legacy_walk(struct cbfs_image *image, cbfs_entry_callback callback,
+		     void *arg);
 
 /* Primitive CBFS utilities */
 
@@ -171,8 +162,8 @@ int cbfs_is_legacy_cbfs(struct cbfs_image *image);
 int cbfs_is_valid_entry(struct cbfs_image *image, struct cbfs_file *entry);
 
 /* Print CBFS component information. */
-int cbfs_print_directory(struct cbfs_image *image);
-int cbfs_print_parseable_directory(struct cbfs_image *image);
+void cbfs_print_directory(struct cbfs_image *image);
+void cbfs_print_parseable_directory(struct cbfs_image *image);
 int cbfs_print_header_info(struct cbfs_image *image);
 int cbfs_print_entry_info(struct cbfs_image *image, struct cbfs_file *entry,
 			  void *arg);

@@ -1,15 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef DEVICE_PCI_TYPE_H
 #define DEVICE_PCI_TYPE_H
@@ -27,7 +16,8 @@ typedef u32 pci_devfn_t;
 	(((DEV) & 0x1F) << 15) | \
 	(((FN)  & 0x07) << 12))
 
-#define PCI_DEV_INVALID (0xffffffffU)
+#define PCI_DEV_INVALID   (0xffffffffU)
+#define PCI_DEVFN_INVALID (0xffffffffU)
 
 #if 1
 /* FIXME: For most of the time in ramstage, we get valid device pointer

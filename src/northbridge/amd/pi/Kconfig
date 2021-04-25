@@ -1,23 +1,9 @@
-#
-# This file is part of the coreboot project.
-#
-# Copyright (C) 2011 - 2016 Advanced Micro Devices, Inc.
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
+# SPDX-License-Identifier: GPL-2.0-only
 
 config NORTHBRIDGE_AMD_PI
 	bool
 	default y if CPU_AMD_PI
 	default n
-	select CBMEM_TOP_BACKUP
 
 if NORTHBRIDGE_AMD_PI
 
@@ -41,9 +27,8 @@ config S3_VGA_ROM_RUN
 	bool
 	default n
 
-source src/northbridge/amd/pi/00630F01/Kconfig
-source src/northbridge/amd/pi/00730F01/Kconfig
-source src/northbridge/amd/pi/00660F01/Kconfig
+source "src/northbridge/amd/pi/00630F01/Kconfig"
+source "src/northbridge/amd/pi/00730F01/Kconfig"
 
 config HW_MEM_HOLE_SIZEK
 	hex
@@ -52,5 +37,9 @@ config HW_MEM_HOLE_SIZEK
 config HEAP_SIZE
 	hex
 	default 0xc0000
+
+config NUM_OF_IOAPICS
+	int
+	default 3
 
 endif # NORTHBRIDGE_AMD_PI

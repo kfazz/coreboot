@@ -19,6 +19,9 @@ enum device_path_type {
 	DEVICE_PATH_SPI,
 	DEVICE_PATH_USB,
 	DEVICE_PATH_MMIO,
+	DEVICE_PATH_ESPI,
+	DEVICE_PATH_LPC,
+	DEVICE_PATH_GPIO,
 
 	/*
 	 * When adding path types to this table, please also update the
@@ -42,6 +45,9 @@ enum device_path_type {
 		"DEVICE_PATH_SPI",		\
 		"DEVICE_PATH_USB",		\
 		"DEVICE_PATH_MMIO",		\
+		"DEVICE_PATH_ESPI",		\
+		"DEVICE_PATH_LPC",		\
+		"DEVICE_PATH_GPIO",		\
 }
 
 struct domain_path {
@@ -104,6 +110,18 @@ struct mmio_path {
 	uintptr_t addr;
 };
 
+struct espi_path {
+	uintptr_t addr;
+};
+
+struct lpc_path {
+	uintptr_t addr;
+};
+
+struct gpio_path {
+	unsigned int id;
+};
+
 struct device_path {
 	enum device_path_type type;
 	union {
@@ -120,11 +138,13 @@ struct device_path {
 		struct spi_path		spi;
 		struct usb_path		usb;
 		struct mmio_path	mmio;
+		struct espi_path	espi;
+		struct lpc_path		lpc;
+		struct gpio_path	gpio;
 	};
 };
 
-
-#define DEVICE_PATH_MAX 30
+#define DEVICE_PATH_MAX 40
 #define BUS_PATH_MAX (DEVICE_PATH_MAX+10)
 
 extern const char *dev_path_name(enum device_path_type type);

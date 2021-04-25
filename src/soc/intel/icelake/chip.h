@@ -1,23 +1,11 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _SOC_CHIP_H_
 #define _SOC_CHIP_H_
 
-#include <intelblocks/chip.h>
+#include <intelblocks/cfg.h>
 #include <drivers/i2c/designware/dw_i2c.h>
+#include <intelblocks/gpio.h>
 #include <intelblocks/gspi.h>
 #include <stdint.h>
 #include <soc/gpe.h>
@@ -33,12 +21,6 @@ struct soc_intel_icelake_config {
 
 	/* Common struct containing soc config data required by common code */
 	struct soc_intel_common_config common_soc_config;
-
-	/* GPE configuration */
-	uint32_t gpe0_en_1; /* GPE0_EN_31_0 */
-	uint32_t gpe0_en_2; /* GPE0_EN_63_32 */
-	uint32_t gpe0_en_3; /* GPE0_EN_95_64 */
-	uint32_t gpe0_en_4; /* GPE0_EN_127_96 / GPE_STD */
 
 	/* Gpio group routed to each dword of the GPE0 block. Values are
 	 * of the form GPP_[A:G] or GPD. */
@@ -72,24 +54,6 @@ struct soc_intel_icelake_config {
 	/* TCC activation offset */
 	uint32_t tcc_offset;
 
-	uint64_t PlatformMemorySize;
-	uint8_t SmramMask;
-	uint8_t MrcFastBoot;
-	uint32_t TsegSize;
-	uint16_t MmioSize;
-
-	/* DDR Frequency Limit. Maximum Memory Frequency Selections in Mhz.
-	 * Options : 1067, 1333, 1600, 1867, 2133, 2400, 2667, 2933, 0(Auto) */
-	uint16_t DdrFreqLimit;
-
-	/* SAGV Low Frequency Selections in Mhz.
-	 * Options : 1067, 1333, 1600, 1867, 2133, 2400, 2667, 2933, 0(Auto) */
-	uint16_t FreqSaGvLow;
-
-	/* SAGV Mid Frequency Selections in Mhz.
-	 * Options : 1067, 1333, 1600, 1867, 2133, 2400, 2667, 2933, 0(Auto) */
-	uint16_t FreqSaGvMid;
-
 	/* System Agent dynamic frequency support. Only effects ULX/ULT CPUs.
 	 * When enabled memory will be training at two different frequencies.
 	 * 0:Disabled, 1:FixedLow, 2:FixedMid, 3:FixedHigh, 4:Enabled */
@@ -101,14 +65,12 @@ struct soc_intel_icelake_config {
 		SaGv_Enabled,
 	} SaGv;
 
-
 	/* Rank Margin Tool. 1:Enable, 0:Disable */
 	uint8_t RMT;
 
 	/* USB related */
 	struct usb2_port_config usb2_ports[16];
 	struct usb3_port_config usb3_ports[10];
-	uint8_t SsicPortEnable;
 	/* Wake Enable Bitmap for USB2 ports */
 	uint16_t usb2_wake_enable_bitmap;
 	/* Wake Enable Bitmap for USB3 ports */
@@ -139,7 +101,7 @@ struct soc_intel_icelake_config {
 
 	/* PCIe Root Ports */
 	uint8_t PcieRpEnable[CONFIG_MAX_ROOT_PORTS];
-	/* PCIe output clocks type to Pcie devices.
+	/* PCIe output clocks type to PCIe devices.
 	 * 0-23: PCH rootport, 0x70: LAN, 0x80: unspecified but in use,
 	 * 0xFF: not used */
 	uint8_t PcieClkSrcUsage[CONFIG_MAX_ROOT_PORTS];
@@ -164,65 +126,26 @@ struct soc_intel_icelake_config {
 	/* Enable if SD Card Power Enable Signal is Active High */
 	uint8_t SdCardPowerEnableActiveHigh;
 
-	/* Integrated Sensor */
-	uint8_t PchIshEnable;
-
 	/* Heci related */
 	uint8_t Heci3Enabled;
 
 	/* Gfx related */
-	uint8_t IgdDvmt50PreAlloc;
-	uint8_t InternalGfx;
 	uint8_t SkipExtGfxScan;
 
-	uint32_t GraphicsConfigPtr;
 	uint8_t Device4Enable;
-
-	/* GPIO IRQ Select. The valid value is 14 or 15 */
-	uint8_t GpioIrqRoute;
-	/* SCI IRQ Select. The valid value is 9, 10, 11, 20, 21, 22, 23 */
-	uint8_t SciIrqSelect;
-	/* TCO IRQ Select. The valid value is 9, 10, 11, 20, 21, 22, 23 */
-	uint8_t TcoIrqSelect;
-	uint8_t TcoIrqEnable;
 
 	/* HeciEnabled decides the state of Heci1 at end of boot
 	 * Setting to 0 (default) disables Heci1 and hides the device from OS */
 	uint8_t HeciEnabled;
-	/* PL2 Override value in Watts */
-	uint32_t tdp_pl2_override;
-	/* Intel Speed Shift Technology */
-	uint8_t speed_shift_enable;
-	/* Enable VR specific mailbox command
-	 * 00b - no VR specific cmd sent
-	 * 01b - VR mailbox cmd specifically for the MPS IMPV8 VR will be sent
-	 * 10b - VR specific cmd sent for PS4 exit issue
-	 * 11b - Reserved */
-	uint8_t SendVrMbxCmd;
 
 	/* Enable/Disable EIST. 1b:Enabled, 0b:Disabled */
 	uint8_t eist_enable;
 
-	/* Statically clock gate 8254 PIT. */
-	uint8_t clock_gate_8254;
 	/* Enable C6 DRAM */
 	uint8_t enable_c6dram;
-	/*
-	 * PRMRR size setting with below options
-	 * 0x00100000 - 1MiB
-	 * 0x02000000 - 32MiB and beyond
-	 */
-	uint32_t PrmrrSize;
+
 	uint8_t PmTimerDisabled;
-	/* Desired platform debug type. */
-	enum {
-		DebugConsent_Disabled,
-		DebugConsent_DCI_DBC,
-		DebugConsent_DCI,
-		DebugConsent_USB3_DBC,
-		DebugConsent_XDP, /* XDP/Mipi60 */
-		DebugConsent_USB2_DBC,
-	} DebugConsent;
+
 	/*
 	 * SerialIO device mode selection:
 	 * PchSerialIoDisabled,
@@ -253,16 +176,27 @@ struct soc_intel_icelake_config {
 	/* Enable Pch iSCLK */
 	uint8_t pch_isclk;
 
-	/* Intel VT configuration */
-	uint8_t VtdDisable;
-	uint8_t VmxEnable;
-
 	/* CNVi BT Audio Offload: Enable/Disable BT Audio Offload. */
-	enum {
-		PLATFORM_POR,
-		FORCE_ENABLE,
-		FORCE_DISABLE,
-	} CnviBtAudioOffload;
+	bool CnviBtAudioOffload;
+
+	/*
+	 * Override GPIO PM configuration:
+	 * 0: Use FSP default GPIO PM program,
+	 * 1: coreboot to override GPIO PM program
+	 */
+	uint8_t gpio_override_pm;
+
+	/*
+	 * GPIO PM configuration: 0 to disable, 1 to enable power gating
+	 * Bit 6-7: Reserved
+	 * Bit 5: MISCCFG_GPSIDEDPCGEN
+	 * Bit 4: MISCCFG_GPRCOMPCDLCGEN
+	 * Bit 3: MISCCFG_GPRTCDLCGEN
+	 * Bit 2: MISCCFG_GSXLCGEN
+	 * Bit 1: MISCCFG_GPDPCGEN
+	 * Bit 0: MISCCFG_GPDLCGEN
+	 */
+	uint8_t gpio_pm[TOTAL_GPIO_COMM];
 };
 
 typedef struct soc_intel_icelake_config config_t;

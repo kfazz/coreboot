@@ -1,20 +1,5 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- * Copyright (C) 2015-2016 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/early_variables.h>
 #include <cbfs.h>
 #include <console/console.h>
 #include <fsp/util.h>
@@ -64,29 +49,16 @@ void disable_rom_shadow(void)
 
 void *locate_rmu_file(size_t *rmu_file_len)
 {
-	struct cbfsf fh;
 	size_t fsize;
 	void *rmu_data;
-	uint32_t type;
 
 	/* Locate the rmu.bin file in the read-only region of the flash */
-	type = CBFS_TYPE_RAW;
-	if (cbfs_locate_file_in_region(&fh, "COREBOOT", "rmu.bin", &type))
+	rmu_data = cbfs_ro_map("rmu.bin", &fsize);
+	if (!rmu_data)
 		return NULL;
 
-	/* Get the file size */
-	fsize = region_device_sz(&fh.data);
 	if (rmu_file_len != NULL)
 		*rmu_file_len = fsize;
 
-	/* Get the data address */
-	rmu_data = rdev_mmap(&fh.data, 0, fsize);
-
-	/* Since the SPI flash is directly mapped into memory, we do not need
-	 * the mapping provided by the rdev service.  Unmap the file to prevent
-	 * a memory leak.  Return/leak the SPI flash address for the rmu.bin
-	 * file data which will be directly accessed by FSP MemoryInit.
-	 */
-	rdev_munmap(&fh.data, rmu_data);
 	return rmu_data;
 }

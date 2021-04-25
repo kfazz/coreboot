@@ -1,21 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Siemens AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include "rx6110sa.h"
 
 struct drivers_i2c_rx6110sa_config {
+	unsigned int bus_speed;		/* Bus clock in Hz (default 400 kHz)*/
 	/* The day (of the week) is indicated by 7 bits, bit 0 to bit 6. */
 	unsigned char user_weekday;	/* User day of the week to set */
 	unsigned char user_day;		/* User day to set */

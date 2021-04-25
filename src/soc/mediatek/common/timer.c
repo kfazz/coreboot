@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <timer.h>
@@ -48,8 +35,8 @@ void init_timer(void)
 	timer_prepare();
 
 	/* Disable timer and clear the counter */
-	clrbits_le32(&mtk_gpt->gpt6_con, GPT_CON_EN);
-	setbits_le32(&mtk_gpt->gpt6_con, GPT_CON_CLR);
+	clrbits32(&mtk_gpt->gpt6_con, GPT_CON_EN);
+	setbits32(&mtk_gpt->gpt6_con, GPT_CON_CLR);
 
 	/* Set clock source to system clock and set clock divider to 1 */
 	write32(&mtk_gpt->gpt6_clk, GPT_SYS_CLK | GPT_CLK_DIV1);

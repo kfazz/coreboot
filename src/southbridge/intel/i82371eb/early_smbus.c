@@ -1,29 +1,25 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007 Uwe Hermann <uwe@hermann-uwe.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <stdint.h>
-#include <arch/io.h>
 #include <device/pci_ops.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
 #include <device/pci_def.h>
-#include <southbridge/intel/common/smbus.h>
+#include <device/smbus_host.h>
 #include "i82371eb.h"
 
-void enable_smbus(void)
+void i82371eb_early_init(void)
+{
+	enable_smbus();
+	enable_pm();
+}
+
+uintptr_t smbus_base(void)
+{
+	return SMBUS_IO_BASE;
+}
+
+int smbus_enable_iobar(uintptr_t base)
 {
 	pci_devfn_t dev;
 	u8 reg8;
@@ -34,7 +30,7 @@ void enable_smbus(void)
 				PCI_DEVICE_ID_INTEL_82371AB_SMB_ACPI), 0);
 
 	/* Set the SMBus I/O base. */
-	pci_write_config32(dev, SMBBA, SMBUS_IO_BASE | 1);
+	pci_write_config32(dev, SMBBA, base | 1);
 
 	/* Enable the SMBus controller host interface. */
 	reg8 = pci_read_config8(dev, SMBHSTCFG);
@@ -46,11 +42,5 @@ void enable_smbus(void)
 	reg16 |= PCI_COMMAND_IO;
 	pci_write_config16(dev, PCI_COMMAND, reg16);
 
-	/* Clear any lingering errors, so the transaction will run. */
-	outb(inb(SMBUS_IO_BASE + SMBHSTSTAT), SMBUS_IO_BASE + SMBHSTSTAT);
-}
-
-int smbus_read_byte(u8 device, u8 address)
-{
-	return do_smbus_read_byte(SMBUS_IO_BASE, device, address);
+	return 0;
 }

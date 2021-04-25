@@ -1,20 +1,4 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2010-2016 Advanced Micro Devices, Inc.
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
-
-config SOUTHBRIDGE_AMD_PI_BOLTON
-	bool
+# SPDX-License-Identifier: GPL-2.0-only
 
 config SOUTHBRIDGE_AMD_PI_AVALON
 	bool
@@ -22,18 +6,18 @@ config SOUTHBRIDGE_AMD_PI_AVALON
 config SOUTHBRIDGE_AMD_PI_KERN
 	bool
 
-if SOUTHBRIDGE_AMD_PI_AVALON || SOUTHBRIDGE_AMD_PI_BOLTON || SOUTHBRIDGE_AMD_PI_KERN
+if SOUTHBRIDGE_AMD_PI_AVALON || SOUTHBRIDGE_AMD_PI_KERN
 
-config SOUTHBRIDGE_SPECIFIC_OPTIONS # dummy
+config SOUTHBRIDGE_SPECIFIC_OPTIONS
 	def_bool y
 	select IOAPIC
 	select HAVE_USBDEBUG_OPTIONS
 	select HAVE_CF9_RESET
 	select HAVE_CF9_RESET_PREPARE
-
-config BOOTBLOCK_SOUTHBRIDGE_INIT
-	string
-	default "southbridge/amd/pi/hudson/bootblock.c"
+	select SOC_AMD_COMMON
+	select SOC_AMD_COMMON_BLOCK_ACPIMMIO
+	select SOC_AMD_COMMON_BLOCK_BANKED_GPIOS
+	select SOC_AMD_COMMON_BLOCK_PCI_MMCONF
 
 config EHCI_BAR
 	hex
@@ -75,19 +59,21 @@ config HUDSON_GEC_FWM
 
 config HUDSON_PSP
 	bool
-	default y if CPU_AMD_PI_00730F01 || CPU_AMD_PI_00660F01
+	default y if CPU_AMD_PI_00730F01
+
+config AMDFW_CONFIG_FILE
+	string "AMD PSP Firmware config file"
+	default "src/southbridge/amd/pi/hudson/fw_avl.cfg" if CPU_AMD_PI_00730F01
 
 config HUDSON_XHCI_FWM_FILE
 	string "XHCI firmware path and filename"
 	default "3rdparty/blobs/southbridge/amd/avalon/xhci.bin" if SOUTHBRIDGE_AMD_PI_AVALON
-	default "3rdparty/blobs/southbridge/amd/bolton/xhci.bin" if SOUTHBRIDGE_AMD_PI_BOLTON
 	default "3rdparty/blobs/southbridge/amd/kern/xhci.bin" if SOUTHBRIDGE_AMD_PI_KERN
 	depends on HUDSON_XHCI_FWM
 
 config HUDSON_IMC_FWM_FILE
 	string "IMC firmware path and filename"
 	default "3rdparty/blobs/southbridge/amd/avalon/imc.bin" if SOUTHBRIDGE_AMD_PI_AVALON
-	default "3rdparty/blobs/southbridge/amd/bolton/imc.bin" if SOUTHBRIDGE_AMD_PI_BOLTON
 	default "3rdparty/blobs/southbridge/amd/kern/imc.bin" if SOUTHBRIDGE_AMD_PI_KERN
 	depends on HUDSON_IMC_FWM
 
@@ -99,11 +85,10 @@ config AMD_PUBKEY_FILE
 	depends on HUDSON_PSP
 	string "AMD public Key"
 	default "3rdparty/blobs/southbridge/amd/avalon/PSP/AmdPubKey.bin" if CPU_AMD_PI_00730F01
-	default "3rdparty/blobs/southbridge/amd/kern/PSP/AmdPubKeyCZ.bin" if CPU_AMD_PI_00660F01
 
 config HUDSON_SATA_MODE
 	int "SATA Mode"
-	default 0
+	default 2
 	range 0 6
 	help
 	  Select the mode in which SATA should be driven. NATIVE AHCI, or RAID.

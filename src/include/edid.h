@@ -1,22 +1,11 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef EDID_H
 #define EDID_H
 
 #include <stdint.h>
+#include <framebuffer_info.h>
+#include "commonlib/coreboot_tables.h"
 
 enum edid_modes {
 	EDID_MODE_640x480_60Hz,
@@ -52,7 +41,7 @@ struct edid_mode {
 /* structure for communicating EDID information from a raw EDID block to
  * higher level functions.
  * The size of the data types is not critical, so we leave them as
- * unsigned int. We can move more into into this struct as needed.
+ * unsigned int. We can move more into this struct as needed.
  */
 
 #define EDID_ASCII_STRING_LENGTH 13
@@ -94,6 +83,7 @@ struct edid {
 
 	int hdmi_monitor_detected;
 	char ascii_string[EDID_ASCII_STRING_LENGTH + 1];
+	char manufacturer_name[3 + 1];
 };
 
 enum edid_status {
@@ -106,7 +96,6 @@ enum edid_status {
 int decode_edid(unsigned char *edid, int size, struct edid *out);
 void edid_set_framebuffer_bits_per_pixel(struct edid *edid, int fb_bpp,
 					 int row_byte_alignment);
-void set_vbe_mode_info_valid(const struct edid *edid, uintptr_t fb_addr);
 int set_display_mode(struct edid *edid, enum edid_modes mode);
 
 #endif /* EDID_H */

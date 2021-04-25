@@ -1,19 +1,5 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2016 Rockchip Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/cache.h>
 #include <arch/mmu.h>
 #include <device/mmio.h>
 #include <console/console.h>
@@ -21,8 +7,7 @@
 #include <delay.h>
 #include <edid.h>
 #include <gpio.h>
-#include <stdlib.h>
-#include <stddef.h>
+#include <stdint.h>
 #include <soc/addressmap.h>
 #include <soc/clock.h>
 #include <soc/display.h>
@@ -33,6 +18,7 @@
 #include <soc/mipi.h>
 #include <soc/soc.h>
 #include <soc/vop.h>
+#include <framebuffer_info.h>
 
 #include "chip.h"
 
@@ -175,7 +161,7 @@ retry_edp:
 		break;
 	}
 	mainboard_power_on_backlight();
-	set_vbe_mode_info_valid(&edid, (uintptr_t)0);
+	fb_new_framebuffer_info_from_edid(&edid, (uintptr_t)0);
 
 	return;
 }

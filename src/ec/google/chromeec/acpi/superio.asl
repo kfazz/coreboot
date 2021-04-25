@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 The ChromiumOS Authors.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /*
  * Chrome OS Embedded Controller interface
@@ -40,7 +27,6 @@ Device (SIO) {
 	Device (ECMM) {
 		Name (_HID, EISAID ("PNP0C02"))
 		Name (_UID, 4)
-		Name (_ADR, 0)
 
 		Method (_STA, 0, NotSerialized) {
 			Return (0x0F)
@@ -64,7 +50,6 @@ Device (SIO) {
 	Device (ECUI) {
 		Name (_HID, EISAID ("PNP0C02"))
 		Name (_UID, 3)
-		Name (_ADR, 0)
 
 		Method (_STA, 0, NotSerialized) {
 			Return (0x0F)
@@ -109,7 +94,6 @@ Device (SIO) {
 	Device (COM1) {
 		Name (_HID, EISAID ("PNP0501"))
 		Name (_UID, 1)
-		Name (_ADR, 0)
 
 		Method (_STA, 0, NotSerialized) {
 			Return (0x0F)
@@ -134,31 +118,20 @@ Device (SIO) {
 }
 
 #ifdef SIO_EC_ENABLE_PS2K
-Device (PS2K)		// Keyboard
+Scope (\_SB.PCI0)
 {
-	Name (_UID, 0)
-	Name (_ADR, 0)
-	Name (_HID, "GOOG000A")
-	Name (_CID, Package() { EISAID("PNP0303"), EISAID("PNP030B") } )
-
-	Method (_STA, 0, NotSerialized) {
-		Return (0x0F)
-	}
-
-	Name (_CRS, ResourceTemplate()
+	Device (PS2K)		// Keyboard
 	{
-		IO (Decode16, 0x60, 0x60, 0x01, 0x01)
-		IO (Decode16, 0x64, 0x64, 0x01, 0x01)
-#ifdef SIO_EC_PS2K_IRQ
-		SIO_EC_PS2K_IRQ
-#else
-		IRQ (Edge, ActiveHigh, Exclusive) {1}
-#endif
-	})
+		Name (_UID, 0)
+		Name (_HID, "GOOG000A")
+		Name (_CID, Package() { EISAID("PNP0303"), EISAID("PNP030B") } )
 
-	Name (_PRS, ResourceTemplate()
-	{
-		StartDependentFn (0, 0) {
+		Method (_STA, 0, NotSerialized) {
+			Return (0x0F)
+		}
+
+		Name (_CRS, ResourceTemplate()
+		{
 			IO (Decode16, 0x60, 0x60, 0x01, 0x01)
 			IO (Decode16, 0x64, 0x64, 0x01, 0x01)
 #ifdef SIO_EC_PS2K_IRQ
@@ -166,8 +139,48 @@ Device (PS2K)		// Keyboard
 #else
 			IRQ (Edge, ActiveHigh, Exclusive) {1}
 #endif
+		})
+
+		Name (_PRS, ResourceTemplate()
+		{
+			StartDependentFn (0, 0) {
+				IO (Decode16, 0x60, 0x60, 0x01, 0x01)
+				IO (Decode16, 0x64, 0x64, 0x01, 0x01)
+#ifdef SIO_EC_PS2K_IRQ
+				SIO_EC_PS2K_IRQ
+#else
+				IRQ (Edge, ActiveHigh, Exclusive) {1}
+#endif
+			}
+			EndDependentFn ()
+		})
+	}
+}
+#endif
+
+#ifdef SIO_EC_ENABLE_PS2M
+Scope (\_SB.PCI0)
+{
+	Device (PS2M)		// Mouse
+	{
+		Name (_UID, 0)
+		Name (_HID, "GOOG0015")
+		Name (_CID, Package() { EISAID("PNP0F13") } )
+
+		Method (_STA, 0, NotSerialized) {
+			Return (0x0F)
 		}
-		EndDependentFn ()
-	})
+
+		Name (_CRS, ResourceTemplate()
+		{
+			IO (Decode16, 0x60, 0x60, 0x01, 0x01)
+			IO (Decode16, 0x64, 0x64, 0x01, 0x01)
+#ifdef SIO_EC_PS2M_IRQ
+			SIO_EC_PS2M_IRQ
+#else
+			IRQ (Edge, ActiveHigh, Exclusive) {12}
+#endif
+		})
+	}
 }
 #endif

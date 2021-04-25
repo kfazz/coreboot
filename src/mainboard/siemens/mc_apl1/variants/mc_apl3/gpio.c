@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2016 Google Inc.
- * Copyright (C) 2017-2018 Siemens AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <commonlib/helpers.h>
 #include <baseboard/variants.h>
@@ -49,7 +35,7 @@ static const struct pad_config gpio_table[] = {
 	PAD_CFG_GPI(GPIO_166, DN_20K, DEEP),		/* SDIO_CLK */
 	PAD_CFG_GPI(GPIO_167, UP_20K, DEEP),		/* SDIO_D0 */
 	/* Configure SDIO to enable power gating. */
-	PAD_CFG_GPI(GPIO_168, UP_20K, DEEP),		/* SDIO_D1 */
+	PAD_CFG_NF(GPIO_168, UP_20K, DEEP, NF1),	/* SDIO_D1 */
 	PAD_CFG_GPI(GPIO_169, UP_20K, DEEP),		/* SDIO_D2 */
 	PAD_CFG_GPI(GPIO_170, UP_20K, DEEP),		/* SDIO_D3 */
 	PAD_CFG_GPI(GPIO_171, UP_20K, DEEP),		/* SDIO_CMD */
@@ -325,8 +311,9 @@ static const struct pad_config gpio_table[] = {
 	PAD_CFG_GPI(GPIO_39, DN_20K, DEEP),	/* LPSS_UART0_TXD - unused */
 	PAD_CFG_GPI(GPIO_40, DN_20K, DEEP),	/* LPSS_UART0_RTS - unused */
 	PAD_CFG_GPI(GPIO_41, UP_20K, DEEP),	/* LPSS_UART0_CTS - unused */
-	PAD_CFG_GPI(GPIO_42, UP_20K, DEEP),	/* LPSS_UART1_RXD - unused */
-	PAD_CFG_GPI(GPIO_43, DN_20K, DEEP),	/* LPSS_UART1_TXD - unused */
+	PAD_CFG_NF(GPIO_42, UP_20K, DEEP, NF1), /* LPSS_UART1_RXD */
+	/* LPSS_UART1_TXD */
+	PAD_CFG_NF_IOSSTATE(GPIO_43, NATIVE, DEEP, NF1, Tx1RxDCRx0),
 	PAD_CFG_GPI(GPIO_44, UP_20K, DEEP),	/* LPSS_UART1_RTS - unused */
 	PAD_CFG_GPI(GPIO_45, UP_20K, DEEP),	/* LPSS_UART1_CTS - unused */
 	PAD_CFG_NF(GPIO_46, UP_20K, DEEP, NF1),	/* LPSS_UART2_RXD */
@@ -362,7 +349,7 @@ static const struct pad_config gpio_table[] = {
 	PAD_CFG_NF(SVID0_CLK, UP_20K, DEEP, NF1),	/* SVID0_CLK */
 };
 
-const struct pad_config *__weak variant_gpio_table(size_t *num)
+const struct pad_config *variant_gpio_table(size_t *num)
 {
 	*num = ARRAY_SIZE(gpio_table);
 	return gpio_table;
@@ -405,8 +392,7 @@ static const struct pad_config early_gpio_table[] = {
 	PAD_CFG_NF(LPC_FRAMEB, NONE, DEEP, NF1),	/* LPC_FRAME_N */
 };
 
-const struct pad_config *__weak
-variant_early_gpio_table(size_t *num)
+const struct pad_config *variant_early_gpio_table(size_t *num)
 {
 	*num = ARRAY_SIZE(early_gpio_table);
 	return early_gpio_table;

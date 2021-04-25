@@ -1,20 +1,4 @@
-################################################################################
-##
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2016 Raptor Engineering, LLC
-## Copyright (C) 2014 The ChromiumOS Authors
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
-################################################################################
+## SPDX-License-Identifier: GPL-2.0-only
 
 ppc64_flags = -I$(src)/arch/ppc64/ -mbig-endian -mcpu=power8 -mtune=power8
 
@@ -40,7 +24,7 @@ bootblock-generic-ccopts += $(ppc64_flags)
 $(objcbfs)/bootblock.debug: $$(bootblock-objs)
 	@printf "    LINK       $(subst $(obj)/,,$(@))\n"
 	$(LD_bootblock) $(LDFLAGS_bootblock) -o $@ -L$(obj) \
-		-T $(call src-to-obj,bootblock,src/mainboard/$(MAINBOARDDIR)/memlayout.ld) --whole-archive --start-group $(filter-out %.ld,$(bootblock-objs)) \
+		-T $(call src-to-obj,bootblock,$(CONFIG_MEMLAYOUT_LD_FILE)) --whole-archive --start-group $(filter-out %.ld,$(bootblock-objs)) \
 		$(LIBGCC_FILE_NAME_bootblock) --end-group $(COMPILER_RT_bootblock)
 
 endif
@@ -66,7 +50,7 @@ romstage-$(CONFIG_COLLECT_TIMESTAMPS) += timestamp.c
 
 $(objcbfs)/romstage.debug: $$(romstage-objs)
 	@printf "    LINK       $(subst $(obj)/,,$(@))\n"
-	$(LD_romstage) $(LDFLAGS_romstage) -o $@ -L$(obj) -T $(call src-to-obj,romstage,src/mainboard/$(MAINBOARDDIR)/memlayout.ld) --whole-archive --start-group $(filter-out %.ld,$(romstage-objs)) --end-group $(COMPILER_RT_romstage)
+	$(LD_romstage) $(LDFLAGS_romstage) -o $@ -L$(obj) -T $(call src-to-obj,romstage,$(CONFIG_MEMLAYOUT_LD_FILE)) --whole-archive --start-group $(filter-out %.ld,$(romstage-objs)) --end-group $(COMPILER_RT_romstage)
 
 romstage-c-ccopts += $(ppc64_flags)
 romstage-S-ccopts += $(ppc64_asm_flags)
@@ -80,7 +64,6 @@ ifeq ($(CONFIG_ARCH_RAMSTAGE_PPC64),y)
 
 ramstage-y += rom_media.c
 ramstage-y += stages.c
-ramstage-y += misc.c
 ramstage-y += boot.c
 ramstage-y += tables.c
 ramstage-y += \
@@ -100,7 +83,7 @@ ramstage-srcs += src/mainboard/$(MAINBOARDDIR)/mainboard.c
 
 $(objcbfs)/ramstage.debug: $$(ramstage-objs)
 	@printf "    CC         $(subst $(obj)/,,$(@))\n"
-	$(LD_ramstage) $(LDFLAGS_ramstage) -o $@ -L$(obj) -T $(call src-to-obj,ramstage,src/mainboard/$(MAINBOARDDIR)/memlayout.ld) --whole-archive --start-group $(filter-out %.ld,$(ramstage-objs)) --end-group $(COMPILER_RT_ramstage)
+	$(LD_ramstage) $(LDFLAGS_ramstage) -o $@ -L$(obj) -T $(call src-to-obj,ramstage,$(CONFIG_MEMLAYOUT_LD_FILE)) --whole-archive --start-group $(filter-out %.ld,$(ramstage-objs)) --end-group $(COMPILER_RT_ramstage)
 
 ramstage-c-ccopts += $(ppc64_flags)
 ramstage-S-ccopts += $(ppc64_asm_flags)

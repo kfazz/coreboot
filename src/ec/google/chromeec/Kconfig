@@ -1,5 +1,6 @@
 config EC_GOOGLE_CHROMEEC
 	bool
+	select EC_SUPPORTS_DPTF_TEVT
 	help
 	  Google's Chrome EC
 
@@ -47,9 +48,20 @@ config EC_GOOGLE_CHROMEEC_I2C_PROTO3
 	help
 	  Use only proto3 for i2c EC communication.
 
+config EC_GOOGLE_CHROMEEC_ESPI
+	depends on EC_GOOGLE_CHROMEEC && ARCH_X86  # Needs Plug-and-play.
+	def_bool n
+	select EC_GOOGLE_CHROMEEC_LPC
+	help
+	  Google Chrome EC via eSPI bus.
+
+	  The EC communication code is the same between eSPI and LPC, so
+	  this option simply enables the LPC EC code.  The eSPI device
+	  still needs to correctly configure the bus transactions.
+
 config EC_GOOGLE_CHROMEEC_LPC
 	depends on EC_GOOGLE_CHROMEEC && ARCH_X86  # Needs Plug-and-play.
-	def_bool y
+	def_bool n
 	help
 	  Google Chrome EC via LPC bus.
 
@@ -87,6 +99,11 @@ config EC_GOOGLE_CHROMEEC_SPI_CHIP
 	depends on EC_GOOGLE_CHROMEEC_SPI
 	hex
 	default 0x0
+
+config EC_GOOGLE_CHROMEEC_SKUID
+	def_bool n
+	help
+	  Provides common routine for reporting the skuid to ChromeOS.
 
 config EC_GOOGLE_CHROMEEC_BOARDNAME
 	depends on EC_GOOGLE_CHROMEEC
@@ -179,3 +196,12 @@ config EC_GOOGLE_CHROMEEC_SWITCHES
 	help
 	  Enable support for Chrome OS mode switches provided by the Chrome OS
 	  EC.
+
+config EC_GOOGLE_CHROMEEC_INCLUDE_SSFC_IN_FW_CONFIG
+	depends on FW_CONFIG_SOURCE_CHROMEEC_CBI
+	bool
+	help
+	  Fetch Second Source Factory Cache from CBI EEPROM and add it in the most significant
+	  32 bits of firmware configuration.
+
+source "src/ec/google/chromeec/*/Kconfig"

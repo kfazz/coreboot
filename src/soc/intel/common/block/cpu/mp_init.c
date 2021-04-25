@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <assert.h>
 #include <bootstate.h>
@@ -21,29 +8,18 @@
 #include <cpu/x86/msr.h>
 #include <cpu/x86/mp.h>
 #include <cpu/intel/microcode.h>
-#include <intelblocks/chip.h>
+#include <intelblocks/cfg.h>
 #include <intelblocks/cpulib.h>
 #include <intelblocks/fast_spi.h>
 #include <intelblocks/mp_init.h>
 #include <intelblocks/msr.h>
 #include <soc/cpu.h>
 
-static const void *microcode_patch;
-
-/* SoC override function */
-__weak void soc_core_init(struct device *dev)
-{
-	/* no-op */
-}
-
-__weak void soc_init_cpus(struct bus *cpu_bus)
-{
-	/* no-op */
-}
-
 static void init_one_cpu(struct device *dev)
 {
 	soc_core_init(dev);
+
+	const void *microcode_patch = intel_microcode_find();
 	intel_microcode_load_unlocked(microcode_patch);
 }
 
@@ -70,16 +46,29 @@ static const struct cpu_device_id cpu_table[] = {
 	{ X86_VENDOR_INTEL, CPUID_APOLLOLAKE_E0 },
 	{ X86_VENDOR_INTEL, CPUID_GLK_A0 },
 	{ X86_VENDOR_INTEL, CPUID_GLK_B0 },
+	{ X86_VENDOR_INTEL, CPUID_GLK_R0 },
 	{ X86_VENDOR_INTEL, CPUID_WHISKEYLAKE_V0 },
 	{ X86_VENDOR_INTEL, CPUID_WHISKEYLAKE_W0 },
 	{ X86_VENDOR_INTEL, CPUID_COFFEELAKE_U0 },
-	{ X86_VENDOR_INTEL, CPUID_COFFEELAKE_D0 },
+	{ X86_VENDOR_INTEL, CPUID_COFFEELAKE_B0 },
+	{ X86_VENDOR_INTEL, CPUID_COFFEELAKE_P0 },
+	{ X86_VENDOR_INTEL, CPUID_COFFEELAKE_R0 },
 	{ X86_VENDOR_INTEL, CPUID_ICELAKE_A0 },
 	{ X86_VENDOR_INTEL, CPUID_ICELAKE_B0 },
 	{ X86_VENDOR_INTEL, CPUID_COMETLAKE_U_A0 },
 	{ X86_VENDOR_INTEL, CPUID_COMETLAKE_U_K0_S0 },
-	{ X86_VENDOR_INTEL, CPUID_COMETLAKE_H_S_6_2_P0 },
+	{ X86_VENDOR_INTEL, CPUID_COMETLAKE_H_S_6_2_G0 },
+	{ X86_VENDOR_INTEL, CPUID_COMETLAKE_H_S_6_2_G1 },
 	{ X86_VENDOR_INTEL, CPUID_COMETLAKE_H_S_10_2_P0 },
+	{ X86_VENDOR_INTEL, CPUID_COMETLAKE_H_S_10_2_Q0_P1 },
+	{ X86_VENDOR_INTEL, CPUID_TIGERLAKE_A0 },
+	{ X86_VENDOR_INTEL, CPUID_TIGERLAKE_B0 },
+	{ X86_VENDOR_INTEL, CPUID_ELKHARTLAKE_A0 },
+	{ X86_VENDOR_INTEL, CPUID_ELKHARTLAKE_B0 },
+	{ X86_VENDOR_INTEL, CPUID_JASPERLAKE_A0 },
+	{ X86_VENDOR_INTEL, CPUID_ALDERLAKE_S_A0 },
+	{ X86_VENDOR_INTEL, CPUID_ALDERLAKE_P_A0 },
+	{ X86_VENDOR_INTEL, CPUID_ALDERLAKE_M_A0 },
 	{ 0, 0 },
 };
 
@@ -105,17 +94,6 @@ int get_cpu_count(void)
 }
 
 /*
- * Function to get the microcode patch pointer. Use this function to avoid
- * reading the microcode patch from the boot media. init_cpus() would
- * initialize microcode_patch global variable to point to microcode patch
- * in boot media and this function can be used to access the pointer.
- */
-const void *intel_mp_current_microcode(void)
-{
-	return microcode_patch;
-}
-
-/*
  * MP Init callback function(get_microcode_info) to find the Microcode at
  * Pre MP Init phase. This function is common among all SOCs and thus its in
  * Common CPU block.
@@ -125,23 +103,36 @@ const void *intel_mp_current_microcode(void)
  */
 void get_microcode_info(const void **microcode, int *parallel)
 {
-	*microcode = intel_mp_current_microcode();
+	*microcode = intel_microcode_find();
 	*parallel = 1;
 }
 
-static void init_cpus(void *unused)
+/*
+ * Perform BSP and AP initialization
+ * This function can be called in below cases:
+ * 1. During coreboot is doing MP initialization as part of BS_DEV_INIT_CHIPS (exclude
+ *    this call if user has selected USE_INTEL_FSP_MP_INIT).
+ * 2. coreboot would like to take APs control back after FSP-S has done with MP
+ *    initialization based on user select USE_INTEL_FSP_MP_INIT.
+ */
+void init_cpus(void)
 {
 	struct device *dev = dev_find_path(NULL, DEVICE_PATH_CPU_CLUSTER);
 	assert(dev != NULL);
 
+	if (dev && dev->link_list)
+		soc_init_cpus(dev->link_list);
+}
+
+static void coreboot_init_cpus(void *unused)
+{
 	if (CONFIG(USE_INTEL_FSP_MP_INIT))
 		return;
 
-	microcode_patch = intel_microcode_find();
+	const void *microcode_patch = intel_microcode_find();
 	intel_microcode_load_unlocked(microcode_patch);
 
-	if (dev && dev->link_list)
-		soc_init_cpus(dev->link_list);
+	init_cpus();
 }
 
 static void wrapper_x86_setup_mtrrs(void *unused)
@@ -152,16 +143,13 @@ static void wrapper_x86_setup_mtrrs(void *unused)
 /* Ensure to re-program all MTRRs based on DRAM resource settings */
 static void post_cpus_init(void *unused)
 {
-	if (CONFIG(USE_INTEL_FSP_MP_INIT))
-		return;
-
-	if (mp_run_on_all_cpus(&wrapper_x86_setup_mtrrs, NULL, 1000) < 0)
+	if (mp_run_on_all_cpus(&wrapper_x86_setup_mtrrs, NULL) < 0)
 		printk(BIOS_ERR, "MTRR programming failure\n");
 
 	x86_mtrr_check();
 }
 
 /* Do CPU MP Init before FSP Silicon Init */
-BOOT_STATE_INIT_ENTRY(BS_DEV_INIT_CHIPS, BS_ON_ENTRY, init_cpus, NULL);
+BOOT_STATE_INIT_ENTRY(BS_DEV_INIT_CHIPS, BS_ON_ENTRY, coreboot_init_cpus, NULL);
 BOOT_STATE_INIT_ENTRY(BS_WRITE_TABLES, BS_ON_EXIT, post_cpus_init, NULL);
 BOOT_STATE_INIT_ENTRY(BS_OS_RESUME, BS_ON_ENTRY, post_cpus_init, NULL);

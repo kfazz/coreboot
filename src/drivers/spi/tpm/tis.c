@@ -1,16 +1,11 @@
-/*
- * Copyright 2016 The Chromium OS Authors. All rights reserved.
- * Use of this source code is governed by a BSD-style license that can be
- * found in the LICENSE file.
- */
+/* SPDX-License-Identifier: BSD-3-Clause */
 
-#include <arch/early_variables.h>
 #include <console/console.h>
 #include <security/tpm/tis.h>
 
 #include "tpm.h"
 
-static unsigned tpm_is_open CAR_GLOBAL;
+static unsigned int tpm_is_open;
 
 static const struct {
 	uint16_t vid;
@@ -19,6 +14,7 @@ static const struct {
 } dev_map[] = {
 	{ 0x15d1, 0x001b, "SLB9670" },
 	{ 0x1ae0, 0x0028, "CR50" },
+	{ 0x104a, 0x0000, "ST33HTPH2E32" },
 };
 
 static const char *tis_get_dev_name(struct tpm2_info *info)
@@ -34,8 +30,8 @@ static const char *tis_get_dev_name(struct tpm2_info *info)
 
 int tis_open(void)
 {
-	if (car_get_var(tpm_is_open)) {
-		printk(BIOS_ERR, "tis_open() called twice.\n");
+	if (tpm_is_open) {
+		printk(BIOS_ERR, "%s() called twice.\n", __func__);
 		return -1;
 	}
 	return 0;
@@ -43,13 +39,13 @@ int tis_open(void)
 
 int tis_close(void)
 {
-	if (car_get_var(tpm_is_open)) {
+	if (tpm_is_open) {
 
 		/*
 		 * Do we need to do something here, like waiting for a
 		 * transaction to stop?
 		 */
-		car_set_var(tpm_is_open, 0);
+		tpm_is_open = 0;
 	}
 
 	return 0;
@@ -78,7 +74,6 @@ int tis_init(void)
 
 	return 0;
 }
-
 
 int tis_sendrecv(const uint8_t *sendbuf, size_t sbuf_size,
 		 uint8_t *recvbuf, size_t *rbuf_len)

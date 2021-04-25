@@ -1,20 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/early_variables.h>
+#include <boot_device.h>
 #include <cbfs.h>
+#include <cbmem.h>
+#include <commonlib/bsd/cbfs_private.h>
 #include <console/console.h>
 #include <ec/google/chromeec/ec.h>
 #include <rmodule.h>
@@ -24,86 +13,43 @@
 
 /* Ensure vboot configuration is valid: */
 _Static_assert(CONFIG(VBOOT_STARTS_IN_BOOTBLOCK) +
+	       CONFIG(VBOOT_STARTS_BEFORE_BOOTBLOCK) +
 	       CONFIG(VBOOT_STARTS_IN_ROMSTAGE) == 1,
-	       "vboot must either start in bootblock or romstage (not both!)");
-_Static_assert(CONFIG(VBOOT_STARTS_IN_BOOTBLOCK) ||
-	       !CONFIG(VBOOT_MIGRATE_WORKING_DATA),
-	       "no need to migrate working data after CBMEM is already up!");
-_Static_assert(!CONFIG(VBOOT_SEPARATE_VERSTAGE) ||
-	       CONFIG(VBOOT_STARTS_IN_BOOTBLOCK),
-	       "stand-alone verstage must start in (i.e. after) bootblock");
+	       "vboot must start in bootblock, PSP or romstage (but only one!)");
+_Static_assert(!CONFIG(VBOOT_SEPARATE_VERSTAGE) || CONFIG(VBOOT_STARTS_IN_BOOTBLOCK) ||
+	       CONFIG(VBOOT_STARTS_BEFORE_BOOTBLOCK),
+	       "stand-alone verstage must start in or before bootblock ");
 _Static_assert(!CONFIG(VBOOT_RETURN_FROM_VERSTAGE) ||
 	       CONFIG(VBOOT_SEPARATE_VERSTAGE),
 	       "return from verstage only makes sense for separate verstages");
 
-/* The stage loading code is compiled and entered from multiple stages. The
- * helper functions below attempt to provide more clarity on when certain
- * code should be called. */
+int vboot_executed;
 
-static int verification_should_run(void)
+static void after_verstage(void)
 {
-	if (CONFIG(VBOOT_SEPARATE_VERSTAGE))
-		return ENV_VERSTAGE;
-	else if (CONFIG(VBOOT_STARTS_IN_ROMSTAGE))
-		return ENV_ROMSTAGE;
-	else if (CONFIG(VBOOT_STARTS_IN_BOOTBLOCK))
-		return ENV_BOOTBLOCK;
-	else
-		die("impossible!");
+	vboot_executed = 1;	/* Mark verstage execution complete. */
+
+	const struct cbfs_boot_device *cbd = vboot_get_cbfs_boot_device();
+	if (!cbd)	/* Can't initialize RW CBFS in recovery mode. */
+		return;
+
+	cb_err_t err = cbfs_init_boot_device(cbd, NULL); /* TODO: RW hash */
+	if (err && err != CB_CBFS_CACHE_FULL)	/* TODO: -> recovery? */
+		die("RW CBFS initialization failure: %d", err);
 }
 
-static int verstage_should_load(void)
-{
-	if (CONFIG(VBOOT_SEPARATE_VERSTAGE))
-		return ENV_BOOTBLOCK;
-	else
-		return 0;
-}
-
-static int vboot_executed CAR_GLOBAL;
-
-int vboot_logic_executed(void)
-{
-	/* If we are in a stage that would load the verstage or execute the
-	   vboot logic directly, we store the answer in a global. */
-	if (verstage_should_load() || verification_should_run())
-		return car_get_var(vboot_executed);
-
-	if (CONFIG(VBOOT_STARTS_IN_BOOTBLOCK)) {
-		/* All other stages are "after the bootblock" */
-		return !ENV_BOOTBLOCK;
-	} else if (CONFIG(VBOOT_STARTS_IN_ROMSTAGE)) {
-		/* Post-RAM stages are "after the romstage" */
-#ifdef __PRE_RAM__
-		return 0;
-#else
-		return 1;
-#endif
-	} else {
-		die("impossible!");
-	}
-}
-
-static void vboot_prepare(void)
+void vboot_run_logic(void)
 {
 	if (verification_should_run()) {
 		/* Note: this path is not used for VBOOT_RETURN_FROM_VERSTAGE */
 		verstage_main();
-		car_set_var(vboot_executed, 1);
-		vboot_save_recovery_reason_vbnv();
+		after_verstage();
 	} else if (verstage_should_load()) {
-		struct cbfsf file;
 		struct prog verstage =
 			PROG_INIT(PROG_VERSTAGE,
 				CONFIG_CBFS_PREFIX "/verstage");
 
 		printk(BIOS_DEBUG, "VBOOT: Loading verstage.\n");
-
-		/* load verstage from RO */
-		if (cbfs_boot_locate(&file, prog_name(&verstage), NULL))
-			die("failed to load verstage");
-
-		cbfs_file_data(prog_rdev(&verstage), &file);
 
 		if (cbfs_prog_stage_load(&verstage))
 			die("failed to load verstage");
@@ -117,40 +63,29 @@ static void vboot_prepare(void)
 		if (!CONFIG(VBOOT_RETURN_FROM_VERSTAGE))
 			return;
 
-		car_set_var(vboot_executed, 1);
+		after_verstage();
 	}
-
-	/*
-	 * Fill in vboot cbmem objects before moving to ramstage so all
-	 * downstream users have access to vboot results. This path only
-	 * applies to platforms employing VBOOT_STARTS_IN_ROMSTAGE because
-	 * cbmem comes online prior to vboot verification taking place. For
-	 * other platforms the vboot cbmem objects are initialized when
-	 * cbmem comes online.
-	 */
-	if (ENV_ROMSTAGE && CONFIG(VBOOT_STARTS_IN_ROMSTAGE))
-		vboot_fill_handoff();
 }
 
-static int vboot_locate(struct cbfs_props *props)
+const struct cbfs_boot_device *vboot_get_cbfs_boot_device(void)
 {
-	struct region selected_region;
-
 	/* Don't honor vboot results until the vboot logic has run. */
 	if (!vboot_logic_executed())
-		return -1;
+		return NULL;
 
-	if (vboot_get_selected_region(&selected_region))
-		return -1;
+	static struct cbfs_boot_device cbd;
+	if (region_device_sz(&cbd.rdev))
+		return &cbd;
 
-	props->offset = region_offset(&selected_region);
-	props->size = region_sz(&selected_region);
+	struct vb2_context *ctx = vboot_get_context();
+	if (ctx->flags & VB2_CONTEXT_RECOVERY_MODE)
+		return NULL;
 
-	return 0;
+	boot_device_init();
+	if (vboot_locate_firmware(ctx, &cbd.rdev))
+		return NULL;
+
+	cbfs_boot_device_find_mcache(&cbd, CBMEM_ID_CBFS_RW_MCACHE);
+
+	return &cbd;
 }
-
-const struct cbfs_locator vboot_locator = {
-	.name = "VBOOT",
-	.prepare = vboot_prepare,
-	.locate = vboot_locate,
-};

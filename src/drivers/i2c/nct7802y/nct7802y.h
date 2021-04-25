@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 secunet Security Networks AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef DRIVERS_I2C_NCT7802Y_H
 #define DRIVERS_I2C_NCT7802Y_H
@@ -24,6 +11,9 @@
 #define BANK_SELECT			0x00
 
 /* Bank 0 */
+#define MODE_SELECTION			0x22
+#define  MODE_SELECTION_LTD_EN		(1 << 6)
+#define  MODE_SELECTION_RTDx(x, val)	((val) << (x) * 2)
 
 #define PECI_ENABLE			0x23
 #define  PECI_ENABLE_AGENTx(x)		(1 << (x))

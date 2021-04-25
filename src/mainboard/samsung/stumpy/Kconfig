@@ -19,21 +19,18 @@ config BOARD_SPECIFIC_OPTIONS
 # not on board, should be made selectable.
 	select SUPERIO_SMSC_LPC47N207
 	select INTEL_INT15
+	select SANDYBRIDGE_VBOOT_IN_ROMSTAGE
 
 config VBOOT
 	select VBOOT_VBNV_CMOS
 
 config MAINBOARD_DIR
 	string
-	default samsung/stumpy
+	default "samsung/stumpy"
 
 config MAINBOARD_PART_NUMBER
 	string
 	default "Stumpy"
-
-config MAX_CPUS
-	int
-	default 8
 
 config VGA_BIOS_FILE
 	string

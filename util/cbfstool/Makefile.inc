@@ -21,18 +21,11 @@ cbfsobj += cbfs-mkpayload.o
 cbfsobj += elfheaders.o
 cbfsobj += rmodule.o
 cbfsobj += xdr.o
-cbfsobj += fit.o
 cbfsobj += partitioned_file.o
+cbfsobj += platform_fixups.o
 # COMMONLIB
-cbfsobj += cbfs.o
+cbfsobj += cbfs_private.o
 cbfsobj += fsp_relocate.o
-cbfsobj += mem_pool.o
-cbfsobj += region.o
-# CRYPTOLIB
-cbfsobj += 2sha_utility.o
-cbfsobj += 2sha1.o
-cbfsobj += 2sha256.o
-cbfsobj += 2sha512.o
 # FMAP
 cbfsobj += fmap.o
 cbfsobj += kv_pair.o
@@ -66,24 +59,52 @@ ifwiobj :=
 ifwiobj += ifwitool.o
 ifwiobj += common.o
 
+ifitobj :=
+ifitobj += ifittool.o
+ifitobj += common.o
+ifitobj += fit.o
+ifitobj += cbfs_image.o
+# Make it link ....
+ifitobj += xdr.o
+ifitobj += elfheaders.o
+ifitobj += partitioned_file.o
+ifitobj += cbfs-mkstage.o
+ifitobj += cbfs-mkpayload.o
+ifitobj += rmodule.o
+# FMAP
+ifitobj += fmap.o
+ifitobj += kv_pair.o
+ifitobj += valstr.o
+# compression algorithms
+ifitobj += $(compressionobj)
+
+
 cbfscompobj :=
 cbfscompobj += $(compressionobj)
 cbfscompobj += cbfscomptool.o
 
-TOOLCFLAGS ?= -Werror -Wall -Wextra
+amdcompobj :=
+amdcompobj += amdcompress.o
+amdcompobj += elfheaders.o
+amdcompobj += common.o
+amdcompobj += xdr.o
+
+TOOLCFLAGS ?= -Werror -Wall -Wextra -Wshadow
 TOOLCFLAGS += -Wcast-qual -Wmissing-prototypes -Wredundant-decls -Wshadow
 TOOLCFLAGS += -Wstrict-prototypes -Wwrite-strings
 TOOLCFLAGS += -O2
 TOOLCPPFLAGS ?= -D_DEFAULT_SOURCE # memccpy() from string.h
+TOOLCPPFLAGS += -D_BSD_SOURCE -D_SVID_SOURCE # _DEFAULT_SOURCE for older glibc
 TOOLCPPFLAGS += -D_XOPEN_SOURCE=700 # strdup() from string.h
+TOOLCPPFLAGS += -D_GNU_SOURCE # memmem() from string.h
 TOOLCPPFLAGS += -I$(top)/util/cbfstool/flashmap
 TOOLCPPFLAGS += -I$(top)/util/cbfstool
 TOOLCPPFLAGS += -I$(objutil)/cbfstool
-TOOLCPPFLAGS += -I$(top)/src/commonlib/include
-TOOLCPPFLAGS += -include $(top)/src/commonlib/include/commonlib/compiler.h
-TOOLCPPFLAGS += -DNEED_VB2_SHA_LIBRARY
+TOOLCPPFLAGS += -I$(top)/src/commonlib/include -I$(top)/src/commonlib/bsd/include
+TOOLCPPFLAGS += -include $(top)/src/commonlib/bsd/include/commonlib/bsd/compiler.h
 TOOLCPPFLAGS += -I$(VBOOT_SOURCE)/firmware/include
 TOOLCPPFLAGS += -I$(VBOOT_SOURCE)/firmware/2lib/include
+TOOLCPPFLAGS += -I$(VBOOT_SOURCE)/host/include
 # UEFI header file support. It's not pretty, but that's what we currently
 # have right now.
 TOOLCPPFLAGS += -I$(top)/src
@@ -96,11 +117,22 @@ ifeq ($(shell uname -s | cut -c-7 2>/dev/null), MINGW32)
 TOOLCFLAGS += -mno-ms-bitfields
 endif
 ifeq ($(shell uname -o 2>/dev/null), Cygwin)
-TOOLCFLAGS+=-std=gnu99
+TOOLCFLAGS+=-std=gnu11
 TOOLCPPFLAGS+=-D_GNU_SOURCE
 else
-TOOLCFLAGS+=-std=c99
+TOOLCFLAGS+=-std=c11
 endif
+
+VBOOT_HOSTLIB = $(VBOOT_HOST_BUILD)/libvboot_host.a
+
+$(VBOOT_HOSTLIB):
+	printf "    MAKE       $(subst $(objutil)/,,$(@))\n"
+	unset CFLAGS LDFLAGS; $(MAKE) -C $(VBOOT_SOURCE) \
+		BUILD=$(VBOOT_HOST_BUILD) \
+		CC="$(HOSTCC)" \
+		PKG_CONFIG="true" \
+		V=$(V) \
+		hostlib
 
 $(objutil)/cbfstool/%.o: $(objutil)/cbfstool/%.c
 	printf "    HOSTCC     $(subst $(objutil)/,,$(@))\n"
@@ -122,11 +154,11 @@ $(objutil)/cbfstool/%.o: $(top)/util/cbfstool/lzma/C/%.c
 	printf "    HOSTCC     $(subst $(objutil)/,,$(@))\n"
 	$(HOSTCC) $(TOOLCPPFLAGS) $(TOOLCFLAGS) $(HOSTCFLAGS) -c -o $@ $<
 
-$(objutil)/cbfstool/%.o: $(VBOOT_SOURCE)/firmware/2lib/%.c
+$(objutil)/cbfstool/%.o: $(top)/src/commonlib/%.c
 	printf "    HOSTCC     $(subst $(objutil)/,,$(@))\n"
 	$(HOSTCC) $(TOOLCPPFLAGS) $(TOOLCFLAGS) $(HOSTCFLAGS) -c -o $@ $<
 
-$(objutil)/cbfstool/%.o: $(top)/src/commonlib/%.c
+$(objutil)/cbfstool/%.o: $(top)/src/commonlib/bsd/%.c
 	printf "    HOSTCC     $(subst $(objutil)/,,$(@))\n"
 	$(HOSTCC) $(TOOLCPPFLAGS) $(TOOLCFLAGS) $(HOSTCFLAGS) -c -o $@ $<
 
@@ -134,9 +166,9 @@ $(objutil)/cbfstool/%.o: $(top)/util/cbfstool/lz4/lib/%.c
 	printf "    HOSTCC     $(subst $(objutil)/,,$(@))\n"
 	$(HOSTCC) $(TOOLCPPFLAGS) $(TOOLCFLAGS) $(HOSTCFLAGS) -c -o $@ $<
 
-$(objutil)/cbfstool/cbfstool: $(addprefix $(objutil)/cbfstool/,$(cbfsobj))
+$(objutil)/cbfstool/cbfstool: $(addprefix $(objutil)/cbfstool/,$(cbfsobj)) $(VBOOT_HOSTLIB)
 	printf "    HOSTCC     $(subst $(objutil)/,,$(@)) (link)\n"
-	$(HOSTCC) $(TOOLLDFLAGS) -o $@ $(addprefix $(objutil)/cbfstool/,$(cbfsobj))
+	$(HOSTCC) -v $(TOOLLDFLAGS) -o $@ $(addprefix $(objutil)/cbfstool/,$(cbfsobj)) $(VBOOT_HOSTLIB)
 
 $(objutil)/cbfstool/fmaptool: $(addprefix $(objutil)/cbfstool/,$(fmapobj))
 	printf "    HOSTCC     $(subst $(objutil)/,,$(@)) (link)\n"
@@ -150,9 +182,17 @@ $(objutil)/cbfstool/ifwitool: $(addprefix $(objutil)/cbfstool/,$(ifwiobj))
 	printf "    HOSTCC     $(subst $(objutil)/,,$(@)) (link)\n"
 	$(HOSTCC) $(TOOLLDFLAGS) -o $@ $(addprefix $(objutil)/cbfstool/,$(ifwiobj))
 
+$(objutil)/cbfstool/ifittool: $(addprefix $(objutil)/cbfstool/,$(ifitobj)) $(VBOOT_HOSTLIB)
+	printf "    HOSTCC     $(subst $(objutil)/,,$(@)) (link)\n"
+	$(HOSTCC) $(TOOLLDFLAGS) -o $@ $(addprefix $(objutil)/cbfstool/,$(ifitobj)) $(VBOOT_HOSTLIB)
+
 $(objutil)/cbfstool/cbfs-compression-tool: $(addprefix $(objutil)/cbfstool/,$(cbfscompobj))
 	printf "    HOSTCC     $(subst $(objutil)/,,$(@)) (link)\n"
 	$(HOSTCC) $(TOOLLDFLAGS) -o $@ $(addprefix $(objutil)/cbfstool/,$(cbfscompobj))
+
+$(objutil)/cbfstool/amdcompress: $(addprefix $(objutil)/cbfstool/,$(amdcompobj))
+	printf "    HOSTCC     $(subst $(objutil)/,,$(@)) (link)\n"
+	$(HOSTCC) $(TOOLLDFLAGS) -o $@ $(addprefix $(objutil)/cbfstool/,$(amdcompobj)) -lz
 
 # Yacc source is superset of header
 $(objutil)/cbfstool/fmd.o: TOOLCFLAGS += -Wno-redundant-decls
@@ -162,15 +202,11 @@ $(objutil)/cbfstool/fmd_scanner.o: TOOLCFLAGS += -Wno-redundant-decls
 $(objutil)/cbfstool/fmd_scanner.o: TOOLCFLAGS += -Wno-unused-function
 # Tolerate lzma sdk warnings
 $(objutil)/cbfstool/LzmaEnc.o: TOOLCFLAGS += -Wno-sign-compare -Wno-cast-qual
-# Tolerate vboot warnings
-$(objutil)/cbfstool/2sha_utility.o: TOOLCFLAGS += -Wno-sign-compare
-$(objutil)/cbfstool/2sha1.o: TOOLCFLAGS += -Wno-cast-qual
 # Tolerate commonlib warnings
-$(objutil)/cbfstool/region.o: TOOLCFLAGS += -Wno-sign-compare -Wno-cast-qual
-$(objutil)/cbfstool/cbfs.o: TOOLCFLAGS += -Wno-sign-compare -Wno-cast-qual
-$(objutil)/cbfstool/mem_pool.o: TOOLCFLAGS += -Wno-sign-compare -Wno-cast-qual
+$(objutil)/cbfstool/cbfs_private.o: TOOLCFLAGS += -Wno-sign-compare
 # Tolerate lz4 warnings
 $(objutil)/cbfstool/lz4.o: TOOLCFLAGS += -Wno-missing-prototypes
+$(objutil)/cbfstool/lz4_wrapper.o: TOOLCFLAGS += -Wno-attributes
 
 $(objutil)/cbfstool/fmd.o: $(objutil)/cbfstool/fmd_parser.h
 $(objutil)/cbfstool/fmd.o: $(objutil)/cbfstool/fmd_scanner.h

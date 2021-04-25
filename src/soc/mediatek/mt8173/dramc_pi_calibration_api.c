@@ -1,25 +1,12 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <console/console.h>
-#include <stdlib.h>
 #include <soc/addressmap.h>
 #include <soc/dramc_common.h>
 #include <soc/dramc_register.h>
 #include <soc/dramc_pi_api.h>
+#include <soc/dramc_soc.h>
 #include <soc/emi.h>
 
 static u8 opt_gw_coarse_value[CHANNEL_NUM][DUAL_RANKS];
@@ -33,8 +20,8 @@ void sw_impedance_cal(u32 channel,
 
 	const struct mt8173_calib_params *params = &sdram_params->calib_params;
 
-	dramc_dbg_msg("[Imp Calibration] DRVP:%d\n", params->impedance_drvp);
-	dramc_dbg_msg("[Imp Calibration] DRVN:%d\n", params->impedance_drvn);
+	dramc_dbg("[Imp Calibration] DRVP:%d\n", params->impedance_drvp);
+	dramc_dbg("[Imp Calibration] DRVN:%d\n", params->impedance_drvn);
 
 	mask = 0xf << 28 | 0xf << 24 | 0xf << 12 | 0xf << 8;  /* driving */
 
@@ -42,14 +29,14 @@ void sw_impedance_cal(u32 channel,
 		 params->impedance_drvp << 12 | params->impedance_drvn << 8;
 
 	/* DQS and DQ */
-	clrsetbits_le32(&ch[channel].ao_regs->iodrv6, mask, value);
+	clrsetbits32(&ch[channel].ao_regs->iodrv6, mask, value);
 	/* CLK and CMD */
-	clrsetbits_le32(&ch[channel].ao_regs->drvctl1, mask, value);
-	clrsetbits_le32(&ch[channel].ddrphy_regs->drvctl1, mask, value);
+	clrsetbits32(&ch[channel].ao_regs->drvctl1, mask, value);
+	clrsetbits32(&ch[channel].ddrphy_regs->drvctl1, mask, value);
 	/* DQ_2 and CMD_2 */
-	clrsetbits_le32(&ch[channel].ao_regs->iodrv4, mask, value);
+	clrsetbits32(&ch[channel].ao_regs->iodrv4, mask, value);
 	/* disable impcal calibration */
-	clrbits_le32(&ch[channel].ao_regs->impcal, 1 << IMP_CALI_ENP_SHIFT |
+	clrbits32(&ch[channel].ao_regs->impcal, 1 << IMP_CALI_ENP_SHIFT |
 						   1 << IMP_CALI_ENN_SHIFT |
 						   1 << IMP_CALI_EN_SHIFT  |
 						   0xf << IMP_CALI_DRVP_SHIFT |
@@ -89,53 +76,53 @@ void ca_training(u32 channel, const struct mt8173_sdram_params *sdram_params)
 	/* set CA pins output delay */
 	for (i = 0; i < (CATRAINING_NUM - 1); i++) {
 		order = ca_order[channel][i];
-		clrsetbits_le32(&ch[channel].ddrphy_regs->cmddly[cmd_order[i]],
-				0xf << shift[i], ca_shift[order] << shift[i]);
+		clrsetbits32(&ch[channel].ddrphy_regs->cmddly[cmd_order[i]],
+			     0xf << shift[i], ca_shift[order] << shift[i]);
 	}
 
 	order = ca_order[channel][9];
-	clrsetbits_le32(&ch[channel].ddrphy_regs->dqscal0,
-			0xf << DQSCAL0_RA14_SHIFT,
-			ca_shift[order] << DQSCAL0_RA14_SHIFT);
+	clrsetbits32(&ch[channel].ddrphy_regs->dqscal0,
+		     0xf << DQSCAL0_RA14_SHIFT,
+		     ca_shift[order] << DQSCAL0_RA14_SHIFT);
 
 	/* CKE and CS delay */
 	ca_shift_avg32 = (u32)(ca_shift_avg8 + (CATRAINING_NUM >> 1));
 	ca_shift_avg32 /= (u32)CATRAINING_NUM;
 
 	/* CKEDLY */
-	clrsetbits_le32(&ch[channel].ddrphy_regs->cmddly[4],
-			0x1f << CMDDLY4_CS_SHIFT |
-			0x1f << CMDDLY4_CKE_SHIFT,
-			ca_shift_avg32 << CMDDLY4_CS_SHIFT |
-			ca_shift_avg32 << CMDDLY4_CKE_SHIFT);
+	clrsetbits32(&ch[channel].ddrphy_regs->cmddly[4],
+		     0x1f << CMDDLY4_CS_SHIFT |
+		     0x1f << CMDDLY4_CKE_SHIFT,
+		     ca_shift_avg32 << CMDDLY4_CS_SHIFT |
+		     ca_shift_avg32 << CMDDLY4_CKE_SHIFT);
 
 	/* CKE1DLY */
-	clrsetbits_le32(&ch[channel].ao_regs->dqscal1,
-			0x1f << DQSCAL1_CKE1_SHIFT,
-			ca_shift_avg32 << DQSCAL1_CKE1_SHIFT);
+	clrsetbits32(&ch[channel].ao_regs->dqscal1,
+		     0x1f << DQSCAL1_CKE1_SHIFT,
+		     ca_shift_avg32 << DQSCAL1_CKE1_SHIFT);
 
 	/* CS1DLY */
-	clrsetbits_le32(&ch[channel].ddrphy_regs->padctl1,
-			0xf << PADCTL1_CS1_SHIFT,
-			ca_shift_avg32 << PADCTL1_CS1_SHIFT);
+	clrsetbits32(&ch[channel].ddrphy_regs->padctl1,
+		     0xf << PADCTL1_CS1_SHIFT,
+		     ca_shift_avg32 << PADCTL1_CS1_SHIFT);
 
 	/* set max center into clk output delay */
-	clrsetbits_le32(&ch[channel].ddrphy_regs->padctl1,
-			0xf << PADCTL1_CLK_SHIFT,
-			ca_max_center << PADCTL1_CLK_SHIFT);
+	clrsetbits32(&ch[channel].ddrphy_regs->padctl1,
+		     0xf << PADCTL1_CLK_SHIFT,
+		     ca_max_center << PADCTL1_CLK_SHIFT);
 
-	dramc_dbg_msg("=========================================\n");
-	dramc_dbg_msg("   [Channel %d] CA training\n", channel);
-	dramc_dbg_msg("=========================================\n");
+	dramc_dbg("=========================================\n");
+	dramc_dbg("   [Channel %d] CA training\n", channel);
+	dramc_dbg("=========================================\n");
 
 	for (i = 0; i < CATRAINING_NUM; i++)
-		dramc_dbg_msg("[CA] CA %d\tShift %d\n", i, ca_shift[i]);
+		dramc_dbg("[CA] CA %d\tShift %d\n", i, ca_shift[i]);
 
-	dramc_dbg_msg("[CA] Reg CMDDLY4 = %xh\n",
+	dramc_dbg("[CA] Reg CMDDLY4 = %xh\n",
 			read32(&ch[channel].ddrphy_regs->cmddly[4]));
-	dramc_dbg_msg("[CA] Reg DQSCAL1 = %xh\n",
+	dramc_dbg("[CA] Reg DQSCAL1 = %xh\n",
 			read32(&ch[channel].ao_regs->dqscal1));
-	dramc_dbg_msg("[CA] Reg PADCTL1 = %xh\n",
+	dramc_dbg("[CA] Reg PADCTL1 = %xh\n",
 			read32(&ch[channel].ddrphy_regs->padctl1));
 }
 
@@ -155,8 +142,8 @@ void write_leveling(u32 channel, const struct mt8173_sdram_params *sdram_params)
 	write32(&ch[channel].ddrphy_regs->padctl3, value);
 
 	/* DQM */
-	clrsetbits_le32(&ch[channel].ddrphy_regs->padctl2, MASK_PADCTL2_32BIT,
-			(value << PADCTL2_SHIFT) & MASK_PADCTL2_32BIT);
+	clrsetbits32(&ch[channel].ddrphy_regs->padctl2, MASK_PADCTL2_32BIT,
+		     (value << PADCTL2_SHIFT) & MASK_PADCTL2_32BIT);
 
 	/* DQ */
 	for (byte_i = 0; byte_i < DQS_NUMBER; byte_i++) {
@@ -168,17 +155,17 @@ void write_leveling(u32 channel, const struct mt8173_sdram_params *sdram_params)
 		write32(&ch[channel].ddrphy_regs->dqodly[byte_i], value);
 	}
 
-	dramc_dbg_msg("========================================\n");
-	dramc_dbg_msg("[Channel %d] dramc_write_leveling_swcal\n", channel);
-	dramc_dbg_msg("========================================\n");
+	dramc_dbg("========================================\n");
+	dramc_dbg("[Channel %d] dramc_write_leveling_swcal\n", channel);
+	dramc_dbg("========================================\n");
 
-	dramc_dbg_msg("[WL] DQS: %#x",
+	dramc_dbg("[WL] DQS: %#x",
 			read32(&ch[channel].ddrphy_regs->padctl3));
-	dramc_dbg_msg("[WL] DQM: %#x\n",
+	dramc_dbg("[WL] DQM: %#x\n",
 			read32(&ch[channel].ddrphy_regs->padctl2));
 
 	for (byte_i = 0; byte_i < DQS_NUMBER; byte_i++)
-		dramc_dbg_msg("[WL] DQ byte%d: %#x\n", byte_i,
+		dramc_dbg("[WL] DQ byte%d: %#x\n", byte_i,
 			     read32(&ch[channel].ddrphy_regs->dqodly[byte_i]));
 }
 
@@ -203,10 +190,10 @@ static void set_gw_coarse_factor(u32 channel, u8 curr_val)
 	curr_val_p1 = curr_val + 2;  /* diff is 0.5T */
 
 	/* Rank 0 P0/P1 coarse tune settings */
-	clrsetbits_le32(&ch[channel].ao_regs->dqsctl1,
-			0xf << DQSCTL1_DQSINCTL_SHIFT,
-			coarse_tune_start << DQSCTL1_DQSINCTL_SHIFT &
-			0xf << DQSCTL1_DQSINCTL_SHIFT);
+	clrsetbits32(&ch[channel].ao_regs->dqsctl1,
+		     0xf << DQSCTL1_DQSINCTL_SHIFT,
+		     coarse_tune_start << DQSCTL1_DQSINCTL_SHIFT &
+		     0xf << DQSCTL1_DQSINCTL_SHIFT);
 
 	/* DQSINCTL does not have P1. */
 	/* Need to use TXDLY_DQSGATE/TXDLY_DQSGATE_P1 to set */
@@ -214,33 +201,33 @@ static void set_gw_coarse_factor(u32 channel, u8 curr_val)
 	selph2_dqsgate = (curr_val >> 2) - coarse_tune_start;
 	selph2_dqsgate_p1 = (curr_val_p1 >> 2) - coarse_tune_start;
 
-	clrsetbits_le32(&ch[channel].ao_regs->selph2,
-			0x7 << SELPH2_TXDLY_DQSGATE_SHIFT |
-			0x7 << SELPH2_TXDLY_DQSGATE_P1_SHIFT,
-			selph2_dqsgate << SELPH2_TXDLY_DQSGATE_SHIFT |
-			selph2_dqsgate_p1 << SELPH2_TXDLY_DQSGATE_P1_SHIFT);
+	clrsetbits32(&ch[channel].ao_regs->selph2,
+		     0x7 << SELPH2_TXDLY_DQSGATE_SHIFT |
+		     0x7 << SELPH2_TXDLY_DQSGATE_P1_SHIFT,
+		     selph2_dqsgate << SELPH2_TXDLY_DQSGATE_SHIFT |
+		     selph2_dqsgate_p1 << SELPH2_TXDLY_DQSGATE_P1_SHIFT);
 
 	/* dly_DQSGATE and dly_DQSGATE_P1 */
-	clrsetbits_le32(&ch[channel].ao_regs->selph5,
-			0x3 << SELPH5_DLY_DQSGATE_SHIFT |
-			0x3 << SELPH5_DLY_DQSGATE_P1_SHIFT,
-			(curr_val & 0x3) << SELPH5_DLY_DQSGATE_SHIFT |
-			(curr_val_p1 & 0x3) << SELPH5_DLY_DQSGATE_P1_SHIFT);
+	clrsetbits32(&ch[channel].ao_regs->selph5,
+		     0x3 << SELPH5_DLY_DQSGATE_SHIFT |
+		     0x3 << SELPH5_DLY_DQSGATE_P1_SHIFT,
+		     (curr_val & 0x3) << SELPH5_DLY_DQSGATE_SHIFT |
+		     (curr_val_p1 & 0x3) << SELPH5_DLY_DQSGATE_P1_SHIFT);
 }
 
 static void set_gw_fine_factor(u32 channel, u8 curr_val, u8 rank)
 {
 	u32 set = curr_val & (0x7f << DQSIEN_DQS0IEN_SHIFT);
 
-	clrsetbits_le32(&ch[channel].ao_regs->dqsien[rank],
-			 0x7f << DQSIEN_DQS0IEN_SHIFT |
-			 0x7f << DQSIEN_DQS1IEN_SHIFT |
-			 0x7f << DQSIEN_DQS2IEN_SHIFT |
-			 0x7f << DQSIEN_DQS3IEN_SHIFT,
-			 set << DQSIEN_DQS0IEN_SHIFT |
-			 set << DQSIEN_DQS1IEN_SHIFT |
-			 set << DQSIEN_DQS2IEN_SHIFT |
-			 set << DQSIEN_DQS3IEN_SHIFT);
+	clrsetbits32(&ch[channel].ao_regs->dqsien[rank],
+		     0x7f << DQSIEN_DQS0IEN_SHIFT |
+		     0x7f << DQSIEN_DQS1IEN_SHIFT |
+		     0x7f << DQSIEN_DQS2IEN_SHIFT |
+		     0x7f << DQSIEN_DQS3IEN_SHIFT,
+		     set << DQSIEN_DQS0IEN_SHIFT |
+		     set << DQSIEN_DQS1IEN_SHIFT |
+		     set << DQSIEN_DQS2IEN_SHIFT |
+		     set << DQSIEN_DQS3IEN_SHIFT);
 }
 
 static void set_gw_coarse_factor_rank1(u32 channel, u8 curr_val, u8 dqsinctl)
@@ -249,33 +236,33 @@ static void set_gw_coarse_factor_rank1(u32 channel, u8 curr_val, u8 dqsinctl)
 
 	curr_val_p1 = curr_val + 2;  /* diff is 0.5T */
 
-	clrsetbits_le32(&ch[channel].ao_regs->dqsctl2,
-			0xf << DQSCTL2_DQSINCTL_SHIFT,
-			dqsinctl << DQSCTL2_DQSINCTL_SHIFT);
+	clrsetbits32(&ch[channel].ao_regs->dqsctl2,
+		     0xf << DQSCTL2_DQSINCTL_SHIFT,
+		     dqsinctl << DQSCTL2_DQSINCTL_SHIFT);
 
 	/* TXDLY_R1DQSGATE and TXDLY_R1DQSGATE_P1 */
 	r1dqsgate = (curr_val >> 2) - dqsinctl;
 	r1dqsgate_p1 = (curr_val_p1 >> 2) - dqsinctl;
 
-	clrsetbits_le32(&ch[channel].ao_regs->selph6_1,
-			0x7 << SELPH6_1_TXDLY_R1DQSGATE_SHIFT |
-			0x7 << SELPH6_1_TXDLY_R1DQSGATE_P1_SHIFT,
-			r1dqsgate << SELPH6_1_TXDLY_R1DQSGATE_SHIFT |
-			r1dqsgate_p1 << SELPH6_1_TXDLY_R1DQSGATE_P1_SHIFT);
+	clrsetbits32(&ch[channel].ao_regs->selph6_1,
+		     0x7 << SELPH6_1_TXDLY_R1DQSGATE_SHIFT |
+		     0x7 << SELPH6_1_TXDLY_R1DQSGATE_P1_SHIFT,
+		     r1dqsgate << SELPH6_1_TXDLY_R1DQSGATE_SHIFT |
+		     r1dqsgate_p1 << SELPH6_1_TXDLY_R1DQSGATE_P1_SHIFT);
 
 	/* dly_R1DQSGATE and dly_R1DQSGATE_P1 */
-	clrsetbits_le32(&ch[channel].ao_regs->selph6_1,
-			0x3 << SELPH6_1_DLY_R1DQSGATE_SHIFT |
-			0x3 << SELPH6_1_DLY_R1DQSGATE_P1_SHIFT,
-			(curr_val & 0x3) << SELPH6_1_DLY_R1DQSGATE_SHIFT |
-			(curr_val_p1 & 0x3) << SELPH6_1_DLY_R1DQSGATE_P1_SHIFT);
+	clrsetbits32(&ch[channel].ao_regs->selph6_1,
+		     0x3 << SELPH6_1_DLY_R1DQSGATE_SHIFT |
+		     0x3 << SELPH6_1_DLY_R1DQSGATE_P1_SHIFT,
+		     (curr_val & 0x3) << SELPH6_1_DLY_R1DQSGATE_SHIFT |
+		     (curr_val_p1 & 0x3) << SELPH6_1_DLY_R1DQSGATE_P1_SHIFT);
 }
 
 static void dqs_gw_counter_reset(u32 channel)
 {
 	/* reset dqs counter (1 to 0) */
-	setbits_le32(&ch[channel].ao_regs->spcmd, 1 << SPCMD_DQSGCNTRST_SHIFT);
-	clrbits_le32(&ch[channel].ao_regs->spcmd, 1 << SPCMD_DQSGCNTRST_SHIFT);
+	setbits32(&ch[channel].ao_regs->spcmd, 1 << SPCMD_DQSGCNTRST_SHIFT);
+	clrbits32(&ch[channel].ao_regs->spcmd, 1 << SPCMD_DQSGCNTRST_SHIFT);
 	dramc_phy_reset(channel);
 }
 
@@ -308,7 +295,7 @@ static u8 dqs_gw_fine_tune_calib(u32 channel, u8 fine_val)
 	int matches = 0, sum = 0;
 
 	/* fine tune range from 0 to 127 */
-	fine_val = min(max(fine_val, 0 - delta[0]), 127 - delta[6]);
+	fine_val = MIN(MAX(fine_val, 0 - delta[0]), 127 - delta[6]);
 
 	/* test gw fine tune */
 	for (i = 0; i < ARRAY_SIZE(delta); i++) {
@@ -357,26 +344,26 @@ void rx_dqs_gating_cal(u32 channel, u8 rank,
 	u8 gw_coarse_val, gw_fine_val;
 
 	/* disable HW gating */
-	clrbits_le32(&ch[channel].ao_regs->dqscal0,
+	clrbits32(&ch[channel].ao_regs->dqscal0,
 				  1 << DQSCAL0_STBCALEN_SHIFT);
 	/* enable DQS gating window counter */
-	setbits_le32(&ch[channel].ao_regs->dqsctl1,
+	setbits32(&ch[channel].ao_regs->dqsctl1,
 				  1 << DQSCTL1_DQSIENMODE_SHIFT);
-	setbits_le32(&ch[channel].ao_regs->spcmd,
+	setbits32(&ch[channel].ao_regs->spcmd,
 				  1 << SPCMD_DQSGCNTEN_SHIFT);
 	/* dual-phase DQS clock gating control enabling */
-	setbits_le32(&ch[channel].ddrphy_regs->dqsgctl,
+	setbits32(&ch[channel].ddrphy_regs->dqsgctl,
 				  1 << DQSGCTL_DQSGDUALP_SHIFT);
 
 	/* gating calibration value */
 	gw_coarse_val = sdram_params->calib_params.gating_win[channel][rank][0];
 	gw_fine_val = sdram_params->calib_params.gating_win[channel][rank][1];
 
-	dramc_dbg_msg("****************************************************\n");
-	dramc_dbg_msg("Channel %d Rank %d DQS GW Calibration\n", channel, rank);
-	dramc_dbg_msg("Default (coarse, fine) tune value %d, %d.\n",
+	dramc_dbg("****************************************************\n");
+	dramc_dbg("Channel %d Rank %d DQS GW Calibration\n", channel, rank);
+	dramc_dbg("Default (coarse, fine) tune value %d, %d.\n",
 		       gw_coarse_val, gw_fine_val);
-	dramc_dbg_msg("****************************************************\n");
+	dramc_dbg("****************************************************\n");
 
 	/* set default coarse and fine value */
 	set_gw_coarse_factor(channel, gw_coarse_val);
@@ -418,7 +405,7 @@ void dual_rank_rx_dqs_gating_cal(u32 channel,
 	dqsinctl = (dqsinctl >> DQSCTL1_DQSINCTL_SHIFT) & (0xf << 0);
 
 	/* swap cs0 and cs1 */
-	setbits_le32(&ch[channel].ao_regs->rkcfg, MASK_RKCFG_RKSWAP_EN);
+	setbits32(&ch[channel].ao_regs->rkcfg, MASK_RKCFG_RKSWAP_EN);
 
 	/* rank 1 gw calibration */
 	rx_dqs_gating_cal(channel, 1, sdram_params);
@@ -429,7 +416,7 @@ void dual_rank_rx_dqs_gating_cal(u32 channel,
 	set_gw_fine_factor(channel, opt_gw_fine_value[channel][1], 1);
 
 	/* swap cs back */
-	clrbits_le32(&ch[channel].ao_regs->rkcfg, MASK_RKCFG_RKSWAP_EN);
+	clrbits32(&ch[channel].ao_regs->rkcfg, MASK_RKCFG_RKSWAP_EN);
 
 	/* set rank 0 coarse tune and fine tune back */
 	set_gw_coarse_factor(channel, opt_gw_coarse_value[channel][0]);
@@ -443,18 +430,18 @@ void dramc_rankinctl_config(u32 channel,
 
 	if (is_dual_rank(channel, sdram_params)) {
 		/* RANKINCTL_ROOT1 = DQSINCTL + reg_TX_DLY_DQSGATE */
-		value = min(opt_gw_coarse_value[channel][0],
+		value = MIN(opt_gw_coarse_value[channel][0],
 			    opt_gw_coarse_value[channel][1]) >> 2;
 
-		clrsetbits_le32(&ch[channel].ao_regs->dummy, 0xf, value);
+		clrsetbits32(&ch[channel].ao_regs->dummy, 0xf, value);
 
 		/* RANKINCTL = RANKINCTL_ROOT1 */
-		clrsetbits_le32(&ch[channel].ao_regs->dqscal1,
-				0xf << 16, value << 16);
+		clrsetbits32(&ch[channel].ao_regs->dqscal1,
+			     0xf << 16, value << 16);
 	}
 	/* disable per-bank refresh when refresh rate >= 5 */
-	setbits_le32(&ch[channel].ao_regs->rkcfg,
-		     1 << RKCFG_PBREF_DISBYRATE_SHIFT);
+	setbits32(&ch[channel].ao_regs->rkcfg,
+		  1 << RKCFG_PBREF_DISBYRATE_SHIFT);
 }
 
 u32 dram_k_perbit(u32 channel)
@@ -610,7 +597,7 @@ u8 dramk_calcu_best_dly(u8 bit, struct dqs_perbit_dly *p, u8 *p_max_byte)
 		}
 	}
 
-	dramc_dbg_msg("bit#%d : dq =%d dqs=%d win=%d (%d, %d)\n",
+	dramc_dbg("bit#%d : dq =%d dqs=%d win=%d (%d, %d)\n",
 		      bit, setup, hold, setup + hold,
 		      p->best_dqdly, p->best_dqsdly);
 
@@ -624,41 +611,41 @@ void clk_duty_cal(u32 channel)
 
 	max_duty_sel = max_duty = 1;
 
-	clrsetbits_le32(&ch[channel].ddrphy_regs->phyclkduty,
-			0x3 << PHYCLKDUTY_CMDCLKP0DUTYN_SHIFT |
-			1 << PHYCLKDUTY_CMDCLKP0DUTYP_SHIFT,
-			1 << PHYCLKDUTY_CMDCLKP0DUTYSEL_SHIFT |
-			max_duty << PHYCLKDUTY_CMDCLKP0DUTYN_SHIFT);
+	clrsetbits32(&ch[channel].ddrphy_regs->phyclkduty,
+		     0x3 << PHYCLKDUTY_CMDCLKP0DUTYN_SHIFT |
+		     1 << PHYCLKDUTY_CMDCLKP0DUTYP_SHIFT,
+		     1 << PHYCLKDUTY_CMDCLKP0DUTYSEL_SHIFT |
+		     max_duty << PHYCLKDUTY_CMDCLKP0DUTYN_SHIFT);
 
 	max_win_size = read32(&ch[channel].ddrphy_regs->phyclkduty);
 
-	dramc_dbg_msg("[Channel %d CLK DUTY CALIB] ", channel);
-	dramc_dbg_msg("Final DUTY_SEL=%d, DUTY=%d, rx window size=%d\n",
+	dramc_dbg("[Channel %d CLK DUTY CALIB] ", channel);
+	dramc_dbg("Final DUTY_SEL=%d, DUTY=%d, rx window size=%d\n",
 		      max_duty_sel, max_duty, max_win_size);
 }
 
 static void set_dle_factor(u32 channel, u8 curr_val)
 {
-	clrsetbits_le32(&ch[channel].ao_regs->ddr2ctl,
-			0x7 << DDR2CTL_DATLAT_SHIFT,
-			(curr_val & 0x7) << DDR2CTL_DATLAT_SHIFT);
+	clrsetbits32(&ch[channel].ao_regs->ddr2ctl,
+		     0x7 << DDR2CTL_DATLAT_SHIFT,
+		     (curr_val & 0x7) << DDR2CTL_DATLAT_SHIFT);
 
-	clrsetbits_le32(&ch[channel].ao_regs->padctl4,
-			0x1 << PADCTL4_DATLAT3_SHIFT,
-			((curr_val >> 3) & 0x1) << PADCTL4_DATLAT3_SHIFT);
+	clrsetbits32(&ch[channel].ao_regs->padctl4,
+		     0x1 << PADCTL4_DATLAT3_SHIFT,
+		     ((curr_val >> 3) & 0x1) << PADCTL4_DATLAT3_SHIFT);
 
-	clrsetbits_le32(&ch[channel].ao_regs->phyctl1,
-			0x1 << PHYCTL1_DATLAT4_SHIFT,
-			((curr_val >> 4) & 0x1) << PHYCTL1_DATLAT4_SHIFT);
+	clrsetbits32(&ch[channel].ao_regs->phyctl1,
+		     0x1 << PHYCTL1_DATLAT4_SHIFT,
+		     ((curr_val >> 4) & 0x1) << PHYCTL1_DATLAT4_SHIFT);
 
-	clrsetbits_le32(&ch[channel].ao_regs->misc,
-			0x1f << MISC_DATLAT_DSEL_SHIFT,
-			(curr_val - 8) << MISC_DATLAT_DSEL_SHIFT);
+	clrsetbits32(&ch[channel].ao_regs->misc,
+		     0x1f << MISC_DATLAT_DSEL_SHIFT,
+		     (curr_val - 8) << MISC_DATLAT_DSEL_SHIFT);
 
 	/* optimize bandwidth for HW run time test engine use */
-	clrsetbits_le32(&ch[channel].ao_regs->misc,
-			0x1f << MISC_LATNORMP_SHIFT,
-			(curr_val - 3) << MISC_LATNORMP_SHIFT);
+	clrsetbits32(&ch[channel].ao_regs->misc,
+		     0x1f << MISC_LATNORMP_SHIFT,
+		     (curr_val - 3) << MISC_LATNORMP_SHIFT);
 }
 
 void dual_rank_rx_datlat_cal(u32 channel,
@@ -670,7 +657,7 @@ void dual_rank_rx_datlat_cal(u32 channel,
 	r0_dle_setting = rx_datlat_cal(channel, 0, sdram_params);
 
 	/* swap cs0 and cs1 */
-	setbits_le32(&ch[channel].ao_regs->rkcfg, MASK_RKCFG_RKSWAP_EN);
+	setbits32(&ch[channel].ao_regs->rkcfg, MASK_RKCFG_RKSWAP_EN);
 
 	/* set rank 1 coarse tune and fine tune back */
 	set_gw_coarse_factor(channel, opt_gw_coarse_value[channel][1]);
@@ -684,21 +671,21 @@ void dual_rank_rx_datlat_cal(u32 channel,
 	set_gw_fine_factor(channel, opt_gw_fine_value[channel][0], 0);
 
 	/* swap cs back */
-	clrbits_le32(&ch[channel].ao_regs->rkcfg, MASK_RKCFG_RKSWAP_EN);
+	clrbits32(&ch[channel].ao_regs->rkcfg, MASK_RKCFG_RKSWAP_EN);
 
 	/* output dle setting of rank 0 and 1 */
-	dramc_dbg_msg("[DLE] Rank 0 DLE calibrated setting = %xh.\n"
+	dramc_dbg("[DLE] Rank 0 DLE calibrated setting = %xh.\n"
 		      "[DLE] Rank 1 DLE calibrated setting = %xh.\n",
 		      r0_dle_setting, r1_dle_setting);
 
 	if (r1_dle_setting < r0_dle_setting) {
 		/* compare dle setting of two ranks */
-		dramc_dbg_msg("[DLE] rank 0 > rank 1. set to rank 0.\n");
+		dramc_dbg("[DLE] rank 0 > rank 1. set to rank 0.\n");
 		/* case 1: set rank 0 dle setting */
 		set_dle_factor(channel, r0_dle_setting);
 	} else {
 		/* compare dle setting of two ranks */
-		dramc_dbg_msg("[DLE] rank 0 < rank 1. use rank 1.\n");
+		dramc_dbg("[DLE] rank 0 < rank 1. use rank 1.\n");
 		/* case 2: set rank 1 dle setting */
 		set_dle_factor(channel, r1_dle_setting);
 	}
@@ -710,12 +697,12 @@ u8 rx_datlat_cal(u32 channel, u8 rank,
 	u8 i, best_step;
 	u32 err[DLE_TEST_NUM];
 
-	dramc_dbg_msg("=========================================\n");
-	dramc_dbg_msg("[Channel %d] [Rank %d] DATLAT calibration\n",
+	dramc_dbg("=========================================\n");
+	dramc_dbg("[Channel %d] [Rank %d] DATLAT calibration\n",
 		       channel, rank);
-	dramc_dbg_msg("=========================================\n");
+	dramc_dbg("=========================================\n");
 
-	clrbits_le32(&ch[channel].ao_regs->mckdly,
+	clrbits32(&ch[channel].ao_regs->mckdly,
 		     0x11 << MCKDLY_DQIENQKEND_SHIFT |
 		     0x1  << MCKDLY_DQIENLAT_SHIFT);
 
@@ -750,7 +737,7 @@ u8 rx_datlat_cal(u32 channel, u8 rank,
 	 */
 	set_dle_factor(channel, best_step);
 
-	dramc_dbg_msg("[DLE] adjusted value = %#x\n", best_step);
+	dramc_dbg("[DLE] adjusted value = %#x\n", best_step);
 
 	return best_step;
 }
@@ -768,7 +755,7 @@ void tx_delay_for_wrleveling(u32 channel,
 		index = i / DQS_BIT_NUMBER;
 
 		if (i % DQS_BIT_NUMBER == 0)
-			dramc_dbg_msg("DQS%d: %d\n", index,
+			dramc_dbg("DQS%d: %d\n", index,
 				       wrlevel_dqs_dly[channel][index]);
 
 		if (max_dqsdly_byte[index] <= wrlevel_dqs_dly[channel][index]) {
@@ -886,9 +873,9 @@ static void set_rx_best_dly_factor(u32 channel,
 	write32(&ch[channel].ao_regs->r0deldly, value);
 	write32(&ch[channel].ao_regs->r1deldly, value);
 
-	dramc_dbg_msg("[RX] DQS Reg R0DELDLY=%xh\n",
+	dramc_dbg("[RX] DQS Reg R0DELDLY=%xh\n",
 			read32(&ch[channel].ao_regs->r0deldly));
-	dramc_dbg_msg("[RX] DQS Reg R1DELDLY=%xh\n",
+	dramc_dbg("[RX] DQS Reg R1DELDLY=%xh\n",
 			read32(&ch[channel].ao_regs->r1deldly));
 
 	for (i = 0; i < DATA_WIDTH_32BIT; i += 4) {
@@ -899,7 +886,7 @@ static void set_rx_best_dly_factor(u32 channel,
 			(((u32)dqdqs_perbit_dly[i + 3].best_dqdly) << 24);
 
 		write32(&ch[channel].ao_regs->dqidly[i / 4], value);
-		dramc_dbg_msg("[RX] DQ DQIDLY%d = %xh\n", (i + 4) / 4, value);
+		dramc_dbg("[RX] DQ DQIDLY%d = %xh\n", (i + 4) / 4, value);
 	}
 }
 
@@ -915,7 +902,7 @@ static void set_tx_best_dly_factor(u32 channel,
 	}
 
 	write32(&ch[channel].ddrphy_regs->padctl3, value);
-	dramc_dbg_msg("[TX] DQS PADCTL3 Reg = %#x\n", value);
+	dramc_dbg("[TX] DQS PADCTL3 Reg = %#x\n", value);
 
 	/* DQ delay */
 	for (bit = 0; bit < DATA_WIDTH_32BIT; bit++) {
@@ -930,7 +917,7 @@ static void set_tx_best_dly_factor(u32 channel,
 		/* each register is with 8 DQ */
 		if ((bit + 1) % DQS_BIT_NUMBER == 0) {
 			write32(&ch[channel].ddrphy_regs->dqodly[dqs_index], value);
-			dramc_dbg_msg("[TX] DQ DQ0DLY%d = %xh\n",
+			dramc_dbg("[TX] DQ DQ0DLY%d = %xh\n",
 					dqs_index + 1, value);
 		}
 	}
@@ -943,7 +930,7 @@ static void set_tx_best_dly_factor(u32 channel,
 		value += (((u32)ave_dqdly_byte[bit]) << (4 * bit));
 	}
 	write32(&ch[channel].ddrphy_regs->padctl2, value);
-	dramc_dbg_msg("[TX] DQM PADCTL2 Reg = %#x\n", value);
+	dramc_dbg("[TX] DQM PADCTL2 Reg = %#x\n", value);
 }
 
 void perbit_window_cal(u32 channel, u8 type)
@@ -954,7 +941,7 @@ void perbit_window_cal(u32 channel, u8 type)
 
 	struct dqs_perbit_dly dqdqs_perbit_dly[DQ_DATA_WIDTH];
 
-	dramc_dbg_msg("\n[Channel %d] %s DQ/DQS per bit :\n",
+	dramc_dbg("\n[Channel %d] %s DQ/DQS per bit :\n",
 			channel, (type == TX_WIN)? "TX": "RX");
 
 	if (type == TX_WIN)
@@ -971,9 +958,9 @@ void perbit_window_cal(u32 channel, u8 type)
 		dqdqs_perbit_dly[i].best_last_dqsdly_pass = -2;
 	}
 
-	/* 1. delay DQ,find the pass widnow (left boundary)
+	/* 1. delay DQ,find the pass window (left boundary)
 	 * 2. delay DQS find the pass window (right boundary)
-	 * 3. find the best DQ / DQS to satify the middle value
+	 * 3. find the best DQ / DQS to satisfy the middle value
 	 *    of the overall pass window per bit
 	 * 4. set DQS delay to the max per byte, delay DQ to de-skew
 	 */
@@ -981,13 +968,13 @@ void perbit_window_cal(u32 channel, u8 type)
 	/* 1. set DQS delay to 0 first */
 	set_dly_factor(channel, STAGE_HOLD, type, FIRST_DQS_DELAY);
 
-	dramc_dbg_msg("----------------------------------"
+	dramc_dbg("----------------------------------"
 			"--------------------\n");
-	dramc_dbg_msg("Start DQ delay to find pass range,"
+	dramc_dbg("Start DQ delay to find pass range,"
 			"DQS delay fixed to %#x...\n", FIRST_DQS_DELAY);
-	dramc_dbg_msg("----------------------------------"
+	dramc_dbg("----------------------------------"
 			"-------------------\n");
-	dramc_dbg_msg("x-axis is bit #; y-axis is DQ delay (%d~%d)\n",
+	dramc_dbg("x-axis is bit #; y-axis is DQ delay (%d~%d)\n",
 			FIRST_DQ_DELAY, MAX_DQDLY_TAPS - 1);
 
 	/* delay DQ from 0 to 15 to get the setup time */
@@ -1002,12 +989,12 @@ void perbit_window_cal(u32 channel, u8 type)
 			dramk_check_dq_win(&(dqdqs_perbit_dly[bit]), dly,
 					   MAX_DQDLY_TAPS - 1, fail_bit);
 			if (fail_bit == 0) {
-				dramc_dbg_msg("o");
+				dramc_dbg("o");
 			} else {
-				dramc_dbg_msg("x");
+				dramc_dbg("x");
 			}
 		}
-		dramc_dbg_msg("\n");
+		dramc_dbg("\n");
 	}
 
 	/* 2. set DQ delay to 0 */
@@ -1016,13 +1003,13 @@ void perbit_window_cal(u32 channel, u8 type)
 	/* DQS delay taps: tx and rx are 16 and 64 taps */
 	max_dqs_taps = (type == TX_WIN)? MAX_TX_DQSDLY_TAPS: MAX_RX_DQSDLY_TAPS;
 
-	dramc_dbg_msg("-----------------------------------"
+	dramc_dbg("-----------------------------------"
 			"-------------------\n");
-	dramc_dbg_msg("Start DQS delay to find pass range,"
+	dramc_dbg("Start DQS delay to find pass range,"
 			"DQ delay fixed to %#x...\n", FIRST_DQ_DELAY);
-	dramc_dbg_msg("------------------------------------"
+	dramc_dbg("------------------------------------"
 			"------------------\n");
-	dramc_dbg_msg("x-axis is bit #; y-axis is DQS delay (%d~%d)\n",
+	dramc_dbg("x-axis is bit #; y-axis is DQS delay (%d~%d)\n",
 		      FIRST_DQS_DELAY + 1, max_dqs_taps - 1);
 
 	/* delay DQS to get the hold time, dq_dly = dqs_dly = 0 is counted */
@@ -1038,22 +1025,22 @@ void perbit_window_cal(u32 channel, u8 type)
 			dramk_check_dqs_win(&(dqdqs_perbit_dly[bit]), dly,
 					    max_dqs_taps - 1, fail_bit);
 			if (fail_bit == 0) {
-				dramc_dbg_msg("o");
+				dramc_dbg("o");
 			} else {
-				dramc_dbg_msg("x");
+				dramc_dbg("x");
 			}
 		}
-		dramc_dbg_msg("\n");
+		dramc_dbg("\n");
 	}
 
 	/* 3 calculate dq and dqs time */
-	dramc_dbg_msg("-------------------------------"
+	dramc_dbg("-------------------------------"
 			"-----------------------\n");
-	dramc_dbg_msg("Start calculate dq time and dqs "
+	dramc_dbg("Start calculate dq time and dqs "
 			"time:\n");
-	dramc_dbg_msg("Find max DQS delay per byte / "
+	dramc_dbg("Find max DQS delay per byte / "
 			"Adjust DQ delay to align DQS...\n");
-	dramc_dbg_msg("--------------------------------"
+	dramc_dbg("--------------------------------"
 			"----------------------\n");
 
 	/* As per byte, check max DQS delay in 8-bit.
@@ -1073,7 +1060,7 @@ void perbit_window_cal(u32 channel, u8 type)
 					     &max_dqsdly_byte[index]);
 
 		if ((i + 1) % DQS_BIT_NUMBER == 0)
-			dramc_dbg_msg("----separate line----\n");
+			dramc_dbg("----separate line----\n");
 	}
 
 	for (i = 0; i < DATA_WIDTH_32BIT; i++) {
@@ -1100,36 +1087,36 @@ void perbit_window_cal(u32 channel, u8 type)
 	}
 
 	if (fail == 1) /* error handling */
-		die("fail on perbit_window_cal()\n");
+		die("fail on %s()\n", __func__);
 
-	dramc_dbg_msg("==================================================\n");
-	dramc_dbg_msg("        dramc_perbit_window_swcal:\n");
-	dramc_dbg_msg("           channel=%d(0:cha, 1:chb)\n", channel);
-	dramc_dbg_msg("           bus width=%d\n", DATA_WIDTH_32BIT);
-	dramc_dbg_msg("==================================================\n");
-	dramc_dbg_msg("DQS Delay :\n DQS0 = %d DQS1 = %d DQS2 = %d DQS3 = %d\n",
+	dramc_dbg("==================================================\n");
+	dramc_dbg("        dramc_perbit_window_swcal:\n");
+	dramc_dbg("           channel=%d(0:cha, 1:chb)\n", channel);
+	dramc_dbg("           bus width=%d\n", DATA_WIDTH_32BIT);
+	dramc_dbg("==================================================\n");
+	dramc_dbg("DQS Delay :\n DQS0 = %d DQS1 = %d DQS2 = %d DQS3 = %d\n",
 		       max_dqsdly_byte[0], max_dqsdly_byte[1],
 		       max_dqsdly_byte[2], max_dqsdly_byte[3]);
 
 	if (type == TX_WIN)
-		dramc_dbg_msg("DQM Delay :\n"
+		dramc_dbg("DQM Delay :\n"
 			      "DQM0 = %d DQM1 = %d DQM2 = %d DQM3 = %d\n",
 			       ave_dqdly_byte[0], ave_dqdly_byte[1],
 			       ave_dqdly_byte[2], ave_dqdly_byte[3]);
 
-	dramc_dbg_msg("DQ Delay :\n");
+	dramc_dbg("DQ Delay :\n");
 	for (i = 0; i < DATA_WIDTH_32BIT; i++) {
-		dramc_dbg_msg("DQ%d = %d ", i, dqdqs_perbit_dly[i].best_dqdly);
+		dramc_dbg("DQ%d = %d ", i, dqdqs_perbit_dly[i].best_dqdly);
 		if (((i + 1) % 4) == 0)
-			dramc_dbg_msg("\n");
+			dramc_dbg("\n");
 	}
 
-	dramc_dbg_msg("____________________________________"
+	dramc_dbg("____________________________________"
 		      "____________________________________\n");
 
 	if (type == TX_WIN) {
 		/* Add CLK to DQS/DQ skew after write leveling */
-		dramc_dbg_msg("Add CLK to DQS/DQ skew based on write leveling.\n");
+		dramc_dbg("Add CLK to DQS/DQ skew based on write leveling.\n");
 		/* this subroutine add clk delay to DQS/DQ after WL */
 		tx_delay_for_wrleveling(channel, dqdqs_perbit_dly,
 					max_dqsdly_byte, ave_dqdly_byte);

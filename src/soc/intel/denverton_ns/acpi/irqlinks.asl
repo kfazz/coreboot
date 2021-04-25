@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007 - 2009 coresystems GmbH
- * Copyright (C) 2015 - 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 Device (LNKA)
 {
@@ -23,7 +8,7 @@ Device (LNKA)
 	// Disable method
 	Method (_DIS, 0, Serialized)
 	{
-		Store (0x80, PRTA)
+		PRTA = 0x80
 	}
 
 	// Possible Resource Settings for this Link
@@ -43,10 +28,10 @@ Device (LNKA)
 		CreateWordField(RTLA, 1, IRQ0)
 
 		// Clear the WordField
-		Store (Zero, IRQ0)
+		IRQ0 = 0
 
 		// Set the bit from PRTA
-		ShiftLeft(1, And(PRTA, 0x0f), IRQ0)
+		IRQ0 = 1 << (PRTA & 0x0f)
 
 		Return (RTLA)
 	}
@@ -59,14 +44,14 @@ Device (LNKA)
 		// Which bit is set?
 		FindSetRightBit(IRQ0, Local0)
 
-		Decrement(Local0)
-		Store(Local0, PRTA)
+		Local0--
+		PRTA = Local0
 	}
 
 	// Status
 	Method (_STA, 0, Serialized)
 	{
-		If(And(PRTA, 0x80)) {
+		If (PRTA & 0x80) {
 			Return (0x9)
 		} Else {
 			Return (0xb)
@@ -82,7 +67,7 @@ Device (LNKB)
 	// Disable method
 	Method (_DIS, 0, Serialized)
 	{
-		Store (0x80, PRTB)
+		PRTB = 0x80
 	}
 
 	// Possible Resource Settings for this Link
@@ -102,10 +87,10 @@ Device (LNKB)
 		CreateWordField(RTLB, 1, IRQ0)
 
 		// Clear the WordField
-		Store (Zero, IRQ0)
+		IRQ0 = 0
 
 		// Set the bit from PRTB
-		ShiftLeft(1, And(PRTB, 0x0f), IRQ0)
+		IRQ0 = 1 << (PRTB & 0x0f)
 
 		Return (RTLB)
 	}
@@ -118,14 +103,14 @@ Device (LNKB)
 		// Which bit is set?
 		FindSetRightBit(IRQ0, Local0)
 
-		Decrement(Local0)
-		Store(Local0, PRTB)
+		Local0--
+		PRTB = Local0
 	}
 
 	// Status
 	Method (_STA, 0, Serialized)
 	{
-		If(And(PRTB, 0x80)) {
+		If (PRTB & 0x80) {
 			Return (0x9)
 		} Else {
 			Return (0xb)
@@ -141,7 +126,7 @@ Device (LNKC)
 	// Disable method
 	Method (_DIS, 0, Serialized)
 	{
-		Store (0x80, PRTC)
+		PRTC = 0x80
 	}
 
 	// Possible Resource Settings for this Link
@@ -161,10 +146,10 @@ Device (LNKC)
 		CreateWordField(RTLC, 1, IRQ0)
 
 		// Clear the WordField
-		Store (Zero, IRQ0)
+		IRQ0 = 0
 
 		// Set the bit from PRTC
-		ShiftLeft(1, And(PRTC, 0x0f), IRQ0)
+		IRQ0 = 1 << (PRTC & 0x0f)
 
 		Return (RTLC)
 	}
@@ -177,14 +162,14 @@ Device (LNKC)
 		// Which bit is set?
 		FindSetRightBit(IRQ0, Local0)
 
-		Decrement(Local0)
-		Store(Local0, PRTC)
+		Local0--
+		PRTC = Local0
 	}
 
 	// Status
 	Method (_STA, 0, Serialized)
 	{
-		If(And(PRTC, 0x80)) {
+		If (PRTC & 0x80) {
 			Return (0x9)
 		} Else {
 			Return (0xb)
@@ -200,7 +185,7 @@ Device (LNKD)
 	// Disable method
 	Method (_DIS, 0, Serialized)
 	{
-		Store (0x80, PRTD)
+		PRTD = 0x80
 	}
 
 	// Possible Resource Settings for this Link
@@ -220,10 +205,10 @@ Device (LNKD)
 		CreateWordField(RTLD, 1, IRQ0)
 
 		// Clear the WordField
-		Store (Zero, IRQ0)
+		IRQ0 = 0
 
 		// Set the bit from PRTD
-		ShiftLeft(1, And(PRTD, 0x0f), IRQ0)
+		IRQ0 = 1 << (PRTD & 0x0f)
 
 		Return (RTLD)
 	}
@@ -236,14 +221,14 @@ Device (LNKD)
 		// Which bit is set?
 		FindSetRightBit(IRQ0, Local0)
 
-		Decrement(Local0)
-		Store(Local0, PRTD)
+		Local0--
+		PRTD = Local0
 	}
 
 	// Status
 	Method (_STA, 0, Serialized)
 	{
-		If(And(PRTD, 0x80)) {
+		If (PRTD & 0x80) {
 			Return (0x9)
 		} Else {
 			Return (0xb)
@@ -259,7 +244,7 @@ Device (LNKE)
 	// Disable method
 	Method (_DIS, 0, Serialized)
 	{
-		Store (0x80, PRTE)
+		PRTE = 0x80
 	}
 
 	// Possible Resource Settings for this Link
@@ -279,10 +264,10 @@ Device (LNKE)
 		CreateWordField(RTLE, 1, IRQ0)
 
 		// Clear the WordField
-		Store (Zero, IRQ0)
+		IRQ0 = 0
 
 		// Set the bit from PRTE
-		ShiftLeft(1, And(PRTE, 0x0f), IRQ0)
+		IRQ0 = 1 << (PRTE & 0x0f)
 
 		Return (RTLE)
 	}
@@ -295,14 +280,14 @@ Device (LNKE)
 		// Which bit is set?
 		FindSetRightBit(IRQ0, Local0)
 
-		Decrement(Local0)
-		Store(Local0, PRTE)
+		Local0--
+		PRTE = Local0
 	}
 
 	// Status
 	Method (_STA, 0, Serialized)
 	{
-		If(And(PRTE, 0x80)) {
+		If (PRTE & 0x80) {
 			Return (0x9)
 		} Else {
 			Return (0xb)
@@ -318,7 +303,7 @@ Device (LNKF)
 	// Disable method
 	Method (_DIS, 0, Serialized)
 	{
-		Store (0x80, PRTF)
+		PRTF = 0x80
 	}
 
 	// Possible Resource Settings for this Link
@@ -338,10 +323,10 @@ Device (LNKF)
 		CreateWordField(RTLF, 1, IRQ0)
 
 		// Clear the WordField
-		Store (Zero, IRQ0)
+		IRQ0 = 0
 
 		// Set the bit from PRTF
-		ShiftLeft(1, And(PRTF, 0x0f), IRQ0)
+		IRQ0 = 1 << (PRTF & 0x0f)
 
 		Return (RTLF)
 	}
@@ -354,14 +339,14 @@ Device (LNKF)
 		// Which bit is set?
 		FindSetRightBit(IRQ0, Local0)
 
-		Decrement(Local0)
-		Store(Local0, PRTF)
+		Local0--
+		PRTF = Local0
 	}
 
 	// Status
 	Method (_STA, 0, Serialized)
 	{
-		If(And(PRTF, 0x80)) {
+		If (PRTF & 0x80) {
 			Return (0x9)
 		} Else {
 			Return (0xb)
@@ -377,7 +362,7 @@ Device (LNKG)
 	// Disable method
 	Method (_DIS, 0, Serialized)
 	{
-		Store (0x80, PRTG)
+		PRTG = 0x80
 	}
 
 	// Possible Resource Settings for this Link
@@ -397,10 +382,10 @@ Device (LNKG)
 		CreateWordField(RTLG, 1, IRQ0)
 
 		// Clear the WordField
-		Store (Zero, IRQ0)
+		IRQ0 = 0
 
 		// Set the bit from PRTG
-		ShiftLeft(1, And(PRTG, 0x0f), IRQ0)
+		IRQ0 = 1 << (PRTG & 0x0f)
 
 		Return (RTLG)
 	}
@@ -413,14 +398,14 @@ Device (LNKG)
 		// Which bit is set?
 		FindSetRightBit(IRQ0, Local0)
 
-		Decrement(Local0)
-		Store(Local0, PRTG)
+		Local0--
+		PRTG = Local0
 	}
 
 	// Status
 	Method (_STA, 0, Serialized)
 	{
-		If(And(PRTG, 0x80)) {
+		If (PRTG & 0x80) {
 			Return (0x9)
 		} Else {
 			Return (0xb)
@@ -436,7 +421,7 @@ Device (LNKH)
 	// Disable method
 	Method (_DIS, 0, Serialized)
 	{
-		Store (0x80, PRTH)
+		PRTH = 0x80
 	}
 
 	// Possible Resource Settings for this Link
@@ -456,10 +441,10 @@ Device (LNKH)
 		CreateWordField(RTLH, 1, IRQ0)
 
 		// Clear the WordField
-		Store (Zero, IRQ0)
+		IRQ0 = 0
 
 		// Set the bit from PRTH
-		ShiftLeft(1, And(PRTH, 0x0f), IRQ0)
+		IRQ0 = 1 << (PRTH & 0x0f)
 
 		Return (RTLH)
 	}
@@ -472,14 +457,14 @@ Device (LNKH)
 		// Which bit is set?
 		FindSetRightBit(IRQ0, Local0)
 
-		Decrement(Local0)
-		Store(Local0, PRTH)
+		Local0--
+		PRTH = Local0
 	}
 
 	// Status
 	Method (_STA, 0, Serialized)
 	{
-		If(And(PRTH, 0x80)) {
+		If (PRTH & 0x80) {
 			Return (0x9)
 		} Else {
 			Return (0xb)

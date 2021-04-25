@@ -1,15 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /****************************************************************
  * Debugging
@@ -28,12 +17,12 @@ Scope(\) {
     Method(DBUG, 1) {
         ToHexString(Arg0, Local0)
         ToBuffer(Local0, Local0)
-        Subtract(SizeOf(Local0), 1, Local1)
-        Store(Zero, Local2)
-        While (LLess(Local2, Local1)) {
-            Store(DerefOf(Index(Local0, Local2)), DBGB)
-            Increment(Local2)
+        Local1 = SizeOf(Local0) - 1
+        Local2 = 0
+        While (Local2 < Local1) {
+            DBGB = DerefOf( Local0 [Local2])
+            Local2++
         }
-        Store(0x0A, DBGB)
+        DBGB = 0x0A
     }
 }

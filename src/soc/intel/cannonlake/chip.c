@@ -1,32 +1,33 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2016-2018 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/device.h>
 #include <device/pci.h>
 #include <fsp/api.h>
 #include <fsp/util.h>
 #include <intelblocks/acpi.h>
-#include <intelblocks/chip.h>
+#include <intelblocks/cfg.h>
+#include <intelblocks/gpio.h>
 #include <intelblocks/itss.h>
+#include <intelblocks/pcie_rp.h>
 #include <intelblocks/xdci.h>
-#include <romstage_handoff.h>
 #include <soc/intel/common/vbt.h>
 #include <soc/pci_devs.h>
 #include <soc/ramstage.h>
 
 #include "chip.h"
+
+static const struct pcie_rp_group pch_lp_rp_groups[] = {
+	{ .slot = PCH_DEV_SLOT_PCIE,	.count = 8 },
+	{ .slot = PCH_DEV_SLOT_PCIE_1,	.count = 8 },
+	{ 0 }
+};
+
+static const struct pcie_rp_group pch_h_rp_groups[] = {
+	{ .slot = PCH_DEV_SLOT_PCIE,	.count = 8 },
+	{ .slot = PCH_DEV_SLOT_PCIE_1,	.count = 8 },
+	{ .slot = PCH_DEV_SLOT_PCIE_2,	.count = 8 },
+	{ 0 }
+};
 
 #if CONFIG(HAVE_ACPI_TABLES)
 const char *soc_acpi_name(const struct device *dev)
@@ -125,7 +126,6 @@ const char *soc_acpi_name(const struct device *dev)
 	case PCH_DEVFN_GSPI2:	return "SPI2";
 	case PCH_DEVFN_EMMC:	return "EMMC";
 	case PCH_DEVFN_SDCARD:	return "SDXC";
-	case PCH_DEVFN_LPC:	return "LPCB";
 	case PCH_DEVFN_P2SB:	return "P2SB";
 	case PCH_DEVFN_PMC:	return "PMC_";
 	case PCH_DEVFN_HDA:	return "HDAS";
@@ -139,48 +139,21 @@ const char *soc_acpi_name(const struct device *dev)
 }
 #endif
 
-/*
- * TODO(furquan): Get rid of this workaround once FSP is fixed. Currently, FSP-S
- * configures GPIOs when it should not and this results in coreboot GPIO
- * configuration being overwritten. Until FSP is fixed, maintain the reference
- * of GPIO config table from mainboard and use that to re-configure GPIOs after
- * FSP-S is done.
- */
-void cnl_configure_pads(const struct pad_config *cfg, size_t num_pads)
-{
-	static const struct pad_config *g_cfg;
-	static size_t g_num_pads;
-
-	/*
-	 * If cfg and num_pads are passed in from mainboard, maintain a
-	 * reference to the GPIO table.
-	 */
-	if ((cfg == NULL) || (num_pads == 0)) {
-		cfg = g_cfg;
-		num_pads = g_num_pads;
-	} else {
-		g_cfg = cfg;
-		g_num_pads = num_pads;
-	}
-
-	gpio_configure_pads(cfg, num_pads);
-}
-
 void soc_init_pre_device(void *chip_info)
 {
 	/* Perform silicon specific init. */
-	fsp_silicon_init(romstage_handoff_is_resume());
+	fsp_silicon_init();
 
 	 /* Display FIRMWARE_VERSION_INFO_HOB */
 	fsp_display_fvi_version_hob();
 
-	/* TODO(furquan): Get rid of this workaround once FSP is fixed. */
-	cnl_configure_pads(NULL, 0);
-}
+	soc_gpio_pm_configuration();
 
-static void pci_domain_set_resources(struct device *dev)
-{
-	assign_resources(dev->link_list);
+	/* swap enabled PCI ports in device tree if needed */
+	if (CONFIG(SOC_INTEL_CANNONLAKE_PCH_H))
+		pcie_rp_update_devicetree(pch_h_rp_groups);
+	else
+		pcie_rp_update_devicetree(pch_lp_rp_groups);
 }
 
 static struct device_operations pci_domain_ops = {
@@ -193,11 +166,9 @@ static struct device_operations pci_domain_ops = {
 };
 
 static struct device_operations cpu_bus_ops = {
-	.read_resources   = DEVICE_NOOP,
-	.set_resources    = DEVICE_NOOP,
-	.enable_resources = DEVICE_NOOP,
-	.init             = DEVICE_NOOP,
-	.acpi_fill_ssdt_generator = generate_cpu_entries,
+	.read_resources   = noop_read_resources,
+	.set_resources    = noop_set_resources,
+	.acpi_fill_ssdt   = generate_cpu_entries,
 };
 
 static void soc_enable(struct device *dev)
@@ -207,6 +178,8 @@ static void soc_enable(struct device *dev)
 		dev->ops = &pci_domain_ops;
 	else if (dev->path.type == DEVICE_PATH_CPU_CLUSTER)
 		dev->ops = &cpu_bus_ops;
+	else if (dev->path.type == DEVICE_PATH_GPIO)
+		block_gpio_enable(dev);
 }
 
 struct chip_operations soc_intel_cannonlake_ops = {

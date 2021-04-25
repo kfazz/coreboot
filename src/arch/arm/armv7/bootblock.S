@@ -1,28 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Early initialization code for ARMv7 architecture.
- *
  * This file is based off of the OMAP3530/ARM Cortex start.S file from Das
  * U-Boot, which itself got the file from armboot.
- *
- * Copyright (c) 2004	Texas Instruments <r-woodruff2@ti.com>
- * Copyright (c) 2001	Marius Gröger <mag@sysgo.de>
- * Copyright (c) 2002	Alex Züpke <azu@sysgo.de>
- * Copyright (c) 2002	Gary Jennejohn <garyj@denx.de>
- * Copyright (c) 2003	Richard Woodruff <r-woodruff2@ti.com>
- * Copyright (c) 2003	Kshitij <kshitij@ti.com>
- * Copyright (c) 2006-2008 Syed Mohammed Khasim <x0khasim@ti.com>
- * Copyright (c) 2013   The Chromium OS Authors
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
+
+/* Early initialization code for ARMv7 architecture. */
 
 #include <arch/asm.h>
 
@@ -80,14 +62,43 @@ init_stack_loop:
 	cmp	r0, r1
 	bne	init_stack_loop
 
+	/* Set stackpointer in internal RAM */
+	ldr	sp, =_estack
+
+	/*
+	 * For platforms where the flash is memory mapped (qemu), check if the
+	 * bootblock needs to relocate itself.
+	 */
+check_position:
+	adr	r0, check_position
+	ldr	r1, =check_position
+
+	cmp	r0, r1
+	beq	call_bootblock
+
+	/* Calculate source */
+	ldr	r2, =_program
+	sub	r1, r1, r2
+	sub	r1, r0, r1
+	/* Get destination */
+	ldr	r0, =_program
+	/* Get size */
+	ldr	r2, =_eprogram
+	sub	r2, r2, r0
+
+	bl	memcpy
+
+	/* Get absolute address */
+	ldr	lr, =call_bootblock
+	/* Directly modify pc as branch instruction changes the state */
+	mov	pc, lr
+
 call_bootblock:
 
 	/* Restore parameter passed in by maskrom/vendor firmware. */
 	ldr	r0, =maskrom_param
 	str	r10, [r0]
 
-	/* Set stackpointer in internal RAM to call bootblock main() */
-	ldr	sp, =_estack
 	ldr	r0,=0x00000000
 	/*
 	 * The current design of cpu_info places the struct at the top of the

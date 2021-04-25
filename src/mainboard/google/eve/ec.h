@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2016 Google Inc.
- * Copyright (C) 2016 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef MAINBOARD_EC_H
 #define MAINBOARD_EC_H
@@ -45,10 +31,11 @@
 	(EC_HOST_EVENT_MASK(EC_HOST_EVENT_LID_OPEN) |\
 	 EC_HOST_EVENT_MASK(EC_HOST_EVENT_POWER_BUTTON))
 
-/* EC can wake from S3 with lid or power button or key press */
+/* EC can wake from S3 with lid or power button or key press or MKBP */
 #define MAINBOARD_EC_S3_WAKE_EVENTS \
 	(MAINBOARD_EC_S5_WAKE_EVENTS |\
 	 EC_HOST_EVENT_MASK(EC_HOST_EVENT_DEVICE) |\
+	 EC_HOST_EVENT_MASK(EC_HOST_EVENT_MKBP)   |\
 	 EC_HOST_EVENT_MASK(EC_HOST_EVENT_KEY_PRESSED))
 
 /* Log EC wake events plus EC shutdown events */

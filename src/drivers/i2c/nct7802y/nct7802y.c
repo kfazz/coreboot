@@ -1,23 +1,24 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2017 secunet Security Networks AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <device/device.h>
+#include <types.h>
 
 #include "nct7802y.h"
 #include "chip.h"
+
+static void nct7802y_init_sensors(struct device *const dev)
+{
+	const struct drivers_i2c_nct7802y_config *const config = dev->chip_info;
+	unsigned int i;
+	u8 value = 0;
+
+	for (i = 0; i < NCT7802Y_RTD_CNT; ++i)
+		value |= MODE_SELECTION_RTDx(i, config->sensors.rtd[i]);
+	if (config->sensors.local_enable)
+		value |= MODE_SELECTION_LTD_EN;
+	nct7802y_write(dev, MODE_SELECTION, value);
+}
 
 static void nct7802y_init(struct device *const dev)
 {
@@ -28,13 +29,13 @@ static void nct7802y_init(struct device *const dev)
 	}
 
 	nct7802y_init_peci(dev);
+	nct7802y_init_sensors(dev);
 	nct7802y_init_fan(dev);
 }
 
 static struct device_operations nct7802y_ops = {
-	.read_resources		= DEVICE_NOOP,
-	.set_resources		= DEVICE_NOOP,
-	.enable_resources	= DEVICE_NOOP,
+	.read_resources		= noop_read_resources,
+	.set_resources		= noop_set_resources,
 	.init			= nct7802y_init,
 };
 

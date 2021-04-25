@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2016-2018 Intel Corp.
- * (Written by Andrey Petrov <andrey.petrov@intel.com> for Intel Corp.)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <bootblock_common.h>
 #include <cpu/x86/pae.h>
@@ -21,6 +6,7 @@
 #include <device/pci_ops.h>
 #include <intelblocks/cpulib.h>
 #include <intelblocks/fast_spi.h>
+#include <intelblocks/lpc_lib.h>
 #include <intelblocks/p2sb.h>
 #include <intelblocks/pcr.h>
 #include <intelblocks/rtc.h>
@@ -35,10 +21,9 @@
 #include <soc/pci_devs.h>
 #include <soc/pm.h>
 #include <spi-generic.h>
-#include <timestamp.h>
 
 static const struct pad_config tpm_spi_configs[] = {
-#if CONFIG(SOC_INTEL_GLK)
+#if CONFIG(SOC_INTEL_GEMINILAKE)
 	PAD_CFG_NF(GPIO_81, NATIVE, DEEP, NF3),	/* FST_SPI_CS2_N */
 #else
 	PAD_CFG_NF(GPIO_106, NATIVE, DEEP, NF3),	/* FST_SPI_CS2_N */
@@ -69,7 +54,7 @@ asmlinkage void bootblock_c_entry(uint64_t base_timestamp)
 	enable_rtc_upper_bank();
 
 	/* Call lib/bootblock.c main */
-	bootblock_main_with_timestamp(base_timestamp, NULL, 0);
+	bootblock_main_with_basetime(base_timestamp);
 }
 
 static void enable_pmcbar(void)
@@ -97,6 +82,8 @@ void bootblock_soc_early_init(void)
 	/* Prepare UART for serial console. */
 	if (CONFIG(INTEL_LPSS_UART_FOR_CONSOLE))
 		uart_bootblock_init();
+	if (CONFIG(DRIVERS_UART_8250IO))
+		lpc_io_setup_comm_a_b();
 
 	if (CONFIG(TPM_ON_FAST_SPI))
 		tpm_enable();
@@ -121,13 +108,4 @@ void bootblock_soc_early_init(void)
 		paging_set_default_pat();
 		paging_enable_for_car("pdpt", "pt");
 	}
-}
-
-void bootblock_soc_init(void)
-{
-	/*
-	 * Clear the GPI interrupt enable & status registers to avoid any
-	 * interrupt storm during the kernel bootup.
-	 */
-	gpi_clear_int_cfg();
 }

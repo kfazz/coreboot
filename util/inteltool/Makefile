@@ -1,19 +1,4 @@
-#
-# Makefile for inteltool utility
-#
-# Copyright (C) 2008 by coresystems GmbH
-# written by Stefan Reinauer <stepan@coresystems.de>
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 PROGRAM = inteltool
 
@@ -22,13 +7,16 @@ top ?= $(abspath ../..)
 CC      ?= gcc
 INSTALL ?= /usr/bin/env install
 PREFIX  ?= /usr/local
-CFLAGS  ?= -O2 -g -Wall -W
+CFLAGS  ?= -O2 -g -Wall -Wextra -Wmissing-prototypes
 LDFLAGS += -lpci -lz
 
-CPPFLAGS += -I$(top)/src/commonlib/include
+CPPFLAGS += -I$(top)/util/inteltool
+CPPFLAGS += -I$(top)/src/commonlib/include -I$(top)/src/commonlib/bsd/include
+CPPFLAGS += -I$(top)/src/arch/x86/include
+
 
 OBJS = inteltool.o pcr.o cpu.o gpio.o gpio_groups.o rootcmplx.o powermgt.o \
-       memory.o pcie.o amb.o ivy_memory.o spi.o gfx.o ahci.o \
+       memory.o pcie.o amb.o ivy_memory.o spi.o gfx.o ahci.o lpc.o
 
 OS_ARCH	= $(shell uname)
 ifeq ($(OS_ARCH), Darwin)

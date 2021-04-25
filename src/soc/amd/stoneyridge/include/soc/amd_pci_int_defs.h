@@ -1,21 +1,7 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Sage Electronic Engineering, LLC.
- * Copyright (C) 2017 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#ifndef __AMD_PCI_INT_DEFS_H__
-#define __AMD_PCI_INT_DEFS_H__
+#ifndef AMD_STONEYRIDGE_AMD_PCI_INT_DEFS_H
+#define AMD_STONEYRIDGE_AMD_PCI_INT_DEFS_H
 
 /*
  * PIRQ and device routing - these define the index into the
@@ -58,4 +44,4 @@
 #define PIRQ_UART0	0x74
 #define PIRQ_UART1	0x75
 
-#endif /* __AMD_PCI_INT_DEFS_H__ */
+#endif /* AMD_STONEYRIDGE_AMD_PCI_INT_DEFS_H */

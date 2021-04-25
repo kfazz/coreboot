@@ -1,39 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 - 2015 The Linux Foundation. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above
- *       copyright notice, this list of conditions and the following
- *       disclaimer in the documentation and/or other materials provided
- *       with the distribution.
- *     * Neither the name of The Linux Foundation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+/* SPDX-License-Identifier: BSD-3-Clause */
 
 #include <device/mmio.h>
 #include <console/console.h>
 #include <delay.h>
 #include <soc/iomap.h>
-#include <stdlib.h>
 #include <soc/qup.h>
 
 #define TIMEOUT_CNT	100
@@ -47,7 +17,7 @@
 #if QUP_DEBUG
 #define qup_write32(a, v) do {				\
 	write32(a, v);					\
-	printk(QUPDBG "%s(%d): write32(0x%p, 0x%x)\n",	\
+	printk(QUPDBG "%s(%d): write32(%p, 0x%x)\n",	\
 			__func__, __LINE__, a, v);	\
 } while (0)
 #else
@@ -100,7 +70,7 @@ static int check_bit_state(uint32_t *reg, int wait_for)
 /*
  * Check whether GSBIn_QUP State is valid
  */
-static qup_return_t qup_wait_for_state(blsp_qup_id_t id, unsigned wait_for)
+static qup_return_t qup_wait_for_state(blsp_qup_id_t id, unsigned int wait_for)
 {
 	return check_bit_state(QUP_ADDR(id, QUP_STATE), wait_for);
 }
@@ -195,8 +165,8 @@ static qup_return_t qup_i2c_write_fifo(blsp_qup_id_t id, qup_data_t *p_tx_obj,
 	qup_return_t ret = QUP_ERR_UNDEFINED;
 	uint8_t addr = p_tx_obj->p.iic.addr;
 	uint8_t *data_ptr = p_tx_obj->p.iic.data;
-	unsigned data_len = p_tx_obj->p.iic.data_len;
-	unsigned idx = 0;
+	unsigned int data_len = p_tx_obj->p.iic.data_len;
+	unsigned int idx = 0;
 	uint32_t tag, *fifo = QUP_ADDR(id, QUP_OUTPUT_FIFO);
 
 	qup_reset_master_status(id);
@@ -312,8 +282,8 @@ static qup_return_t qup_i2c_read_fifo(blsp_qup_id_t id, qup_data_t *p_tx_obj)
 	qup_return_t ret = QUP_ERR_UNDEFINED;
 	uint8_t addr = p_tx_obj->p.iic.addr;
 	uint8_t *data_ptr = p_tx_obj->p.iic.data;
-	unsigned data_len = p_tx_obj->p.iic.data_len;
-	unsigned idx = 0;
+	unsigned int data_len = p_tx_obj->p.iic.data_len;
+	unsigned int idx = 0;
 	uint32_t *fifo = QUP_ADDR(id, QUP_OUTPUT_FIFO);
 
 	qup_reset_master_status(id);
@@ -476,10 +446,9 @@ bailout:
 qup_return_t qup_set_state(blsp_qup_id_t id, uint32_t state)
 {
 	qup_return_t ret = QUP_ERR_UNDEFINED;
-	unsigned curr_state = read32(QUP_ADDR(id, QUP_STATE));
+	unsigned int curr_state = read32(QUP_ADDR(id, QUP_STATE));
 
-	if ((state >= QUP_STATE_RESET && state <= QUP_STATE_PAUSE)
-		&& (curr_state & QUP_STATE_VALID_MASK)) {
+	if (state <= QUP_STATE_PAUSE && (curr_state & QUP_STATE_VALID_MASK)) {
 		/*
 		* For PAUSE_STATE to RESET_STATE transition,
 		* two writes of  10[binary]) are required for the

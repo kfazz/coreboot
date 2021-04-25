@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2008 Advanced Micro Devices, Inc.
  *
@@ -176,7 +175,6 @@ static void init_video_mode(void)
 
 	writel(((vga_mode.hactive - 1) << 16) | (vga_mode.vactive - 1),
 	       DC + 0x5C);
-
 
 	/* Write the VG configuration */
 

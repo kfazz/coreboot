@@ -1,23 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015 Advanced Micro Devices, Inc.
- * Copyright (C) 2015 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#ifndef __PI_STONEYRIDGE_NORTHBRIDGE_H__
-#define __PI_STONEYRIDGE_NORTHBRIDGE_H__
+#ifndef AMD_STONEYRIDGE_NORTHBRIDGE_H
+#define AMD_STONEYRIDGE_NORTHBRIDGE_H
 
 #include <device/device.h>
+#include <types.h>
 
 /* D0F0 - Root Complex */
 
@@ -38,8 +25,6 @@
 #define  NB_IOAPIC_SER_IRQ_IRR	0x31
 #define  NB_IOAPIC_SCRATCH0	0x3e
 #define  NB_IOAPIC_SCRATCH1	0x3f
-
-#define AP_SCRATCH_REG		NB_IOAPIC_SCRATCH0
 
 /* D1F1 - HDA Configuration Registers */
 #define HDA_DEV_CTRL_STATUS	0x60
@@ -98,35 +83,8 @@
 #define NB_CAPABILITIES2	0x84
 #define   CMP_CAP_MASK		0xff
 
-enum {
-	/* SMM handler area. */
-	SMM_SUBREGION_HANDLER,
-	/* SMM cache region. */
-	SMM_SUBREGION_CACHE,
-	/* Chipset specific area. */
-	SMM_SUBREGION_CHIPSET,
-	/* Total sub regions supported. */
-	SMM_SUBREGION_NUM,
-};
-
-/*
- * Fills in the arguments for the entire SMM region covered by chipset
- * protections. e.g. TSEG.
- */
-void smm_region_info(void **start, size_t *size);
-/*
- * Fills in the start and size for the requested SMM subregion. Returns
- * 0 on success, < 0 on failure.
- */
-int smm_subregion(int sub, void **start, size_t *size);
 void domain_enable_resources(struct device *dev);
-void domain_set_resources(struct device *dev);
+void domain_read_resources(struct device *dev);
 void fam15_finalize(void *chip_info);
-uint32_t nb_ioapic_read(unsigned int index);
-void nb_ioapic_write(unsigned int index, uint32_t value);
-void *get_ap_entry_ptr(void);
-void set_ap_entry_ptr(void *entry);
-void set_warm_reset_flag(void);
-int is_warm_reset(void);
 
-#endif /* __PI_STONEYRIDGE_NORTHBRIDGE_H__ */
+#endif /* AMD_STONEYRIDGE_NORTHBRIDGE_H */

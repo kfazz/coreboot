@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Samsung Electronics
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* Clock setup for SMDK5420 board based on EXYNOS5 */
 
@@ -42,7 +29,7 @@ void system_clock_init(void)
 	write32(&exynos_clock->kpll_lock, KPLL_LOCK_VAL);
 	write32(&exynos_clock->rpll_lock, RPLL_LOCK_VAL);
 
-	setbits_le32(&exynos_clock->clk_src_cpu, MUX_HPM_SEL_MASK);
+	setbits32(&exynos_clock->clk_src_cpu, MUX_HPM_SEL_MASK);
 
 	write32(&exynos_clock->clk_src_top6, 0);
 
@@ -52,7 +39,7 @@ void system_clock_init(void)
 	write32(&exynos_clock->clk_div_cpu0, CLK_DIV_CPU0_VAL);
 
 	/* switch A15 clock source to OSC clock before changing APLL */
-	clrbits_le32(&exynos_clock->clk_src_cpu, APLL_FOUT);
+	clrbits32(&exynos_clock->clk_src_cpu, APLL_FOUT);
 
 	/* Set APLL */
 	write32(&exynos_clock->apll_con1, APLL_CON1_VAL);
@@ -62,13 +49,13 @@ void system_clock_init(void)
 		;
 
 	/* now it is safe to switch to APLL */
-	setbits_le32(&exynos_clock->clk_src_cpu, APLL_FOUT);
+	setbits32(&exynos_clock->clk_src_cpu, APLL_FOUT);
 
 	write32(&exynos_clock->clk_src_kfc, SRC_KFC_HPM_SEL);
 	write32(&exynos_clock->clk_div_kfc0, CLK_DIV_KFC_VAL);
 
 	/* switch A7 clock source to OSC clock before changing KPLL */
-	clrbits_le32(&exynos_clock->clk_src_kfc, KPLL_FOUT);
+	clrbits32(&exynos_clock->clk_src_kfc, KPLL_FOUT);
 
 	/* Set KPLL*/
 	write32(&exynos_clock->kpll_con1, KPLL_CON1_VAL);
@@ -78,7 +65,7 @@ void system_clock_init(void)
 		;
 
 	/* now it is safe to switch to KPLL */
-	setbits_le32(&exynos_clock->clk_src_kfc, KPLL_FOUT);
+	setbits32(&exynos_clock->clk_src_kfc, KPLL_FOUT);
 
 	/* Set MPLL */
 	write32(&exynos_clock->mpll_con1, MPLL_CON1_VAL);

@@ -1,24 +1,19 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015-2018 Intel Corp.
- * (Written by Alexandru Gagniuc <alexandrux.gagniuc@intel.com> for Intel Corp.)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef _FSP2_0_UTIL_H_
 #define _FSP2_0_UTIL_H_
 
 #include <boot/coreboot_tables.h>
+#include <cbfs.h>
 #include <commonlib/region.h>
 #include <arch/cpu.h>
 #include <fsp/api.h>
 #include <fsp/info_header.h>
 #include <memrange.h>
+#include <program_loading.h>
+#include <types.h>
+
+#define FSP_VER_LEN	30
 
 struct hob_header {
 	uint16_t type;
@@ -29,6 +24,17 @@ struct fsp_notify_params {
 	enum fsp_notify_phase phase;
 };
 
+enum fsp_multi_phase_action {
+	GET_NUMBER_OF_PHASES = 0,
+	EXECUTE_PHASE = 1
+};
+
+struct fsp_multi_phase_params {
+	enum fsp_multi_phase_action multi_phase_action;
+	uint32_t phase_index;
+	void *multi_phase_param_ptr;
+};
+
 struct hob_resource {
 	uint8_t owner_guid[16];
 	uint32_t type;
@@ -36,6 +42,16 @@ struct hob_resource {
 	uint64_t addr;
 	uint64_t length;
 } __packed;
+
+union fsp_revision {
+	uint32_t val;
+	struct {
+		uint8_t bld_num;
+		uint8_t revision;
+		uint8_t minor;
+		uint8_t major;
+	} rev;
+};
 
 #if CONFIG_UDK_VERSION < CONFIG_UDK_2017_VERSION
 enum resource_type {
@@ -73,21 +89,37 @@ const void *fsp_get_hob_list(void);
 void *fsp_get_hob_list_ptr(void);
 const void *fsp_find_extension_hob_by_guid(const uint8_t *guid, size_t *size);
 const void *fsp_find_nv_storage_data(size_t *size);
-enum cb_err fsp_fill_lb_framebuffer(struct lb_framebuffer *framebuffer);
 int fsp_find_range_hob(struct range_entry *re, const uint8_t guid[16]);
 void fsp_display_fvi_version_hob(void);
-int fsp_find_reserved_memory(struct range_entry *re);
+void fsp_find_reserved_memory(struct range_entry *re);
 const struct hob_resource *fsp_hob_header_to_resource(
 	const struct hob_header *hob);
 const struct hob_header *fsp_next_hob(const struct hob_header *parent);
 bool fsp_guid_compare(const uint8_t guid1[16], const uint8_t guid2[16]);
+void fsp_find_bootloader_tolum(struct range_entry *re);
+void fsp_get_version(char *buf);
+/* fsp_verify_upd_header_signature calls die() on signature mismatch */
+void fsp_verify_upd_header_signature(uint64_t upd_signature, uint64_t expected_signature);
+void lb_string_platform_blob_version(struct lb_header *header);
+void report_fspt_output(void);
+void soc_validate_fsp_version(const struct fsp_header *hdr);
 
-/* Fill in header and validate sanity of component within region device. */
-enum cb_err fsp_validate_component(struct fsp_header *hdr,
-					const struct region_device *rdev);
+/* Fill in header and validate a loaded FSP component. */
+enum cb_err fsp_validate_component(struct fsp_header *hdr, void *fsp_blob, size_t size);
 
-/* Get igd framebuffer bar from SoC */
-uintptr_t fsp_soc_get_igd_bar(void);
+struct fsp_load_descriptor {
+	/* fsp_prog object will have region_device initialized to final
+	 * load location in memory. */
+	struct prog fsp_prog;
+	/* CBFS allocator to place loaded FSP. NULL to map flash directly. */
+	cbfs_allocator_t alloc;
+	/* Optional argument to be utilized by get_destination() callback. */
+	void *arg;
+};
+
+/* Load the FSP component described by fsp_load_descriptor from cbfs. The FSP
+ * header object will be validated and filled in on successful load. */
+enum cb_err fsp_load_component(struct fsp_load_descriptor *fspld, struct fsp_header *hdr);
 
 /*
  * Handle FSP reboot request status. Chipset/soc is expected to provide
@@ -104,6 +136,7 @@ typedef asmlinkage uint32_t (*temp_ram_exit_fn)(void *param);
 typedef asmlinkage uint32_t (*fsp_memory_init_fn)
 				   (void *raminit_upd, void **hob_list);
 typedef asmlinkage uint32_t (*fsp_silicon_init_fn)(void *silicon_upd);
+typedef asmlinkage uint32_t (*fsp_multi_phase_si_init_fn)(struct fsp_multi_phase_params *);
 typedef asmlinkage uint32_t (*fsp_notify_fn)(struct fsp_notify_params *);
 #include <fsp/debug.h>
 

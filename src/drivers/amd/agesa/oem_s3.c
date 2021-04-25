@@ -1,24 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <spi-generic.h>
 #include <spi_flash.h>
 #include <string.h>
 #include <cbmem.h>
 #include <console/console.h>
-#include <program_loading.h>
 #include <northbridge/amd/agesa/state_machine.h>
 #include <AGESA.h>
 #include <northbridge/amd/agesa/agesa_helper.h>
@@ -121,8 +107,6 @@ AGESA_STATUS OemS3Save(AMD_S3_PARAMS *dataBlock)
 {
 	u32 MTRRStorageSize = 0;
 	uintptr_t pos, size;
-
-	romstage_ram_stack_base(HIGH_ROMSTAGE_STACK_SIZE, ROMSTAGE_STACK_CBMEM);
 
 	/* To be consumed in AmdInitResume. */
 	get_s3nv_data(S3DataTypeNonVolatile, &pos, &size);

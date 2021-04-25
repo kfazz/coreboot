@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Rockchip Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <assert.h>
@@ -19,20 +6,20 @@
 #include <soc/gpio.h>
 #include <soc/grf.h>
 #include <soc/soc.h>
-#include <stdlib.h>
+#include <types.h>
 
 static void gpio_set_dir(gpio_t gpio, enum gpio_dir dir)
 {
-	clrsetbits_le32(&gpio_port[gpio.port]->swporta_ddr,
-			1 << gpio.num, dir << gpio.num);
+	clrsetbits32(&gpio_port[gpio.port]->swporta_ddr,
+		     1 << gpio.num, dir << gpio.num);
 }
 
 static void gpio_set_pull(gpio_t gpio, enum gpio_pull pull)
 {
 	u32 pull_val = gpio_get_pull_val(gpio, pull);
 	if (is_pmu_gpio(gpio) && CONFIG(SOC_ROCKCHIP_RK3288))
-		clrsetbits_le32(gpio_grf_reg(gpio), 3 << (gpio.idx * 2),
-				pull_val << (gpio.idx * 2));
+		clrsetbits32(gpio_grf_reg(gpio), 3 << (gpio.idx * 2),
+			     pull_val << (gpio.idx * 2));
 	else
 		write32(gpio_grf_reg(gpio), RK_CLRSETBITS(3 << (gpio.idx * 2),
 			pull_val << (gpio.idx * 2)));
@@ -82,13 +69,13 @@ void gpio_input_irq(gpio_t gpio, enum gpio_irq_type type, enum gpio_pull pull)
 		case IRQ_TYPE_LEVEL_LOW:
 			break;
 	}
-	clrsetbits_le32(&gpio_port[gpio.port]->int_polarity,
-			mask, int_polarity);
-	clrsetbits_le32(&gpio_port[gpio.port]->inttype_level,
-			mask, inttype_level);
+	clrsetbits32(&gpio_port[gpio.port]->int_polarity,
+		     mask, int_polarity);
+	clrsetbits32(&gpio_port[gpio.port]->inttype_level,
+		     mask, inttype_level);
 
-	setbits_le32(&gpio_port[gpio.port]->inten, mask);
-	clrbits_le32(&gpio_port[gpio.port]->intmask, mask);
+	setbits32(&gpio_port[gpio.port]->inten, mask);
+	clrbits32(&gpio_port[gpio.port]->intmask, mask);
 }
 
 int gpio_irq_status(gpio_t gpio)
@@ -99,7 +86,7 @@ int gpio_irq_status(gpio_t gpio)
 	if (!(int_status & mask))
 		return 0;
 
-	setbits_le32(&gpio_port[gpio.port]->porta_eoi, mask);
+	setbits32(&gpio_port[gpio.port]->porta_eoi, mask);
 	return 1;
 }
 
@@ -110,8 +97,8 @@ int gpio_get(gpio_t gpio)
 
 void gpio_set(gpio_t gpio, int value)
 {
-	clrsetbits_le32(&gpio_port[gpio.port]->swporta_dr, 1 << gpio.num,
-							   !!value << gpio.num);
+	clrsetbits32(&gpio_port[gpio.port]->swporta_dr, 1 << gpio.num,
+							!!value << gpio.num);
 }
 
 void gpio_output(gpio_t gpio, int value)

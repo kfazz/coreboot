@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 The Chromium OS Authors. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /*
  * The mainboard must define a PNOT method to handle power
@@ -23,7 +10,10 @@
 #ifdef DPTF_ENABLE_CHARGER
 External (\_SB.DPTF.TCHG, DeviceObj)
 #endif
-
+/* Enable DPTC interface with AMD ALIB */
+#ifdef EC_ENABLE_AMD_DPTC_SUPPORT
+External(\_SB.DPTC, MethodObj)
+#endif
 
 Device (EC0)
 {
@@ -41,7 +31,6 @@ Device (EC0)
 	OperationRegion (ERAM, EmbeddedControl, 0x00, EC_ACPI_MEM_MAPPED_BEGIN)
 	Field (ERAM, ByteAcc, Lock, Preserve)
 	{
-		Offset (0x00),
 		RAMV, 8,	// EC RAM Version
 		TSTB, 8,	// Test Byte
 		TSTC, 8,	// Complement of Test Byte
@@ -92,7 +81,8 @@ Device (EC0)
 		Offset (0x12),
 		BTID, 8,	// Battery index that host wants to read
 		USPP, 8,	// USB Port Power
-}
+		RFWU, 8,	// Retimer Firmware Update
+	}
 
 #if CONFIG(EC_GOOGLE_CHROMEEC_ACPI_MEMMAP)
 	OperationRegion (EMEM, EmbeddedControl,
@@ -160,9 +150,26 @@ Device (EC0)
 	{
 		// Initialize AC power state
 		Store (ACEX, \PWRS)
+		/*
+		 * Inform platform code about the current AC power state.
+		 * This allows the platform to take any action based on the initialized state.
+		 * PWRS isn't valid before this point.
+		 */
+		\PNOT ()
 
 		// Initialize LID switch state
 		Store (LIDS, \LIDS)
+
+#ifdef EC_ENABLE_AMD_DPTC_SUPPORT
+		/*
+		 * Per the device mode (clamshell or tablet) to initialize
+		 * the thermal setting on OS startup.
+		 */
+		If (CondRefOf (\_SB.DPTC)) {
+			\_SB.DPTC()
+		}
+#endif
+
 	}
 
 	/* Read requested temperature and check against EC error values */
@@ -344,7 +351,7 @@ Device (EC0)
 	Method (_Q16, 0, NotSerialized)
 	{
 		Store ("EC: GOT PD EVENT", Debug)
-		Notify (ECPD, 0x80)
+		Notify (\_SB.PCI0.LPCB.EC0.CREC.ECPD, 0x80)
 	}
 #endif
 
@@ -367,6 +374,15 @@ Device (EC0)
 		Notify (CREC, 0x80)
 	}
 
+#ifdef EC_ENABLE_PD_MCU_DEVICE
+	// USB MUX Interrupt
+	Method (_Q1C, 0, NotSerialized)
+	{
+		Store ("EC: USB MUX", Debug)
+		Notify (\_SB.PCI0.LPCB.EC0.CREC.ECPD, 0x80)
+	}
+#endif
+
 	// TABLET mode switch Event
 	Method (_Q1D, 0, NotSerialized)
 	{
@@ -377,6 +393,11 @@ Device (EC0)
 #endif
 #ifdef EC_ENABLE_TBMC_DEVICE
 		Notify (TBMC, 0x80)
+#endif
+#ifdef EC_ENABLE_AMD_DPTC_SUPPORT
+		If (CondRefOf (\_SB.DPTC)) {
+			\_SB.DPTC()
+		}
 #endif
 	}
 
@@ -510,6 +531,7 @@ Device (EC0)
 		Return (^TBMD)
 	}
 
+#ifdef EC_ENABLE_MULTIPLE_DPTF_PROFILES
 	/* Read current Device DPTF Profile Number */
 	Method (RCDP, 0, NotSerialized)
 	{
@@ -524,7 +546,7 @@ Device (EC0)
 			Return (Local0)
 		}
 	}
-
+#endif
 #if CONFIG(EC_GOOGLE_CHROMEEC_ACPI_USB_PORT_POWER)
 	/*
 	 * Enable USB Port Power
@@ -555,10 +577,6 @@ Device (EC0)
 
 #ifdef EC_ENABLE_KEYBOARD_BACKLIGHT
 	#include "keyboard_backlight.asl"
-#endif
-
-#ifdef EC_ENABLE_PD_MCU_DEVICE
-	#include "pd.asl"
 #endif
 
 #ifdef EC_ENABLE_TBMC_DEVICE

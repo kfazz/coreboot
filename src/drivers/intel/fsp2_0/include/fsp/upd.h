@@ -1,13 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2016 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef _FSP2_0_UPD_H_
 #define _FSP2_0_UPD_H_
@@ -30,6 +21,7 @@ struct FSP_UPD_HEADER {
 	uint8_t                       Reserved[23];
 } __packed;
 
+#if CONFIG(PLATFORM_USES_FSP2_X86_32)
 struct FSPM_ARCH_UPD {
 	///
 	/// Revision of the structure. For FSP v2.0 value is 1.
@@ -40,12 +32,12 @@ struct FSPM_ARCH_UPD {
 	/// Pointer to the non-volatile storage (NVS) data buffer.
 	/// If it is NULL it indicates the NVS data is not available.
 	///
-	void                        *NvsBufferPtr;
+	uint32_t                      NvsBufferPtr;
 	///
 	/// Pointer to the temporary stack base address to be
 	/// consumed inside FspMemoryInit() API.
 	///
-	void                        *StackBase;
+	uint32_t                      StackBase;
 	///
 	/// Temporary stack size to be consumed inside
 	/// FspMemoryInit() API.
@@ -61,6 +53,28 @@ struct FSPM_ARCH_UPD {
 	///
 	uint32_t                      BootMode;
 	uint8_t                       Reserved1[8];
+} __packed;
+#else
+#error You need to implement this struct for x86_64 FSP
+#endif
+
+#endif
+struct FSPS_ARCH_UPD {
+	///
+	/// Revision of the structure. For FSP v2.2 value is 1.
+	///
+	uint8_t                       Revision;
+	uint8_t                       Reserved[3];
+	///
+	/// Length of the structure in bytes. The current value for this field is 32
+	///
+	uint32_t                      Length;
+	uint8_t                       Reserved1[4];
+	///
+	/// To enable multi-phase silicon initialization the bootloader must set non-zero value
+	///
+	uint8_t                       EnableMultiPhaseSiliconInit;
+	uint8_t                       Reserved2[19];
 } __packed;
 
 #endif /* _FSP2_0_UPD_H_ */

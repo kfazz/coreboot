@@ -1,19 +1,4 @@
-/*
- * cbfs-mkpayload
- *
- * Copyright (C) 2008 Jordan Crouse <jordan@cosmicpenguin.net>
- *               2009 coresystems GmbH
- *                 written by Patrick Georgi <patrick.georgi@coresystems.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -66,7 +51,7 @@ void xdr_get_seg(struct cbfs_payload_segment *out,
 }
 
 int parse_elf_to_payload(const struct buffer *input, struct buffer *output,
-			 enum comp_algo algo)
+			 enum cbfs_compression algo)
 {
 	Elf64_Phdr *phdr;
 	Elf64_Ehdr ehdr;
@@ -115,7 +100,7 @@ int parse_elf_to_payload(const struct buffer *input, struct buffer *output,
 	}
 
 	/* Now, regular headers - we only care about PT_LOAD headers,
-	 * because thats what we're actually going to load
+	 * because that's what we're actually going to load
 	 */
 
 	for (i = 0; i < headers; i++) {
@@ -247,7 +232,7 @@ int parse_flat_binary_to_payload(const struct buffer *input,
 				 struct buffer *output,
 				 uint32_t loadaddress,
 				 uint32_t entrypoint,
-				 enum comp_algo algo)
+				 enum cbfs_compression algo)
 {
 	comp_func_ptr compress;
 	struct cbfs_payload_segment segs[2] = { {0} };
@@ -292,7 +277,7 @@ int parse_flat_binary_to_payload(const struct buffer *input,
 }
 
 int parse_fv_to_payload(const struct buffer *input, struct buffer *output,
-			enum comp_algo algo)
+			enum cbfs_compression algo)
 {
 	comp_func_ptr compress;
 	struct cbfs_payload_segment segs[2] = { {0} };
@@ -420,7 +405,7 @@ int parse_fv_to_payload(const struct buffer *input, struct buffer *output,
 }
 
 int parse_fit_to_payload(const struct buffer *input, struct buffer *output,
-			 enum comp_algo algo)
+			 enum cbfs_compression algo)
 {
 	struct fdt_header *fdt_h;
 

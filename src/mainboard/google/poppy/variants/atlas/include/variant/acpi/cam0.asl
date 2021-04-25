@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 Scope (\_SB.PCI0.I2C3)
 {
@@ -77,7 +64,6 @@ Scope (\_SB.PCI0.I2C3)
 
 		Name (_PR0, Package (0x01) { FCPR })
 		Name (_PR3, Package (0x01) { FCPR })
-
 
 		/* Port0 of CAM0 is connected to port0 of CIO2 device */
 		Name (_DSD, Package () {

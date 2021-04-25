@@ -1,19 +1,5 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/io.h>
 #include <device/mmio.h>
 #include <bootstate.h>
 #include <console/console.h>
@@ -22,18 +8,17 @@
 #include <device/pci.h>
 #include <intelblocks/lpc_lib.h>
 #include <intelblocks/pcr.h>
+#include <intelblocks/pmclib.h>
 #include <intelblocks/tco.h>
-#include <reg_script.h>
+#include <intelblocks/thermal.h>
 #include <spi-generic.h>
 #include <soc/p2sb.h>
 #include <soc/pci_devs.h>
 #include <soc/pcr_ids.h>
 #include <soc/pm.h>
 #include <soc/smbus.h>
+#include <soc/soc_chip.h>
 #include <soc/systemagent.h>
-#include <stdlib.h>
-
-#include "chip.h"
 
 #define CAMERA1_CLK		0x8000 /* Camera 1 Clock */
 #define CAMERA2_CLK		0x8080 /* Camera 2 Clock */
@@ -55,36 +40,34 @@ static void pch_handle_sideband(config_t *config)
 
 static void pch_finalize(void)
 {
-	struct device *dev;
-	uint32_t reg32;
-	uint8_t *pmcbase;
 	config_t *config;
-	uint8_t reg8;
 
 	/* TCO Lock down */
 	tco_lockdown();
+
+	/*
+	 * Set low maximum temp threshold value used for dynamic thermal sensor
+	 * shutdown consideration.
+	 *
+	 * If Dynamic Thermal Shutdown is enabled then PMC logic shuts down the
+	 * thermal sensor when CPU is in a C-state and DTS Temp <= LTT.
+	 */
+	pch_thermal_configuration();
 
 	/*
 	 * Disable ACPI PM timer based on dt policy
 	 *
 	 * Disabling ACPI PM timer is necessary for XTAL OSC shutdown.
 	 * Disabling ACPI PM timer also switches off TCO
+	 *
+	 * SA_DEV_ROOT device is used here instead of PCH_DEV_PMC since it is
+	 * just required to get to chip config. PCH_DEV_PMC is hidden by this
+	 * point and hence removed from the root bus. pcidev_path_on_root thus
+	 * returns NULL for PCH_DEV_PMC device.
 	 */
-	dev = PCH_DEV_PMC;
-	config = dev->chip_info;
-	pmcbase = pmc_mmio_regs();
-	if (config->PmTimerDisabled) {
-		reg8 = read8(pmcbase + PCH_PWRM_ACPI_TMR_CTL);
-		reg8 |= (1 << 1);
-		write8(pmcbase + PCH_PWRM_ACPI_TMR_CTL, reg8);
-	}
-
-	/* Disable XTAL shutdown qualification for low power idle. */
-	if (config->s0ix_enable) {
-		reg32 = read32(pmcbase + CPPMVRIC);
-		reg32 |= XTALSDQDIS;
-		write32(pmcbase + CPPMVRIC, reg32);
-	}
+	config = config_of_soc();
+	if (config->PmTimerDisabled)
+		pmc_disable_acpi_timer();
 
 	pch_handle_sideband(config);
 
@@ -96,9 +79,7 @@ static void soc_finalize(void *unused)
 	printk(BIOS_DEBUG, "Finalizing chipset.\n");
 
 	pch_finalize();
-
-	printk(BIOS_DEBUG, "Finalizing SMM.\n");
-	outb(APM_CNT_FINALIZE, APM_CNT);
+	apm_control(APM_CNT_FINALIZE);
 
 	/* Indicate finalize step with post code */
 	post_code(POST_OS_BOOT);

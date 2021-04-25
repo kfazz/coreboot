@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2016-2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/pci_ops.h>
 #include <bootstate.h>
@@ -22,14 +9,6 @@
 #include <soc/iomap.h>
 #include <soc/me.h>
 #include <soc/pci_devs.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-
-static inline u32 me_read_config32(int offset)
-{
-	return pci_read_config32(PCH_DEV_CSE, offset);
-}
 
 /* HFSTS1[3:0] Current Working State Values */
 static const char *const me_cws_values[] = {
@@ -202,99 +181,23 @@ static const char *const me_progress_bup_values[] = {
 	"M0 kernel load",
 };
 
-static void print_me_version(void *unused)
-{
-	struct mkhi_hdr {
-		uint8_t group_id;
-		uint8_t command:7;
-		uint8_t is_resp:1;
-		uint8_t rsvd;
-		uint8_t result;
-	} __packed;
-
-	struct version {
-		uint16_t minor;
-		uint16_t major;
-		uint16_t build;
-		uint16_t hotfix;
-	} __packed;
-
-	struct fw_ver_resp {
-		struct mkhi_hdr hdr;
-		struct version code;
-		struct version rec;
-		struct version fitc;
-	} __packed;
-
-	const struct mkhi_hdr fw_ver_msg = {
-		.group_id = MKHI_GEN_GROUP_ID,
-		.command = MKHI_GET_FW_VERSION,
-	};
-
-	struct fw_ver_resp resp;
-	size_t resp_size = sizeof(resp);
-	union me_hfs hfs;
-
-	/*
-	 * Print ME version only if UART debugging is enabled. Else, it takes ~1
-	 * second to talk to ME and get this information.
-	 */
-	if (!CONFIG(CONSOLE_SERIAL))
-		return;
-
-	hfs.data = me_read_config32(PCI_ME_HFSTS1);
-	/*
-	 * This command can be run only if:
-	 * - Working state is normal and
-	 * - Operation mode is normal.
-	 */
-	if ((hfs.fields.working_state != ME_HFS_CWS_NORMAL) ||
-	    (hfs.fields.operation_mode != ME_HFS_MODE_NORMAL))
-		goto failed;
-
-	/*
-	 * It is important to do a heci_reset to ensure BIOS and ME are in sync
-	 * before reading firmware version.
-	 */
-	heci_reset();
-
-	if (!heci_send(&fw_ver_msg, sizeof(fw_ver_msg), BIOS_HOST_ADD,
-		       HECI_MKHI_ADD))
-		goto failed;
-
-	if (!heci_receive(&resp, &resp_size))
-		goto failed;
-
-	if (resp.hdr.result)
-		goto failed;
-
-	printk(BIOS_DEBUG, "ME: Version : %d.%d.%d.%d\n", resp.code.major,
-	       resp.code.minor, resp.code.hotfix, resp.code.build);
-	return;
-
-failed:
-	printk(BIOS_DEBUG, "ME: Version : Unavailable\n");
-}
-/*
- * This can't be put in intel_me_status because by the time control
- * reaches there, ME doesn't respond to GET_FW_VERSION command.
- */
-BOOT_STATE_INIT_ENTRY(BS_DEV_ENABLE, BS_ON_EXIT, print_me_version, NULL);
-
 void intel_me_status(void)
 {
-	union me_hfs hfs;
-	union me_hfs2 hfs2;
-	union me_hfs3 hfs3;
-	union me_hfs6 hfs6;
+	union me_hfsts1 hfs1;
+	union me_hfsts2 hfs2;
+	union me_hfsts3 hfs3;
+	union me_hfsts6 hfs6;
 
-	hfs.data = me_read_config32(PCI_ME_HFSTS1);
+	if (!is_cse_enabled())
+		return;
+
+	hfs1.data = me_read_config32(PCI_ME_HFSTS1);
 	hfs2.data = me_read_config32(PCI_ME_HFSTS2);
 	hfs3.data = me_read_config32(PCI_ME_HFSTS3);
 	hfs6.data = me_read_config32(PCI_ME_HFSTS6);
 
 	printk(BIOS_DEBUG, "ME: Host Firmware Status Register 1 : 0x%08X\n",
-		hfs.data);
+		hfs1.data);
 	printk(BIOS_DEBUG, "ME: Host Firmware Status Register 2 : 0x%08X\n",
 		hfs2.data);
 	printk(BIOS_DEBUG, "ME: Host Firmware Status Register 3 : 0x%08X\n",
@@ -307,21 +210,21 @@ void intel_me_status(void)
 		hfs6.data);
 	/* Check Current States */
 	printk(BIOS_DEBUG, "ME: FW Partition Table      : %s\n",
-	       hfs.fields.fpt_bad ? "BAD" : "OK");
+	       hfs1.fields.fpt_bad ? "BAD" : "OK");
 	printk(BIOS_DEBUG, "ME: Bringup Loader Failure  : %s\n",
-	       hfs.fields.ft_bup_ld_flr ? "YES" : "NO");
+	       hfs1.fields.ft_bup_ld_flr ? "YES" : "NO");
 	printk(BIOS_DEBUG, "ME: Firmware Init Complete  : %s\n",
-	       hfs.fields.fw_init_complete ? "YES" : "NO");
+	       hfs1.fields.fw_init_complete ? "YES" : "NO");
 	printk(BIOS_DEBUG, "ME: Manufacturing Mode      : %s\n",
-	       hfs.fields.mfg_mode ? "YES" : "NO");
+	       hfs1.fields.mfg_mode ? "YES" : "NO");
 	printk(BIOS_DEBUG, "ME: Boot Options Present    : %s\n",
-	       hfs.fields.boot_options_present ? "YES" : "NO");
+	       hfs1.fields.boot_options_present ? "YES" : "NO");
 	printk(BIOS_DEBUG, "ME: Update In Progress      : %s\n",
-	       hfs.fields.update_in_progress ? "YES" : "NO");
+	       hfs1.fields.update_in_progress ? "YES" : "NO");
 	printk(BIOS_DEBUG, "ME: D3 Support              : %s\n",
-	       hfs.fields.d3_support_valid ? "YES" : "NO");
+	       hfs1.fields.d3_support_valid ? "YES" : "NO");
 	printk(BIOS_DEBUG, "ME: D0i3 Support            : %s\n",
-	       hfs.fields.d0i3_support_valid ? "YES" : "NO");
+	       hfs1.fields.d0i3_support_valid ? "YES" : "NO");
 	printk(BIOS_DEBUG, "ME: Low Power State Enabled : %s\n",
 	       hfs2.fields.low_power_state ? "YES" : "NO");
 	printk(BIOS_DEBUG, "ME: CPU Replaced            : %s\n",
@@ -329,13 +232,13 @@ void intel_me_status(void)
 	printk(BIOS_DEBUG, "ME: CPU Replacement Valid   : %s\n",
 	       hfs2.fields.cpu_replaced_valid ? "YES" : "NO");
 	printk(BIOS_DEBUG, "ME: Current Working State   : %s\n",
-	       me_cws_values[hfs.fields.working_state]);
+	       me_cws_values[hfs1.fields.working_state]);
 	printk(BIOS_DEBUG, "ME: Current Operation State : %s\n",
-	       me_opstate_values[hfs.fields.operation_state]);
+	       me_opstate_values[hfs1.fields.operation_state]);
 	printk(BIOS_DEBUG, "ME: Current Operation Mode  : %s\n",
-	       me_opmode_values[hfs.fields.operation_mode]);
+	       me_opmode_values[hfs1.fields.operation_mode]);
 	printk(BIOS_DEBUG, "ME: Error Code              : %s\n",
-	       me_error_values[hfs.fields.error_code]);
+	       me_error_values[hfs1.fields.error_code]);
 	printk(BIOS_DEBUG, "ME: Progress Phase          : %s\n",
 	       me_progress_values[hfs2.fields.progress_code]);
 	printk(BIOS_DEBUG, "ME: Power Management Event  : %s\n",
@@ -407,19 +310,19 @@ void intel_me_status(void)
 		       hfs3.fields.encrypt_key_check ? "FAIL" : "PASS");
 		printk(BIOS_DEBUG, "ME: PCH Configuration Info  : %s\n",
 		       hfs3.fields.pch_config_change ? "Changed" : "No Change");
+	}
 
-		printk(BIOS_DEBUG, "ME: Firmware SKU            : ");
-		switch (hfs3.fields.fw_sku) {
-		case ME_HFS3_FW_SKU_CONSUMER:
-			printk(BIOS_DEBUG, "Consumer\n");
-			break;
-		case ME_HFS3_FW_SKU_CORPORATE:
-			printk(BIOS_DEBUG, "Corporate\n");
-			break;
-		default:
-			printk(BIOS_DEBUG, "Unknown (0x%x)\n",
-				hfs3.fields.fw_sku);
-		}
+	printk(BIOS_DEBUG, "ME: Firmware SKU            : ");
+	switch (hfs3.fields.fw_sku) {
+	case ME_HFS3_FW_SKU_CONSUMER:
+		printk(BIOS_DEBUG, "Consumer\n");
+		break;
+	case ME_HFS3_FW_SKU_CORPORATE:
+		printk(BIOS_DEBUG, "Corporate\n");
+		break;
+	default:
+		printk(BIOS_DEBUG, "Unknown (0x%x)\n",
+			hfs3.fields.fw_sku);
 	}
 
 	printk(BIOS_DEBUG, "ME: FPF status              : ");
@@ -435,62 +338,27 @@ void intel_me_status(void)
 	}
 }
 
-static int send_heci_reset_message(void)
-{
-	int status;
-	struct reset_reply {
-		u8 group_id;
-		u8 command;
-		u8 reserved;
-		u8 result;
-	} __packed reply;
-	struct reset_message {
-		u8 group_id;
-		u8 cmd;
-		u8 reserved;
-		u8 result;
-		u8 req_origin;
-		u8 reset_type;
-	} __packed;
-	struct reset_message msg = {
-		.cmd = MKHI_GLOBAL_RESET,
-		.req_origin = GR_ORIGIN_BIOS_POST,
-		.reset_type = GLOBAL_RST_TYPE
-	};
-	size_t reply_size;
-
-	heci_reset();
-
-	status = heci_send(&msg, sizeof(msg), BIOS_HOST_ADD, HECI_MKHI_ADD);
-	if (!status)
-		return -1;
-
-	reply_size = sizeof(reply);
-	memset(&reply, 0, reply_size);
-	status = heci_receive(&reply, &reply_size);
-	if (!status)
-		return -1;
-	/* get reply result from HECI MSG  */
-	if (reply.result) {
-		printk(BIOS_DEBUG, "%s: Exit with Failure\n", __func__);
-		return -1;
-	}
-	printk(BIOS_DEBUG, "%s: Exit with Success\n",  __func__);
-	return 0;
-}
-
 int send_global_reset(void)
 {
-	int status = -1;
-	union me_hfs hfs;
+	int status = 0;
+	union me_hfsts1 hfs1;
+
+	if (!is_cse_enabled())
+		goto ret;
 
 	/* Check ME operating mode */
-	hfs.data = me_read_config32(PCI_ME_HFSTS1);
-	if (hfs.fields.operation_mode)
+	hfs1.data = me_read_config32(PCI_ME_HFSTS1);
+	if (hfs1.fields.operation_mode)
 		goto ret;
 
 	/* ME should be in Normal Mode for this command */
-	status = send_heci_reset_message();
+	status = cse_request_global_reset();
 ret:
 	return status;
 }
+
+/*
+ * This can't be put in intel_me_status because by the time control
+ * reaches there, ME doesn't respond to GET_FW_VERSION command.
+ */
+BOOT_STATE_INIT_ENTRY(BS_DEV_ENABLE, BS_ON_EXIT, print_me_fw_version, NULL);

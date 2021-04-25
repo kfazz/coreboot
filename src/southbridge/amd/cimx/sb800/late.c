@@ -1,20 +1,6 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Advanced Micro Devices, Inc.
- * Copyright (C) 2014 Sage Electronic Engineering, LLC.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-
+#include <amdblocks/acpimmio.h>
 #include <device/mmio.h>
 #include <device/device.h>
 #include <device/pci.h>		/* device_operations */
@@ -27,7 +13,7 @@
 #include <pc80/i8254.h>
 #include <pc80/i8259.h>
 #include <console/console.h>	/* printk */
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <device/pci_ehci.h>
 #include "lpc.h"		/* lpc_read_resources */
 #include "SBPLATFORM.h"		/* Platform Specific Definitions */
@@ -116,13 +102,9 @@ static void ahci_raid_init(struct device *dev)
 	printk(BIOS_DEBUG, "AHCI/RAID controller initialized\n");
 }
 
-static struct pci_operations lops_pci = {
-	.set_subsystem = pci_dev_set_subsystem,
-};
-
 static void lpc_init(struct device *dev)
 {
-	printk(BIOS_DEBUG, "SB800 - Late.c - lpc_init - Start.\n");
+	printk(BIOS_DEBUG, "SB800 - Late.c - %s - Start.\n", __func__);
 
 	cmos_check_update_date();
 
@@ -136,7 +118,7 @@ static void lpc_init(struct device *dev)
 	setup_i8259(); /* Initialize i8259 pic */
 	setup_i8254(); /* Initialize i8254 timers */
 
-	printk(BIOS_DEBUG, "SB800 - Late.c - lpc_init - End.\n");
+	printk(BIOS_DEBUG, "SB800 - Late.c - %s - End.\n", __func__);
 }
 
 unsigned long acpi_fill_mcfg(unsigned long current)
@@ -167,8 +149,8 @@ static struct device_operations lpc_ops = {
 	.write_acpi_tables = acpi_write_hpet,
 #endif
 	.init = lpc_init,
-	.scan_bus = scan_lpc_bus,
-	.ops_pci = &lops_pci,
+	.scan_bus = scan_static_bus,
+	.ops_pci = &pci_dev_ops_pci,
 	.acpi_name = lpc_acpi_name,
 };
 
@@ -183,8 +165,7 @@ static struct device_operations sata_ops = {
 	.set_resources = pci_dev_set_resources,
 	.enable_resources = pci_dev_enable_resources,
 	.init = ahci_raid_init,
-	.scan_bus = 0,
-	.ops_pci = &lops_pci,
+	.ops_pci = &pci_dev_ops_pci,
 };
 
 static const struct pci_driver ahci_driver __pci_driver = {
@@ -208,13 +189,11 @@ static struct device_operations usb_ops = {
 	.read_resources = pci_ehci_read_resources,
 	.set_resources = pci_dev_set_resources,
 	.enable_resources = pci_dev_enable_resources,
-	.init = 0,
-	.scan_bus = 0,
-	.ops_pci = &lops_pci,
+	.ops_pci = &pci_dev_ops_pci,
 };
 
 /*
- * The pci id of usb ctrl 0 and 1 are the same.
+ * The pci id of USB ctrl 0 and 1 are the same.
  */
 static const struct pci_driver usb_ohci123_driver __pci_driver = {
 	.ops = &usb_ops,
@@ -234,14 +213,11 @@ static const struct pci_driver usb_ohci4_driver __pci_driver = {
 	.device = PCI_DEVICE_ID_ATI_SB800_USB_20_5, /* OHCI-USB4 */
 };
 
-
 static struct device_operations azalia_ops = {
 	.read_resources = pci_dev_read_resources,
 	.set_resources = pci_dev_set_resources,
 	.enable_resources = pci_dev_enable_resources,
-	.init = 0,
-	.scan_bus = 0,
-	.ops_pci = &lops_pci,
+	.ops_pci = &pci_dev_ops_pci,
 };
 
 static const struct pci_driver azalia_driver __pci_driver = {
@@ -250,14 +226,11 @@ static const struct pci_driver azalia_driver __pci_driver = {
 	.device = PCI_DEVICE_ID_ATI_SB800_HDA,
 };
 
-
 static struct device_operations gec_ops = {
 	.read_resources = pci_dev_read_resources,
 	.set_resources = pci_dev_set_resources,
 	.enable_resources = pci_dev_enable_resources,
-	.init = 0,
-	.scan_bus = 0,
-	.ops_pci = &lops_pci,
+	.ops_pci = &pci_dev_ops_pci,
 };
 
 static const struct pci_driver gec_driver __pci_driver = {
@@ -383,7 +356,6 @@ static void sb800_enable(struct device *dev)
 		}
 		break;
 
-
 	case PCI_DEVFN(0x14, 3): /* 0:14:3 LPC */
 		/* Initialize the fans */
 #if CONFIG(SB800_IMC_FAN_CONTROL)
@@ -400,9 +372,9 @@ static void sb800_enable(struct device *dev)
 		 *              to function as GPIO {GPIO 35:0}.
 		 */
 		if (!sb_chip->disconnect_pcib && dev->enabled)
-			RWMEM(ACPI_MMIO_BASE + PMIO_BASE + SB_PMIOA_REGEA, AccWidthUint8, ~BIT0, 0);
+			pm_write8(0xea, pm_read8(0xea) & 0xfe);
 		else
-			RWMEM(ACPI_MMIO_BASE + PMIO_BASE + SB_PMIOA_REGEA, AccWidthUint8, ~BIT0, BIT0);
+			pm_write8(0xea, (pm_read8(0xea) & 0xfe) | 1);
 		break;
 
 	case PCI_DEVFN(0x14, 6): /* 0:14:6 GEC */

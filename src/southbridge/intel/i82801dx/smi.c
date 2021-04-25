@@ -1,33 +1,20 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
-
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/device.h>
 #include <device/pci.h>
 #include <console/console.h>
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <arch/io.h>
 #include <device/pci_ops.h>
 #include <cpu/x86/cache.h>
 #include <cpu/x86/smm.h>
+#include <cpu/x86/smi_deprecated.h>
 #include <string.h>
 #include "i82801dx.h"
 
-/* I945 */
-#define SMRAM		0x90
+void northbridge_write_smram(u8 smram);
+
+/* For intel/e7505. */
 #define   D_OPEN	(1 << 6)
 #define   D_CLS		(1 << 5)
 #define   D_LCK		(1 << 4)
@@ -109,7 +96,6 @@ static void dump_smi_status(u32 smi_sts)
 	printk(BIOS_DEBUG, "\n");
 }
 
-
 /**
  * @brief read and clear GPE0_STS
  * @return GPE0_STS register
@@ -149,7 +135,6 @@ static void dump_gpe0_status(u32 gpe0_sts)
 	printk(BIOS_DEBUG, "\n");
 }
 
-
 /**
  * @brief read and clear ALT_GP_SMI_STS
  * @return ALT_GP_SMI_STS register
@@ -175,8 +160,6 @@ static void dump_alt_gp_smi_status(u16 alt_gp_smi_sts)
 	printk(BIOS_DEBUG, "\n");
 }
 
-
-
 /**
  * @brief read and clear TCOx_STS
  * @return TCOx_STS registers
@@ -194,7 +177,6 @@ static u32 reset_tco_status(void)
 
 	return reg32;
 }
-
 
 static void dump_tco_status(u32 tco_sts)
 {
@@ -215,8 +197,6 @@ static void dump_tco_status(u32 tco_sts)
 	printk(BIOS_DEBUG, "\n");
 }
 
-
-
 /**
  * @brief Set the EOS bit
  */
@@ -232,7 +212,7 @@ static void smi_set_eos(void)
 extern uint8_t smm_relocation_start, smm_relocation_end;
 static void *default_smm_area = NULL;
 
-static void smm_relocate(void)
+static void aseg_smm_relocate(void)
 {
 	u32 smi_en;
 	u16 pm1_en;
@@ -272,18 +252,10 @@ static void smm_relocate(void)
 	 */
 
 	smi_en = 0; /* reset SMI enables */
-
-#if 0
-	smi_en |= LEGACY_USB2_EN | LEGACY_USB_EN;
-#endif
 	smi_en |= TCO_EN;
 	smi_en |= APMC_EN;
-#if DEBUG_PERIODIC_SMIS
-	/* Set DEBUG_PERIODIC_SMIS in i82801gx.h to debug using
-	 * periodic SMIs.
-	 */
-	smi_en |= PERIODIC_EN;
-#endif
+	if (CONFIG(DEBUG_PERIODIC_SMI))
+		smi_en |= PERIODIC_EN;
 	smi_en |= SLP_SMI_EN;
 	smi_en |= BIOS_EN;
 
@@ -303,7 +275,7 @@ static void smm_relocate(void)
 	 *  - Writes to io 0xb2 (APMC)
 	 *  - Writes to the Local Apic ICR with Delivery mode SMI.
 	 *
-	 * Using the local apic is a bit more tricky. According to
+	 * Using the local APIC is a bit more tricky. According to
 	 * AMD Family 11 Processor BKDG no destination shorthand must be
 	 * used.
 	 * The whole SMM initialization is quite a bit hardware specific, so
@@ -312,32 +284,24 @@ static void smm_relocate(void)
 
 	/* raise an SMI interrupt */
 	printk(BIOS_SPEW, "  ... raise SMI#\n");
-	outb(0x00, 0xb2);
+	apm_control(APM_CNT_NOOP_SMI);
 }
 
-static void smm_install(void)
+static void aseg_smm_install(void)
 {
-	/* enable the SMM memory window */
-	pci_write_config8(pcidev_on_root(0, 0), SMRAM,
-				D_OPEN | G_SMRAME | C_BASE_SEG);
-
 	/* copy the real SMM handler */
 	memcpy((void *)0xa0000, _binary_smm_start,
 		_binary_smm_end - _binary_smm_start);
 	wbinvd();
-
-	/* close the SMM memory window and enable normal SMM */
-	pci_write_config8(pcidev_on_root(0, 0), SMRAM,
-			G_SMRAME | C_BASE_SEG);
 }
 
 void smm_init(void)
 {
 	/* Put SMM code to 0xa0000 */
-	smm_install();
+	aseg_smm_install();
 
 	/* Put relocation code to 0x38000 and relocate SMBASE */
-	smm_relocate();
+	aseg_smm_relocate();
 
 	/* We're done. Make sure SMIs can happen! */
 	smi_set_eos();
@@ -348,24 +312,12 @@ void smm_init_completion(void)
 	restore_default_smm_area(default_smm_area);
 }
 
-void smm_lock(void)
+void aseg_smm_lock(void)
 {
 	/* LOCK the SMM memory window and enable normal SMM.
 	 * After running this function, only a full reset can
 	 * make the SMM registers writable again.
 	 */
 	printk(BIOS_DEBUG, "Locking SMM.\n");
-	pci_write_config8(pcidev_on_root(0, 0), SMRAM,
-			D_LCK | G_SMRAME | C_BASE_SEG);
-}
-
-void smm_setup_structures(void *gnvs, void *tcg, void *smi1)
-{
-	/* The GDT or coreboot table is going to live here. But a long time
-	 * after we relocated the GNVS, so this is not troublesome.
-	 */
-	*(u32 *)0x500 = (u32)gnvs;
-	*(u32 *)0x504 = (u32)tcg;
-	*(u32 *)0x508 = (u32)smi1;
-	outb(0xea, 0xb2);
+	northbridge_write_smram(D_LCK | G_SMRAME | C_BASE_SEG);
 }

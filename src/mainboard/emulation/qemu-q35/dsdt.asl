@@ -1,34 +1,21 @@
-/*
- * Bochs/QEMU ACPI DSDT ASL definition
- *
- * Copyright (c) 2006 Fabrice Bellard
- * Copyright (c) 2010 Isaku Yamahata
- *                    yamahata at valinux co jp
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License version 2 as published by the Free Software Foundation.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- */
+/* Bochs/QEMU ACPI DSDT ASL definition */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /*
  * Based on acpi-dsdt.dsl, but heavily modified for q35 chipset.
  */
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 DefinitionBlock (
-	"dsdt.aml",         // Output Filename
-	"DSDT",             // Signature
-	0x01,               // DSDT Compliance Revision
+	"dsdt.aml",
+	"DSDT",
+	ACPI_DSDT_REV_1,
 	OEM_ID,
 	ACPI_TABLE_CREATOR,
 	0x2                 // OEM Revision
 	)
 {
+	#include <acpi/dsdt_top.asl>
 
 #include "../qemu-i440fx/acpi/dbug.asl"
 
@@ -49,7 +36,6 @@ DefinitionBlock (
 		Device(PCI0) {
 			Name(_HID, EisaId("PNP0A08"))
 			Name(_CID, EisaId("PNP0A03"))
-			Name(_ADR, 0x00)
 			Name(_UID, 1)
 
 			// _OSC: based on sample of ACPI3.0b spec
@@ -60,49 +46,31 @@ DefinitionBlock (
 				CreateDWordField(Arg3, 0, CDW1)
 
 				// Check for proper UUID
-				If (LEqual(Arg0, ToUUID("33DB4D5B-1FF7-401C-9657-7441C03DD766"))) {
+				If (Arg0 == ToUUID("33DB4D5B-1FF7-401C-9657-7441C03DD766")) {
 					// Create DWORD-addressable fields from the Capabilities Buffer
 					CreateDWordField(Arg3, 4, CDW2)
 					CreateDWordField(Arg3, 8, CDW3)
 
 					// Save Capabilities DWORD2 & 3
-					Store(CDW2, SUPP)
-					Store(CDW3, CTRL)
+					SUPP = CDW2
+					CTRL = CDW3
 
 					// Always allow native PME, AER (no dependencies)
 					// Never allow SHPC (no SHPC controller in this system)
-					And(CTRL, 0x1D, CTRL)
+					CTRL &= 0x1D
 
-#if 0 // For now, nothing to do
-					If (Not(And(CDW1, 1))) { // Query flag clear?
-						// Disable GPEs for features granted native control.
-						If (And(CTRL, 0x01)) { // Hot plug control granted?
-							Store(0, HPCE) // clear the hot plug SCI enable bit
-							Store(1, HPCS) // clear the hot plug SCI status bit
-						}
-						If (And(CTRL, 0x04)) { // PME control granted?
-							Store(0, PMCE) // clear the PME SCI enable bit
-							Store(1, PMCS) // clear the PME SCI status bit
-						}
-						If (And(CTRL, 0x10)) { // OS restoring PCI Express cap structure?
-							// Set status to not restore PCI Express cap structure
-							// upon resume from S3
-							Store(1, S3CR)
-						}
-					}
-#endif
-					If (LNotEqual(Arg1, One)) {
+					If (Arg1 != 1) {
 						// Unknown revision
-						Or(CDW1, 0x08, CDW1)
+						CDW1 |= 0x08
 					}
-					If (LNotEqual(CDW3, CTRL)) {
+					If (CDW3 != CTRL) {
 						// Capabilities bits were masked
-						Or(CDW1, 0x10, CDW1)
+						CDW1 |= 0x10
 					}
 					// Update DWORD3 in the buffer
-					Store(CTRL, CDW3)
+					CDW3 = CTRL
 				} Else {
-					Or(CDW1, 4, CDW1) // Unrecognized UUID
+					CDW1 |= 4 // Unrecognized UUID
 				}
 				Return (Arg3)
 			}
@@ -173,12 +141,6 @@ DefinitionBlock (
 /****************************************************************
  * PCI IRQs
  ****************************************************************/
-
-	/* Zero => PIC mode, One => APIC Mode */
-	Name(\PICF, Zero)
-	Method(\_PIC, 1, NotSerialized) {
-		Store(Arg0, \PICF)
-	}
 
 	Scope(\_SB) {
 		Scope(PCI0) {
@@ -301,7 +263,7 @@ DefinitionBlock (
 				  section 6.2.8.1 */
 				/* Note: we provide the same info as the PCI routing
 				  table of the Bochs BIOS */
-				If (LEqual(\PICF, Zero)) {
+				If (\PICM ==  0) {
 					Return (PRTP)
 				} Else {
 					Return (PRTA)
@@ -324,7 +286,7 @@ DefinitionBlock (
 
 		Method(IQST, 1, NotSerialized) {
 			// _STA method - get status
-			If (And(0x80, Arg0)) {
+			If (0x80 & Arg0) {
 				Return (0x09)
 			}
 			Return (0x0B)
@@ -335,7 +297,7 @@ DefinitionBlock (
 				Interrupt(, Level, ActiveHigh, Shared) { 0 }
 			})
 			CreateDWordField(PRR0, 0x05, PRRI)
-			Store(And(Arg0, 0x0F), PRRI)
+			PRRI = Arg0 & 0x0F
 			Return (PRR0)
 		}
 
@@ -352,14 +314,14 @@ DefinitionBlock (
 				Return (IQST(reg))                              \
 			}                                                   \
 			Method(_DIS, 0, NotSerialized) {                    \
-				Or(reg, 0x80, reg)                              \
+				reg |= 0x80                              \
 			}                                                   \
 			Method(_CRS, 0, NotSerialized) {                    \
 				Return (IQCR(reg))                              \
 			}                                                   \
 			Method(_SRS, 1, NotSerialized) {                    \
 				CreateDWordField(Arg0, 0x05, PRRI)              \
-				Store(PRRI, reg)                                \
+				reg = PRRI                                \
 			}                                                   \
 		}
 
@@ -400,11 +362,6 @@ DefinitionBlock (
 		define_gsi_link(GSIH, 0, 0x17)
 	}
 
-#if 0
-#include "../qemu-i440fx/acpi/cpu-hotplug.asl"
-#endif
-
-
 /****************************************************************
  * General purpose events
  ****************************************************************/
@@ -415,10 +372,6 @@ DefinitionBlock (
 		Method(_L00) {
 		}
 		Method(_L01) {
-#if 0
-			// CPU hotplug event
-			\_SB.PRSC()
-#endif
 		}
 		Method(_L02) {
 		}

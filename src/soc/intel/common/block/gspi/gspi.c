@@ -1,29 +1,16 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2017 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <arch/early_variables.h>
 #include <device/mmio.h>
 #include <assert.h>
+#include <bootstate.h>
 #include <console/console.h>
 #include <delay.h>
 #include <device/device.h>
 #include <device/pci_def.h>
 #include <device/pci_ops.h>
-#include <intelblocks/chip.h>
+#include <intelblocks/cfg.h>
 #include <intelblocks/gspi.h>
+#include <intelblocks/lpss.h>
 #include <intelblocks/spi.h>
 #include <soc/iomap.h>
 #include <soc/pci_devs.h>
@@ -262,16 +249,25 @@ static uint32_t gspi_get_bus_clk_mhz(unsigned int gspi_bus)
 	return cfg[gspi_bus].speed_mhz;
 }
 
-static uintptr_t gspi_base[CONFIG_SOC_INTEL_COMMON_BLOCK_GSPI_MAX] CAR_GLOBAL;
+static uintptr_t gspi_base[CONFIG_SOC_INTEL_COMMON_BLOCK_GSPI_MAX];
 static uintptr_t gspi_get_bus_base_addr(unsigned int gspi_bus)
 {
-	uintptr_t *base = car_get_var_ptr(gspi_base);
+	if (!gspi_base[gspi_bus])
+		gspi_base[gspi_bus] = gspi_calc_base_addr(gspi_bus);
 
-	if (!base[gspi_bus])
-		base[gspi_bus] = gspi_calc_base_addr(gspi_bus);
-
-	return base[gspi_bus];
+	return gspi_base[gspi_bus];
 }
+
+/*
+ * PCI resource allocation will likely change the base address of the mapped
+ * I/O registers.  Clearing the cached value after the allocation step will
+ * cause it to be recomputed by gspi_calc_base_addr() on next access.
+ */
+static void gspi_clear_cached_base(void *unused)
+{
+	memset(gspi_base, 0, sizeof(gspi_base));
+}
+BOOT_STATE_INIT_ENTRY(BS_DEV_RESOURCES, BS_ON_EXIT, gspi_clear_cached_base, NULL);
 
 /* Parameters for GSPI controller operation. */
 struct gspi_ctrlr_params {
@@ -437,9 +433,11 @@ static uint32_t gspi_get_clk_div(unsigned int gspi_bus)
 {
 	const uint32_t ref_clk_mhz =
 		CONFIG_SOC_INTEL_COMMON_BLOCK_GSPI_CLOCK_MHZ;
-	const uint32_t gspi_clk_mhz = gspi_get_bus_clk_mhz(gspi_bus);
+	uint32_t gspi_clk_mhz = gspi_get_bus_clk_mhz(gspi_bus);
 
-	assert(gspi_clk_mhz != 0);
+	if (!gspi_clk_mhz)
+		gspi_clk_mhz = 1;
+
 	assert(ref_clk_mhz != 0);
 	return (DIV_ROUND_UP(ref_clk_mhz, gspi_clk_mhz) - 1) & SSCR0_SCR_MASK;
 }
@@ -447,6 +445,7 @@ static uint32_t gspi_get_clk_div(unsigned int gspi_bus)
 static int gspi_ctrlr_setup(const struct spi_slave *dev)
 {
 	struct spi_cfg cfg;
+	int devfn;
 	uint32_t cs_ctrl, sscr0, sscr1, clocks, sitf, sirf, pol;
 	struct gspi_ctrlr_params params, *p = &params;
 
@@ -466,6 +465,11 @@ static int gspi_ctrlr_setup(const struct spi_slave *dev)
 			__func__, p->gspi_bus);
 		return -1;
 	}
+
+	devfn = gspi_soc_bus_to_devfn(p->gspi_bus);
+
+	/* Ensure controller is in D0 state */
+	lpss_set_power_state(PCI_DEV(0, PCI_SLOT(devfn), PCI_FUNC(devfn)), STATE_D0);
 
 	/* Take controller out of reset, keeping DMA in reset. */
 	gspi_write_mmio_reg(p, RESETS, CTRLR_ACTIVE | DMA_RESET);

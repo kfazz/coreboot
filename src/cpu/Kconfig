@@ -6,19 +6,6 @@ source "src/cpu/*/Kconfig"
 
 if ARCH_X86
 
-config CACHE_AS_RAM
-	bool
-	default y
-
-config NO_CAR_GLOBAL_MIGRATION
-	bool
-	default n
-	depends on CACHE_AS_RAM
-	help
-	  This option is selected if there is no need to migrate CAR globals.
-	  All stages which use CAR globals can directly access the variables
-	  from their linked addresses.
-
 config DCACHE_RAM_BASE
 	hex
 
@@ -28,10 +15,8 @@ config DCACHE_RAM_SIZE
 config DCACHE_BSP_STACK_SIZE
 	hex
 
-config DCACHE_BSP_STACK_SLUSH
-	hex
-
-config DCACHE_AP_STACK_SIZE
+config EARLYRAM_BSP_STACK_SIZE
+	depends on RESET_VECTOR_IN_RAM
 	hex
 
 config SMP
@@ -46,15 +31,13 @@ config	MMX
 	bool
 	help
 	  Select MMX in your socket or model Kconfig if your CPU has MMX
-	  streaming SIMD instructions. ROMCC can build more efficient
-	  code if it can spill to MMX registers.
+	  streaming SIMD instructions.
 
 config SSE
 	bool
 	help
 	  Select SSE in your socket or model Kconfig if your CPU has SSE
-	  streaming SIMD instructions. ROMCC can build more efficient
-	  code if it can spill to SSE (aka XMM) registers.
+	  streaming SIMD instructions.
 
 config SSE2
 	bool
@@ -128,7 +111,6 @@ config CPU_MICROCODE_CBFS_DEFAULT_BINS
 config CPU_MICROCODE_CBFS_EXTERNAL_BINS
 	bool "Include external microcode binary"
 	select USE_CPU_MICROCODE_CBFS_BINS
-	depends on !CPU_MICROCODE_MULTIPLE_FILES
 	help
 	  Select this option if you want to include external binary files
 	  in the CPUs native format. They will be included as a separate
@@ -145,7 +127,6 @@ config CPU_MICROCODE_CBFS_EXTERNAL_BINS
 
 config CPU_MICROCODE_CBFS_EXTERNAL_HEADER
 	bool "Include external microcode header files"
-	depends on !CPU_MICROCODE_MULTIPLE_FILES
 	help
 	  Select this option if you want to include external c header files
 	  containing the CPU microcode. This will be included as a separate
@@ -195,12 +176,6 @@ config CPU_MICROCODE_CBFS_NONE
 	  selecting this option.
 
 endchoice
-
-config CPU_MICROCODE_MULTIPLE_FILES
-	bool
-	help
-	  Select this option to install separate microcode container files into
-	  CBFS instead of using the traditional monolithic microcode file format.
 
 config CPU_MICROCODE_HEADER_FILES
 	string "List of space separated microcode header files with the path"

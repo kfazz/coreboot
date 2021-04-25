@@ -1,35 +1,12 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Google Inc.
- * Copyright (C) 2015 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
-#include <arch/ioapic.h>
-#include <arch/smp/mpspec.h>
-#include <device/device.h>
-#include <device/pci.h>
-#include <soc/acpi.h>
-#include <soc/iomap.h>
+#include <acpi/acpi.h>
+#include <acpi/acpi_gnvs.h>
 #include <soc/nvs.h>
-#include <types.h>
-#include <boardid.h>
-#include "onboard.h"
+#include <soc/device_nvs.h>
 
-void acpi_create_gnvs(global_nvs_t *gnvs)
+void mainboard_fill_gnvs(struct global_nvs *gnvs)
 {
-	acpi_init_gnvs(gnvs);
-
 	/* Enable USB ports in S3 */
 	gnvs->s3u0 = 1;
 	gnvs->s3u1 = 1;
@@ -42,19 +19,11 @@ void acpi_create_gnvs(global_nvs_t *gnvs)
 	gnvs->dpte = 1;
 
 	/* PMIC is configured in I2C1, hidden it from OS */
-	gnvs->dev.lpss_en[LPSS_NVS_I2C2] = 0;
+	struct device_nvs *dev_nvs = acpi_get_device_nvs();
+	dev_nvs->lpss_en[LPSS_NVS_I2C2] = 0;
 }
 
-unsigned long acpi_fill_madt(unsigned long current)
+void mainboard_fill_fadt(acpi_fadt_t *fadt)
 {
-	/* Local APICs */
-	current = acpi_create_madt_lapics(current);
-
-	/* IOAPIC */
-	current += acpi_create_madt_ioapic((acpi_madt_ioapic_t *) current,
-				2, IO_APIC_ADDR, 0);
-
-	current = acpi_madt_irq_overrides(current);
-
-	return current;
+	fadt->preferred_pm_profile = PM_MOBILE;
 }

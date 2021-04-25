@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 arthur@aheymans.xyz
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <stdint.h>
 #include <commonlib/helpers.h>
@@ -23,6 +10,7 @@ static const struct blc_pwm_t blc_entries[] = {
 	/* corrected to 320MHz CDClk, vendor set 753; works fine at both: */
 	{"LTD121EQ3B", 447},
 	{"LTD121EWVB", 165},
+	{"LTD133EQ1B", 264},  /* Found on an X301 */
 	{"B121EW03 V6 ", 165},
 	/* datasheets: between 100 and 20k, typical 200 */
 	/* TESTED: works best at 400 */

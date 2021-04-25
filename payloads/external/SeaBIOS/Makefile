@@ -1,5 +1,5 @@
 TAG-$(CONFIG_SEABIOS_MASTER)=origin/master
-TAG-$(CONFIG_SEABIOS_STABLE)=a5cab58e9a3fb6e168aba919c5669bea406573b4
+TAG-$(CONFIG_SEABIOS_STABLE)=155821a1990b6de78dde5f98fa5ab90e802021e0
 TAG-$(CONFIG_SEABIOS_REVISION)=$(CONFIG_SEABIOS_REVISION_ID)
 
 project_git_repo=https://review.coreboot.org/seabios.git
@@ -71,6 +71,9 @@ endif
 endif
 ifneq ($(CONFIG_SEABIOS_DEBUG_LEVEL),-1)
 	echo "CONFIG_DEBUG_LEVEL=$(CONFIG_SEABIOS_DEBUG_LEVEL)" >> seabios/.config
+endif
+ifneq ($(CONFIG_SEABIOS_HARDWARE_IRQ),y)
+	echo "# CONFIG_HARDWARE_IRQ is not set" >> seabios/.config
 endif
 #	This shows how to force a previously set .config option *off*
 #	echo "# CONFIG_SMBIOS is not set" >> seabios/.config

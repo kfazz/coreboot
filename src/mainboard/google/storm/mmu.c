@@ -1,14 +1,4 @@
-/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/cache.h>
 #include <soc/soc_services.h>
@@ -35,10 +25,9 @@ void setup_dram_mappings(enum dram_state dram)
 		mmu_config_range(DRAM_START, DRAM_SIZE, DCACHE_WRITEBACK);
 		/* Map DMA memory */
 		mmu_config_range(DMA_START, DMA_SIZE, DCACHE_OFF);
-#if ENV_ROMSTAGE
-		/* Mark cbmem backing store as ready. */
-		ipq_cbmem_backing_store_ready();
-#endif
+		if (ENV_ROMSTAGE)
+			/* Mark cbmem backing store as ready. */
+			ipq_cbmem_backing_store_ready();
 	} else {
 		mmu_disable_range(DRAM_START, DRAM_SIZE);
 		/* Map DMA memory */

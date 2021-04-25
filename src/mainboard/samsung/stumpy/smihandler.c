@@ -1,26 +1,12 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <console/console.h>
 #include <cpu/x86/smm.h>
-#include <southbridge/intel/bd82x6x/nvs.h>
+#include <soc/nvs.h>
 #include <southbridge/intel/bd82x6x/pch.h>
 #include <southbridge/intel/bd82x6x/me.h>
 #include <northbridge/intel/sandybridge/sandybridge.h>
-#include <cpu/intel/model_206ax/model_206ax.h>
 
 /* Include for SIO helper functions */
 #include <superio/ite/it8772f/it8772f.h>

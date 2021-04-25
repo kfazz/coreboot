@@ -1,24 +1,12 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012, 2017 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <amdblocks/agesawrapper.h>
+#include <amdblocks/acpimmio.h>
 #include <console/console.h>
 #include <device/pci_def.h>
 #include <device/device.h>
+#include <device/smbus_host.h>
 #include <soc/southbridge.h>
-#include <soc/smbus.h>
 #include <amdblocks/dimm_spd.h>
 
 /*
@@ -46,7 +34,7 @@ static int readspd(uint8_t SmbusSlaveAddress, char *buffer, size_t count)
 	dev_addr = (SmbusSlaveAddress >> 1);
 
 	/* Read the first SPD byte */
-	error = do_smbus_read_byte(SMBUS_MMIO_BASE, dev_addr, 0);
+	error = do_smbus_read_byte((uintptr_t)acpimmio_smbus, dev_addr, 0);
 	if (error < 0) {
 		printk(BIOS_ERR, "-------------SPD READ ERROR-----------\n");
 		return error;
@@ -56,7 +44,7 @@ static int readspd(uint8_t SmbusSlaveAddress, char *buffer, size_t count)
 
 	/* Read the remaining SPD bytes using do_smbus_recv_byte for speed */
 	for (index = 1 ; index < count ; index++) {
-		error = do_smbus_recv_byte(SMBUS_MMIO_BASE, dev_addr);
+		error = do_smbus_recv_byte((uintptr_t)acpimmio_smbus, dev_addr);
 		if (error < 0) {
 			printk(BIOS_ERR, "-------------SPD READ ERROR-----------\n");
 			return error;

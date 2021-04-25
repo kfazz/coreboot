@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Patrick Rudolph <siro@das-labor.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef SUPERIO_NUVOTON_NPCD378_H
 #define SUPERIO_NUVOTON_NPCD378_H
@@ -44,8 +30,7 @@ uint8_t npcd378_hwm_read(const uint16_t iobase, const uint16_t reg);
  * @param reg MSB is page, LSB sets the offset in selected page
  * @param val The value to write to HWM register
  */
-void npcd378_hwm_write(const uint16_t iobase, const uint16_t reg,
-		       const uint8_t val);
+void npcd378_hwm_write(const uint16_t iobase, const uint16_t reg, const uint8_t val);
 
 /*
  * Notify SuperIO a host-to-device transfer is ongoing.

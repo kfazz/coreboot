@@ -1,21 +1,7 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * MIPI DSI Bus
  *
- * Copyright (C) 2012-2013, Samsung Electronics, Co., Ltd.
  * Andrzej Hajda <a.hajda@samsung.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -40,8 +26,6 @@
  */
 
 #include <console/console.h>
-#include <stdint.h>
-#include <stdlib.h>
 #include <string.h>
 #include <soc/addressmap.h>
 #include <soc/clock.h>
@@ -51,6 +35,7 @@
 #include <soc/mipi_dsi.h>
 #include <soc/mipi_display.h>
 #include <soc/tegra_dsi.h>
+#include <types.h>
 
 struct mipi_dsi_device mipi_dsi_device_data[NUM_DSI] = {
 	{

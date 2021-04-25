@@ -87,7 +87,7 @@
  * User-definable tweak to disable the include of <stdbool.h>.
  */
 #ifndef NCURSES_ENABLE_STDBOOL_H
-#define NCURSES_ENABLE_STDBOOL_H 0	//// XXX
+#define NCURSES_ENABLE_STDBOOL_H 1
 #endif
 
 /*
@@ -1239,7 +1239,6 @@ NCURSES_EXPORT(int) vsscanf(const char *, const char *, va_list);
 
 #define KEY_MAX		0777		/* Maximum key value is 0633 */
 /*
- * This file is part of ncurses, designed to be appended after curses.h.in
  * (see that file for the relevant copyright).
  */
 #ifdef _XOPEN_SOURCE_EXTENDED
@@ -1488,7 +1487,6 @@ extern NCURSES_EXPORT(const char *) _nc_viswibuf(const wint_t *);
 
 #endif /* _XOPEN_SOURCE_EXTENDED */
 /*
- * This file is part of ncurses, designed to be appended after curses.h.in
  * (see that file for the relevant copyright).
  */
 /* $Id: curses.tail,v 1.14 2006/05/27 16:28:29 tom Exp $ */

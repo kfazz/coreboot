@@ -1,23 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Alexandru Gagniuc <mr.nuke.me@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /*
  * SMI handler for Hudson southbridges
  */
 
+#include <amdblocks/acpimmio.h>
 #include <arch/io.h>
 #include <cpu/x86/smm.h>
 
@@ -120,7 +107,7 @@ static void process_smi_0x90(void)
 	smi_write32(0x90, status);
 }
 
-void southbridge_smi_handler(unsigned int node, smm_state_save_area_t *state_save)
+void southbridge_smi_handler(void)
 {
 	const uint16_t smi_src = smi_read16(0x94);
 

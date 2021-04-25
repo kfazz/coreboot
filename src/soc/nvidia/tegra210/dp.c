@@ -1,26 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
 /*
- * This file is part of the coreboot project.
- *
  * drivers/video/tegra/dc/dp.c
- *
- * Copyright (c) 2011-2015, NVIDIA Corporation.
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
+
 #include <console/console.h>
 #include <device/device.h>
 #include <device/i2c_simple.h>
 #include <edid.h>
-#include <stdlib.h>
 #include <string.h>
 #include <delay.h>
 #include <soc/addressmap.h>
@@ -32,6 +19,8 @@
 #include <soc/nvidia/tegra/pwm.h>
 #include <soc/nvidia/tegra/displayport.h>
 #include <soc/sor.h>
+#include <types.h>
+
 #include "chip.h"
 
 #define DO_FAST_LINK_TRAINING	0
@@ -642,7 +631,6 @@ static int tegra_dc_dp_calc_config(struct tegra_dc_dp_data *dp,
 	if (link_cfg->hblank_sym < 0)
 		link_cfg->hblank_sym = 0;
 
-
 	/* Refer to dev_disp.ref for more information. */
 	/* # symbols/vblank = ((SetRasterBlankStart.X - */
 	/*                      SetRasterBlankEen.X - 25) * link_clk / pclk) */
@@ -1199,7 +1187,6 @@ static int tegra_dc_dp_fast_link_training(struct tegra_dc_dp_data *dp,
 	u32	status;
 	int	j;
 	u32	mask = 0xffff >> ((4 - link_cfg->lane_count) * 4);
-
 
 	printk(BIOS_INFO, "dp: %s\n", __func__);
 

@@ -31,7 +31,7 @@ struct pci_operations {
 	/* set the Subsystem IDs for the PCI device */
 	void (*set_subsystem)(struct device *dev, unsigned int vendor,
 		unsigned int device);
-	void (*set_L1_ss_latency)(struct device *dev, unsigned int off);
+	void (*get_ltr_max_latencies)(u16 *max_snoop, u16 *max_nosnoop);
 };
 
 struct pci_driver {
@@ -55,11 +55,12 @@ struct msix_entry {
 	u32 vec_control;
 };
 
-#ifdef __SIMPLE_DEVICE__
-#define __pci_driver __attribute__((unused))
-#else
+#if ENV_RAMSTAGE
 #define __pci_driver __attribute__((used, __section__(".rodata.pci_driver")))
+#else
+#define __pci_driver __attribute__((unused))
 #endif
+
 /** start of compile time generated pci driver array */
 extern struct pci_driver _pci_drivers[];
 /** end of compile time generated pci driver array */
@@ -78,7 +79,6 @@ void pci_bus_enable_resources(struct device *dev);
 void pci_bus_reset(struct bus *bus);
 struct device *pci_probe_dev(struct device *dev, struct bus *bus,
 				unsigned int devfn);
-
 void do_pci_scan_bridge(struct device *dev,
 	void (*do_scan_bus)(struct bus *bus,
 		unsigned int min_devfn, unsigned int max_devfn));
@@ -98,8 +98,7 @@ unsigned int pci_match_simple_dev(struct device *dev, pci_devfn_t sdev);
 
 const char *pin_to_str(int pin);
 int get_pci_irq_pins(struct device *dev, struct device **parent_bdg);
-void pci_assign_irqs(unsigned int bus, unsigned int slot,
-		     const unsigned char pIntAtoD[4]);
+void pci_assign_irqs(struct device *dev, const unsigned char pIntAtoD[4]);
 const char *get_pci_class_name(struct device *dev);
 const char *get_pci_subclass_name(struct device *dev);
 
@@ -110,41 +109,35 @@ struct msix_entry *pci_msix_get_table(struct device *dev);
 #define PCI_IO_BRIDGE_ALIGN 4096
 #define PCI_MEM_BRIDGE_ALIGN (1024*1024)
 
-static inline const struct pci_operations *ops_pci(struct device *dev)
-{
-	const struct pci_operations *pops;
-	pops = 0;
-	if (dev && dev->ops)
-		pops = dev->ops->ops_pci;
-	return pops;
-}
-
 #define PCI_ID(VENDOR_ID, DEVICE_ID) \
 	((((DEVICE_ID) & 0xFFFF) << 16) | ((VENDOR_ID) & 0xFFFF))
 
 pci_devfn_t pci_locate_device(unsigned int pci_id, pci_devfn_t dev);
 pci_devfn_t pci_locate_device_on_bus(unsigned int pci_id, unsigned int bus);
 
-#ifdef __SIMPLE_DEVICE__
-unsigned int pci_find_next_capability(pci_devfn_t dev, unsigned int cap,
-	unsigned int last);
-unsigned int pci_find_capability(pci_devfn_t dev, unsigned int cap);
-#else /* !__SIMPLE_DEVICE__ */
-unsigned int pci_find_next_capability(struct device *dev, unsigned int cap,
-	unsigned int last);
-unsigned int pci_find_capability(struct device *dev, unsigned int cap);
-#endif /* __SIMPLE_DEVICE__ */
+void pci_s_assert_secondary_reset(pci_devfn_t p2p_bridge);
+void pci_s_deassert_secondary_reset(pci_devfn_t p2p_bridge);
+void pci_s_bridge_set_secondary(pci_devfn_t p2p_bridge, u8 secondary);
 
-void pci_early_mmio_window(pci_devfn_t p2p_bridge, u32 mmio_base,
-			   u32 mmio_size);
 int pci_early_device_probe(u8 bus, u8 dev, u32 mmio_base);
 
-#ifndef __ROMCC__
 static inline int pci_base_address_is_memory_space(unsigned int attr)
 {
 	return (attr & PCI_BASE_ADDRESS_SPACE) == PCI_BASE_ADDRESS_SPACE_MEMORY;
 }
-#endif
+
+void pci_dev_disable_bus_master(const struct device *dev);
+
+static __always_inline
+#if ENV_PCI_SIMPLE_DEVICE
+void pci_dev_request_bus_master(pci_devfn_t dev)
+#else
+void pci_dev_request_bus_master(struct device *dev)
+#endif /* ENV_PCI_SIMPLE_DEVICE */
+{
+	if (CONFIG(PCI_ALLOW_BUS_MASTER_ANY_DEVICE))
+		pci_or_config16(dev, PCI_COMMAND, PCI_COMMAND_MASTER);
+}
 
 #endif /* CONFIG_PCI */
 

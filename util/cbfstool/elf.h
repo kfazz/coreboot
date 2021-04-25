@@ -1,17 +1,4 @@
-/* This file defines standard ELF types, structures, and macros.
-   Copyright (C) 1995-2003,2004,2005,2006,2007 Free Software Foundation, Inc.
-   This file is part of the GNU C Library.
-
-   The GNU C Library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public
-   License as published by the Free Software Foundation; either
-   version 2.1 of the License, or (at your option) any later version.
-
-   The GNU C Library is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Lesser General Public License for more details.
-*/
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
 
 #ifndef _ELF_H
 #define	_ELF_H 1
@@ -318,7 +305,7 @@ typedef struct
 #define SHT_FINI_ARRAY	  15		/* Array of destructors */
 #define SHT_PREINIT_ARRAY 16		/* Array of pre-constructors */
 #define SHT_GROUP	  17		/* Section group */
-#define SHT_SYMTAB_SHNDX  18		/* Extended section indeces */
+#define SHT_SYMTAB_SHNDX  18		/* Extended section indices */
 #define	SHT_NUM		  19		/* Number of defined types.  */
 #define SHT_LOOS	  0x60000000	/* Start OS-specific.  */
 #define SHT_GNU_HASH	  0x6ffffff6	/* GNU-style hash table.  */
@@ -574,6 +561,8 @@ typedef struct
 #define PF_W		(1 << 1)	/* Segment is writable */
 #define PF_R		(1 << 2)	/* Segment is readable */
 #define PF_MASKOS	0x0ff00000	/* OS-specific */
+#define PF_QC_SG_MASK	0x07000000	/* Qualcomm "segment" types */
+#define PF_QC_SG_HASH	0x02000000	/* Qualcomm hash segment */
 #define PF_MASKPROC	0xf0000000	/* Processor-specific */
 
 /* Legal values for note segment descriptor types for core files. */
@@ -1697,9 +1686,9 @@ typedef Elf32_Addr Elf32_Conflict;
 #define EFA_PARISC_1_1		    0x0210 /* PA-RISC 1.1 big-endian.  */
 #define EFA_PARISC_2_0		    0x0214 /* PA-RISC 2.0 big-endian.  */
 
-/* Additional section indeces.  */
+/* Additional section indices.  */
 
-#define SHN_PARISC_ANSI_COMMON	0xff00	   /* Section for tenatively declared
+#define SHN_PARISC_ANSI_COMMON	0xff00	   /* Section for tentatively declared
 					      symbols in ANSI C.  */
 #define SHN_PARISC_HUGE_COMMON	0xff01	   /* Common blocks in huge model.  */
 

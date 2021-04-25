@@ -1,36 +1,22 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Chromium OS Authors
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/io.h>
 #include <device/mmio.h>
 #include <console/console.h>
 #include <bootmode.h>
+#include <cpu/intel/model_206ax/model_206ax.h>
 #include <delay.h>
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
 #include <device/pci_ops.h>
 #include <drivers/intel/gma/libgfxinit.h>
-#include <southbridge/intel/bd82x6x/nvs.h>
 #include <drivers/intel/gma/opregion.h>
 #include <southbridge/intel/bd82x6x/pch.h>
-#include <cbmem.h>
+#include <types.h>
 
 #include "chip.h"
 #include "sandybridge.h"
-#include "gma.h"
 
 struct gt_powermeter {
 	u16 reg;
@@ -57,7 +43,7 @@ static const struct gt_powermeter snb_pm_gt1[] = {
 	{ 0xa240, 0x00000000 },
 	{ 0xa244, 0x00000000 },
 	{ 0xa248, 0x8000421e },
-	{ 0 }
+	{ 0 },
 };
 
 static const struct gt_powermeter snb_pm_gt2[] = {
@@ -80,7 +66,7 @@ static const struct gt_powermeter snb_pm_gt2[] = {
 	{ 0xa240, 0x00000000 },
 	{ 0xa244, 0x00000000 },
 	{ 0xa248, 0x8000421e },
-	{ 0 }
+	{ 0 },
 };
 
 static const struct gt_powermeter ivb_pm_gt1[] = {
@@ -136,7 +122,7 @@ static const struct gt_powermeter ivb_pm_gt1[] = {
 	{ 0xaa3c, 0x00001c00 },
 	{ 0xaa54, 0x00000004 },
 	{ 0xaa60, 0x00060000 },
-	{ 0 }
+	{ 0 },
 };
 
 static const struct gt_powermeter ivb_pm_gt2_17w[] = {
@@ -192,7 +178,7 @@ static const struct gt_powermeter ivb_pm_gt2_17w[] = {
 	{ 0xaa3c, 0x00003900 },
 	{ 0xaa54, 0x00000008 },
 	{ 0xaa60, 0x00110000 },
-	{ 0 }
+	{ 0 },
 };
 
 static const struct gt_powermeter ivb_pm_gt2_35w[] = {
@@ -248,12 +234,12 @@ static const struct gt_powermeter ivb_pm_gt2_35w[] = {
 	{ 0xaa3c, 0x00003900 },
 	{ 0xaa54, 0x00000008 },
 	{ 0xaa60, 0x00110000 },
-	{ 0 }
+	{ 0 },
 };
 
-/* some vga option roms are used for several chipsets but they only have one
- * PCI ID in their header. If we encounter such an option rom, we need to do
- * the mapping ourselves
+/*
+ * Some VGA option roms are used for several chipsets but they only have one PCI ID in their
+ * header. If we encounter such an option rom, we need to do the mapping ourselves.
  */
 
 u32 map_oprom_vendev(u32 vendev)
@@ -262,17 +248,17 @@ u32 map_oprom_vendev(u32 vendev)
 
 	switch (vendev) {
 	case 0x80860102:		/* SNB GT1 Desktop */
-	case 0x8086010a:		/* SNB GT1 Server */
+	case 0x8086010a:		/* SNB GT1 Server  */
 	case 0x80860112:		/* SNB GT2 Desktop */
-	case 0x80860116:		/* SNB GT2 Mobile */
+	case 0x80860116:		/* SNB GT2 Mobile  */
 	case 0x80860122:		/* SNB GT2 Desktop >=1.3GHz */
-	case 0x80860126:		/* SNB GT2 Mobile >=1.3GHz */
+	case 0x80860126:		/* SNB GT2 Mobile  >=1.3GHz */
 	case 0x80860152:		/* IVB GT1 Desktop */
-	case 0x80860156:		/* IVB GT1 Mobile */
+	case 0x80860156:		/* IVB GT1 Mobile  */
 	case 0x80860162:		/* IVB GT2 Desktop */
-	case 0x80860166:		/* IVB GT2 Mobile */
-	case 0x8086016a:		/* IVB GT2 Server */
-		new_vendev = 0x80860106;/* SNB GT1 Mobile */
+	case 0x80860166:		/* IVB GT2 Mobile  */
+	case 0x8086016a:		/* IVB GT2 Server  */
+		new_vendev = 0x80860106;/* SNB GT1 Mobile  */
 		break;
 	}
 
@@ -314,21 +300,10 @@ int gtt_poll(u32 reg, u32 mask, u32 value)
 	return 0;
 }
 
-uintptr_t gma_get_gnvs_aslb(const void *gnvs)
-{
-	const global_nvs_t *gnvs_ptr = gnvs;
-	return (uintptr_t)(gnvs_ptr ? gnvs_ptr->aslb : 0);
-}
-
-void gma_set_gnvs_aslb(void *gnvs, uintptr_t aslb)
-{
-	global_nvs_t *gnvs_ptr = gnvs;
-	if (gnvs_ptr)
-		gnvs_ptr->aslb = aslb;
-}
-
 static void gma_pm_init_pre_vbios(struct device *dev)
 {
+	const bool is_sandy = is_sandybridge();
+
 	u32 reg32;
 
 	printk(BIOS_DEBUG, "GT Power Management Init\n");
@@ -337,7 +312,7 @@ static void gma_pm_init_pre_vbios(struct device *dev)
 	if (!gtt_res || !gtt_res->base)
 		return;
 
-	if (bridge_silicon_revision() < IVB_STEP_C0) {
+	if (is_sandy || cpu_stepping() < IVB_STEP_C0) {
 		/* 1: Enable force wake */
 		gtt_write(0xa18c, 0x00000001);
 		gtt_poll(0x130090, (1 << 0), (1 << 0));
@@ -347,14 +322,14 @@ static void gma_pm_init_pre_vbios(struct device *dev)
 		gtt_poll(0x130040, (1 << 0), (1 << 0));
 	}
 
-	if ((bridge_silicon_revision() & BASE_REV_MASK) == BASE_REV_SNB) {
+	if (is_sandy) {
 		/* 1d: Set GTT+0x42004 [15:14]=11 (SnB C1+) */
 		reg32 = gtt_read(0x42004);
 		reg32 |= (1 << 14) | (1 << 15);
 		gtt_write(0x42004, reg32);
 	}
 
-	if (bridge_silicon_revision() >= IVB_STEP_A0) {
+	if (!is_sandy) {
 		/* Display Reset Acknowledge Settings */
 		reg32 = gtt_read(0x45010);
 		reg32 |= (1 << 1) | (1 << 0);
@@ -363,7 +338,7 @@ static void gma_pm_init_pre_vbios(struct device *dev)
 
 	/* 2: Get GT SKU from GTT+0x911c[13] */
 	reg32 = gtt_read(0x911c);
-	if ((bridge_silicon_revision() & BASE_REV_MASK) == BASE_REV_SNB) {
+	if (is_sandy) {
 		if (reg32 & (1 << 13)) {
 			printk(BIOS_DEBUG, "SNB GT1 Power Meter Weights\n");
 			gtt_write_powermeter(snb_pm_gt1);
@@ -372,7 +347,7 @@ static void gma_pm_init_pre_vbios(struct device *dev)
 			gtt_write_powermeter(snb_pm_gt2);
 		}
 	} else {
-		u32 unit = MCHBAR32(0x5938) & 0xf;
+		u32 unit = mchbar_read32(0x5938) & 0xf;
 
 		if (reg32 & (1 << 13)) {
 			/* GT1 SKU */
@@ -380,23 +355,20 @@ static void gma_pm_init_pre_vbios(struct device *dev)
 			gtt_write_powermeter(ivb_pm_gt1);
 		} else {
 			/* GT2 SKU */
-			u32 tdp = MCHBAR32(0x5930) & 0x7fff;
+			u32 tdp = mchbar_read32(0x5930) & 0x7fff;
 			tdp /= (1 << unit);
 
 			if (tdp <= 17) {
 				/* <=17W ULV */
-				printk(BIOS_DEBUG, "IVB GT2 17W "
-				       "Power Meter Weights\n");
+				printk(BIOS_DEBUG, "IVB GT2 17W Power Meter Weights\n");
 				gtt_write_powermeter(ivb_pm_gt2_17w);
 			} else if ((tdp >= 25) && (tdp <= 35)) {
 				/* 25W-35W */
-				printk(BIOS_DEBUG, "IVB GT2 25W-35W "
-				       "Power Meter Weights\n");
+				printk(BIOS_DEBUG, "IVB GT2 25W-35W Power Meter Weights\n");
 				gtt_write_powermeter(ivb_pm_gt2_35w);
 			} else {
 				/* All others */
-				printk(BIOS_DEBUG, "IVB GT2 35W "
-				       "Power Meter Weights\n");
+				printk(BIOS_DEBUG, "IVB GT2 35W Power Meter Weights\n");
 				gtt_write_powermeter(ivb_pm_gt2_35w);
 			}
 		}
@@ -415,13 +387,12 @@ static void gma_pm_init_pre_vbios(struct device *dev)
 	reg32 = gtt_read(0xa180);
 	reg32 |= (1 << 26) | (1 << 31);
 	/* (bit 20=1 for SNB step D1+ / IVB A0+) */
-	if (bridge_silicon_revision() >= SNB_STEP_D1)
+	if (!is_sandy || cpu_stepping() >= SNB_STEP_D1)
 		reg32 |= (1 << 20);
 	gtt_write(0xa180, reg32);
 
 	/* 6a: for SnB step D2+ only */
-	if (((bridge_silicon_revision() & BASE_REV_MASK) == BASE_REV_SNB) &&
-		(bridge_silicon_revision() >= SNB_STEP_D2)) {
+	if (is_sandy && cpu_stepping() >= SNB_STEP_D2) {
 		reg32 = gtt_read(0x9400);
 		reg32 |= (1 << 7);
 		gtt_write(0x9400, reg32);
@@ -433,16 +404,16 @@ static void gma_pm_init_pre_vbios(struct device *dev)
 		gtt_poll(0x941c, (1 << 1), (0 << 1));
 	}
 
-	if ((bridge_silicon_revision() & BASE_REV_MASK) == BASE_REV_IVB) {
+	if (is_sandy) {
+		/* 6b: Clocking reset controls */
+		gtt_write(0x9424, 0x00000000);
+	} else {
 		reg32 = gtt_read(0x907c);
 		reg32 |= (1 << 16);
 		gtt_write(0x907c, reg32);
 
 		/* 6b: Clocking reset controls */
 		gtt_write(0x9424, 0x00000001);
-	} else {
-		/* 6b: Clocking reset controls */
-		gtt_write(0x9424, 0x00000000);
 	}
 
 	/* 7 */
@@ -483,23 +454,20 @@ static void gma_pm_init_pre_vbios(struct device *dev)
 	gtt_write(0xa06c, 0x000493e0); /* RP Down EI */
 	gtt_write(0xa070, 0x0000000a); /* RP Idle Hysteresis */
 
-	/* 11a: Enable Render Standby (RC6) */
-	if ((bridge_silicon_revision() & BASE_REV_MASK) == BASE_REV_IVB) {
-		/*
-		 * IvyBridge should also support DeepRenderStandby.
-		 *
-		 * Unfortunately it does not work reliably on all SKUs so
-		 * disable it here and it can be enabled by the kernel.
-		 */
-		gtt_write(0xa090, 0x88040000); /* HW RC Control */
-	} else {
-		gtt_write(0xa090, 0x88040000); /* HW RC Control */
-	}
+	/*
+	 * 11a: Enable Render Standby (RC6)
+	 *
+	 * IvyBridge should also support DeepRenderStandby.
+	 *
+	 * Unfortunately it does not work reliably on all SKUs so
+	 * disable it here and it can be enabled by the kernel.
+	 */
+	gtt_write(0xa090, 0x88040000); /* HW RC Control */
 
 	/* 12: Normal Frequency Request */
 	/* RPNFREQ_VAL comes from MCHBAR 0x5998 23:16 */
 	/* only the lower 7 bits are used and shifted left by 25 */
-	reg32 = MCHBAR32(0x5998);
+	reg32 = mchbar_read32(0x5998);
 	reg32 >>= 16;
 	reg32 &= 0x7f;
 	reg32 <<= 25;
@@ -537,7 +505,7 @@ static void gma_pm_init_post_vbios(struct device *dev)
 	printk(BIOS_DEBUG, "GT Power Management Init (post VBIOS)\n");
 
 	/* 15: Deassert Force Wake */
-	if (bridge_silicon_revision() < IVB_STEP_C0) {
+	if (is_sandybridge() || cpu_stepping() < IVB_STEP_C0) {
 		gtt_write(0xa18c, gtt_read(0xa18c) & ~1);
 		gtt_poll(0x130090, (1 << 0), (0 << 0));
 	} else {
@@ -552,7 +520,7 @@ static void gma_pm_init_post_vbios(struct device *dev)
 	/* Setup Digital Port Hotplug */
 	reg32 = gtt_read(0xc4030);
 	if (!reg32) {
-		reg32 = (conf->gpu_dp_b_hotplug & 0x7) << 2;
+		reg32  = (conf->gpu_dp_b_hotplug & 0x7) <<  2;
 		reg32 |= (conf->gpu_dp_c_hotplug & 0x7) << 10;
 		reg32 |= (conf->gpu_dp_d_hotplug & 0x7) << 18;
 		gtt_write(0xc4030, reg32);
@@ -599,15 +567,15 @@ static void gma_enable_swsci(void)
 {
 	u16 reg16;
 
-	/* clear DMISCI status */
+	/* Clear DMISCI status */
 	reg16 = inw(DEFAULT_PMBASE + TCO1_STS);
 	reg16 &= DMISCI_STS;
 	outw(DEFAULT_PMBASE + TCO1_STS, reg16);
 
-	/* clear acpi tco status */
+	/* Clear ACPI TCO status */
 	outl(DEFAULT_PMBASE + GPE0_STS, TCOSCI_STS);
 
-	/* enable acpi tco scis */
+	/* Enable ACPI TCO SCIs */
 	reg16 = inw(DEFAULT_PMBASE + GPE0_EN);
 	reg16 |= TCOSCI_EN;
 	outw(DEFAULT_PMBASE + GPE0_EN, reg16);
@@ -615,17 +583,15 @@ static void gma_enable_swsci(void)
 
 static void gma_func0_init(struct device *dev)
 {
-	u32 reg32;
-
-	/* IGD needs to be Bus Master */
-	reg32 = pci_read_config32(dev, PCI_COMMAND);
-	reg32 |= PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY | PCI_COMMAND_IO;
-	pci_write_config32(dev, PCI_COMMAND, reg32);
+	intel_gma_init_igd_opregion();
 
 	/* Init graphics power management */
 	gma_pm_init_pre_vbios(dev);
 
-	if (!CONFIG(MAINBOARD_DO_NATIVE_VGA_INIT))
+	if (!CONFIG(NO_GFX_INIT))
+		pci_or_config16(dev, PCI_COMMAND, PCI_COMMAND_MASTER);
+
+	if (!CONFIG(MAINBOARD_USE_LIBGFXINIT))
 		/* PCI Init, will run VBIOS */
 		pci_dev_init(dev);
 
@@ -651,54 +617,13 @@ static void gma_func0_init(struct device *dev)
 	}
 
 	gma_enable_swsci();
-	intel_gma_restore_opregion();
 }
 
-const struct i915_gpu_controller_info *
-intel_gma_get_controller_info(void)
+static void gma_generate_ssdt(const struct device *device)
 {
-	struct device *dev = pcidev_on_root(0x2, 0);
-	if (!dev) {
-		return NULL;
-	}
-	struct northbridge_intel_sandybridge_config *chip = dev->chip_info;
-	return &chip->gfx;
-}
+	const struct northbridge_intel_sandybridge_config *chip = device->chip_info;
 
-static void gma_ssdt(struct device *device)
-{
-	const struct i915_gpu_controller_info *gfx = intel_gma_get_controller_info();
-	if (!gfx) {
-		return;
-	}
-
-	drivers_intel_gma_displays_ssdt_generate(gfx);
-}
-
-static unsigned long
-gma_write_acpi_tables(struct device *const dev,
-		      unsigned long current,
-		      struct acpi_rsdp *const rsdp)
-{
-	igd_opregion_t *opregion = (igd_opregion_t *)current;
-	global_nvs_t *gnvs;
-
-	if (intel_gma_init_igd_opregion(opregion) != CB_SUCCESS)
-		return current;
-
-	current += sizeof(igd_opregion_t);
-
-	/* GNVS has been already set up */
-	gnvs = cbmem_find(CBMEM_ID_ACPI_GNVS);
-	if (gnvs) {
-		/* IGD OpRegion Base Address */
-		gma_set_gnvs_aslb(gnvs, (uintptr_t)opregion);
-	} else {
-		printk(BIOS_ERR, "Error: GNVS table not found.\n");
-	}
-
-	current = acpi_align_current(current);
-	return current;
+	drivers_intel_gma_displays_ssdt_generate(&chip->gfx);
 }
 
 static const char *gma_acpi_name(const struct device *dev)
@@ -706,44 +631,35 @@ static const char *gma_acpi_name(const struct device *dev)
 	return "GFX0";
 }
 
-/* called by pci set_vga_bridge function */
+/* Called by PCI set_vga_bridge function */
 static void gma_func0_disable(struct device *dev)
 {
-	u16 reg16;
-	struct device *dev_host = pcidev_on_root(0, 0);
-
-	reg16 = pci_read_config16(dev_host, GGC);
-	reg16 |= (1 << 1); /* disable VGA decode */
-	pci_write_config16(dev_host, GGC, reg16);
+	/* Disable VGA decode */
+	pci_or_config16(pcidev_on_root(0, 0), GGC, 1 << 1);
 
 	dev->enabled = 0;
 }
 
-static struct pci_operations gma_pci_ops = {
-	.set_subsystem    = pci_dev_set_subsystem,
-};
-
 static struct device_operations gma_func0_ops = {
-	.read_resources		= pci_dev_read_resources,
-	.set_resources		= pci_dev_set_resources,
-	.enable_resources	= pci_dev_enable_resources,
-	.acpi_fill_ssdt_generator = gma_ssdt,
-	.init			= gma_func0_init,
-	.scan_bus		= 0,
-	.enable			= 0,
-	.disable		= gma_func0_disable,
-	.ops_pci		= &gma_pci_ops,
-	.acpi_name		= gma_acpi_name,
-	.write_acpi_tables	= gma_write_acpi_tables,
+	.read_resources         = pci_dev_read_resources,
+	.set_resources          = pci_dev_set_resources,
+	.enable_resources       = pci_dev_enable_resources,
+	.acpi_fill_ssdt		= gma_generate_ssdt,
+	.init                   = gma_func0_init,
+	.vga_disable                = gma_func0_disable,
+	.ops_pci                = &pci_dev_ops_pci,
+	.acpi_name              = gma_acpi_name,
 };
 
-static const unsigned short pci_device_ids[] = { 0x0102, 0x0106, 0x010a, 0x0112,
-						 0x0116, 0x0122, 0x0126, 0x0156,
-						 0x0166, 0x0162, 0x016a, 0x0152,
-						 0 };
+static const unsigned short pci_device_ids[] = {
+	0x0102, 0x0106, 0x010a, 0x0112,
+	0x0116, 0x0122, 0x0126, 0x0156,
+	0x0166, 0x0162, 0x016a, 0x0152,
+	0
+};
 
 static const struct pci_driver gma __pci_driver = {
-	.ops	 = &gma_func0_ops,
-	.vendor	 = PCI_VENDOR_ID_INTEL,
+	.ops     = &gma_func0_ops,
+	.vendor  = PCI_VENDOR_ID_INTEL,
 	.devices = pci_device_ids,
 };

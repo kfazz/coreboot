@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2015-2016 Intel Corporation.
- * Copyright (C) 2017-2018 Online SAS.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <cbmem.h>
 #include <console/console.h>
@@ -52,7 +37,7 @@ void soc_save_dimm_info(void)
 	 * table 17
 	 */
 	mem_info = cbmem_add(CBMEM_ID_MEMINFO, sizeof(*mem_info));
-	printk(BIOS_DEBUG, "CBMEM entry for DIMM info: 0x%p\n", mem_info);
+	printk(BIOS_DEBUG, "CBMEM entry for DIMM info: %p\n", mem_info);
 	if (mem_info == NULL)
 		return;
 	memset(mem_info, 0, sizeof(*mem_info));

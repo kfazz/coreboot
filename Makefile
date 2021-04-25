@@ -1,46 +1,33 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2008 Advanced Micro Devices, Inc.
-## Copyright (C) 2008 Uwe Hermann <uwe@hermann-uwe.de>
-## Copyright (C) 2009-2010 coresystems GmbH
-## Copyright (C) 2011 secunet Security Networks AG
-##
-## Redistribution and use in source and binary forms, with or without
-## modification, are permitted provided that the following conditions
-## are met:
-## 1. Redistributions of source code must retain the above copyright
-##    notice, this list of conditions and the following disclaimer.
-## 2. Redistributions in binary form must reproduce the above copyright
-##    notice, this list of conditions and the following disclaimer in the
-##    documentation and/or other materials provided with the distribution.
-## 3. The name of the author may not be used to endorse or promote products
-##    derived from this software without specific prior written permission.
-##
-## THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-## ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-## IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-## ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-## FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-## DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-## OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-## HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-## LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-## OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-## SUCH DAMAGE.
-##
+## SPDX-License-Identifier: BSD-3-Clause
 
+ifneq ($(words $(CURDIR)),1)
+    $(error Error: Path to the main directory cannot contain spaces)
+endif
 top := $(CURDIR)
 src := src
 srck := $(top)/util/kconfig
 obj ?= build
 override obj := $(subst $(top)/,,$(abspath $(obj)))
+xcompile ?= $(obj)/xcompile
 objutil ?= $(obj)/util
 objk := $(objutil)/kconfig
 absobj := $(abspath $(obj))
 
+additional-dirs :=
+
+VBOOT_HOST_BUILD ?= $(abspath $(objutil)/vboot_lib)
+
 COREBOOT_EXPORTS := COREBOOT_EXPORTS
 COREBOOT_EXPORTS += top src srck obj objutil objk
+
+# reproducible builds
+LANG:=C
+LC_ALL:=C
+TZ:=UTC0
+SOURCE_DATE_EPOCH := $(shell $(top)/util/genbuild_h/genbuild_h.sh . | sed -n 's/^.define COREBOOT_BUILD_EPOCH\>.*"\(.*\)".*/\1/p')
+# don't use COREBOOT_EXPORTS to ensure build steps outside the coreboot build system
+# are reproducible
+export LANG LC_ALL TZ SOURCE_DATE_EPOCH
 
 DOTCONFIG ?= $(top)/.config
 KCONFIG_CONFIG = $(DOTCONFIG)
@@ -73,14 +60,13 @@ Q:=@
 ifneq ($(V),1)
 ifneq ($(Q),)
 .SILENT:
+MAKEFLAGS += -s
 endif
 endif
 
 # Disable implicit/built-in rules to make Makefile errors fail fast.
 .SUFFIXES:
 
-HOSTCC := $(if $(shell type gcc 2>/dev/null),gcc,cc)
-HOSTCXX = g++
 HOSTCFLAGS := -g
 HOSTCXXFLAGS := -g
 
@@ -101,6 +87,8 @@ help_coreboot help::
 	@echo  '  distclean             - Remove build artifacts and config files'
 	@echo  '  doxygen               - Build doxygen documentation for coreboot'
 	@echo  '  doxyplatform          - Build doxygen documentation for the current platform'
+	@echo  '  sphinx                - Build sphinx documentation for coreboot'
+	@echo  '  sphinx-lint           - Build sphinx documenttion for coreboot with warnings as errors'
 	@echo  '  filelist              - Show files used in current build'
 	@echo  '  printall              - print makefile info for debugging'
 	@echo  '  gitconfig             - set up git to submit patches to coreboot'
@@ -110,7 +98,7 @@ help_coreboot help::
 
 # This include must come _before_ the pattern rules below!
 # Order _does_ matter for pattern rules.
-include $(srck)/Makefile
+include $(srck)/Makefile.inc
 
 # Three cases where we don't need fully populated $(obj) lists:
 # 1. when no .config exists
@@ -121,19 +109,45 @@ ifeq ($(strip $(HAVE_DOTCONFIG)),)
 NOCOMPILE:=1
 endif
 ifneq ($(MAKECMDGOALS),)
-ifneq ($(filter %config %clean cross% clang iasl gnumake lint% help% what-jenkins-does,$(MAKECMDGOALS)),)
+ifneq ($(filter %config %clean cross% clang iasl lint% help% what-jenkins-does,$(MAKECMDGOALS)),)
 NOCOMPILE:=1
 endif
-ifeq ($(MAKECMDGOALS), %clean)
+ifneq ($(filter %clean lint% help% what-jenkins-does,$(MAKECMDGOALS)),)
 NOMKDIR:=1
+UNIT_TEST:=1
 endif
 endif
 
+ifneq ($(filter help%, $(MAKECMDGOALS)), )
+NOCOMPILE:=1
+UNIT_TEST:=1
+else
+ifneq ($(filter %-test %-tests, $(MAKECMDGOALS)),)
+ifneq ($(filter-out %-test %-tests, $(MAKECMDGOALS)),)
+$(error Cannot mix unit-tests targets with other targets)
+endif
+UNIT_TEST:=1
+NOCOMPILE:=
+endif
+endif
+
+$(xcompile): util/xcompile/xcompile
+	rm -f $@
+	$< $(XGCCPATH) > $@.tmp
+	\mv -f $@.tmp $@ 2> /dev/null
+	rm -f $@.tmp
+
 ifeq ($(NOCOMPILE),1)
+# We also don't use .xcompile in the no-compile situations, so
+# provide some reasonable defaults.
+HOSTCC ?= $(if $(shell type gcc 2>/dev/null),gcc,cc)
+HOSTCXX ?= g++
+
 include $(TOPLEVEL)/Makefile.inc
 include $(TOPLEVEL)/payloads/Makefile.inc
 include $(TOPLEVEL)/util/testing/Makefile.inc
 -include $(TOPLEVEL)/site-local/Makefile.inc
+include $(TOPLEVEL)/tests/Makefile.inc
 real-all:
 	@echo "Error: Expected config file ($(DOTCONFIG)) not present." >&2
 	@echo "Please specify a config file or run 'make menuconfig' to" >&2
@@ -141,23 +155,21 @@ real-all:
 	@exit 1
 else
 
+ifneq ($(UNIT_TEST),1)
 include $(DOTCONFIG)
+endif
 
-# in addition to the dependency below, create the file if it doesn't exist
-# to silence stupid warnings about a file that would be generated anyway.
-$(if $(wildcard .xcompile)$(NOCOMPILE),,$(eval $(shell util/xcompile/xcompile $(XGCCPATH) > .xcompile || rm -f .xcompile)))
+# The toolchain requires xcompile to determine the ARCH_SUPPORTED, so we can't
+# wait for make to generate the file.
+$(if $(wildcard $(xcompile)),, $(shell \
+	mkdir -p $(dir $(xcompile)) && \
+	util/xcompile/xcompile $(XGCCPATH) > $(xcompile) || rm -f $(xcompile)))
 
-.xcompile: util/xcompile/xcompile
-	rm -f $@
-	$< $(XGCCPATH) > $@.tmp
-	\mv -f $@.tmp $@ 2> /dev/null
-	rm -f $@.tmp
-
--include .xcompile
+include $(xcompile)
 
 ifneq ($(XCOMPILE_COMPLETE),1)
-$(shell rm -f .xcompile)
-$(error .xcompile deleted because it's invalid. \
+$(shell rm -f $(xcompile))
+$(error $(xcompile) deleted because it's invalid. \
 	Restarting the build should fix that, or explain the problem)
 endif
 
@@ -165,7 +177,9 @@ ifneq ($(CONFIG_MMX),y)
 CFLAGS_x86_32 += -mno-mmx
 endif
 
+ifneq ($(UNIT_TEST),1)
 include toolchain.inc
+endif
 
 strip_quotes = $(strip $(subst ",,$(subst \",,$(1))))
 # fix makefile syntax highlighting after strip macro \" "))
@@ -185,7 +199,7 @@ $(KCONFIG_AUTOHEADER): $(KCONFIG_CONFIG) $(objutil)/kconfig/conf
 $(KCONFIG_AUTOCONFIG): $(KCONFIG_AUTOHEADER)
 	true
 
-$(KCONFIG_AUTOADS): $(KCONFIG_AUTOCONFIG) $(objutil)/kconfig/toada
+$(KCONFIG_AUTOADS): $(KCONFIG_CONFIG) $(KCONFIG_AUTOHEADER) $(objutil)/kconfig/toada
 	$(objutil)/kconfig/toada CB.Config <$< >$@
 
 $(obj)/%/$(notdir $(KCONFIG_AUTOADS)): $(KCONFIG_AUTOADS)
@@ -243,13 +257,13 @@ includemakefiles= \
 	$(foreach class,classes subdirs $(classes) $(special-classes), $(eval $(class)-y:=)) \
 	$(eval -include $(1)) \
 	$(foreach class,$(classes-y), $(call add-class,$(class))) \
+	$(foreach special,$(special-classes), \
+		$(foreach item,$($(special)-y), $(call $(special)-handler,$(dir $(1)),$(item)))) \
 	$(foreach class,$(classes), \
 		$(eval $(class)-srcs+= \
 			$$(subst $(absobj)/,$(obj)/, \
 			$$(subst $(top)/,, \
 			$$(abspath $$(subst $(dir $(1))/,/,$$(addprefix $(dir $(1)),$$($(class)-y)))))))) \
-	$(foreach special,$(special-classes), \
-		$(foreach item,$($(special)-y), $(call $(special)-handler,$(dir $(1)),$(item)))) \
 	$(eval subdirs+=$$(subst $(CURDIR)/,,$$(wildcard $$(abspath $$(addprefix $(dir $(1)),$$(subdirs-y))))))
 
 # For each path in $(subdirs) call includemakefiles
@@ -264,7 +278,14 @@ evaluate_subdirs= \
 # collect all object files eligible for building
 subdirs:=$(TOPLEVEL)
 postinclude-hooks :=
+
+# Don't iterate through Makefile.incs under src/ when building tests
+ifneq ($(UNIT_TEST),1)
 $(eval $(call evaluate_subdirs))
+else
+include $(TOPLEVEL)/tests/Makefile.inc
+endif
+
 ifeq ($(FAILBUILD),1)
 $(error cannot continue build)
 endif
@@ -418,6 +439,12 @@ cscope-project: clean-cscope $(obj)/project_filelist.txt
 cscope:
 	cscope -bR
 
+sphinx:
+	$(MAKE) -C Documentation -f Makefile.sphinx html
+
+sphinx-lint:
+	$(MAKE) SPHINXOPTS=-W -C Documentation -f Makefile.sphinx html
+
 doxy: doxygen
 doxygen:
 	$(DOXYGEN) Documentation/Doxyfile.coreboot
@@ -428,10 +455,10 @@ doxygen_simple:
 doxyplatform doxygen_platform: $(obj)/project_filelist.txt
 	echo
 	echo "Building doxygen documentation for $(CONFIG_MAINBOARD_PART_NUMBER)"
-	export DOXYGEN_OUTPUT_DIR="$(DOXYGEN_OUTPUT_DIR)/$(CONFIG_MAINBOARD_VENDOR)/$(CONFIG_MAINBOARD_PART_NUMBER)"; \
+	export DOXYGEN_OUTPUT_DIR="$$( echo $(DOXYGEN_OUTPUT_DIR)/$(call strip_quotes, $(CONFIG_MAINBOARD_VENDOR))_$(call strip_quotes, $(CONFIG_MAINBOARD_PART_NUMBER)) | sed 's|[^A-Za-z0-9/]|_|g' )"; \
 	mkdir -p "$$DOXYGEN_OUTPUT_DIR"; \
 	export DOXYFILES="$$(cat $(obj)/project_filelist.txt | grep -v '\.ld$$' | sed 's/\.aml/\.dsl/' | tr '\n' ' ')"; \
-	export DOXYGEN_PLATFORM="$(CONFIG_MAINBOARD_DIR) ($(CONFIG_MAINBOARD_PART_NUMBER)) version $(KERNELVERSION)"; \
+	export DOXYGEN_PLATFORM="$(call strip_quotes, $(CONFIG_MAINBOARD_DIR)) \($(call strip_quotes, $(CONFIG_MAINBOARD_PART_NUMBER))\) version $(KERNELVERSION)"; \
 	$(DOXYGEN) Documentation/doxygen/Doxyfile.coreboot_platform
 
 doxyclean: doxygen-clean
@@ -464,5 +491,5 @@ distclean: clean clean-ctags clean-cscope distclean-payloads distclean-utils
 	rm -rf coreboot-builds coreboot-builds-chromeos
 	rm -f abuild*.xml junit.xml* util/lint/junit.xml
 
-.PHONY: $(PHONY) clean clean-for-update clean-cscope cscope distclean doxygen doxy doxygen_simple
+.PHONY: $(PHONY) clean clean-for-update clean-cscope cscope distclean doxygen doxy doxygen_simple sphinx sphinx-lint
 .PHONY: ctags-project cscope-project clean-ctags

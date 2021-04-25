@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Advanced Micro Devices, Inc.
- * Copyright (C) 2013 Sage Electronic Engineering, LLC
- * Copyright (C) 2018 Gergely Kiss <mail.gery@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* Routing is in System Bus scope */
 Name(PR0, Package(){
@@ -48,8 +33,14 @@ Name(PR0, Package(){
 	Package(){0x0013FFFF, 0, INTC, 0 },
 	Package(){0x0013FFFF, 1, INTB, 0 },
 
-	/* Bus 0, Dev 10 Func 0 - USB: XHCI */
+	/* Bus 0, Dev 16 Func 0 - USB: OHCI */
+	/* Bus 0, Dev 16 Func 2 - USB: EHCI */
+	Package(){0x0016FFFF, 0, INTC, 0 },
+	Package(){0x0016FFFF, 1, INTB, 0 },
+
+	/* Bus 0, Dev 10 - USB: XHCI func 0, 1 */
 	Package(){0x0010FFFF, 0, INTC, 0 },
+	Package(){0x0010FFFF, 1, INTB, 0 },
 
 	/* Bus 0, Dev 11 - SATA controller */
 	Package(){0x0011FFFF, 0, INTD, 0 },
@@ -87,8 +78,14 @@ Name(APR0, Package(){
 	Package(){0x0013FFFF, 0, 0, 18 },
 	Package(){0x0013FFFF, 1, 0, 17 },
 
-	/* Bus 0, Dev 10, Func 0 - USB: XHCI */
+	/* Bus 0, Dev 16 Func 0 - USB: OHCI */
+	/* Bus 0, Dev 16 Func 1 - USB: EHCI */
+	Package(){0x0016FFFF, 0, 0, 18 },
+	Package(){0x0016FFFF, 1, 0, 17 },
+
+	/* Bus 0, Dev 10 - USB: XHCI func 0, 1 */
 	Package(){0x0010FFFF, 0, 0, 18 },
+	Package(){0x0010FFFF, 1, 0, 17 },
 
 	/* Bus 0, Dev 11 - SATA controller */
 	Package(){0x0011FFFF, 0, 0, 19 },

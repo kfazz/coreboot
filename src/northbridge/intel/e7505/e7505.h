@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2005 Digital Design Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /*
  * e7505.h: PCI configuration space for the Intel E7501 memory controller
@@ -42,6 +28,8 @@
 #define DRC		0x7C	/* DRAM Controller Mode register, 32 bit */
 #define DRDCTL		0x80	/* DRAM Read Timing Control register, 16 bit? (if similar to 855PM) */
 #define CKDIS		0x8C	/* Clock disable register, 8 bit */
+#define SMRAMC		0x9D
+#define ESMRAMC		0x9E
 #define APSIZE		0xB4
 #define TOLM		0xC4	/* Top of Low Memory register, 16 bit */
 #define REMAPBASE	0xC6	/* Remap Base Address register, 16 bit */

@@ -1,24 +1,8 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2007-2009 coresystems GmbH
-## Copyright (C) 2011 Sven Schnelle <svens@stackframe.org>
-##
-## This program is free software; you can redistribute it and/or
-## modify it under the terms of the GNU General Public License as
-## published by the Free Software Foundation; version 2 of
-## the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+## SPDX-License-Identifier: GPL-2.0-only
 
 chip northbridge/intel/i945
 	# IGD Displays
-	register "gfx.ndid" = "3"
-	register "gfx.did" = "{ 0x80000100, 0x80000240, 0x80000410, 0x80000410, 0x00000005 }"
+	register "gfx" = "GMA_STATIC_DISPLAYS(0)"
 
 	register "gpu_hotplug" = "0x00000220"
 	register "gpu_lvds_use_spread_spectrum_clock" = "1"
@@ -64,7 +48,6 @@ chip northbridge/intel/i945
 			register "gpi1_routing" = "2"
 			register "gpi7_routing" = "2"
 
-			register "sata_ahci" = "0x1"
 			register "sata_ports_implemented" = "0x04"
 
 			register "gpe0_en" = "0x11000006"
@@ -77,6 +60,10 @@ chip northbridge/intel/i945
 
 			register "c3_latency" = "0x23"
 			register "p_cnt_throttling_supported" = "1"
+
+			register "gen1_dec" = "0x000c0681"
+			register "gen2_dec" = "0x000c1641"
+			register "gen4_dec" = "0x001c0301"
 
 			device pci 1b.0 on # Audio Controller
 				subsystemid 0x8384 0x7680

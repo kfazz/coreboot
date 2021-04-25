@@ -1,22 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2016 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef REGION_FILE_H
 #define REGION_FILE_H
 
 #include <commonlib/region.h>
+#include <stddef.h>
 #include <stdint.h>
 
 /*
@@ -43,9 +31,22 @@ int region_file_init(struct region_file *f, const struct region_device *p);
  */
 int region_file_data(const struct region_file *f, struct region_device *rdev);
 
+/*
+ * Create region file entry struct to insert multiple data buffers
+ * into the same region_file.
+ */
+struct update_region_file_entry {
+	/* size of this entry */
+	size_t size;
+	/* data pointer */
+	const void *data;
+};
+
 /* Update region file with latest data. Returns < 0 on error, 0 on success. */
-int region_file_update_data(struct region_file *f, const void *buf,
-				size_t size);
+int region_file_update_data_arr(struct region_file *f,
+				  const struct update_region_file_entry *entries,
+				  size_t num_entries);
+int region_file_update_data(struct region_file *f, const void *buf, size_t size);
 
 /* Declared here for easy object allocation. */
 struct region_file {

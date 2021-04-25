@@ -1,15 +1,4 @@
-/*
- * Copyright (C) 2014 Vladimir Serbinenko
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 or (at your option) any later version of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,7 +60,7 @@ void ivybridge_dump_timings(const char *dump_spd_file)
 	u32 mr0[2];
 	u32 mr1[2];
 	u32 reg;
-	unsigned int CAS = 0;
+	unsigned int CAS[2] = { 0 };
 	int tWR = 0, tRFC = 0;
 	int tFAW[2], tWTR[2], tCKE[2], tRTP[2], tRRD[2];
 	int channel, slot;
@@ -97,6 +86,11 @@ void ivybridge_dump_timings(const char *dump_spd_file)
 		rankmap[channel] = read_mchbar32(0xc14 + 0x100 * channel) >> 24;
 	}
 
+	if ((rankmap[0] == 0) && (rankmap[1] == 0)) {
+		fputs("Error: no memory channels found\n", stderr);
+		exit(1);
+	}
+
 	two_channels = rankmap[0] && rankmap[1];
 
 	mr0[0] = read_mchbar32(0x0004);
@@ -114,14 +108,16 @@ void ivybridge_dump_timings(const char *dump_spd_file)
 
 	tCK = (64 * 10 * 3) / reg;
 
-	if (mr0[0] & 1) {
-		CAS = ((mr0[0] >> 4) & 0x7) + 12;
-	} else {
-		CAS = ((mr0[0] >> 4) & 0x7) + 4;
-	}
-
 	for (channel = 0; channel < 2; channel++) {
 		mad_dimm[channel] = read_mchbar32(0x5004 + 4 * channel);
+
+		if (mr0[channel]) {
+			if (mr0[channel] & 1) {
+				CAS[channel] = ((mr0[channel] >> 4) & 0x7) + 12;
+			} else {
+				CAS[channel] = ((mr0[channel] >> 4) & 0x7) + 4;
+			}
+		}
 	}
 
 	printf(".rankmap = { 0x%x, 0x%x },\n", rankmap[0], rankmap[1]);
@@ -141,7 +137,7 @@ void ivybridge_dump_timings(const char *dump_spd_file)
 				       ctWR);
 			if (!tWR)
 				tWR = ctWR;
-			if (((mr0[channel] >> 9) & 7) != mr0_wr_t[tWR - 5])
+			if (mr0[channel] && ((mr0[channel] >> 9) & 7) != mr0_wr_t[tWR - 5])
 				printf("/* encoded tWR mismatch: %d, %d */\n",
 				       ((mr0[channel] >> 9) & 7),
 				       mr0_wr_t[tWR - 5]);
@@ -155,66 +151,76 @@ void ivybridge_dump_timings(const char *dump_spd_file)
 			reg = read_mchbar32(0x4000 + 0x400 * channel);
 			tRAS[channel] = reg >> 16;
 			tCWL[channel] = (reg >> 12) & 0xf;
-			if (CAS != ((reg >> 8) & 0xf))
-				printf("/* CAS mismatch: %d, %d. */\n", CAS,
-				       (reg >> 8) & 0xf);
+			if (CAS[channel]) {
+				if (CAS[channel] != ((reg >> 8) & 0xf))
+					printf("/* CAS mismatch: %d, %d. */\n", CAS[channel],
+					       (reg >> 8) & 0xf);
+			} else {
+				CAS[channel] = (reg >> 8) & 0xf;
+			}
 			tRP[channel] = (reg >> 4) & 0xf;
 			tRCD[channel] = reg & 0xf;
 
 			reg = read_mchbar32(0x400c + channel * 0x400);
 			tXPDLL[channel] = reg & 0x1f;
 			tXP[channel] = (reg >> 5) & 7;
-			tAONPD[channel] = (reg >> 8) & 0xff;
+			tAONPD[channel] = (reg >> 8) & 0xf;
 		}
 	printf(".mobile = %d,\n", (mr0[0] >> 12) & 1);
-	print_time("CAS", CAS, tCK);
+
+	if (two_channels && CAS[0] != CAS[1])
+		printf("/* CAS mismatch: %d, %d */\n", CAS[0], CAS[1]);
+	print_time("CAS", CAS[0], tCK);
 	print_time("tWR", tWR, tCK);
 
 	printf(".reg_4004_b30 = { %d, %d },\n", reg_4004_b30[0],
 	       reg_4004_b30[1]);
+
+	channel = (rankmap[0] != 0) ? 0 : 1;
+
 	if (two_channels && tFAW[0] != tFAW[1])
 		printf("/* tFAW mismatch: %d, %d */\n", tFAW[0], tFAW[1]);
-	print_time("tFAW", tFAW[0], tCK);
+	print_time("tFAW", tFAW[channel], tCK);
 	if (two_channels && tWTR[0] != tWTR[1])
 		printf("/* tWTR mismatch: %d, %d */\n", tWTR[0], tWTR[1]);
-	print_time("tWTR", tWTR[0], tCK);
+	print_time("tWTR", tWTR[channel], tCK);
 	if (two_channels && tCKE[0] != tCKE[1])
 		printf("/* tCKE mismatch: %d, %d */\n", tCKE[0], tCKE[1]);
-	print_time("tCKE", tCKE[0], tCK);
+	print_time("tCKE", tCKE[channel], tCK);
 	if (two_channels && tRTP[0] != tRTP[1])
 		printf("/* tRTP mismatch: %d, %d */\n", tRTP[0], tRTP[1]);
-	print_time("tRTP", tRTP[0], tCK);
+	print_time("tRTP", tRTP[channel], tCK);
 	if (two_channels && tRRD[0] != tRRD[1])
 		printf("/* tRRD mismatch: %d, %d */\n", tRRD[0], tRRD[1]);
-	print_time("tRRD", tRRD[0], tCK);
+	print_time("tRRD", tRRD[channel], tCK);
 
 	if (two_channels && tRAS[0] != tRAS[1])
 		printf("/* tRAS mismatch: %d, %d */\n", tRAS[0], tRAS[1]);
-	print_time("tRAS", tRAS[0], tCK);
+	print_time("tRAS", tRAS[channel], tCK);
 
 	if (two_channels && tCWL[0] != tCWL[1])
 		printf("/* tCWL mismatch: %d, %d */\n", tCWL[0], tCWL[1]);
-	print_time("tCWL", tCWL[0], tCK);
+	print_time("tCWL", tCWL[channel], tCK);
 
 	if (two_channels && tRP[0] != tRP[1])
 		printf("/* tRP mismatch: %d, %d */\n", tRP[0], tRP[1]);
-	print_time("tRP", tRP[0], tCK);
+	print_time("tRP", tRP[channel], tCK);
 
 	if (two_channels && tRCD[0] != tRCD[1])
 		printf("/* tRCD mismatch: %d, %d */\n", tRCD[0], tRCD[1]);
-	print_time("tRCD", tRCD[0], tCK);
+	print_time("tRCD", tRCD[channel], tCK);
 
 	if (two_channels && tXPDLL[0] != tXPDLL[1])
 		printf("/* tXPDLL mismatch: %d, %d */\n", tXPDLL[0], tXPDLL[1]);
-	print_time("tXPDLL", tXPDLL[0], tCK);
+	print_time("tXPDLL", tXPDLL[channel], tCK);
 
 	if (two_channels && tXP[0] != tXP[1])
 		printf("/* tXP mismatch: %d, %d */\n", tXP[0], tXP[1]);
-	print_time("tXP", tXP[0], tCK);
+	print_time("tXP", tXP[channel], tCK);
 
 	if (two_channels && tAONPD[0] != tAONPD[1])
 		printf("/* tAONPD mismatch: %d, %d */\n", tAONPD[0], tAONPD[1]);
-	print_time("tAONPD", tAONPD[0], tCK);
+	print_time("tAONPD", tAONPD[channel], tCK);
 
 	reg = read_mchbar32(0x4298);
 	if (reg != read_mchbar32(0x4698) && two_channels)
@@ -318,10 +324,10 @@ void ivybridge_dump_timings(const char *dump_spd_file)
 				spd[channel][slot][12] = make_spd_time(1, tCK);
 				spd[channel][slot][13] = 0;
 				spd[channel][slot][14] =
-				    (1 << (CAS - 4)) & 0xff;
-				spd[channel][slot][15] = (1 << (CAS - 4)) >> 8;
+				    (1 << (CAS[channel] - 4)) & 0xff;
+				spd[channel][slot][15] = (1 << (CAS[channel] - 4)) >> 8;
 				spd[channel][slot][16] =
-				    make_spd_time(CAS, tCK);
+				    make_spd_time(CAS[channel], tCK);
 				spd[channel][slot][17] =
 				    make_spd_time(tWR, tCK);
 				spd[channel][slot][18] =

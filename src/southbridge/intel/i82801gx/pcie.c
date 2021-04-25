@@ -1,24 +1,12 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <device/device.h>
 #include <device/pci.h>
+#include <device/pci_def.h>
 #include <device/pci_ops.h>
 #include <device/pci_ids.h>
+#include "chip.h"
 #include "i82801gx.h"
 
 /* Low Power variant has 6 root ports. */
@@ -53,64 +41,35 @@ static inline int root_port_number(struct device *dev)
 static void pci_init(struct device *dev)
 {
 	u16 reg16;
-	u32 reg32;
 
 	printk(BIOS_DEBUG, "Initializing ICH7 PCIe bridge.\n");
 
 	/* Enable Bus Master */
-	reg32 = pci_read_config32(dev, PCI_COMMAND);
-	reg32 |= PCI_COMMAND_MASTER;
-	pci_write_config32(dev, PCI_COMMAND, reg32);
+	pci_or_config16(dev, PCI_COMMAND, PCI_COMMAND_MASTER);
 
 	/* Set Cache Line Size to 0x10 */
 	// This has no effect but the OS might expect it
-	pci_write_config8(dev, 0x0c, 0x10);
+	pci_write_config8(dev, PCI_CACHE_LINE_SIZE, 0x10);
 
-	reg16 = pci_read_config16(dev, 0x3e);
-	reg16 &= ~(1 << 0); /* disable parity error response */
-	// reg16 &= ~(1 << 1); /* disable SERR */
-	reg16 |= (1 << 2); /* ISA enable */
-	pci_write_config16(dev, 0x3e, reg16);
+	pci_and_config16(dev, PCI_BRIDGE_CONTROL, ~PCI_BRIDGE_CTL_PARITY);
 
 	/* Enable IO xAPIC on this PCIe port */
-	reg32 = pci_read_config32(dev, 0xd8);
-	reg32 |= (1 << 7);
-	pci_write_config32(dev, 0xd8, reg32);
+	pci_or_config32(dev, 0xd8, 1 << 7);
 
 	/* Enable Backbone Clock Gating */
-	reg32 = pci_read_config32(dev, 0xe1);
-	reg32 |= (1 << 3) | (1 << 2) | (1 << 1) | (1 << 0);
-	pci_write_config32(dev, 0xe1, reg32);
+	pci_or_config32(dev, 0xe1, (1 << 3) | (1 << 2) | (1 << 1) | (1 << 0));
 
 	/* Set VC0 transaction class */
-	reg32 = pci_read_config32(dev, 0x114);
-	reg32 &= 0xffffff00;
-	reg32 |= 1;
-	pci_write_config32(dev, 0x114, reg32);
+	pci_update_config32(dev, 0x114, ~0x000000ff, 1);
 
 	/* Mask completion timeouts */
-	reg32 = pci_read_config32(dev, 0x148);
-	reg32 |= (1 << 14);
-	pci_write_config32(dev, 0x148, reg32);
+	pci_or_config32(dev, 0x148, 1 << 14);
 
 	/* Enable common clock configuration */
 	// Are there cases when we don't want that?
-	reg16 = pci_read_config16(dev, 0x50);
-	reg16 |= (1 << 6);
-	pci_write_config16(dev, 0x50, reg16);
+	pci_or_config16(dev, 0x50, 1 << 6);
 
-#ifdef EVEN_MORE_DEBUG
-	reg32 = pci_read_config32(dev, 0x20);
-	printk(BIOS_SPEW, "    MBL    = 0x%08x\n", reg32);
-	reg32 = pci_read_config32(dev, 0x24);
-	printk(BIOS_SPEW, "    PMBL   = 0x%08x\n", reg32);
-	reg32 = pci_read_config32(dev, 0x28);
-	printk(BIOS_SPEW, "    PMBU32 = 0x%08x\n", reg32);
-	reg32 = pci_read_config32(dev, 0x2c);
-	printk(BIOS_SPEW, "    PMLU32 = 0x%08x\n", reg32);
-#endif
-
-	/* Clear errors in status registers */
+	/* Clear errors in status registers. FIXME: Do something? */
 	reg16 = pci_read_config16(dev, 0x06);
 	//reg16 |= 0xf900;
 	pci_write_config16(dev, 0x06, reg16);
@@ -141,8 +100,7 @@ static void root_port_init_config(struct device *dev)
 
 	rp = root_port_number(dev);
 	if (rp > rpc.num_ports) {
-		printk(BIOS_ERR, "Found Root Port %d, expecting %d\n",
-		       rp, rpc.num_ports);
+		printk(BIOS_ERR, "Found Root Port %d, expecting %d\n", rp, rpc.num_ports);
 		return;
 	}
 
@@ -182,8 +140,7 @@ static void root_port_commit_config(struct device *dev)
 	int coalesce = 0;
 
 	if (dev->chip_info != NULL) {
-		struct southbridge_intel_i82801gx_config *config
-			= dev->chip_info;
+		const struct southbridge_intel_i82801gx_config *config = dev->chip_info;
 		coalesce = config->pcie_port_coalesce;
 	}
 
@@ -196,16 +153,14 @@ static void root_port_commit_config(struct device *dev)
 		pcie_dev = rpc.ports[i];
 
 		if (pcie_dev == NULL) {
-			printk(BIOS_ERR, "Root Port %d device is NULL?\n",
-			       i + 1);
+			printk(BIOS_ERR, "Root Port %d device is NULL?\n", i + 1);
 			continue;
 		}
 
 		if (pcie_dev->enabled)
 			continue;
 
-		printk(BIOS_DEBUG, "%s: Disabling device\n",
-		       dev_path(pcie_dev));
+		printk(BIOS_DEBUG, "%s: Disabling device\n", dev_path(pcie_dev));
 
 		/* Disable this device if possible */
 		i82801gx_enable(pcie_dev);
@@ -234,8 +189,7 @@ static void root_port_commit_config(struct device *dev)
 		}
 	}
 
-	printk(BIOS_SPEW, "ICH: RPFN 0x%08x -> 0x%08x\n",
-	       rpc.orig_rpfn, rpc.new_rpfn);
+	printk(BIOS_SPEW, "ICH: RPFN 0x%08x -> 0x%08x\n", rpc.orig_rpfn, rpc.new_rpfn);
 	RCBA32(RPFN) = rpc.new_rpfn;
 }
 
@@ -252,10 +206,6 @@ static void ich_pcie_enable(struct device *dev)
 		root_port_commit_config(dev);
 }
 
-static struct pci_operations pci_ops = {
-	.set_subsystem = pci_dev_set_subsystem,
-};
-
 static struct device_operations device_ops = {
 	.read_resources		= pci_bus_read_resources,
 	.set_resources		= pci_dev_set_resources,
@@ -263,7 +213,7 @@ static struct device_operations device_ops = {
 	.init			= pci_init,
 	.enable			= ich_pcie_enable,
 	.scan_bus		= pci_scan_bridge,
-	.ops_pci		= &pci_ops,
+	.ops_pci		= &pci_dev_ops_pci,
 };
 
 static const unsigned short i82801gx_pcie_ids[] = {

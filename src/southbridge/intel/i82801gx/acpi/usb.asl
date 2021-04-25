@@ -1,20 +1,6 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-/* Intel i82801G USB support */
+/* Intel ICH USB support */
 
 // USB Controller 0:1d.0
 
@@ -35,9 +21,9 @@ Device (USB1)
 	{
 		// USB Controller can wake OS from Sleep State
 		If (Arg0) {
-			Store (3, U1WE)
+			U1WE = 3
 		} Else {
-			Store (0, U1WE)
+			U1WE = 0
 		}
 	}
 
@@ -53,7 +39,6 @@ Device (USB1)
 		Return (2)
 	}
 }
-
 
 // USB Controller 0:1d.1
 
@@ -74,9 +59,9 @@ Device (USB2)
 	{
 		// USB Controller can wake OS from Sleep State
 		If (Arg0) {
-			Store (3, U2WE)
+			U2WE = 3
 		} Else {
-			Store (0, U2WE)
+			U2WE = 0
 		}
 	}
 
@@ -93,7 +78,6 @@ Device (USB2)
 	}
 
 }
-
 
 // USB Controller 0:1d.2
 
@@ -114,9 +98,9 @@ Device (USB3)
 	{
 		// USB Controller can wake OS from Sleep State
 		If (Arg0) {
-			Store (3, U3WE)
+			U3WE = 3
 		} Else {
-			Store (0, U3WE)
+			U3WE = 0
 		}
 	}
 
@@ -133,7 +117,6 @@ Device (USB3)
 	}
 
 }
-
 
 // USB Controller 0:1d.3
 
@@ -154,9 +137,9 @@ Device (USB4)
 	{
 		// USB Controller can wake OS from Sleep State
 		If (Arg0) {
-			Store (3, U4WE)
+			U4WE = 3
 		} Else {
-			Store (0, U4WE)
+			U4WE = 0
 		}
 	}
 
@@ -173,7 +156,6 @@ Device (USB4)
 	}
 
 }
-
 
 // EHCI Controller 0:1d.7
 

@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 secunet Security Networks AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <stdint.h>
 #include <arch/io.h>
@@ -56,13 +43,11 @@ void kempld_enable_uart_for_console(void)
 	switch (CONFIG_UART_FOR_CONSOLE) {
 	case 0:
 		kempld_write8(KEMPLD_UART_0,
-			      KEMPLD_UART_ENABLE |
-				KEMPLD_UART_3F8 << KEMPLD_UART_IO_SHIFT);
+			      KEMPLD_UART_ENABLE | KEMPLD_UART_3F8 << KEMPLD_UART_IO_SHIFT);
 		break;
 	case 1:
 		kempld_write8(KEMPLD_UART_1,
-			      KEMPLD_UART_ENABLE |
-				KEMPLD_UART_2F8 << KEMPLD_UART_IO_SHIFT);
+			      KEMPLD_UART_ENABLE | KEMPLD_UART_2F8 << KEMPLD_UART_IO_SHIFT);
 		break;
 	default:
 		break;

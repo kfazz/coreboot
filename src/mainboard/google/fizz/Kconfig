@@ -17,13 +17,13 @@ config BOARD_GOOGLE_BASEBOARD_FIZZ
 	select INTEL_GMA_HAVE_VBT
 	select INTEL_LPSS_UART_FOR_CONSOLE
 	select MAINBOARD_HAS_CHROMEOS
-	select MAINBOARD_USES_FSP2_0
+	select MAINBOARD_HAS_LIBGFXINIT
 	select NO_FADT_8042
 	select SOC_INTEL_KABYLAKE
 	select MAINBOARD_HAS_SPI_TPM_CR50
 	select MAINBOARD_HAS_TPM2
-	select GENERIC_SPD_BIN
 	select RT8168_GET_MAC_FROM_VPD
+	select RT8168_SUPPORT_LEGACY_VPD_MAC
 	select RT8168_SET_LED_MODE
 	select SPD_READ_BY_WORD
 
@@ -35,21 +35,14 @@ config DEVICETREE
 
 config OVERRIDE_DEVICETREE
 	string
-	default "variants/$(CONFIG_VARIANT_DIR)/overridetree.cb"
+	default "variants/\$(CONFIG_VARIANT_DIR)/overridetree.cb"
 
 config VBOOT
 	select EC_GOOGLE_CHROMEEC_SWITCHES
 	select HAS_RECOVERY_MRC_CACHE
-	select MRC_CLEAR_NORMAL_CACHE_ON_RECOVERY_RETRAIN
 
 config DRIVER_TPM_SPI_BUS
 	default 0x1
-
-config GBB_HWID
-	string
-	depends on CHROMEOS
-	default "FIZZ TEST 5997" if BOARD_GOOGLE_FIZZ
-	default "KARMA TEST 5022" if BOARD_GOOGLE_KARMA
 
 config MAINBOARD_DIR
 	string
@@ -59,15 +52,13 @@ config MAINBOARD_PART_NUMBER
 	string
 	default "Fizz" if BOARD_GOOGLE_FIZZ
 	default "Karma" if BOARD_GOOGLE_KARMA
+	default "Endeavour" if BOARD_GOOGLE_ENDEAVOUR
 
 config MAINBOARD_FAMILY
 	string
 	default "Google_Fizz" if BOARD_GOOGLE_FIZZ
 	default "Google_Kalista" if BOARD_GOOGLE_KARMA
-
-config MAX_CPUS
-	int
-	default 8
+	default "Google_Endeavour" if BOARD_GOOGLE_ENDEAVOUR
 
 config DIMM_MAX
 	int
@@ -85,6 +76,7 @@ config VARIANT_DIR
 	string
 	default "fizz" if BOARD_GOOGLE_FIZZ
 	default "karma" if BOARD_GOOGLE_KARMA
+	default "endeavour" if BOARD_GOOGLE_ENDEAVOUR
 
 config INCLUDE_NHLT_BLOBS
 	bool "Include blobs for audio."
@@ -99,4 +91,12 @@ config INCLUDE_NHLT_BLOBS_KARMA
 config UART_FOR_CONSOLE
 	int
 	default 2
+
+config USE_PM_ACPI_TIMER
+	default n
+
+config TIANOCORE_BOOT_TIMEOUT
+	int
+	default 5
+
 endif # BOARD_GOOGLE_BASEBOARD_FIZZ

@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (c) 2012 - 2013 The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <gpio.h>
@@ -21,7 +8,7 @@
 #include <types.h>
 #include <boardid.h>
 
-void ipq_configure_gpio(const gpio_func_data_t *gpio, unsigned count)
+void ipq_configure_gpio(const gpio_func_data_t *gpio, unsigned int count)
 {
 	int i;
 
@@ -68,6 +55,6 @@ void board_nand_init(void)
 	configure_nand_gpio();
 
 	/* NAND Flash is connected to CS0 */
-	clrsetbits_le32(&ebi2_regs->chip_select_cfg0, CS0_CFG_MASK,
-			CS0_CFG_SERIAL_FLASH_DEVICE);
+	clrsetbits32(&ebi2_regs->chip_select_cfg0, CS0_CFG_MASK,
+		     CS0_CFG_SERIAL_FLASH_DEVICE);
 }

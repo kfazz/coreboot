@@ -1,24 +1,14 @@
-#!/bin/sh
-# This file is part of the coreboot project.
+#!/usr/bin/env sh
 #
-# Copyright (C) 2016 Google Inc.
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
+# SPDX-License-Identifier: GPL-2.0-only
+
 # DESCR: Check that files end with a single newline
 
 LC_ALL=C export LC_ALL
 
 PIDS=""
 INCLUDED_DIRS_AND_FILES='util/* src/* payloads/* configs/* Makefile *.inc'
-EXCLUDED_DIRS='src/vendorcode/\|util/romcc/\|cbfstool/lzma/\|cbfstool/lz4/\|Documentation/\|build/\|3rdparty/\|\.git/\|coreboot-builds/\|util/nvidia/cbootimage/'
+EXCLUDED_DIRS='src/vendorcode/\|cbfstool/lzma/\|cbfstool/lz4/\|Documentation/\|build/\|3rdparty/\|\.git/\|coreboot-builds/\|util/nvidia/cbootimage/'
 EXCLUDED_FILES='\.jpg$\|\.cksum$\|\.bin$\|\.vbt$\|\.hex$\|\.ico$\|\.o$\|\.bz2$\|\.xz$\|^.tmpconfig\|\.pyc$\|_shipped$\|sha256$\|\.png$\|\.patch$'
 
 # Use git ls-files if the code is in a git repo, otherwise use find.

@@ -1,38 +1,30 @@
-#
-# This file is part of the coreboot project.
-#
-# Copyright (C) 2010 Google Inc.
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
+## SPDX-License-Identifier: GPL-2.0-only
 
-ifeq ($(CONFIG_NORTHBRIDGE_INTEL_SANDYBRIDGE)$(CONFIG_NORTHBRIDGE_INTEL_IVYBRIDGE),y)
+ifeq ($(CONFIG_NORTHBRIDGE_INTEL_SANDYBRIDGE),y)
 
-ramstage-y += ram_calc.c
+bootblock-y += bootblock.c
+
+ramstage-y += memmap.c
 ramstage-y += northbridge.c
 ramstage-y += pcie.c
 ramstage-y += gma.c
 
 ramstage-y += acpi.c
 
-romstage-y += ram_calc.c
+romstage-y += memmap.c
 
 ramstage-y += common.c
 romstage-y += common.c
-smm-$(CONFIG_HAVE_SMI_HANDLER) += common.c
+smm-y += common.c
 
+romstage-y += raminit_shared.c
 ifeq ($(CONFIG_USE_NATIVE_RAMINIT),y)
+romstage-y += early_dmi.c
 romstage-y += raminit.c
 romstage-y += raminit_common.c
-romstage-y += raminit_sandy.c
-romstage-y += raminit_ivy.c
+romstage-y += raminit_iosav.c
+romstage-y += raminit_native.c
+romstage-y += raminit_tables.c
 romstage-y += ../../../device/dram/ddr3.c
 else
 romstage-y += raminit_mrc.c
@@ -42,12 +34,10 @@ mrc.bin-position := 0xfffa0000
 mrc.bin-type := mrc
 endif
 romstage-y += romstage.c
-romstage-y += iommu.c
 romstage-y += early_init.c
-romstage-y += ../../../arch/x86/walkcbfs.S
 
-smm-$(CONFIG_HAVE_SMI_HANDLER) += finalize.c
+smm-y += finalize.c
 
-postcar-y += ram_calc.c
+postcar-y += memmap.c
 
 endif

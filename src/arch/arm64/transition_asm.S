@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /*
  * transition_asm.S: This file handles the entry and exit from an exception
@@ -156,7 +143,7 @@ ENDPROC(exc_exit)
 
 /*
  * exception_init_asm: Initialize VBAR and point SP_EL3 to exception stack.
- * x0 = end of exception stack
+ * Also unmask aborts now that we can report them. x0 = end of exception stack
  */
 ENTRY(exception_init_asm)
 	msr	SPSel, #SPSR_USE_H
@@ -165,6 +152,9 @@ ENTRY(exception_init_asm)
 
 	adr	x0, exc_vectors
 	msr	vbar_el3, x0
+
+	msr	DAIFClr, #0xf
+
 	dsb	sy
 	isb
 	ret

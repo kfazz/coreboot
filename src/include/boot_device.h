@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _BOOT_DEVICE_H_
 #define _BOOT_DEVICE_H_
@@ -40,7 +27,8 @@ enum bootdev_prot_type {
  * most likely not to work so don't rely on such semantics.
  */
 
-/* Return the region_device for the read-only boot device. */
+/* Return the region_device for the read-only boot device. This is the root
+   device for all CBFS boot devices. */
 const struct region_device *boot_device_ro(void);
 
 /* Return the region_device for the read-write boot device. */
@@ -65,7 +53,7 @@ int boot_device_rw_subregion(const struct region *sub,
  * by the region device.
  * Returns 0 on success, < 0 on error.
  */
-int boot_device_wp_region(struct region_device *rd,
+int boot_device_wp_region(const struct region_device *rd,
 				const enum bootdev_prot_type type);
 
 /*
@@ -74,4 +62,12 @@ int boot_device_wp_region(struct region_device *rd,
  **/
 void boot_device_init(void);
 
+/*
+ * Restrict read/write access to the bootmedia using platform defined rules.
+ */
+#if CONFIG(BOOTMEDIA_LOCK_NONE) || (CONFIG(BOOTMEDIA_LOCK_IN_VERSTAGE) && ENV_RAMSTAGE)
+static inline void boot_device_security_lockdown(void) {}
+#else
+void boot_device_security_lockdown(void);
+#endif
 #endif /* _BOOT_DEVICE_H_ */

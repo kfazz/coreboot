@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _SOC_IOMAP_H_
 #define _SOC_IOMAP_H_
@@ -24,13 +10,6 @@
  */
 #define PCH_PRESERVED_BASE_ADDRESS      0xfc800000
 #define PCH_PRESERVED_BASE_SIZE 0x02000000
-
-#define UART_BASE_SIZE		0x1000
-#define UART_BASE_0_ADDRESS	0xfe030000
-/* Both UART BAR 0 and 1 are 4KB in size */
-#define UART_BASE_0_ADDR(x)	(UART_BASE_0_ADDRESS + (2 * \
-					UART_BASE_SIZE * (x)))
-#define UART_BASE(x)		UART_BASE_0_ADDR(x)
 
 #define EARLY_I2C_BASE_ADDRESS	0xfe040000
 #define EARLY_I2C_BASE(x)	(EARLY_I2C_BASE_ADDRESS + (0x1000 * (x)))
@@ -69,6 +48,9 @@
 #define HECI1_BASE_ADDRESS	0xfed1a000
 
 #define THERMAL_BASE_ADDRESS	0xfe600000
+
+#define VTD_BASE_ADDRESS	0xFED90000
+#define VTD_BASE_SIZE		0x00004000
 
 /* CPU Trace reserved memory size */
 #define GDXC_MOT_MEMORY_SIZE	(96*MiB)

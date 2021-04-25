@@ -1,24 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2010 coresystems GmbH
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/device.h>
 #include <device/pci_ops.h>
 #include <intelblocks/systemagent.h>
 #include <soc/iomap.h>
+#include <soc/p2sb.h>
 #include <soc/pci_devs.h>
 #include <soc/romstage.h>
 #include <soc/systemagent.h>
@@ -26,19 +12,16 @@
 
 static void systemagent_vtd_init(void)
 {
-	const struct device *const root_dev = dev_find_slot(0, SA_DEVFN_ROOT);
-	const struct device *const igd_dev = dev_find_slot(0, SA_DEVFN_IGD);
-	const struct soc_intel_skylake_config *config = NULL;
-
-	if (root_dev)
-		config = root_dev->chip_info;
-	if (config && config->ignore_vtd)
-		return;
+	const struct device *const igd_dev = pcidev_path_on_root(SA_DEVFN_IGD);
 
 	const bool vtd_capable =
 		!(pci_read_config32(SA_DEV_ROOT, CAPID0_A) & VTD_DISABLE);
 	if (!vtd_capable)
 		return;
+
+	/* Configure P2SB VT-d originators (HPET and IOAPIC) */
+	pci_write_config16(PCH_DEV_P2SB, PCH_P2SB_HBDF, V_DEFAULT_HBDF);
+	pci_write_config16(PCH_DEV_P2SB, PCH_P2SB_IBDF, V_DEFAULT_IBDF);
 
 	if (igd_dev && igd_dev->enabled)
 		sa_set_mch_bar(&soc_gfxvt_mmio_descriptor, 1);

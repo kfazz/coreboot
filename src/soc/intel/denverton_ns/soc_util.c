@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 - 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <stdint.h>
 #include <device/mmio.h>
@@ -37,7 +23,7 @@ pci_devfn_t get_hostbridge_dev(void)
 #else
 struct device *get_hostbridge_dev(void)
 {
-	return dev_find_slot(0, PCI_DEVFN(SA_DEV, SA_FUNC));
+	return pcidev_on_root(SA_DEV, SA_FUNC);
 }
 #endif
 
@@ -49,7 +35,7 @@ pci_devfn_t get_lpc_dev(void)
 #else
 struct device *get_lpc_dev(void)
 {
-	return dev_find_slot(0, PCI_DEVFN(LPC_DEV, LPC_FUNC));
+	return pcidev_on_root(LPC_DEV, LPC_FUNC);
 }
 #endif
 
@@ -61,7 +47,7 @@ pci_devfn_t get_pmc_dev(void)
 #else
 struct device *get_pmc_dev(void)
 {
-	return dev_find_slot(0, PCI_DEVFN(PMC_DEV, PMC_FUNC));
+	return pcidev_on_root(PMC_DEV, PMC_FUNC);
 }
 #endif
 
@@ -73,7 +59,7 @@ pci_devfn_t get_smbus_dev(void)
 #else
 struct device *get_smbus_dev(void)
 {
-	return dev_find_slot(0, PCI_DEVFN(SMBUS_DEV, SMBUS_FUNC));
+	return pcidev_on_root(SMBUS_DEV, SMBUS_FUNC);
 }
 #endif
 

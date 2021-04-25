@@ -1,18 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
 /*
- * This file is part of the coreboot project.
- *
  * File taken from the Linux ast driver (v3.18.5)
  * coreboot-specific includes added at top and/or contents modified
  * as needed to function within the coreboot environment.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <delay.h>
@@ -145,7 +136,7 @@ bool ast_backup_fw(struct drm_device *dev, u8 *addr, u32 size)
 	return false;
 }
 
-bool ast_launch_m68k(struct drm_device *dev)
+static bool ast_launch_m68k(struct drm_device *dev)
 {
 	struct ast_private *ast = dev->dev_private;
 	u32 i, data, len = 0;
@@ -159,7 +150,10 @@ bool ast_launch_m68k(struct drm_device *dev)
 		if (ast->dp501_fw_addr) {
 			fw_addr = ast->dp501_fw_addr;
 			len = 32*1024;
-		} else if (ast->dp501_fw) {
+		} else {
+			if (!ast->dp501_fw)
+				return false;
+
 			fw_addr = (u8 *)ast->dp501_fw->data;
 			len = ast->dp501_fw->size;
 		}
@@ -224,11 +218,7 @@ u8 ast_get_dp501_max_clk(struct drm_device *dev)
 
 	/* Read Link Capability */
 	offset  = 0xf014;
-	data = ast_mindwm(ast, boot_address + offset);
-	linkcap[0] = (data & 0xff000000) >> 24;
-	linkcap[1] = (data & 0x00ff0000) >> 16;
-	linkcap[2] = (data & 0x0000ff00) >> 8;
-	linkcap[3] = (data & 0x000000ff);
+	*(u32 *)linkcap = ast_mindwm(ast, boot_address + offset);
 	if (linkcap[2] == 0) {
 		linkrate = linkcap[0];
 		linklanes = linkcap[1];
@@ -340,7 +330,6 @@ static bool ast_init_dvo(struct drm_device *dev)
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa3, 0xcf, 0x80);
 	return true;
 }
-
 
 static void ast_init_analog(struct drm_device *dev)
 {

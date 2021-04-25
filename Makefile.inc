@@ -1,17 +1,4 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2011 secunet Security Networks AG
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+# SPDX-License-Identifier: GPL-2.0-only
 
 ifneq ($(NOCOMPILE),1)
 GIT:=$(shell git -C "$(top)" rev-parse --git-dir 1>/dev/null 2>&1 \
@@ -26,12 +13,14 @@ CONFIG_CBFS_PREFIX:=$(call strip_quotes,$(CONFIG_CBFS_PREFIX))
 CONFIG_FMDFILE:=$(call strip_quotes,$(CONFIG_FMDFILE))
 CONFIG_DEVICETREE:=$(call strip_quotes, $(CONFIG_DEVICETREE))
 CONFIG_OVERRIDE_DEVICETREE:=$(call strip_quotes, $(CONFIG_OVERRIDE_DEVICETREE))
+CONFIG_CHIPSET_DEVICETREE:=$(call strip_quotes, $(CONFIG_CHIPSET_DEVICETREE))
+CONFIG_MEMLAYOUT_LD_FILE:=$(call strip_quotes, $(CONFIG_MEMLAYOUT_LD_FILE))
 
 #######################################################################
 # misleadingly named, this is the coreboot version
 ifeq ($(KERNELVERSION),)
 ifeq ($(BUILD_TIMELESS),1)
-KERNELVERSION := TIMELESS
+KERNELVERSION := -TIMELESS--LESSTIME-
 else
 KERNELVERSION := $(strip $(if $(GIT),\
 	$(shell git describe --dirty --always || git describe),\
@@ -46,12 +35,14 @@ COREBOOT_EXPORTS += KERNELVERSION
 # Basic component discovery
 MAINBOARDDIR=$(call strip_quotes,$(CONFIG_MAINBOARD_DIR))
 VARIANT_DIR:=$(call strip_quotes,$(CONFIG_VARIANT_DIR))
-COREBOOT_EXPORTS += MAINBOARDDIR VARIANT_DIR
+CARRIER_DIR:=$(call strip_quotes,$(CONFIG_CARRIER_DIR))
+COREBOOT_EXPORTS += MAINBOARDDIR VARIANT_DIR CARRIER_DIR
 
 ## Final build results, which CBFSTOOL uses to create the final
 ## rom image file, are placed under $(objcbfs).
 ## These typically have suffixes .debug .elf .bin and .map
 objcbfs := $(obj)/cbfs/$(CONFIG_CBFS_PREFIX)
+additional-dirs += $(objcbfs)
 COREBOOT_EXPORTS += objcbfs
 
 ## Based on the active configuration, Makefile conditionally collects
@@ -59,6 +50,7 @@ COREBOOT_EXPORTS += objcbfs
 ## Such files that do not have a clear one-to-one relation to a source
 ## file under src/ are placed and built under $(objgenerated)
 objgenerated := $(obj)/generated
+additional-dirs += $(objgenerated)
 COREBOOT_EXPORTS += objgenerated
 
 ## CCACHE_EXTRAFILES can be set by individual rules to help CCACHE
@@ -68,7 +60,7 @@ COREBOOT_EXPORTS += CCACHE_EXTRAFILES
 #######################################################################
 # root rule to resolve if in build mode (ie. configuration exists)
 real-target: $(obj)/config.h coreboot files_added
-coreboot: build-dirs $(obj)/coreboot.rom $(obj)/cbfstool $(obj)/rmodtool $(obj)/ifwitool
+coreboot: $(obj)/coreboot.rom $(obj)/cbfstool $(obj)/rmodtool $(obj)/ifwitool
 
 # This target can be used in site local to run scripts or additional
 # targets after the build completes by creating a Makefile.inc in the
@@ -83,18 +75,19 @@ files_added:: build_complete
 
 #######################################################################
 # our phony targets
-PHONY+= clean-abuild coreboot check-style build-dirs build_complete
+PHONY+= clean-abuild coreboot check-style build_complete
 
 #######################################################################
 # root source directories of coreboot
-subdirs-y := src/lib src/commonlib/ src/console src/device src/acpi
+subdirs-y := src/lib src/commonlib/ src/console src/device src/acpi src/superio/common
 subdirs-y += src/ec/acpi $(wildcard src/ec/*/*) $(wildcard src/southbridge/*/*)
 subdirs-y += $(wildcard src/soc/*/*) $(wildcard src/northbridge/*/*)
-subdirs-y += src/superio
-subdirs-y += $(wildcard src/drivers/*) $(wildcard src/drivers/*/*)
+subdirs-y += $(wildcard src/superio/*) $(wildcard src/superio/*/*)
+subdirs-y += $(wildcard src/drivers/*) $(wildcard src/drivers/*/*) $(wildcard src/drivers/*/*/*)
 subdirs-y += src/cpu src/vendorcode
-subdirs-y += util/cbfstool util/sconfig util/nvramtool
-subdirs-y += util/futility util/marvell util/bincfg
+subdirs-y += util/cbfstool util/sconfig util/nvramtool util/pgtblgen util/amdfwtool
+subdirs-y += util/futility util/marvell util/bincfg util/supermicro util/qemu
+subdirs-y += util/ifdtool
 subdirs-y += $(wildcard src/arch/*)
 subdirs-y += src/mainboard/$(MAINBOARDDIR)
 subdirs-y += src/security
@@ -106,6 +99,17 @@ subdirs-y += util/checklist util/testing
 #######################################################################
 # Add source classes and their build options
 classes-y := ramstage romstage bootblock decompressor postcar smm smmstub cpu_microcode verstage
+
+# Add a special 'all' class to add sources to all stages
+$(call add-special-class,all)
+all-handler = $(foreach class,bootblock verstage romstage postcar ramstage,$(eval $(class)-y += $(2)))
+
+$(call add-special-class,verstage_x86)
+ifeq ($(CONFIG_ARCH_VERSTAGE_X86_32)$(CONFIG_ARCH_VERSTAGE_X86_64),y)
+verstage_x86-handler = $(eval verstage-y += $(2))
+else
+verstage_x86-handler =
+endif
 
 # Add dynamic classes for rmodules
 $(foreach supported_arch,$(ARCH_SUPPORTED), \
@@ -155,7 +159,7 @@ ws_to_under=$(shell echo '$1' | tr ' \t' '_')
 #######################################################################
 # Helper functions for ramstage postprocess
 spc :=
-spc +=
+spc := $(spc) $(spc)
 comma := ,
 
 # Returns all files and dirs below `dir` (recursively).
@@ -178,13 +182,10 @@ ramstage-postprocess=$$(eval DEPENDENCIES+=$$(addsuffix .d,$$(basename $(1)))) \
 	$(eval $(d)ramstage.a: $(call files-in-dir,$(d),$(filter-out %.ld,$(1))); rm -f $$@ && $(AR_ramstage) rcsT $$@ $$^ ) \
 	$(eval ramstage-objs:=$(d)ramstage.a $(filter-out $(filter-out %.ld, $(call files-in-dir,$(d),$(1))),$(ramstage-objs))))
 
-decompressor-generic-ccopts += -D__PRE_RAM__ -D__DECOMPRESSOR__
-bootblock-generic-ccopts += -D__PRE_RAM__ -D__BOOTBLOCK__
-romstage-generic-ccopts += -D__PRE_RAM__ -D__ROMSTAGE__
+decompressor-generic-ccopts += -D__DECOMPRESSOR__
+bootblock-generic-ccopts += -D__BOOTBLOCK__
+romstage-generic-ccopts += -D__ROMSTAGE__
 ramstage-generic-ccopts += -D__RAMSTAGE__
-ifeq ($(CONFIG_TRACE),y)
-ramstage-c-ccopts += -finstrument-functions
-endif
 ifeq ($(CONFIG_COVERAGE),y)
 ramstage-c-ccopts += -fprofile-arcs -ftest-coverage
 endif
@@ -193,16 +194,18 @@ ifneq ($(UPDATED_SUBMODULES),1)
 # try to fetch non-optional submodules if the source is under git
 forgetthis:=$(if $(GIT),$(shell git submodule update --init))
 ifeq ($(CONFIG_USE_BLOBS),y)
-# this is necessary because 3rdparty/blobs is update=none, and so is ignored
-# unless explicitly requested and enabled through --checkout
+# These items are necessary because each has update=none in .gitmodules.  They are ignored
+# until expressly requested and enabled with --checkout
 forgetthis:=$(if $(GIT),$(shell git submodule update --init --checkout 3rdparty/blobs))
-ifeq ($(CONFIG_PLATFORM_USES_FSP2_0),y)
+forgetthis:=$(if $(GIT),$(shell git submodule update --init --checkout 3rdparty/intel-microcode))
+ifeq ($(CONFIG_FSP_USE_REPO),y)
 forgetthis:=$(if $(GIT),$(shell git submodule update --init --checkout 3rdparty/fsp))
 endif
-ifeq ($(CONFIG_PLATFORM_USES_FSP1_0),y)
-ifeq ($(CONFIG_SOC_INTEL_FSP_BROADWELL_DE),y)
-forgetthis:=$(if $(GIT),$(shell git submodule update --init --checkout 3rdparty/fsp))
+ifeq ($(CONFIG_USE_AMD_BLOBS),y)
+forgetthis:=$(if $(GIT),$(shell git submodule update --init --checkout 3rdparty/amd_blobs))
 endif
+ifeq ($(CONFIG_USE_QC_BLOBS),y)
+forgetthis:=$(if $(GIT),$(shell git submodule update --init --checkout 3rdparty/qc_blobs))
 endif
 endif
 UPDATED_SUBMODULES:=1
@@ -223,7 +226,7 @@ $(foreach type,ads adb, \
 # Add handler to copy linker scripts
 define generic-objs_ld_template_gen
 de$(EMPTY)fine $(1)-objs_ld_template
-$$(call src-to-obj,$1,$$(1).ld): $$(1).ld $(obj)/config.h
+$$(call src-to-obj,$1,$$(1).ld): $$(1).ld $(obj)/config.h $(obj)/fmap_config.h
 	@printf "    CP         $$$$(subst $$$$(obj)/,,$$$$(@))\n"
 	$$(CC_$(1)) -MMD $$(CPPFLAGS_$(1)) $$($(1)-ld-ccopts) $(PREPROCESS_ONLY) -include $(obj)/config.h -MT $$$$@ -o $$$$@ $$$$<
 en$(EMPTY)def
@@ -255,7 +258,21 @@ endef
 # ResourceTemplate is the correct code.
 # As it's valid ASL, disable the warning.
 EMPTY_RESOURCE_TEMPLATE_WARNING = 3150
-IGNORED_IASL_WARNINGS = -vw $(EMPTY_RESOURCE_TEMPLATE_WARNING)
+# Redundant offset remarks are not useful in any way and are masking useful
+# ones that might indicate an issue so it is better to hide them.
+REDUNDANT_OFFSET_REMARK = 2158
+# Ignore _HID & _ADR coexisting in Intel Lynxpoint ASL code.
+# See cb:38802
+# "Multiple types (Device object requires either a _HID or _ADR, but not both)"
+MULTIPLE_TYPES_WARNING = 3073
+
+IASL_WARNINGS_LIST = $(EMPTY_RESOURCE_TEMPLATE_WARNING) $(REDUNDANT_OFFSET_REMARK)
+
+ifeq ($(CONFIG_SOUTHBRIDGE_INTEL_LYNXPOINT),y)
+IASL_WARNINGS_LIST += $(MULTIPLE_TYPES_WARNING)
+endif
+
+IGNORED_IASL_WARNINGS = $(addprefix -vw , $(IASL_WARNINGS_LIST))
 
 define asl_template
 $(CONFIG_CBFS_PREFIX)/$(1).aml-file = $(obj)/$(1).aml
@@ -267,6 +284,7 @@ $(obj)/$(1).aml: $(src)/mainboard/$(MAINBOARDDIR)/$(1).asl $(obj)/config.h
 	@printf "    IASL       $$(subst $(top)/,,$$(@))\n"
 	$(CC_ramstage) -x assembler-with-cpp -E -MMD -MT $$(@) $$(CPPFLAGS_ramstage) -D__ACPI__ -P -include $(src)/include/kconfig.h -I$(obj) -I$(src) -I$(src)/include -I$(src)/arch/$(ARCHDIR-$(ARCH-ramstage-y))/include -I$(src)/mainboard/$(MAINBOARDDIR) $$< -o $(obj)/$(1).asl
 	cd $$(dir $$@); $(IASL) $(IGNORED_IASL_WARNINGS) -we -p $$(notdir $$@) $(1).asl
+	echo "    IASL       "$(IASL_WARNINGS_LIST)" warning types were ignored!"
 	if ! $(IASL) -d $$@ 2>&1 | grep -Eq 'ACPI (Warning|Error)'; then	\
 		echo "    IASL       $$@ disassembled correctly.";		\
 		true;								\
@@ -278,7 +296,7 @@ $(obj)/$(1).aml: $(src)/mainboard/$(MAINBOARDDIR)/$(1).asl $(obj)/config.h
 endef
 
 #######################################################################
-# Parse plaintext cmos defaults into binary format
+# Parse plaintext CMOS defaults into binary format
 # arg1: source file
 # arg2: binary file name
 cbfs-files-processor-nvramtool= \
@@ -301,15 +319,16 @@ cbfs-files-processor-vsa= \
 # Reduce a .config file to its minimal representation
 # arg1: input
 # arg2: output
-cbfs-files-processor-defconfig= \
+define cbfs-files-processor-defconfig
 	$(eval $(2): $(1) $(obj)/build.h $(objutil)/kconfig/conf; \
 		+printf "    CREATE     $(2) (from $(1))\n"; \
-		printf "\# This image was built using coreboot " > $(2).tmp && \
+		printf "# This image was built using coreboot " > $(2).tmp && \
 		grep "\<COREBOOT_VERSION\>" $(obj)/build.h |cut -d\" -f2 >> $(2).tmp && \
 		$(MAKE) DOTCONFIG=$(1) DEFCONFIG=$(2).tmp2 savedefconfig && \
 		cat $(2).tmp2 >> $(2).tmp && \
 		rm -f $(2).tmp2 && \
 		\mv -f $(2).tmp $(2))
+endef
 
 #######################################################################
 # Compile a C file with a bare struct definition into binary
@@ -317,9 +336,9 @@ cbfs-files-processor-defconfig= \
 # arg2: binary file
 cbfs-files-processor-struct= \
 	$(eval $(2): $(1) $(obj)/build.h $(KCONFIG_AUTOHEADER); \
-		printf "    CC+STRIP   $(@)\n"; \
-		$(CC_ramstage) -MMD $(CPPFLAGS_ramstage) $(CFLAGS_ramstage) $$(ramstage-c-ccopts) -include $(KCONFIG_AUTOHEADER) -MT $(2) -o $(2).tmp -c $(1) && \
-		$(OBJCOPY_ramstage) -O binary $(2).tmp $(2); \
+		printf "    CC+STRIP   $(1)\n"; \
+		$(CC_ramstage) -MMD $(CPPFLAGS_ramstage) $(CFLAGS_ramstage) --param asan-globals=0 $$(ramstage-c-ccopts) -include $(KCONFIG_AUTOHEADER) -MT $(2) -o $(2).tmp -c $(1) && \
+		$(OBJCOPY_ramstage) -O binary --set-section-flags .bss*=alloc,contents,load $(2).tmp $(2); \
 		rm -f $(2).tmp) \
 	$(eval DEPENDENCIES += $(2).d)
 
@@ -388,14 +407,18 @@ COREBOOT_EXTRA_VERSION := -$(call strip_quotes,$(CONFIG_LOCALVERSION))
 COREBOOT_EXPORTS += COREBOOT_EXTRA_VERSION
 endif
 
-CPPFLAGS_common := -Isrc -Isrc/include -Isrc/commonlib/include -I$(obj)
+CPPFLAGS_common := -Isrc -Isrc/include -Isrc/commonlib/include -Isrc/commonlib/bsd/include -I$(obj)
 VBOOT_SOURCE ?= 3rdparty/vboot
 CPPFLAGS_common += -I$(VBOOT_SOURCE)/firmware/include
 CPPFLAGS_common += -include $(src)/include/kconfig.h
 CPPFLAGS_common += -include $(src)/include/rules.h
-CPPFLAGS_common += -include $(src)/commonlib/include/commonlib/compiler.h
+CPPFLAGS_common += -include $(src)/commonlib/bsd/include/commonlib/bsd/compiler.h
 CPPFLAGS_common += -I3rdparty
 CPPFLAGS_common += -D__BUILD_DIR__=\"$(obj)\"
+
+ifeq ($(BUILD_TIMELESS),1)
+CPPFLAGS_common += -D__TIMELESS__
+endif
 
 ifeq ($(CONFIG_PCI_OPTION_ROM_RUN_YABEL)$(CONFIG_PCI_OPTION_ROM_RUN_REALMODE),y)
 CPPFLAGS_ramstage += -Isrc/device/oprom/include
@@ -403,16 +426,18 @@ endif
 
 CFLAGS_common += -pipe -g -nostdinc -std=gnu11
 CFLAGS_common += -nostdlib -Wall -Wundef -Wstrict-prototypes -Wmissing-prototypes
-CFLAGS_common += -Wwrite-strings -Wredundant-decls -Wno-trigraphs
-CFLAGS_common += -Wstrict-aliasing -Wshadow -Wdate-time
+CFLAGS_common += -Wwrite-strings -Wredundant-decls -Wno-trigraphs -Wimplicit-fallthrough
+CFLAGS_common += -Wshadow -Wdate-time -Wtype-limits -Wvla
+CFLAGS_common += -Wdangling-else
 CFLAGS_common += -fno-common -ffreestanding -fno-builtin -fomit-frame-pointer
-CFLAGS_common += -ffunction-sections -fdata-sections -fno-pie
+CFLAGS_common += -fstrict-aliasing -ffunction-sections -fdata-sections -fno-pie
 ifeq ($(CONFIG_COMPILER_GCC),y)
-CFLAGS_common += -fno-delete-null-pointer-checks
 # Don't add these GCC specific flags when running scan-build
 ifeq ($(CCC_ANALYZER_OUTPUT_FORMAT),)
 CFLAGS_common += -Wno-packed-not-aligned
 CFLAGS_common += -fconserve-stack
+CFLAGS_common += -Wnull-dereference -Wreturn-type
+CFLAGS_common += -Wlogical-op -Wduplicated-cond
 # cf. commit f69a99db (coreboot: x86: enable gc-sections)
 CFLAGS_common += -Wno-unused-but-set-variable
 endif
@@ -462,7 +487,13 @@ ADAFLAGS_common += -gnatwa.eeD.HHTU.U.W.Y
 # Disable style checks for now
 ADAFLAGS_common += -gnatyN
 
-LDFLAGS_common := --gc-sections -nostdlib -nostartfiles -static --emit-relocs
+LDFLAGS_common := --gc-sections -nostdlib -nostartfiles -static
+
+# Workaround for RISC-V linker bug, merge back into above line when fixed.
+# https://sourceware.org/bugzilla/show_bug.cgi?id=27180
+ifneq ($(CONFIG_ARCH_RISCV),y)
+LDFLAGS_common += --emit-relocs
+endif
 
 ifeq ($(CONFIG_WARNINGS_ARE_ERRORS),y)
 CFLAGS_common += -Werror
@@ -479,9 +510,9 @@ ifeq ($(CONFIG_DEBUG_ADA_CODE),y)
 ADAFLAGS_common += -gnata
 endif
 
-additional-dirs := $(objutil)/cbfstool $(objutil)/romcc $(objutil)/ifdtool \
+additional-dirs += $(objutil)/cbfstool $(objutil)/ifdtool \
 		   $(objutil)/options $(objutil)/amdfwtool \
-		   $(objutil)/cbootimage $(objutil)/bimgtool
+		   $(objutil)/cbootimage
 
 export $(COREBOOT_EXPORTS)
 
@@ -499,15 +530,19 @@ build_h_exports := BUILD_TIMELESS KERNELVERSION COREBOOT_EXTRA_VERSION
 # Report new `build.ht` as dependency if `build.h` differs.
 build_h_check := \
 	export $(foreach exp,$(build_h_exports),$(exp)="$($(exp))"); \
-	util/genbuild_h/genbuild_h.sh >$(build_h)t 2>/dev/null; \
+	util/genbuild_h/genbuild_h.sh $(xcompile) \
+		>$(build_h)t 2>/dev/null; \
 	cmp -s $(build_h)t $(build_h) >/dev/null 2>&1 || echo $(build_h)t
 
 $(build_h): $$(shell $$(build_h_check))
 	@printf "    GEN        build.h\n"
 	mv $< $@
 
-build-dirs:
-	mkdir -p $(objcbfs) $(objgenerated)
+$(obj)/build_info:
+	@echo 'COREBOOT_VERSION: $(call strip_quotes,$(KERNELVERSION))' > $@.tmp
+	@echo 'MAINBOARD_VENDOR: $(call strip_quotes,$(CONFIG_MAINBOARD_VENDOR))' >> $@.tmp
+	@echo 'MAINBOARD_PART_NUMBER: $(call strip_quotes,$(CONFIG_MAINBOARD_PART_NUMBER))' >> $@.tmp
+	mv $@.tmp $@
 
 #######################################################################
 # Build the tools
@@ -515,6 +550,8 @@ CBFSTOOL:=$(objutil)/cbfstool/cbfstool
 FMAPTOOL:=$(objutil)/cbfstool/fmaptool
 RMODTOOL:=$(objutil)/cbfstool/rmodtool
 IFWITOOL:=$(objutil)/cbfstool/ifwitool
+IFITTOOL:=$(objutil)/cbfstool/ifittool
+AMDCOMPRESS:=$(objutil)/cbfstool/amdcompress
 
 $(obj)/cbfstool: $(CBFSTOOL)
 	cp $< $@
@@ -528,6 +565,12 @@ $(obj)/rmodtool: $(RMODTOOL)
 $(obj)/ifwitool: $(IFWITOOL)
 	cp $< $@
 
+$(obj)/ifittool: $(IFITTOOL)
+	cp $< $@
+
+$(obj)/amdcompress: $(AMDCOMPRESS)
+	cp $< $@
+
 _WINCHECK=$(shell uname -o 2> /dev/null)
 STACK=
 ifeq ($(_WINCHECK),Msys)
@@ -537,39 +580,19 @@ ifeq ($(_WINCHECK),Cygwin)
 	STACK=-Wl,--stack,16384000
 endif
 
-# this allows ccache to prepend itself
-# (ccache handling happens first)
-ROMCC_BIN= $(objutil)/romcc/romcc
-ROMCC?=$(ROMCC_BIN)
-$(ROMCC_BIN): $(top)/util/romcc/romcc.c
-	@printf "    HOSTCC     $(subst $(obj)/,,$(@)) (this may take a while)\n"
-	@# Note: Adding -O2 here might cause problems. For details see:
-	@# https://www.coreboot.org/pipermail/coreboot/2010-February/055825.html
-	$(HOSTCC) -g $(STACK) -Wall -o $@ $<
-
 BINCFG:=$(objutil)/bincfg/bincfg
 
 IFDTOOL:=$(objutil)/ifdtool/ifdtool
-$(IFDTOOL):
-	@printf "    Compile IFDTOOL\n"
-	+$(MAKE) -C $(top)/util/ifdtool
-	cp -a $(top)/util/ifdtool/ifdtool $@
 
 AMDFWTOOL:=$(objutil)/amdfwtool/amdfwtool
-$(AMDFWTOOL): $(top)/util/amdfwtool/amdfwtool.c
-	@printf "    HOSTCC     $(subst $(obj)/,,$(@))\n"
-	$(HOSTCC) $(HOSTCFLAGS) -DCONFIG_ROM_SIZE=$(CONFIG_ROM_SIZE) -o $@ $<
+
+APCB_EDIT_TOOL:=$(top)/util/apcb/apcb_edit.py
 
 CBOOTIMAGE:=$(objutil)/cbootimage/cbootimage
 
 FUTILITY?=$(objutil)/futility/futility
 
 subdirs-y += util/nvidia
-
-BIMGTOOL:=$(objutil)/bimgtool/bimgtool
-$(BIMGTOOL): $(top)/util/bimgtool/bimgtool.c
-	@printf "    HOSTCC     $(subst $(obj)/,,$(@))\n"
-	$(HOSTCC) $(HOSTCFLAGS) -o $@ $<
 
 $(obj)/config.h: $(objutil)/kconfig/conf
 
@@ -578,18 +601,34 @@ $(obj)/config.h: $(objutil)/kconfig/conf
 # Creation of these is architecture and mainboard independent
 DEVICETREE_FILE := $(src)/mainboard/$(MAINBOARDDIR)/$(CONFIG_DEVICETREE)
 
+SCONFIG_OPTIONS := --mainboard_devtree=$(DEVICETREE_FILE)
+
 ifneq ($(CONFIG_OVERRIDE_DEVICETREE),)
-
 OVERRIDE_DEVICETREE_FILE := $(src)/mainboard/$(MAINBOARDDIR)/$(CONFIG_OVERRIDE_DEVICETREE)
+SCONFIG_OPTIONS += --override_devtree=$(OVERRIDE_DEVICETREE_FILE)
+endif
 
+ifneq ($(CONFIG_CHIPSET_DEVICETREE),)
+CHIPSET_DEVICETREE_FILE := $(src)/$(CONFIG_CHIPSET_DEVICETREE)
+SCONFIG_OPTIONS += --chipset_devtree=$(CHIPSET_DEVICETREE_FILE)
 endif
 
 DEVICETREE_STATIC_C := $(obj)/mainboard/$(MAINBOARDDIR)/static.c
+SCONFIG_OPTIONS += --output_c=$(DEVICETREE_STATIC_C)
 
-$(DEVICETREE_STATIC_C): $(DEVICETREE_FILE) $(OVERRIDE_DEVICETREE_FILE) $(objutil)/sconfig/sconfig
+DEVICETREE_STATIC_H := $(obj)/static.h
+SCONFIG_OPTIONS += --output_h=$(DEVICETREE_STATIC_H)
+
+DEVICETREE_DEVICENAMES_H := $(obj)/static_devices.h
+SCONFIG_OPTIONS += --output_d=$(DEVICETREE_DEVICENAMES_H)
+
+DEVICETREE_FWCONFIG_H := $(obj)/static_fw_config.h
+SCONFIG_OPTIONS += --output_f=$(DEVICETREE_FWCONFIG_H)
+
+$(DEVICETREE_STATIC_C): $(DEVICETREE_FILE) $(OVERRIDE_DEVICETREE_FILE) $(CHIPSET_DEVICETREE_FILE) $(objutil)/sconfig/sconfig
 	@printf "    SCONFIG    $(subst $(src)/,,$(<))\n"
 	mkdir -p $(dir $(DEVICETREE_STATIC_C))
-	$(objutil)/sconfig/sconfig $(DEVICETREE_FILE) $(DEVICETREE_STATIC_C) $(OVERRIDE_DEVICETREE_FILE)
+	$(objutil)/sconfig/sconfig $(SCONFIG_OPTIONS)
 
 ramstage-y+=$(DEVICETREE_STATIC_C)
 romstage-y+=$(DEVICETREE_STATIC_C)
@@ -597,6 +636,24 @@ verstage-y+=$(DEVICETREE_STATIC_C)
 bootblock-y+=$(DEVICETREE_STATIC_C)
 postcar-y+=$(DEVICETREE_STATIC_C)
 smm-y+=$(DEVICETREE_STATIC_C)
+
+# Ensure static.c and static.h are created before any objects are compiled
+ramstage-c-deps+=$(DEVICETREE_STATIC_C)
+romstage-c-deps+=$(DEVICETREE_STATIC_C)
+verstage-c-deps+=$(DEVICETREE_STATIC_C)
+bootblock-c-deps+=$(DEVICETREE_STATIC_C)
+postcar-c-deps+=$(DEVICETREE_STATIC_C)
+smm-c-deps+=$(DEVICETREE_STATIC_C)
+
+.PHONY: devicetree
+devicetree: $(DEVICETREE_STATIC_C)
+
+ramstage-y += $(CONFIG_MEMLAYOUT_LD_FILE)
+romstage-y += $(CONFIG_MEMLAYOUT_LD_FILE)
+bootblock-y += $(CONFIG_MEMLAYOUT_LD_FILE)
+verstage-y += $(CONFIG_MEMLAYOUT_LD_FILE)
+postcar-y += $(CONFIG_MEMLAYOUT_LD_FILE)
+decompressor-y += $(CONFIG_MEMLAYOUT_LD_FILE)
 
 #######################################################################
 # Clean up rules
@@ -640,7 +697,7 @@ install-git-commit-clangfmt:
 include util/crossgcc/Makefile.inc
 
 .PHONY: tools
-tools: $(objutil)/kconfig/conf $(CBFSTOOL) $(objutil)/cbfstool/cbfs-compression-tool $(FMAPTOOL) $(RMODTOOL) $(IFWITOOL) $(objutil)/nvramtool/nvramtool $(ROMCC_BIN) $(objutil)/sconfig/sconfig $(IFDTOOL) $(CBOOTIMAGE) $(AMDFWTOOL) $(FUTILITY) $(BINCFG)
+tools: $(objutil)/kconfig/conf $(objutil)/kconfig/toada $(CBFSTOOL) $(objutil)/cbfstool/cbfs-compression-tool $(FMAPTOOL) $(RMODTOOL) $(IFWITOOL) $(objutil)/nvramtool/nvramtool $(objutil)/sconfig/sconfig $(IFDTOOL) $(CBOOTIMAGE) $(AMDFWTOOL) $(AMDCOMPRESS) $(FUTILITY) $(BINCFG) $(IFITTOOL) $(objutil)/supermicro/smcbiosinfo
 
 ###########################################################################
 # Common recipes for all stages
@@ -671,6 +728,18 @@ find-class = $(if $(filter $(1),$(basename $(1))),$(if $(CC_$(1)), $(1), $(call 
 # the linker marked it NOBITS automatically because there are only zeroes in it.
 preserve-bss-flags := --set-section-flags .bss=load,alloc,data --set-section-flags .data=load,alloc,data
 
+# For Intel TXT files in the CBFS needs to be marked as 'Initial Boot Block'.
+# As CBFS attributes aren't cheap, only mark them if TXT is enabled.
+ifeq ($(CONFIG_INTEL_TXT),y)
+
+TXTIBB := --ibb
+
+else
+
+TXTIBB :=
+
+endif
+
 ifeq ($(CONFIG_COMPRESS_BOOTBLOCK),y)
 
 $(objcbfs)/bootblock.lz4: $(objcbfs)/bootblock.elf $(objutil)/cbfstool/cbfs-compression-tool
@@ -698,6 +767,11 @@ endif	# CONFIG_COMPRESS_BOOTBLOCK
 $(objcbfs)/bootblock.raw.bin: $(objcbfs)/bootblock.raw.elf
 	@printf "    OBJCOPY    $(notdir $(@))\n"
 	$(OBJCOPY_bootblock) -O binary $< $@
+
+ifneq ($(CONFIG_HAVE_BOOTBLOCK),y)
+$(objcbfs)/bootblock.bin:
+	dd if=/dev/zero of=$@ bs=64 count=1
+endif
 
 $(objcbfs)/%.bin: $(objcbfs)/%.raw.bin
 	cp $< $@
@@ -759,6 +833,10 @@ endif
 
 # cbfs-add-cmd-for-region
 # $(call cbfs-add-cmd-for-region,file in extract_nth format,region name)
+#
+# CBFSTOOL_ADD_CMD_OPTIONS can be used by arch/SoC/mainboard to supply
+# add commands with any additional arguments for cbfstool.
+# Example: --ext-win-base <base> --ext-win-size <size>
 define cbfs-add-cmd-for-region
 	$(CBFSTOOL) $@.tmp \
 	add$(if $(filter stage,$(call extract_nth,3,$(1))),-stage)$(if \
@@ -773,8 +851,8 @@ define cbfs-add-cmd-for-region
 	-r $(2) \
 	$(if $(call extract_nth,6,$(1)),-a $(call extract_nth,6,$(file)), \
 		$(if $(call extract_nth,5,$(file)),-b $(call extract_nth,5,$(file)))) \
-		$(call extract_nth,7,$(1))
-
+		$(call extract_nth,7,$(1)) \
+	$(CBFSTOOL_ADD_CMD_OPTIONS)
 
 endef
 # Empty line before endef is necessary so cbfs-add-cmd-for-region ends in a
@@ -868,52 +946,61 @@ FMAP_BIOS_SIZE := $(call int-align-down, $(shell echo $(CONFIG_CBFS_SIZE) | tr A
 # X86 CONSOLE FMAP region
 #
 # position, size and entry line of CONSOLE relative to BIOS_BASE, if enabled
-FMAP_CONSOLE_BASE := 0
+
+FMAP_CURRENT_BASE := 0
+
 ifeq ($(CONFIG_CONSOLE_SPI_FLASH),y)
+FMAP_CONSOLE_BASE := $(FMAP_CURRENT_BASE)
 FMAP_CONSOLE_SIZE := $(CONFIG_CONSOLE_SPI_FLASH_BUFFER_SIZE)
 FMAP_CONSOLE_ENTRY := CONSOLE@$(FMAP_CONSOLE_BASE) $(FMAP_CONSOLE_SIZE)
-else # ifeq ($(CONFIG_CONSOLE_SPI_FLASH),y)
-FMAP_CONSOLE_SIZE := 0
+FMAP_CURRENT_BASE := $(call int-add, $(FMAP_CONSOLE_BASE) $(FMAP_CONSOLE_SIZE))
+else
 FMAP_CONSOLE_ENTRY :=
-endif # ifeq ($(CONFIG_CONSOLE_SPI_FLASH),y)
+endif
 
-#
-# X86 RW_MRC_CACHE FMAP region
-#
-# position, size and entry line of MRC_CACHE relative to BIOS_BASE, if enabled
 ifeq ($(CONFIG_CACHE_MRC_SETTINGS),y)
-FMAP_MRC_CACHE_BASE := $(call int-align, $(call int-add,  $(FMAP_CONSOLE_BASE) \
-	$(FMAP_CONSOLE_SIZE)), 0x10000)
+FMAP_MRC_CACHE_BASE := $(call int-align, $(FMAP_CURRENT_BASE), 0x10000)
 FMAP_MRC_CACHE_SIZE := $(CONFIG_MRC_SETTINGS_CACHE_SIZE)
 FMAP_MRC_CACHE_ENTRY := RW_MRC_CACHE@$(FMAP_MRC_CACHE_BASE) $(FMAP_MRC_CACHE_SIZE)
-else # ifeq ($(CONFIG_CACHE_MRC_SETTINGS),y)
-FMAP_MRC_CACHE_BASE := 0
-FMAP_MRC_CACHE_SIZE := 0
+FMAP_CURRENT_BASE := $(call int-add, $(FMAP_MRC_CACHE_BASE) $(FMAP_MRC_CACHE_SIZE))
+else
 FMAP_MRC_CACHE_ENTRY :=
-endif # ifeq ($(CONFIG_CACHE_MRC_SETTINGS),y)
+endif
 
-#
-# X86 SMMSTORE FMAP region
-#
-# position, size and entry line of SMMSTORE relative to BIOS_BASE, if enabled
 ifeq ($(CONFIG_SMMSTORE),y)
-FMAP_SMMSTORE_BASE := $(call int-align, $(call int-add, $(FMAP_CONSOLE_BASE) \
-	$(FMAP_CONSOLE_SIZE) $(FMAP_MRC_CACHE_SIZE)), 0x10000)
+FMAP_SMMSTORE_BASE := $(call int-align, $(FMAP_CURRENT_BASE), 0x10000)
 FMAP_SMMSTORE_SIZE := $(CONFIG_SMMSTORE_SIZE)
 FMAP_SMMSTORE_ENTRY := SMMSTORE@$(FMAP_SMMSTORE_BASE) $(FMAP_SMMSTORE_SIZE)
-else # ifeq ($(CONFIG_SMMSTORE),y)
-FMAP_SMMSTORE_BASE := 0
-FMAP_SMMSTORE_SIZE := 0
+FMAP_CURRENT_BASE := $(call int-add, $(FMAP_SMMSTORE_BASE) $(FMAP_SMMSTORE_SIZE))
+else
 FMAP_SMMSTORE_ENTRY :=
-endif # ifeq ($(CONFIG_CACHE_MRC_SETTINGS),y)
+endif
+
+ifeq ($(CONFIG_SPD_CACHE_IN_FMAP),y)
+FMAP_SPD_CACHE_BASE := $(call int-align, $(FMAP_CURRENT_BASE), 0x4000)
+FMAP_SPD_CACHE_SIZE := $(call int-multiply, $(CONFIG_DIMM_MAX) $(CONFIG_DIMM_SPD_SIZE))
+FMAP_SPD_CACHE_SIZE := $(call int-align, $(FMAP_SPD_CACHE_SIZE), 0x1000)
+FMAP_SPD_CACHE_ENTRY := $(CONFIG_SPD_CACHE_FMAP_NAME)@$(FMAP_SPD_CACHE_BASE) $(FMAP_SPD_CACHE_SIZE)
+FMAP_CURRENT_BASE := $(call int-add, $(FMAP_SPD_CACHE_BASE) $(FMAP_SPD_CACHE_SIZE))
+else
+FMAP_SPD_CACHE_ENTRY :=
+endif
+
+ifeq ($(CONFIG_VPD),y)
+FMAP_VPD_BASE := $(call int-align, $(FMAP_CURRENT_BASE), 0x4000)
+FMAP_VPD_SIZE := $(CONFIG_VPD_FMAP_SIZE)
+FMAP_VPD_ENTRY := $(CONFIG_VPD_FMAP_NAME)@$(FMAP_VPD_BASE) $(FMAP_VPD_SIZE)
+FMAP_CURRENT_BASE := $(call int-add, $(FMAP_VPD_BASE) $(FMAP_VPD_SIZE))
+else
+FMAP_VPD_ENTRY :=
+endif
 
 #
 # X86 FMAP region
 #
 #
 # position, size
-FMAP_FMAP_BASE := $(call int-add, $(FMAP_CONSOLE_BASE) $(FMAP_CONSOLE_SIZE) \
-	$(FMAP_MRC_CACHE_SIZE) $(FMAP_SMMSTORE_SIZE))
+FMAP_FMAP_BASE := $(FMAP_CURRENT_BASE)
 FMAP_FMAP_SIZE := 0x200
 
 #
@@ -922,7 +1009,9 @@ FMAP_FMAP_SIZE := 0x200
 # position and size of CBFS, relative to BIOS_BASE
 FMAP_CBFS_BASE := $(call int-add, $(FMAP_FMAP_BASE) $(FMAP_FMAP_SIZE))
 FMAP_CBFS_SIZE := $(call int-subtract, $(FMAP_BIOS_SIZE) $(FMAP_CBFS_BASE))
+
 else # ifeq ($(CONFIG_ARCH_X86),y)
+
 DEFAULT_FLASHMAP:=$(top)/util/cbfstool/default.fmd
 # entire flash
 FMAP_ROM_ADDR := 0
@@ -933,49 +1022,43 @@ FMAP_BIOS_BASE := 0
 FMAP_BIOS_SIZE := $(CONFIG_CBFS_SIZE)
 # position and size of flashmap, relative to BIOS_BASE
 FMAP_FMAP_BASE := 0x20000
-FMAP_FMAP_SIZE := 0x100
+FMAP_FMAP_SIZE := 0x200
+
+FMAP_CURRENT_BASE := $(call int-add, $(FMAP_FMAP_BASE) $(FMAP_FMAP_SIZE))
 
 #
 # NON-X86 CONSOLE FMAP region
 #
 # position, size and entry line of CONSOLE relative to BIOS_BASE, if enabled
 ifeq ($(CONFIG_CONSOLE_SPI_FLASH),y)
-FMAP_CONSOLE_BASE := $(call int-add, $(FMAP_FMAP_BASE) $(FMAP_FMAP_SIZE))
+FMAP_CONSOLE_BASE := $(FMAP_CURRENT_BASE)
 FMAP_CONSOLE_SIZE := $(CONFIG_CONSOLE_SPI_FLASH_BUFFER_SIZE)
 FMAP_CONSOLE_ENTRY := CONSOLE@$(FMAP_CONSOLE_BASE) $(FMAP_CONSOLE_SIZE)
-else # ifeq ($(CONFIG_CONSOLE_SPI_FLASH),y)
-FMAP_CONSOLE_BASE := 0
-FMAP_CONSOLE_SIZE := 0
+FMAP_CURRENT_BASE := $(call int-add, $(FMAP_CONSOLE_BASE) $(FMAP_CONSOLE_SIZE))
+else
 FMAP_CONSOLE_ENTRY :=
-endif # ifeq ($(CONFIG_CONSOLE_SPI_FLASH),y)
+endif
 
 #
 # NON-X86 RW_MRC_CACHE FMAP region
 #
 # position, size and entry line of MRC_CACHE relative to BIOS_BASE, if enabled
 ifeq ($(CONFIG_CACHE_MRC_SETTINGS),y)
-ifeq ($(CONFIG_CONSOLE_SPI_FLASH),y)
-FMAP_MRC_CACHE_BASE := $(call int-align, $(call int-add, $(FMAP_CONSOLE_BASE) \
-	$(FMAP_CONSOLE_SIZE)), 0x10000)
-else
-FMAP_MRC_CACHE_BASE := $(call int-align, $(call int-add, $(FMAP_FMAP_BASE) \
-	$(FMAP_FMAP_SIZE)), 0x10000)
-endif
+FMAP_MRC_CACHE_BASE := $(call int-align, $(FMAP_CURRENT_BASE), 0x10000)
 FMAP_MRC_CACHE_SIZE := $(CONFIG_MRC_SETTINGS_CACHE_SIZE)
 FMAP_MRC_CACHE_ENTRY := RW_MRC_CACHE@$(FMAP_MRC_CACHE_BASE) $(FMAP_MRC_CACHE_SIZE)
-else # ifeq ($(CONFIG_CACHE_MRC_SETTINGS),y)
-FMAP_MRC_CACHE_BASE := 0
-FMAP_MRC_CACHE_SIZE := 0
+FMAP_CURRENT_BASE := $(call int-add, $(FMAP_MRC_CACHE_BASE) $(FMAP_MRC_CACHE_SIZE))
+else
 FMAP_MRC_CACHE_ENTRY :=
-endif # ifeq ($(CONFIG_CACHE_MRC_SETTINGS),y)
+endif
 
 #
 # NON-X86 COREBOOT default cbfs FMAP region
 #
 # position and size of CBFS, relative to BIOS_BASE
-FMAP_CBFS_BASE := $(call int-add,$(FMAP_FMAP_BASE) $(FMAP_FMAP_SIZE) $(FMAP_CONSOLE_SIZE) \
-	$(FMAP_MRC_CACHE_SIZE))
+FMAP_CBFS_BASE := $(FMAP_CURRENT_BASE)
 FMAP_CBFS_SIZE := $(call int-subtract,$(FMAP_BIOS_SIZE) $(FMAP_CBFS_BASE))
+
 endif # ifeq ($(CONFIG_ARCH_X86),y)
 
 $(obj)/fmap.fmd: $(top)/Makefile.inc $(DEFAULT_FLASHMAP) $(obj)/config.h
@@ -988,6 +1071,8 @@ $(obj)/fmap.fmd: $(top)/Makefile.inc $(DEFAULT_FLASHMAP) $(obj)/config.h
 	    -e "s,##CONSOLE_ENTRY##,$(FMAP_CONSOLE_ENTRY)," \
 	    -e "s,##MRC_CACHE_ENTRY##,$(FMAP_MRC_CACHE_ENTRY)," \
 	    -e "s,##SMMSTORE_ENTRY##,$(FMAP_SMMSTORE_ENTRY)," \
+	    -e "s,##SPD_CACHE_ENTRY##,$(FMAP_SPD_CACHE_ENTRY)," \
+	    -e "s,##VPD_ENTRY##,$(FMAP_VPD_ENTRY)," \
 	    -e "s,##CBFS_BASE##,$(FMAP_CBFS_BASE)," \
 	    -e "s,##CBFS_SIZE##,$(FMAP_CBFS_SIZE)," \
 		$(DEFAULT_FLASHMAP) > $@.tmp
@@ -1010,18 +1095,20 @@ $(obj)/fmap.fmap: $(obj)/fmap.fmd $(FMAPTOOL)
 
 ifeq ($(CONFIG_INTEL_ADD_TOP_SWAP_BOOTBLOCK),y)
 TS_OPTIONS := -j $(CONFIG_INTEL_TOP_SWAP_BOOTBLOCK_SIZE)
-FIT_OPTIONS := $(TS_OPTIONS)
 endif
+
 ifneq ($(CONFIG_UPDATE_IMAGE),y)
-$(obj)/coreboot.pre: $(objcbfs)/bootblock.bin $$(prebuilt-files) $(CBFSTOOL) $$(cpu_ucode_cbfs_file) $(obj)/fmap.fmap $(obj)/fmap.desc
+$(obj)/coreboot.pre: $(objcbfs)/bootblock.bin $$(prebuilt-files) $(CBFSTOOL) $(IFITTOOL) $$(cpu_ucode_cbfs_file) $(obj)/fmap.fmap $(obj)/fmap.desc
 	$(CBFSTOOL) $@.tmp create -M $(obj)/fmap.fmap -r $(shell cat $(obj)/fmap.desc)
 ifeq ($(CONFIG_ARCH_X86),y)
 	$(CBFSTOOL) $@.tmp add \
 		-f $(objcbfs)/bootblock.bin \
 		-n bootblock \
 		-t bootblock \
+		$(TXTIBB) \
 		-b -$(call file-size,$(objcbfs)/bootblock.bin) $(cbfs-autogen-attributes) \
-		$(TS_OPTIONS)
+		$(TS_OPTIONS) \
+		$(CBFSTOOL_ADD_CMD_OPTIONS)
 else # ifeq ($(CONFIG_ARCH_X86),y)
 	$(CBFSTOOL) $@.tmp write -u \
 		-r BOOTBLOCK \
@@ -1033,10 +1120,11 @@ else # ifeq ($(CONFIG_ARCH_X86),y)
 		-f $@.tmp.2 \
 		-n "header pointer" \
 		-t "cbfs header" \
-		-b -4
+		-b -4 \
+		$(CBFSTOOL_ADD_CMD_OPTIONS)
 	rm -f $@.tmp.2
 endif # ifeq ($(CONFIG_ARCH_X86),y)
-	$(CBFSTOOL) $@.tmp add-master-header $(TS_OPTIONS)
+	$(CBFSTOOL) $@.tmp add-master-header $(TS_OPTIONS) $(CBFSTOOL_ADD_CMD_OPTIONS)
 	$(prebuild-files) true
 	mv $@.tmp $@
 else # ifneq ($(CONFIG_UPDATE_IMAGE),y)
@@ -1056,42 +1144,31 @@ $(REFCODE_BLOB): $(RMODTOOL)
 	$(RMODTOOL) -i $(CONFIG_REFCODE_BLOB_FILE) -o $@
 endif
 
-FIT_ENTRY=$(call strip_quotes, $(CONFIG_INTEL_TOP_SWAP_FIT_ENTRY_FMAP_REG))
-ifneq ($(FIT_ENTRY),)
-FIT_OPTIONS += -q $(FIT_ENTRY)
+ifeq ($(CONFIG_HAVE_RAMSTAGE),y)
+RAMSTAGE=$(objcbfs)/ramstage.elf
+else
+RAMSTAGE=
 endif
 
-$(obj)/coreboot.rom: $(obj)/coreboot.pre $(objcbfs)/ramstage.elf $(CBFSTOOL) $$(INTERMEDIATE)
+add_intermediate = \
+	$(1): $(obj)/coreboot.pre $(2) | $(INTERMEDIATE) \
+	$(eval INTERMEDIATE+=$(1)) $(eval PHONY+=$(1))
+
+$(obj)/coreboot.rom: $(obj)/coreboot.pre $(RAMSTAGE) $(CBFSTOOL) $$(INTERMEDIATE)
 	@printf "    CBFS       $(subst $(obj)/,,$(@))\n"
 # The full ROM may be larger than the CBFS part, so create an empty
 # file (filled with \377 = 0xff) and copy the CBFS image over it.
 	dd if=/dev/zero bs=$(call _toint,$(CONFIG_ROM_SIZE)) count=1 2> /dev/null | tr '\000' '\377' > $@.tmp
 	dd if=$(obj)/coreboot.pre of=$@.tmp bs=8192 conv=notrunc 2> /dev/null
-ifneq ($(CONFIG_SEABIOS_PS2_TIMEOUT),)
-ifneq ($(CONFIG_SEABIOS_PS2_TIMEOUT),0)
-ifneq ($(CONFIG_UPDATE_IMAGE),y)
-	@printf "    SeaBIOS    Wait up to $(CONFIG_SEABIOS_PS2_TIMEOUT) ms for PS/2 keyboard controller initialization\n"
-	$(CBFSTOOL) $@.tmp add-int -i $(CONFIG_SEABIOS_PS2_TIMEOUT) -n etc/ps2-keyboard-spinup
-endif
-endif
-endif
-ifeq ($(CONFIG_SEABIOS_ADD_SERCON_PORT_FILE),y)
-	@printf "    SeaBIOS    Add sercon-port file\n"
-	$(CBFSTOOL) $@.tmp add-int -i $(CONFIG_SEABIOS_SERCON_PORT_ADDR) -n etc/sercon-port
-endif
 ifeq ($(CONFIG_CPU_INTEL_FIRMWARE_INTERFACE_TABLE),y)
-ifeq ($(CONFIG_CPU_MICROCODE_CBFS_EXTERNAL_HEADER),y)
-	@printf "    UPDATE-FIT\n"
-	$(CBFSTOOL) $@.tmp update-fit -n cpu_microcode_blob.bin -x $(CONFIG_CPU_INTEL_NUM_FIT_ENTRIES) \
-	$(FIT_OPTIONS)
-endif
-
-ifeq ($(CONFIG_USE_CPU_MICROCODE_CBFS_BINS),y)
-	@printf "    UPDATE-FIT\n"
-	$(CBFSTOOL) $@.tmp update-fit -n cpu_microcode_blob.bin -x $(CONFIG_CPU_INTEL_NUM_FIT_ENTRIES) \
-	$(FIT_OPTIONS)
-endif
-endif
+# Print final FIT table
+	$(IFITTOOL) -f $@.tmp -D -r COREBOOT
+# Print final TS BOOTBLOCK FIT table
+ifeq ($(CONFIG_INTEL_ADD_TOP_SWAP_BOOTBLOCK),y)
+	@printf "    TOP SWAP FIT table\n"
+	$(IFITTOOL) -f $@.tmp -D $(TS_OPTIONS) -r COREBOOT
+endif # CONFIG_INTEL_ADD_TOP_SWAP_BOOTBLOCK
+endif # CONFIG_CPU_INTEL_FIRMWARE_INTERFACE_TABLE
 	mv $@.tmp $@
 	@printf "    CBFSLAYOUT  $(subst $(obj)/,,$(@))\n\n"
 	$(CBFSTOOL) $@ layout
@@ -1122,17 +1199,19 @@ $(CONFIG_CBFS_PREFIX)/romstage-options := -S ".car.data"
 ifneq ($(CONFIG_NO_XIP_EARLY_STAGES),y)
 $(CONFIG_CBFS_PREFIX)/romstage-options += --xip
 
-# If XIP_ROM_SIZE isn't being used don't overly constrain romstage by passing
-# -P with a default value.
-ifneq ($(CONFIG_NO_FIXED_XIP_ROM_SIZE),y)
-$(CONFIG_CBFS_PREFIX)/romstage-options += -P $(CONFIG_XIP_ROM_SIZE)
-endif    # CONFIG_NO_FIXED_XIP_ROM_SIZE
+# For efficient MTRR utilisation use natural alignment for romstage.
+ifeq ($(CONFIG_SETUP_XIP_CACHE),y)
+$(CONFIG_CBFS_PREFIX)/romstage-options += --pow2page
+endif    # CONFIG_SETUP_XIP_CACHE
 
 endif   # CONFIG_NO_XIP_EARLY_STAGES
 endif   # CONFIG_ARCH_ROMSTAGE_X86_32 / CONFIG_ARCH_ROMSTAGE_X86_64
+ifeq ($(CONFIG_VBOOT_STARTS_IN_ROMSTAGE),y)
+$(CONFIG_CBFS_PREFIX)/romstage-options += $(TXTIBB)
+endif
 
-cbfs-files-y += $(CONFIG_CBFS_PREFIX)/ramstage
-$(CONFIG_CBFS_PREFIX)/ramstage-file := $(objcbfs)/ramstage.elf
+cbfs-files-$(CONFIG_HAVE_RAMSTAGE) += $(CONFIG_CBFS_PREFIX)/ramstage
+$(CONFIG_CBFS_PREFIX)/ramstage-file := $(RAMSTAGE)
 $(CONFIG_CBFS_PREFIX)/ramstage-type := stage
 $(CONFIG_CBFS_PREFIX)/ramstage-compression := $(CBFS_COMPRESS_FLAG)
 
@@ -1152,6 +1231,10 @@ config-type := raw
 cbfs-files-$(CONFIG_INCLUDE_CONFIG_FILE) += revision
 revision-file := $(obj)/build.h
 revision-type := raw
+
+cbfs-files-y += build_info
+build_info-file := $(obj)/build_info
+build_info-type := raw
 
 BOOTSPLASH_SUFFIX=$(suffix $(call strip_quotes,$(CONFIG_BOOTSPLASH_FILE)))
 cbfs-files-$(CONFIG_BOOTSPLASH_IMAGE) += bootsplash$(BOOTSPLASH_SUFFIX)
@@ -1174,7 +1257,7 @@ cbfs-get-segments-cmd = $(CBFSTOOL) $(obj)/coreboot.pre print -v | sed -n \
 ramstage-symbol-addr-cmd = $(OBJDUMP_ramstage) -t $(objcbfs)/ramstage.elf | \
 	sed -n '/ $(1)$$/s/^\([0-9a-fA-F]*\) .*/0x\1/p'
 
-check-ramstage-overlaps: $(obj)/coreboot.pre
+$(call add_intermediate, check-ramstage-overlaps)
 	programs=$$($(foreach file,$(check-ramstage-overlap-files), \
 		$(call cbfs-get-segments-cmd,$(file)) ; )) ; \
 	regions=$$($(foreach region,$(check-ramstage-overlap-regions), \
@@ -1200,6 +1283,4 @@ check-ramstage-overlaps: $(obj)/coreboot.pre
 	    pstart= ; pend= ; \
 	done
 
-INTERMEDIATE+=check-ramstage-overlaps
-PHONY+=check-ramstage-overlaps
 endif

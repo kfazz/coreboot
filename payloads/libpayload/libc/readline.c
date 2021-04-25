@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2008 coresystems GmbH
  *
@@ -129,7 +128,7 @@ char *readline(const char *prompt)
 			if (ch < 0x20)
 				break;
 
-			/* ignore unprintables */
+			/* ignore unprintable characters */
 			if (ch >= 0x7f)
 				break;
 

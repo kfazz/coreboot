@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2009 University of Heidelberg
- * Written by Mondrian Nuessle <nuessle@uni-heidelberg.de> for Univ. Heidelberg
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /* PILOT Super I/O is only based on LPC observation done on factory system. */
 
@@ -22,6 +7,7 @@
 #include <device/pnp_ops.h>
 #include <console/console.h>
 #include <device/pnp.h>
+
 #include "pilot.h"
 
 /*
@@ -39,10 +25,10 @@ void pilot_early_init(pnp_devfn_t dev)
 	pnp_enter_ext_func_mode(dev);
 	pnp_set_logical_device(PNP_DEV(port, 0x3));
 	pnp_set_enable(dev, 0);
-	pnp_set_iobase(dev, 0x60, 0x0b00);
-	pnp_set_iobase(dev, 0x62, 0x0b80);
-	pnp_set_iobase(dev, 0x64, 0x0b84);
-	pnp_set_iobase(dev, 0x66, 0x0b86);
+	pnp_set_iobase(dev, PNP_IDX_IO0, 0x0b00);
+	pnp_set_iobase(dev, PNP_IDX_IO1, 0x0b80);
+	pnp_set_iobase(dev, PNP_IDX_IO2, 0x0b84);
+	pnp_set_iobase(dev, PNP_IDX_IO3, 0x0b86);
 	pnp_set_enable(dev, 1);
 	pnp_exit_ext_func_mode(dev);
 

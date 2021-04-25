@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreinfo project.
- *
- * Copyright (C) 2008 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include "coreinfo.h"
 
@@ -132,7 +119,7 @@ static void print_time_and_date(void)
 
 static void print_menu(void)
 {
-	int i, j;
+	int j;
 	char menu[80];
 	char *ptr = menu;
 
@@ -140,11 +127,11 @@ static void print_menu(void)
 	for (j = 0; j < SCREEN_X; j++)
 		waddch(menuwin, ' ');
 
-	for (i = 0; i < ARRAY_SIZE(categories); i++) {
+	for (size_t i = 0; i < ARRAY_SIZE(categories); i++) {
 		if (categories[i].count == 0)
 			continue;
 
-		ptr += sprintf(ptr, "F%d: %s ", i + 1, categories[i].name);
+		ptr += sprintf(ptr, "F%zu: %s ", i + 1, categories[i].name);
 	}
 
 	mvwprintw(menuwin, 1, 0, menu);
@@ -198,8 +185,13 @@ static void redraw_module(struct coreinfo_cat *cat)
 
 static void handle_category_key(struct coreinfo_cat *cat, int key)
 {
-	if (key >= 'a' && key <= 'z') {
-		int index = key - 'a';
+	if ((key >= 'a' && key <= 'z') || (key >= 'A' && key <= 'Z')) {
+		int index;
+		if (key >= 'A' && key <= 'Z') {
+			index = key - 'A';
+		} else {
+			index = key - 'a';
+		}
 		if (index < cat->count) {
 			cat->cur = index;
 			redraw_module(cat);
@@ -215,9 +207,9 @@ static void handle_category_key(struct coreinfo_cat *cat, int key)
 
 static void print_no_modules_selected(void)
 {
-	int height = getmaxy(stdscr), i;
+	int height = getmaxy(stdscr);
 
-	for (i = 0; i < ARRAY_SIZE(categories); i++)
+	for (size_t i = 0; i < ARRAY_SIZE(categories); i++)
 		if (categories[i].count > 0)
 			return;
 
@@ -227,9 +219,7 @@ static void print_no_modules_selected(void)
 
 static int first_nonempty_category(void)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(categories); i++)
+	for (size_t i = 0; i < ARRAY_SIZE(categories); i++)
 		if (categories[i].count > 0)
 			return i;
 	return 0;
@@ -268,7 +258,7 @@ static void loop(void)
 		if (key >= '1' && key <= '9')
 			ch = key - '1';
 
-		if (ch >= 0 && ch <= ARRAY_SIZE(categories)) {
+		if (ch >= 0 && (unsigned int)ch <= ARRAY_SIZE(categories)) {
 			if (ch == ARRAY_SIZE(categories))
 				continue;
 			if (categories[ch].count == 0)
@@ -287,9 +277,12 @@ static void loop(void)
 	}
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
-	int i, j;
+	(void)argc;
+	(void)argv;
+
+	int j;
 
 	if (CONFIG(LP_USB))
 		usb_initialize();
@@ -310,7 +303,7 @@ int main(void)
 
 	werase(modwin);
 
-	for (i = 0; i < ARRAY_SIZE(categories); i++) {
+	for (size_t i = 0; i < ARRAY_SIZE(categories); i++) {
 		for (j = 0; j < categories[i].count; j++)
 			categories[i].modules[j]->init();
 	}

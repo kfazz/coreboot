@@ -1,24 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- * Copyright (C) 2015 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ops.h>
-#include <device/pci_ids.h>
-#include <stdlib.h>
 
 typedef struct {
 	const unsigned char subclass_id;
@@ -47,6 +31,7 @@ static const PCI_SUBCLASS mass_storage[] = {
 	{ 0x06, "SATA controller" },
 	{ 0x07, "Serial Attached SCSI controller" },
 	{ 0x08, "Non-Volatile memory controller" },
+	{ 0x09, "Universal Flash Storage controller" },
 	{ 0x80, "Mass storage controller" }
 };
 
@@ -58,6 +43,8 @@ static const PCI_SUBCLASS network[] = {
 	{ 0x04, "ISDN controller" },
 	{ 0x05, "WorldFip controller" },
 	{ 0x06, "PICMG controller" },
+	{ 0x07, "InfiniBand Controller" },
+	{ 0x08, "Host fabric controller" },
 	{ 0x80, "Network controller" }
 };
 
@@ -94,6 +81,7 @@ static const PCI_SUBCLASS bridge[] = {
 	{ 0x08, "RACEway bridge" },
 	{ 0x09, "Semi-transparent PCI-to-PCI bridge" },
 	{ 0x0a, "InfiniBand to PCI host bridge" },
+	{ 0x0b, "Advanced Switching to PCI host bridge" },
 	{ 0x80, "Bridge" }
 };
 
@@ -115,6 +103,7 @@ static const PCI_SUBCLASS generic[] = {
 	{ 0x04, "PCI Hot-plug controller" },
 	{ 0x05, "SD Host controller" },
 	{ 0x06, "IOMMU" },
+	{ 0x07, "Root Complex Event Collector" },
 	{ 0x80, "System peripheral" }
 };
 
@@ -139,7 +128,8 @@ static const PCI_SUBCLASS processor[] = {
 	{ 0x10, "Alpha" },
 	{ 0x20, "Power PC" },
 	{ 0x30, "MIPS" },
-	{ 0x40, "Co-processor" }
+	{ 0x40, "Co-processor" },
+	{ 0x80, "Processor" }
 };
 
 static const PCI_SUBCLASS serial_bus[] = {
@@ -152,7 +142,9 @@ static const PCI_SUBCLASS serial_bus[] = {
 	{ 0x06, "InfiniBand" },
 	{ 0x07, "IPMI SMIC interface" },
 	{ 0x08, "SERCOS interface" },
-	{ 0x09, "CANBUS" }
+	{ 0x09, "CANBUS" },
+	{ 0x0a, "MIPI I3C SM Host Controller Interface" },
+	{ 0x80, "Serial Bus Controller" }
 };
 
 static const PCI_SUBCLASS wireless[] = {
@@ -163,6 +155,8 @@ static const PCI_SUBCLASS wireless[] = {
 	{ 0x12, "Broadband" },
 	{ 0x20, "802.1a controller" },
 	{ 0x21, "802.1b controller" },
+	{ 0x40, "Cellular controller/modem" },
+	{ 0x41, "Cellular controller/modem plus Ethernet (802.11)" },
 	{ 0x80, "Wireless controller" }
 };
 

@@ -1,18 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* Maximum number of CPUs/cores */
 CPUS = 4;
+
+_ = ASSERT(CPUS >= CONFIG_MAX_CPUS, "The ASEG SMM code only supports up to 4 CPUS");
+
 ENTRY(smm_handler_start);
 
 SECTIONS

@@ -1,52 +1,16 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 The ChromiumOS Authors.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __VENDORCODE_GOOGLE_CHROMEOS_GNVS_H
 #define __VENDORCODE_GOOGLE_CHROMEOS_GNVS_H
 
 #include <stdint.h>
 
-#define BOOT_REASON_OTHER	0
-#define BOOT_REASON_S3DIAG	9
-
-#define CHSW_RECOVERY_X86	(1 << 1)
-#define CHSW_RECOVERY_EC	(1 << 2)
-#define CHSW_DEVELOPER_SWITCH	(1 << 5)
-#define CHSW_FIRMWARE_WP_DIS	(1 << 9)
-
-#define ACTIVE_MAINFW_RECOVERY	0
-#define ACTIVE_MAINFW_RW_A	1
-#define ACTIVE_MAINFW_RW_B	2
-
-#define ACTIVE_MAINFW_TYPE_RECOVERY	0
-#define ACTIVE_MAINFW_TYPE_NORMAL	1
-#define ACTIVE_MAINFW_TYPE_DEVELOPER	2
-
-#define RECOVERY_REASON_NONE	0
-#define RECOVERY_REASON_ME	1
-// TODO(reinauer) other recovery reasons?
-
 #define ACTIVE_ECFW_RO		0
 #define ACTIVE_ECFW_RW		1
 
 /*
  * chromeos_acpi_t portion of ACPI GNVS is assumed to live at
- * 0x100 - 0x1000.  When defining global_nvs_t, use check_member
- * to ensure that it is properly aligned:
- *
- *   check_member(global_nvs_t, chromeos, GNVS_CHROMEOS_ACPI_OFFSET);
+ * 0x100 - 0x1000.
  */
 #define GNVS_CHROMEOS_ACPI_OFFSET 0x100
 
@@ -78,7 +42,6 @@ typedef struct {
 } __packed chromeos_acpi_t;
 
 void chromeos_init_chromeos_acpi(chromeos_acpi_t *init);
-void chromeos_set_me_hash(u32*, int);
 chromeos_acpi_t *chromeos_get_chromeos_acpi(void);
 
 #endif

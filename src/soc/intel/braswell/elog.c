@@ -1,26 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2015 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
-#include <cbmem.h>
-#include <console/console.h>
+#include <acpi/acpi.h>
+#include <acpi/acpi_pm.h>
 #include <device/device.h>
 #include <device/pci.h>
-#include <device/pci_ops.h>
 #include <elog.h>
 #include <soc/iomap.h>
 #include <soc/pm.h>
@@ -54,9 +37,9 @@ static void log_power_and_resets(const struct chipset_power_state *ps)
 
 static void log_wake_events(const struct chipset_power_state *ps)
 {
-	const uint32_t pcie_wake_mask = PCI_EXP_STS | PCIE_WAKE3_STS |
-					PCIE_WAKE2_STS | PCIE_WAKE1_STS |
-					PCIE_WAKE0_STS;
+	const uint32_t pcie_wake_mask = PCIE_WAKE3_STS | PCIE_WAKE2_STS |
+					PCIE_WAKE1_STS | PCIE_WAKE0_STS | PCI_EXP_STS;
+
 	uint32_t gpe0_sts;
 	uint32_t gpio_mask;
 	int i;
@@ -84,7 +67,7 @@ static void log_wake_events(const struct chipset_power_state *ps)
 	i = 0;
 	while (gpio_mask) {
 		if (gpio_mask & gpe0_sts)
-			elog_add_event_wake(ELOG_WAKE_SOURCE_GPIO, i);
+			elog_add_event_wake(ELOG_WAKE_SOURCE_GPE, i);
 		gpio_mask <<= 1;
 		i++;
 	}
@@ -92,13 +75,10 @@ static void log_wake_events(const struct chipset_power_state *ps)
 
 void southcluster_log_state(void)
 {
-	struct chipset_power_state *ps = cbmem_find(CBMEM_ID_POWER_STATE);
+	const struct chipset_power_state *ps;
 
-	if (ps == NULL) {
-		printk(BIOS_DEBUG,
-			"Not logging power state information. Power state not found in cbmem.\n");
+	if (acpi_pm_state_for_elog(&ps) < 0)
 		return;
-	}
 
 	log_power_and_resets(ps);
 	log_wake_events(ps);

@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 The ChromiumOS Authors
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _MCALL_H
 #define _MCALL_H
@@ -27,7 +14,7 @@
 #endif
 
 /* We save 37 registers, currently. */
-#define MENTRY_FRAME_SIZE (HLS_SIZE + 37 * 8)
+#define MENTRY_FRAME_SIZE (HLS_SIZE + 37 * __SIZEOF_POINTER__)
 
 #ifndef __ASSEMBLER__
 

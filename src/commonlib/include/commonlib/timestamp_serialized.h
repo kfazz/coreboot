@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 The ChromiumOS Authors.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __TIMESTAMP_SERIALIZED_H__
 #define __TIMESTAMP_SERIALIZED_H__
@@ -65,6 +52,8 @@ enum timestamp_id {
 	TS_SELFBOOT_JUMP = 99,
 	TS_START_POSTCAR = 100,
 	TS_END_POSTCAR = 101,
+	TS_DELAY_START = 110,
+	TS_DELAY_END = 111,
 
 	/* 500+ reserved for vendorcode extensions (500-600: google/chromeos) */
 	TS_START_COPYVER = 501,
@@ -81,6 +70,10 @@ enum timestamp_id {
 	TS_END_TPMPCR = 512,
 	TS_START_TPMLOCK = 513,
 	TS_END_TPMLOCK = 514,
+	TS_START_EC_SYNC = 515,
+	TS_EC_HASH_READY = 516,
+	TS_EC_POWER_LIMIT_WAIT = 517,
+	TS_END_EC_SYNC = 518,
 	TS_START_COPYVPD = 550,
 	TS_END_COPYVPD_RO = 551,
 	TS_END_COPYVPD_RW = 552,
@@ -124,6 +117,8 @@ enum timestamp_id {
 	TS_FSP_AFTER_FINALIZE = 959,
 	TS_FSP_BEFORE_END_OF_FIRMWARE = 960,
 	TS_FSP_AFTER_END_OF_FIRMWARE = 961,
+	TS_FSP_MULTI_PHASE_SI_INIT_START = 962,
+	TS_FSP_MULTI_PHASE_SI_INIT_END = 963,
 
 	/* 1000+ reserved for payloads (1000-1200: ChromeOS depthcharge) */
 
@@ -154,8 +149,8 @@ static const struct timestamp_id_to_name {
 	/* Marker to report base_time. */
 	{ 0,			"1st timestamp" },
 	{ TS_START_ROMSTAGE,	"start of romstage" },
-	{ TS_BEFORE_INITRAM,	"before ram initialization" },
-	{ TS_AFTER_INITRAM,	"after ram initialization" },
+	{ TS_BEFORE_INITRAM,	"before RAM initialization" },
+	{ TS_AFTER_INITRAM,	"after RAM initialization" },
 	{ TS_END_ROMSTAGE,	"end of romstage" },
 	{ TS_START_VBOOT,	"start of verified boot" },
 	{ TS_END_VBOOT,		"end of verified boot" },
@@ -184,6 +179,8 @@ static const struct timestamp_id_to_name {
 	{ TS_LOAD_PAYLOAD,	"load payload" },
 	{ TS_ACPI_WAKE_JUMP,	"ACPI wake jump" },
 	{ TS_SELFBOOT_JUMP,	"selfboot jump" },
+	{ TS_DELAY_START,	"Forced delay start" },
+	{ TS_DELAY_END,		"Forced delay end" },
 
 	{ TS_START_COPYVER,	"starting to load verstage" },
 	{ TS_END_COPYVER,	"finished loading verstage" },
@@ -192,7 +189,7 @@ static const struct timestamp_id_to_name {
 	{ TS_START_VERIFY_SLOT,	"starting to verify keyblock/preamble (RSA)" },
 	{ TS_END_VERIFY_SLOT,	"finished verifying keyblock/preamble (RSA)" },
 	{ TS_START_HASH_BODY,	"starting to verify body (load+SHA2+RSA) " },
-	{ TS_DONE_LOADING,	"finished loading body (ignore for x86)" },
+	{ TS_DONE_LOADING,	"finished loading body" },
 	{ TS_DONE_HASHING,	"finished calculating body hash (SHA2)" },
 	{ TS_END_HASH_BODY,	"finished verifying body signature (RSA)" },
 	{ TS_START_TPMPCR,	"starting TPM PCR extend" },
@@ -203,6 +200,11 @@ static const struct timestamp_id_to_name {
 	{ TS_START_COPYVPD,	"starting to load Chrome OS VPD" },
 	{ TS_END_COPYVPD_RO,	"finished loading Chrome OS VPD (RO)" },
 	{ TS_END_COPYVPD_RW,	"finished loading Chrome OS VPD (RW)" },
+
+	{ TS_START_EC_SYNC,	"starting EC software sync" },
+	{ TS_EC_HASH_READY,	"EC vboot hash ready" },
+	{ TS_EC_POWER_LIMIT_WAIT,	"waiting for EC to allow higher power draw" },
+	{ TS_END_EC_SYNC,	"finished EC software sync" },
 
 	{ TS_DC_START,		"depthcharge start" },
 	{ TS_RO_PARAMS_INIT,	"RO parameter init" },

@@ -1,16 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (c) 2013-2014, ARM Limited and Contributors. All rights reserved.
- * Copyright 2018-present Facebook, Inc.
- *
- * SPDX-License-Identifier: BSD-3-Clause
- */
+/* SPDX-License-Identifier: BSD-3-Clause */
 
 #ifndef __DRIVERS_UART_PL011_H
 #define __DRIVERS_UART_PL011_H
 
-#include <inttypes.h>
 #include <types.h>
 
 /* PL011 r1p5 registers */

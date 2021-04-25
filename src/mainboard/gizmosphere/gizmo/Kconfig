@@ -1,18 +1,4 @@
-#
-# This file is part of the coreboot project.
-#
-# Copyright (C) 2011 Advanced Micro Devices, Inc.
-# Copyright (C) 2013 Sage Electronic Engineering, LLC
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
+# SPDX-License-Identifier: GPL-2.0-only
 
 if BOARD_GIZMOSPHERE_GIZMO
 
@@ -23,15 +9,15 @@ config BOARD_SPECIFIC_OPTIONS
 	select SOUTHBRIDGE_AMD_CIMX_SB800
 	select HAVE_OPTION_TABLE
 	select HAVE_PIRQ_TABLE
-	select HAVE_MP_TABLE
 	select HAVE_ACPI_RESUME
 	select HAVE_ACPI_TABLES
 	select BOARD_ROMSIZE_KB_2048
 	select GFXUMA
+	select HAVE_SPD_IN_CBFS
 
 config MAINBOARD_DIR
 	string
-	default gizmosphere/gizmo
+	default "gizmosphere/gizmo"
 
 config MAINBOARD_PART_NUMBER
 	string
@@ -52,10 +38,6 @@ config IRQ_SLOT_COUNT
 config ONBOARD_VGA_IS_PRIMARY
 	bool
 	default y
-
-config VGA_BIOS
-	bool
-	default n
 
 config VGA_BIOS_ID
 	string

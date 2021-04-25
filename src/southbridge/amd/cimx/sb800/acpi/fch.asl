@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* System Bus */
 /*  _SB.PCI0 */
@@ -20,27 +7,27 @@
 Method(_OSC,4)
 {
 	/* Check for proper PCI/PCIe UUID */
-	If(LEqual(Arg0,ToUUID("33DB4D5B-1FF7-401C-9657-7441C03DD766")))
+	If (Arg0 == ToUUID("33DB4D5B-1FF7-401C-9657-7441C03DD766"))
 	{
 		/* Let OS control everything */
 		Return (Arg3)
 	} Else {
 		CreateDWordField(Arg3,0,CDW1)
-		Or(CDW1,4,CDW1)	// Unrecognized UUID
-		Return(Arg3)
+		CDW1 |= 4	// Unrecognized UUID
+		Return (Arg3)
 	}
 }
 
 Method(_BBN, 0) { /* Bus number = 0 */
-	Return(0)
+	Return (0)
 }
 Method(_STA, 0) {
 	/* DBGO("\\_SB\\PCI0\\_STA\n") */
-	Return(0x0B)     /* Status is visible */
+	Return (0x0b)     /* Status is visible */
 }
 
 Method(_PRT,0) {
-	If(PMOD){ Return(APR0) }   /* APIC mode */
+	If(PICM){ Return(APR0) }   /* APIC mode */
 	Return (PR0)                  /* PIC Mode */
 } /* end _PRT */
 
@@ -139,12 +126,12 @@ Method(_CRS, 0) {
 	* 32bit (0x00000000 - TOM1) will wrap and give the same
 	* result as 64bit (0x100000000 - TOM1).
 	*/
-	Store(TOM1, MM1B)
-	ShiftLeft(0x10000000, 4, Local0)
-	Subtract(Local0, TOM1, Local0)
-	Store(Local0, MM1L)
+	MM1B = TOM1
+	Local0 = 0x10000000 << 4
+	Local0 -= TOM1
+	MM1L = Local0
 
-	Return(CRES) /* note to change the Name buffer */
+	Return (CRES) /* note to change the Name buffer */
 } /* end of Method(_SB.PCI0._CRS) */
 
 /*
@@ -169,12 +156,9 @@ Method(_INI, 0) {
 	/* DBGO(\_REV) */
 	/* DBGO("\n") */
 
-	/* Determine the OS we're running on */
-	OSFL()
-
 	/* On older chips, clear PciExpWakeDisEn */
-	/*if (LLessEqual(\SBRI, 0x13)) {
-	*	Store(0,\PWDE)
+	/*if (\SBRI <= 0x13) {
+	*	\PWDE = 0
 	* }
 	*/
 } /* End Method(_SB._INI) */
@@ -186,10 +170,10 @@ Scope(\){
 		CMTI,      8,
 		/* Client Management Data register */
 		G64E,   1,
-		G64O,      1,
-		G32O,      2,
+		G64O,   1,
+		G32O,   2,
 		,       2,
-		GPSL,     2,
+		GPSL,   2,
 	}
 
 	/* GPM Port register */
@@ -226,8 +210,7 @@ Scope(\){
 		PIOD, 0x00000008,
 	}
 	IndexField (PIOI, PIOD, ByteAcc, NoLock, Preserve) {
-		Offset(0x00),	/* MiscControl */
-		, 1,
+		    , 1,	/* MiscControl */
 		T1EE, 1,
 		T2EE, 1,
 		Offset(0x01),	/* MiscStatus */
@@ -354,12 +337,3 @@ Scope(\){
 		PWDA, 1,
 	}
 }
-
-Scope(\_SB) {
-	Device(PWRB) {	/* Start Power button device */
-		Name(_HID, EISAID("PNP0C0C"))
-		Name(_UID, 0xAA)
-		Name(_PRW, Package () {3, 0x04})	/* wake from S1-S4 */
-		Name(_STA, 0x0B)	/* sata is invisible */
-	}
-} /* End Scope(_SB)  */

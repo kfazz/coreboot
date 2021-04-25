@@ -1,24 +1,8 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2007-2009 coresystems GmbH
-## Copyright (C) 2011 Sven Schnelle <svens@stackframe.org>
-##
-## This program is free software; you can redistribute it and/or
-## modify it under the terms of the GNU General Public License as
-## published by the Free Software Foundation; version 2 of
-## the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+## SPDX-License-Identifier: GPL-2.0-only
 
 chip northbridge/intel/i945
 	# IGD Displays
-	register "gfx.ndid" = "3"
-	register "gfx.did" = "{ 0x80000100, 0x80000240, 0x80000410, 0x80000410, 0x00000005 }"
+	register "gfx" = "GMA_STATIC_DISPLAYS(0)"
 
 	register "gpu_hotplug" = "0x00000220"
 	register "gpu_lvds_use_spread_spectrum_clock" = "1"
@@ -72,7 +56,6 @@ chip northbridge/intel/i945
 			register "gpi12_routing" = "2"
 			register "gpi8_routing" = "2"
 
-			register "sata_ahci" = "0x1"
 			register "sata_ports_implemented" = "0x01"
 
 			register "gpe0_en" = "0x11000006"
@@ -82,6 +65,10 @@ chip northbridge/intel/i945
 			register "c3_latency" = "0x23"
 			register "docking_supported" = "1"
 			register "p_cnt_throttling_supported" = "1"
+
+			register "gen1_dec" = "0x007c1601"
+			register "gen2_dec" = "0x000c15e1"
+			register "gen3_dec" = "0x001c1681"
 
 			device pci 1b.0 on # Audio Controller
 				subsystemid 0x17aa 0x2010
@@ -117,7 +104,6 @@ chip northbridge/intel/i945
 					end
 					register "scr" = "0x0844d070"
 					register "mrr" = "0x01d01002"
-
 				end
 			end
 			device pci 1e.2 off end # AC'97 Audio
@@ -125,9 +111,7 @@ chip northbridge/intel/i945
 			device pci 1f.0 on # PCI-LPC bridge
 				subsystemid 0x17aa 0x2009
 				chip ec/lenovo/pmh7
-					device pnp ff.1 on # dummy
-					end
-
+					device pnp ff.1 on end # dummy
 					register "backlight_enable" = "0x01"
 					register "dock_event_enable" = "0x01"
 				end
@@ -138,7 +122,6 @@ chip northbridge/intel/i945
 						io 0x64 = 0x1600
 						io 0x66 = 0x1604
 					end
-
 
 					register "config0" = "0xa6"
 					register "config1" = "0x05"
@@ -161,10 +144,6 @@ chip northbridge/intel/i945
 					register "eventb_enable" = "0xff"
 					register "eventc_enable" = "0x3c"
 					register "eventd_enable" = "0xff"
-
-					register "has_bdc_detection" = "1"
-					register "bdc_gpio_num" = "7"
-					register "bdc_gpio_lvl" = "0"
 				end
 				chip superio/nsc/pc87382
 					device pnp 164e.2 on # IR
@@ -185,8 +164,7 @@ chip northbridge/intel/i945
 				end
 
 				chip superio/nsc/pc87384
-					device pnp 2e.0 off #FDC
-					end
+					device pnp 2e.0 off end #FDC
 
 					device pnp 2e.1 on # Parallel Port
 						io 0x60 = 0x3bc
@@ -207,12 +185,8 @@ chip northbridge/intel/i945
 						io 0x60 = 0x1620
 					end
 
-					device pnp 2e.a off # WDT
-					end
+					device pnp 2e.a off end # WDT
 				end
-			end
-			device pci 1f.1 on # IDE
-				subsystemid 0x17aa 0x200c
 			end
 			device pci 1f.2 on # SATA
 				subsystemid 0x17aa 0x200d
@@ -220,12 +194,6 @@ chip northbridge/intel/i945
 			device pci 1f.3 on # SMBUS
 				subsystemid 0x17aa 0x200f
 				chip drivers/i2c/ck505
-					register "mask" = "{ 0xff, 0xff, 0xff,
-						 0xff, 0xff, 0xff, 0xff, 0xff,
-						 0xff, 0xff, 0xff, 0xff }"
-					register "regs" = "{ 0x2e, 0xf7, 0x3c,
-						 0x20, 0x01, 0x00, 0x1b, 0x01,
-						 0x54, 0xff, 0xff, 0x07 }"
 					device i2c 69 on end
 				end
 				# eeprom, 8 virtual devices, same chip

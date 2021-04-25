@@ -19,15 +19,11 @@ config BOARD_SPECIFIC_OPTIONS
 
 config MAINBOARD_DIR
 	string
-	default roda/rk9
+	default "roda/rk9"
 
 config MAINBOARD_PART_NUMBER
 	string
 	default "RK9"
-
-config MAX_CPUS
-	int
-	default 2
 
 config CBFS_SIZE
 	hex

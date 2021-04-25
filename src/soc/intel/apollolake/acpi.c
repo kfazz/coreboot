@@ -1,30 +1,14 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2016 Intel Corp.
- * Copyright (C) 2017-2019 Siemens AG
- * (Written by Lance Zhao <lijian.zhao@intel.com> for Intel Corp.)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <arch/acpi.h>
-#include <arch/acpigen.h>
+#include <acpi/acpi.h>
+#include <acpi/acpi_gnvs.h>
+#include <acpi/acpigen.h>
 #include <console/console.h>
+#include <device/device.h>
 #include <device/mmio.h>
 #include <arch/smp/mpspec.h>
 #include <assert.h>
 #include <device/pci_ops.h>
-#include <cbmem.h>
-#include <cpu/x86/smm.h>
 #include <gpio.h>
 #include <intelblocks/acpi.h>
 #include <intelblocks/pmclib.h>
@@ -35,7 +19,6 @@
 #include <soc/nvs.h>
 #include <soc/pci_devs.h>
 #include <soc/systemagent.h>
-#include <string.h>
 
 #include "chip.h"
 
@@ -87,34 +70,10 @@ acpi_cstate_t *soc_get_cstate_map(size_t *entries)
 	return cstate_map;
 }
 
-void acpi_create_gnvs(struct global_nvs_t *gnvs)
+void soc_fill_gnvs(struct global_nvs *gnvs)
 {
 	struct soc_intel_apollolake_config *cfg;
-	struct device *dev = SA_DEV_ROOT;
-
-	/* Clear out GNVS. */
-	memset(gnvs, 0, sizeof(*gnvs));
-
-	if (CONFIG(CONSOLE_CBMEM))
-		gnvs->cbmc = (uintptr_t) cbmem_find(CBMEM_ID_CONSOLE);
-
-	if (CONFIG(CHROMEOS)) {
-		/* Initialize Verified Boot data */
-		chromeos_init_chromeos_acpi(&gnvs->chromeos);
-		gnvs->chromeos.vbt2 = ACTIVE_ECFW_RO;
-	}
-
-	/* Set unknown wake source */
-	gnvs->pm1i = ~0ULL;
-
-	/* CPU core count */
-	gnvs->pcnt = dev_count_cpu();
-
-	if (!dev || !dev->chip_info) {
-		printk(BIOS_ERR, "BUG! Could not find SOC devicetree config\n");
-		return;
-	}
-	cfg = dev->chip_info;
+	cfg = config_of_soc();
 
 	/* Enable DPTF based on mainboard configuration */
 	gnvs->dpte = cfg->dptf_enable;
@@ -133,6 +92,9 @@ void acpi_create_gnvs(struct global_nvs_t *gnvs)
 
 	if (CONFIG(SOC_INTEL_COMMON_BLOCK_SGX))
 		sgx_fill_gnvs(gnvs);
+
+	/* Fill in Above 4GB MMIO resource */
+	sa_fill_gnvs(gnvs);
 }
 
 uint32_t acpi_fill_soc_wake(uint32_t generic_pm1_en,
@@ -158,7 +120,7 @@ int soc_madt_sci_irq_polarity(int sci)
 void soc_fill_fadt(acpi_fadt_t *fadt)
 {
 	const struct soc_intel_apollolake_config *cfg;
-	struct device *dev = SA_DEV_ROOT;
+	cfg = config_of_soc();
 
 	fadt->pm_tmr_blk = ACPI_BASE_ADDRESS + PM1_TMR;
 
@@ -170,23 +132,18 @@ void soc_fill_fadt(acpi_fadt_t *fadt)
 
 	fadt->iapc_boot_arch = ACPI_FADT_LEGACY_DEVICES | ACPI_FADT_8042;
 
-	fadt->x_pm_tmr_blk.space_id = 1;
+	fadt->x_pm_tmr_blk.space_id = ACPI_ADDRESS_SPACE_IO;
 	fadt->x_pm_tmr_blk.bit_width = fadt->pm_tmr_len * 8;
 	fadt->x_pm_tmr_blk.addrl = ACPI_BASE_ADDRESS + PM1_TMR;
+	fadt->x_pm_tmr_blk.access_size = ACPI_ACCESS_SIZE_DWORD_ACCESS;
 
-	if (!dev || !dev->chip_info) {
-		printk(BIOS_ERR, "BUG! Could not find SOC devicetree config\n");
-		return;
-	}
-	cfg = dev->chip_info;
-
-	if(cfg->lpss_s0ix_enable)
+	if (cfg->lpss_s0ix_enable)
 		fadt->flags |= ACPI_FADT_LOW_PWR_IDLE_S0;
 }
 
 static unsigned long soc_fill_dmar(unsigned long current)
 {
-	struct device *const igfx_dev = dev_find_slot(0, SA_DEVFN_IGD);
+	struct device *const igfx_dev = pcidev_path_on_root(SA_DEVFN_IGD);
 	uint64_t gfxvtbar = MCHBAR64(GFXVTBAR) & VTBAR_MASK;
 	uint64_t defvtbar = MCHBAR64(DEFVTBAR) & VTBAR_MASK;
 	bool gfxvten = MCHBAR32(GFXVTBAR) & VTBAR_ENABLED;
@@ -194,14 +151,35 @@ static unsigned long soc_fill_dmar(unsigned long current)
 	unsigned long tmp;
 
 	/* IGD has to be enabled, GFXVTBAR set and enabled. */
-	if (igfx_dev && igfx_dev->enabled && gfxvtbar && gfxvten) {
+	const bool emit_igd = is_dev_enabled(igfx_dev) && gfxvtbar && gfxvten;
+
+	/* First, add DRHD entries */
+	if (emit_igd) {
 		tmp = current;
 
 		current += acpi_create_dmar_drhd(current, 0, 0, gfxvtbar);
 		current += acpi_create_dmar_ds_pci(current, 0, 2, 0);
 		acpi_dmar_drhd_fixup(tmp, current);
+	}
 
-		/* Add RMRR entry */
+	/* DEFVTBAR has to be set and enabled. */
+	if (defvtbar && defvten) {
+		tmp = current;
+		union p2sb_bdf ibdf = p2sb_get_ioapic_bdf();
+		union p2sb_bdf hbdf = p2sb_get_hpet_bdf();
+		p2sb_hide();
+
+		current += acpi_create_dmar_drhd(current,
+				DRHD_INCLUDE_PCI_ALL, 0, defvtbar);
+		current += acpi_create_dmar_ds_ioapic(current,
+				2, ibdf.bus, ibdf.dev, ibdf.fn);
+		current += acpi_create_dmar_ds_msi_hpet(current,
+				0, hbdf.bus, hbdf.dev, hbdf.fn);
+		acpi_dmar_drhd_fixup(tmp, current);
+	}
+
+	/* Then, add RMRR entries after all DRHD entries */
+	if (emit_igd) {
 		tmp = current;
 		current += acpi_create_dmar_rmrr(current, 0,
 				sa_get_gsm_base(), sa_get_tolud_base() - 1);
@@ -209,34 +187,10 @@ static unsigned long soc_fill_dmar(unsigned long current)
 		acpi_dmar_rmrr_fixup(tmp, current);
 	}
 
-	/* DEFVTBAR has to be set and enabled. */
-	if (defvtbar && defvten) {
-		tmp = current;
-		/*
-		 * P2SB may already be hidden. There's no clear rule, when.
-		 * It is needed to get bus, device and function for IOAPIC and
-		 * HPET device which is stored in P2SB device. So unhide it to
-		 * get the info and hide it again when done.
-		 */
-		p2sb_unhide();
-		struct device *p2sb_dev = dev_find_slot(0, PCH_DEVFN_P2SB);
-		uint16_t ibdf = pci_read_config16(p2sb_dev, PCH_P2SB_IBDF);
-		uint16_t hbdf = pci_read_config16(p2sb_dev, PCH_P2SB_HBDF);
-		p2sb_hide();
-
-		current += acpi_create_dmar_drhd(current,
-				DRHD_INCLUDE_PCI_ALL, 0, defvtbar);
-		current += acpi_create_dmar_ds_ioapic(current,
-				2, ibdf >> 8, PCI_SLOT(ibdf), PCI_FUNC(ibdf));
-		current += acpi_create_dmar_ds_msi_hpet(current,
-				0, hbdf >> 8, PCI_SLOT(hbdf), PCI_FUNC(hbdf));
-		acpi_dmar_drhd_fixup(tmp, current);
-	}
-
 	return current;
 }
 
-unsigned long sa_write_acpi_tables(struct device *const dev,
+unsigned long sa_write_acpi_tables(const struct device *const dev,
 				     unsigned long current,
 				     struct acpi_rsdp *const rsdp)
 {
@@ -300,8 +254,6 @@ static int acpigen_soc_get_gpio_val(unsigned int gpio_num, uint32_t mask)
 
 	/* Store (One, Local0) */
 	acpigen_write_store_ops(ONE_OP, LOCAL0_OP);
-
-	acpigen_pop_len();	/* If */
 
 	/* Else */
 	acpigen_write_else();

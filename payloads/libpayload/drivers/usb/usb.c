@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2008-2010 coresystems GmbH
  *
@@ -29,6 +28,7 @@
 
 //#define USB_DEBUG
 
+#include <inttypes.h>
 #include <libpayload-config.h>
 #include <usb/usb.h>
 
@@ -87,6 +87,10 @@ usb_poll (void)
 {
 	if (usb_hcs == 0)
 		return;
+
+	if (usb_poll_prepare)
+		usb_poll_prepare();
+
 	hci_t *controller = usb_hcs;
 	while (controller != NULL) {
 		int i;
@@ -226,7 +230,7 @@ get_free_address (hci_t *controller)
 	int i = controller->latest_address + 1;
 	for (; i != controller->latest_address; i++) {
 		if (i >= ARRAY_SIZE(controller->devices) || i < 1) {
-			usb_debug("WARNING: Device addresses for controller %#x"
+			usb_debug("WARNING: Device addresses for controller %#" PRIxPTR
 				  " wrapped around!\n", controller->reg_base);
 			i = 0;
 			continue;
@@ -265,12 +269,14 @@ usb_decode_mps0(usb_speed speed, u8 bMaxPacketSize0)
 		}
 		return bMaxPacketSize0;
 	case SUPER_SPEED:
+	/* Intentional fallthrough */
+	case SUPER_SPEED_PLUS:
 		if (bMaxPacketSize0 != 9) {
 			usb_debug("Invalid MPS0: 0x%02x\n", bMaxPacketSize0);
 			bMaxPacketSize0 = 9;
 		}
 		return 1 << bMaxPacketSize0;
-	default: 	/* GCC is stupid and cannot deal with enums correctly */
+	default:	/* GCC is stupid and cannot deal with enums correctly */
 		return 8;
 	}
 }
@@ -284,6 +290,8 @@ int speed_to_default_mps(usb_speed speed)
 	case HIGH_SPEED:
 		return 64;
 	case SUPER_SPEED:
+	/* Intentional fallthrough */
+	case SUPER_SPEED_PLUS:
 	default:
 		return 512;
 	}
@@ -319,6 +327,8 @@ usb_decode_interval(usb_speed speed, const endpoint_type type, const unsigned ch
 			return LOG2(bInterval);
 		}
 	case SUPER_SPEED:
+	/* Intentional fallthrough */
+	case SUPER_SPEED_PLUS:
 		switch (type) {
 		case ISOCHRONOUS: case INTERRUPT:
 			return bInterval - 1;
@@ -493,7 +503,7 @@ set_address (hci_t *controller, usb_speed speed, int hubport, int hubaddr)
 		break;
 	}
 
-	/* Gather up all endpoints belonging to this inteface */
+	/* Gather up all endpoints belonging to this interface */
 	dev->num_endp = 1;
 	for (; ptr + 2 <= end && ptr[0] && ptr + ptr[0] <= end; ptr += ptr[0]) {
 		if (ptr[1] == DT_INTF || ptr[1] == DT_CFG ||
@@ -628,14 +638,14 @@ set_address (hci_t *controller, usb_speed speed, int hubport, int hubaddr)
 
 /*
  * Should be called by the hub drivers whenever a physical detach occurs
- * and can be called by usb class drivers if they are unsatisfied with a
+ * and can be called by USB class drivers if they are unsatisfied with a
  * malfunctioning device.
  */
 void
 usb_detach_device(hci_t *controller, int devno)
 {
 	/* check if device exists, as we may have
-	   been called yet by the usb class driver */
+	   been called yet by the USB class driver */
 	if (controller->devices[devno]) {
 		controller->devices[devno]->destroy (controller->devices[devno]);
 
@@ -648,7 +658,7 @@ usb_detach_device(hci_t *controller, int devno)
 		controller->devices[devno]->configuration = NULL;
 
 		/* Tear down the device itself *after* destroy_device()
-		 * has had a chance to interoogate it. */
+		 * has had a chance to interrogate it. */
 		free(controller->devices[devno]);
 		controller->devices[devno] = NULL;
 	}
@@ -657,7 +667,7 @@ usb_detach_device(hci_t *controller, int devno)
 int
 usb_attach_device(hci_t *controller, int hubaddress, int port, usb_speed speed)
 {
-	static const char* speeds[] = { "full", "low", "high", "super" };
+	static const char *speeds[] = { "full", "low", "high", "super", "ultra" };
 	usb_debug ("%sspeed device\n", (speed < sizeof(speeds) / sizeof(char*))
 		? speeds[speed] : "invalid value - no");
 	int newdev = set_address (controller, speed, port, hubaddress);
@@ -690,6 +700,14 @@ usb_generic_init (usbdev_t *dev)
 		usb_debug("Detaching device not used by payload\n");
 		usb_detach_device(dev->controller, dev->address);
 	}
+}
+
+/*
+ * returns the speed is above SUPER_SPEED or not
+ */
+_Bool is_usb_speed_ss(usb_speed speed)
+{
+	return (speed == SUPER_SPEED || speed == SUPER_SPEED_PLUS);
 }
 
 /*

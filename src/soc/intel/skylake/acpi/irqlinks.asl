@@ -1,33 +1,17 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /*
  * PIRQ routing control is in PCR ITSS region.
  *
  * Due to what appears to be an ACPI interpreter bug we do not use
  * the PCRB() method here as it may not be defined yet because the method
- * definiton depends on the order of the include files in pch.asl.
+ * definition depends on the order of the include files in pch.asl.
  *
  * https://bugs.acpica.org/show_bug.cgi?id=1201
  */
 OperationRegion (ITSS, SystemMemory,
-		 Add (PCR_ITSS_PIRQA_ROUT,
-		      Add (CONFIG_PCR_BASE_ADDRESS,
-		           ShiftLeft (PID_ITSS, PCR_PORTID_SHIFT))), 8)
+		 PCR_ITSS_PIRQA_ROUT + CONFIG_PCR_BASE_ADDRESS + (PID_ITSS << PCR_PORTID_SHIFT),
+		8)
 Field (ITSS, ByteAcc, NoLock, Preserve)
 {
 	PIRA, 8,	/* PIRQA Routing Control */
@@ -51,7 +35,7 @@ Device (LNKA)
 	Name (_PRS, ResourceTemplate ()
 	{
 		IRQ (Level, ActiveLow, Shared)
-			{ 3, 4, 5, 6, 10, 12, 14, 15 }
+			{ 3, 4, 5, 6, 10, 11, 12, 14, 15 }
 	})
 
 	Method (_CRS, 0, Serialized)
@@ -61,10 +45,10 @@ Device (LNKA)
 			IRQ (Level, ActiveLow, Shared) {}
 		})
 		CreateWordField (RTLA, 1, IRQ0)
-		Store (Zero, IRQ0)
+		IRQ0 = 0
 
 		/* Set the bit from PIRQ Routing Register */
-		ShiftLeft (1, And (^^PIRA, ^^IREM), IRQ0)
+		IRQ0 = 1 << (^^PIRA & ^^IREM)
 
 		Return (RTLA)
 	}
@@ -73,13 +57,13 @@ Device (LNKA)
 	{
 		CreateWordField (Arg0, 1, IRQ0)
 		FindSetRightBit (IRQ0, Local0)
-		Decrement (Local0)
-		Store (Local0, ^^PIRA)
+		Local0--
+		^^PIRA = Local0
 	}
 
 	Method (_STA, 0, Serialized)
 	{
-		If (And (^^PIRA, ^^IREN)) {
+		If (^^PIRA & ^^IREN) {
 			Return (0x9)
 		} Else {
 			Return (0xb)
@@ -88,7 +72,7 @@ Device (LNKA)
 
 	Method (_DIS, 0, Serialized)
 	{
-		Or (^^PIRA, ^^IREN, ^^PIRA)
+		^^PIRA |= ^^IREN
 	}
 }
 
@@ -100,7 +84,7 @@ Device (LNKB)
 	Name (_PRS, ResourceTemplate ()
 	{
 		IRQ (Level, ActiveLow, Shared)
-			{ 3, 4, 5, 6, 10, 12, 14, 15 }
+			{ 3, 4, 5, 6, 10, 11, 12, 14, 15 }
 	})
 
 	Method (_CRS, 0, Serialized)
@@ -110,10 +94,10 @@ Device (LNKB)
 			IRQ (Level, ActiveLow, Shared) {}
 		})
 		CreateWordField (RTLA, 1, IRQ0)
-		Store (Zero, IRQ0)
+		IRQ0 = 0
 
 		/* Set the bit from PIRQ Routing Register */
-		ShiftLeft (1, And (^^PIRB, ^^IREM), IRQ0)
+		IRQ0 = 1 << (^^PIRB & ^^IREM)
 
 		Return (RTLA)
 	}
@@ -122,13 +106,13 @@ Device (LNKB)
 	{
 		CreateWordField (Arg0, 1, IRQ0)
 		FindSetRightBit (IRQ0, Local0)
-		Decrement (Local0)
-		Store (Local0, ^^PIRB)
+		Local0--
+		^^PIRB = Local0
 	}
 
 	Method (_STA, 0, Serialized)
 	{
-		If (And (^^PIRB, ^^IREN)) {
+		If (^^PIRB & ^^IREN) {
 			Return (0x9)
 		} Else {
 			Return (0xb)
@@ -137,7 +121,7 @@ Device (LNKB)
 
 	Method (_DIS, 0, Serialized)
 	{
-		Or (^^PIRB, ^^IREN, ^^PIRB)
+		^^PIRB |= ^^IREN
 	}
 }
 
@@ -149,7 +133,7 @@ Device (LNKC)
 	Name (_PRS, ResourceTemplate ()
 	{
 		IRQ (Level, ActiveLow, Shared)
-			{ 3, 4, 5, 6, 10, 12, 14, 15 }
+			{ 3, 4, 5, 6, 10, 11, 12, 14, 15 }
 	})
 
 	Method (_CRS, 0, Serialized)
@@ -159,10 +143,10 @@ Device (LNKC)
 			IRQ (Level, ActiveLow, Shared) {}
 		})
 		CreateWordField (RTLA, 1, IRQ0)
-		Store (Zero, IRQ0)
+		IRQ0 = 0
 
 		/* Set the bit from PIRQ Routing Register */
-		ShiftLeft (1, And (^^PIRC, ^^IREM), IRQ0)
+		IRQ0 = 1 << (^^PIRC & ^^IREM)
 
 		Return (RTLA)
 	}
@@ -171,13 +155,13 @@ Device (LNKC)
 	{
 		CreateWordField (Arg0, 1, IRQ0)
 		FindSetRightBit (IRQ0, Local0)
-		Decrement (Local0)
-		Store (Local0, ^^PIRC)
+		Local0--
+		^^PIRC = Local0
 	}
 
 	Method (_STA, 0, Serialized)
 	{
-		If (And (^^PIRC, ^^IREN)) {
+		If (^^PIRC & ^^IREN) {
 			Return (0x9)
 		} Else {
 			Return (0xb)
@@ -186,7 +170,7 @@ Device (LNKC)
 
 	Method (_DIS, 0, Serialized)
 	{
-		Or (^^PIRC, ^^IREN, ^^PIRC)
+		^^PIRC |= ^^IREN
 	}
 }
 
@@ -198,7 +182,7 @@ Device (LNKD)
 	Name (_PRS, ResourceTemplate ()
 	{
 		IRQ (Level, ActiveLow, Shared)
-			{ 3, 4, 5, 6, 10, 12, 14, 15 }
+			{ 3, 4, 5, 6, 10, 11, 12, 14, 15 }
 	})
 
 	Method (_CRS, 0, Serialized)
@@ -208,10 +192,10 @@ Device (LNKD)
 			IRQ (Level, ActiveLow, Shared) {}
 		})
 		CreateWordField (RTLA, 1, IRQ0)
-		Store (Zero, IRQ0)
+		IRQ0 = 0
 
 		/* Set the bit from PIRQ Routing Register */
-		ShiftLeft (1, And (^^PIRD, ^^IREM), IRQ0)
+		IRQ0 = 1 << (^^PIRD & ^^IREM)
 
 		Return (RTLA)
 	}
@@ -220,13 +204,13 @@ Device (LNKD)
 	{
 		CreateWordField (Arg0, 1, IRQ0)
 		FindSetRightBit (IRQ0, Local0)
-		Decrement (Local0)
-		Store (Local0, ^^PIRD)
+		Local0--
+		^^PIRD = Local0
 	}
 
 	Method (_STA, 0, Serialized)
 	{
-		If (And (^^PIRD, ^^IREN)) {
+		If (^^PIRD & ^^IREN) {
 			Return (0x9)
 		} Else {
 			Return (0xb)
@@ -235,7 +219,7 @@ Device (LNKD)
 
 	Method (_DIS, 0, Serialized)
 	{
-		Or (^^PIRD, ^^IREN, ^^PIRD)
+		^^PIRD |= ^^IREN
 	}
 }
 
@@ -247,7 +231,7 @@ Device (LNKE)
 	Name (_PRS, ResourceTemplate ()
 	{
 		IRQ (Level, ActiveLow, Shared)
-			{ 3, 4, 5, 6, 10, 12, 14, 15 }
+			{ 3, 4, 5, 6, 10, 11, 12, 14, 15 }
 	})
 
 	Method (_CRS, 0, Serialized)
@@ -257,10 +241,10 @@ Device (LNKE)
 			IRQ (Level, ActiveLow, Shared) {}
 		})
 		CreateWordField (RTLA, 1, IRQ0)
-		Store (Zero, IRQ0)
+		IRQ0 = 0
 
 		/* Set the bit from PIRQ Routing Register */
-		ShiftLeft (1, And (^^PIRE, ^^IREM), IRQ0)
+		IRQ0 = 1 << (^^PIRE & ^^IREM)
 
 		Return (RTLA)
 	}
@@ -269,13 +253,13 @@ Device (LNKE)
 	{
 		CreateWordField (Arg0, 1, IRQ0)
 		FindSetRightBit (IRQ0, Local0)
-		Decrement (Local0)
-		Store (Local0, ^^PIRE)
+		Local0--
+		^^PIRE = Local0
 	}
 
 	Method (_STA, 0, Serialized)
 	{
-		If (And (^^PIRE, ^^IREN)) {
+		If (^^PIRE & ^^IREN) {
 			Return (0x9)
 		} Else {
 			Return (0xb)
@@ -284,7 +268,7 @@ Device (LNKE)
 
 	Method (_DIS, 0, Serialized)
 	{
-		Or (^^PIRE, ^^IREN, ^^PIRE)
+		^^PIRE |= ^^IREN
 	}
 }
 
@@ -296,7 +280,7 @@ Device (LNKF)
 	Name (_PRS, ResourceTemplate ()
 	{
 		IRQ (Level, ActiveLow, Shared)
-			{ 3, 4, 5, 6, 10, 12, 14, 15 }
+			{ 3, 4, 5, 6, 10, 11, 12, 14, 15 }
 	})
 
 	Method (_CRS, 0, Serialized)
@@ -306,10 +290,10 @@ Device (LNKF)
 			IRQ (Level, ActiveLow, Shared) {}
 		})
 		CreateWordField (RTLA, 1, IRQ0)
-		Store (Zero, IRQ0)
+		IRQ0 = 0
 
 		/* Set the bit from PIRQ Routing Register */
-		ShiftLeft (1, And (^^PIRF, ^^IREM), IRQ0)
+		IRQ0 = 1 << (^^PIRF & ^^IREM)
 
 		Return (RTLA)
 	}
@@ -318,13 +302,13 @@ Device (LNKF)
 	{
 		CreateWordField (Arg0, 1, IRQ0)
 		FindSetRightBit (IRQ0, Local0)
-		Decrement (Local0)
-		Store (Local0, ^^PIRF)
+		Local0--
+		^^PIRF = Local0
 	}
 
 	Method (_STA, 0, Serialized)
 	{
-		If (And (^^PIRF, ^^IREN)) {
+		If (^^PIRF & ^^IREN) {
 			Return (0x9)
 		} Else {
 			Return (0xb)
@@ -333,7 +317,7 @@ Device (LNKF)
 
 	Method (_DIS, 0, Serialized)
 	{
-		Or (^^PIRF, ^^IREN, ^^PIRF)
+		^^PIRF |= ^^IREN
 	}
 }
 
@@ -345,7 +329,7 @@ Device (LNKG)
 	Name (_PRS, ResourceTemplate ()
 	{
 		IRQ (Level, ActiveLow, Shared)
-			{ 3, 4, 5, 6, 10, 12, 14, 15 }
+			{ 3, 4, 5, 6, 10, 11, 12, 14, 15 }
 	})
 
 	Method (_CRS, 0, Serialized)
@@ -355,10 +339,10 @@ Device (LNKG)
 			IRQ (Level, ActiveLow, Shared) {}
 		})
 		CreateWordField (RTLA, 1, IRQ0)
-		Store (Zero, IRQ0)
+		IRQ0 = 0
 
 		/* Set the bit from PIRQ Routing Register */
-		ShiftLeft (1, And (^^PIRG, ^^IREM), IRQ0)
+		IRQ0 = 1 <<  (^^PIRG & ^^IREM)
 
 		Return (RTLA)
 	}
@@ -367,13 +351,13 @@ Device (LNKG)
 	{
 		CreateWordField (Arg0, 1, IRQ0)
 		FindSetRightBit (IRQ0, Local0)
-		Decrement (Local0)
-		Store (Local0, ^^PIRG)
+		Local0--
+		^^PIRG = Local0
 	}
 
 	Method (_STA, 0, Serialized)
 	{
-		If (And (^^PIRG, ^^IREN)) {
+		If (^^PIRG & ^^IREN) {
 			Return (0x9)
 		} Else {
 			Return (0xb)
@@ -382,7 +366,7 @@ Device (LNKG)
 
 	Method (_DIS, 0, Serialized)
 	{
-		Or (^^PIRG, ^^IREN, ^^PIRG)
+		^^PIRG |= ^^IREN
 	}
 }
 
@@ -394,7 +378,7 @@ Device (LNKH)
 	Name (_PRS, ResourceTemplate ()
 	{
 		IRQ (Level, ActiveLow, Shared)
-			{ 3, 4, 5, 6, 10, 12, 14, 15 }
+			{ 3, 4, 5, 6, 10, 11, 12, 14, 15 }
 	})
 
 	Method (_CRS, 0, Serialized)
@@ -404,10 +388,10 @@ Device (LNKH)
 			IRQ (Level, ActiveLow, Shared) {}
 		})
 		CreateWordField (RTLA, 1, IRQ0)
-		Store (Zero, IRQ0)
+		IRQ0 = 0
 
 		/* Set the bit from PIRQ Routing Register */
-		ShiftLeft (1, And (^^PIRH, ^^IREM), IRQ0)
+		IRQ0 = 1 << (^^PIRH & ^^IREM)
 
 		Return (RTLA)
 	}
@@ -416,13 +400,13 @@ Device (LNKH)
 	{
 		CreateWordField (Arg0, 1, IRQ0)
 		FindSetRightBit (IRQ0, Local0)
-		Decrement (Local0)
-		Store (Local0, ^^PIRH)
+		Local0--
+		^^PIRH = Local0
 	}
 
 	Method (_STA, 0, Serialized)
 	{
-		If (And (^^PIRH, ^^IREN)) {
+		If (^^PIRH & ^^IREN) {
 			Return (0x9)
 		} Else {
 			Return (0xb)
@@ -431,6 +415,6 @@ Device (LNKH)
 
 	Method (_DIS, 0, Serialized)
 	{
-		Or (^^PIRH, ^^IREN, ^^PIRH)
+		^^PIRH |= ^^IREN
 	}
 }

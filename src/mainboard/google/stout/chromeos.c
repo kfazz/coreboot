@@ -1,24 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011-2012 The ChromiumOS Authors.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <string.h>
 #include <bootmode.h>
+#include <boot/coreboot_tables.h>
 #include <device/pci_ops.h>
 #include <console/console.h>
 #include <device/device.h>
-#include <device/pci.h>
 
 #include <southbridge/intel/bd82x6x/pch.h>
 #include <southbridge/intel/common/gpio.h>
@@ -26,18 +12,9 @@
 #include "ec.h"
 #include <ec/quanta/it8518/ec.h>
 
-#if ENV_RAMSTAGE
-#include <boot/coreboot_tables.h>
-
 void fill_lb_gpios(struct lb_gpios *gpios)
 {
 	struct lb_gpio chromeos_gpios[] = {
-		/* Write Protect: GPIO7 */
-		{7, ACTIVE_LOW, !get_write_protect_state(), "write protect"},
-
-		/* Recovery: Virtual switch */
-		{-1, ACTIVE_HIGH, get_recovery_mode_switch(), "recovery"},
-
 		/* Lid Switch: Virtual switch */
 		{-1, ACTIVE_HIGH, get_lid_switch(), "lid"},
 
@@ -54,7 +31,6 @@ void fill_lb_gpios(struct lb_gpios *gpios)
 	};
 	lb_add_gpios(gpios, chromeos_gpios, ARRAY_SIZE(chromeos_gpios));
 }
-#endif
 
 int get_write_protect_state(void)
 {
@@ -77,31 +53,24 @@ int get_lid_switch(void)
  */
 int get_recovery_mode_switch(void)
 {
-#ifdef __PRE_RAM__
-	pci_devfn_t dev = PCI_DEV(0, 0x1f, 0);
-#else
-	static int ec_in_rec_mode = 0;
-	static int ec_rec_flag_good = 0;
-	struct device *dev = pcidev_on_root(0x1f, 0);
-#endif
+	static int ec_in_rec_mode;
+	static int ec_rec_flag_good;
+
+	if (ec_rec_flag_good)
+		return ec_in_rec_mode;
+
+	const pci_devfn_t dev = PCI_DEV(0, 0x1f, 0);
+	u8 reg8 = pci_s_read_config8(dev, GEN_PMCON_3);
 
 	u8 ec_status = ec_read(EC_STATUS_REG);
-	u8 reg8 = pci_read_config8(dev, GEN_PMCON_3);
 
 	printk(BIOS_SPEW,"%s:  EC status:%#x   RTC_BAT: %x\n",
 			__func__, ec_status, reg8 & RTC_BATTERY_DEAD);
 
-#ifdef __PRE_RAM__
-	return (((reg8 & RTC_BATTERY_DEAD) != 0) &&
-	         ((ec_status & 0x3) == EC_IN_RECOVERY_MODE));
-#else
-	if (!ec_rec_flag_good) {
-		ec_in_rec_mode = (((reg8 & RTC_BATTERY_DEAD) != 0) &&
-		                     ((ec_status & 0x3) == EC_IN_RECOVERY_MODE));
-		ec_rec_flag_good = 1;
-	}
+	ec_in_rec_mode = (((reg8 & RTC_BATTERY_DEAD) != 0) &&
+				((ec_status & 0x3) == EC_IN_RECOVERY_MODE));
+	ec_rec_flag_good = 1;
 	return ec_in_rec_mode;
-#endif
 }
 
 static const struct cros_gpio cros_gpios[] = {

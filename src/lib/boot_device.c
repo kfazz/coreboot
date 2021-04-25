@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot_device.h>
 
@@ -20,7 +7,7 @@ void __weak boot_device_init(void)
 	/* Provide weak do-nothing init. */
 }
 
-int __weak boot_device_wp_region(struct region_device *rd,
+int __weak boot_device_wp_region(const struct region_device *rd,
 				 const enum bootdev_prot_type type)
 {
 	/* return a failure, make aware WP is not implemented */

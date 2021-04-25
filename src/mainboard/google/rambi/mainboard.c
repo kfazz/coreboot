@@ -1,40 +1,17 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- * Copyright (C) 2011 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <types.h>
 #include <device/device.h>
-#include <device/pci_def.h>
-#include <device/pci_ops.h>
 #include <console/console.h>
 #if CONFIG(VGA_ROM_RUN)
 #include <x86emu/x86emu.h>
 #endif
-#include <arch/acpi.h>
 #include <arch/interrupt.h>
-#include <boot/coreboot_tables.h>
 #include <smbios.h>
 #include "ec.h"
 #include <variant/onboard.h>
 #include <soc/gpio.h>
 #include <bootstate.h>
 #include <vendorcode/google/chromeos/chromeos.h>
-
-void mainboard_suspend_resume(void)
-{
-}
 
 #if CONFIG(VGA_ROM_RUN)
 static int int15_handler(void)
@@ -51,7 +28,7 @@ static int int15_handler(void)
 		 *  bit 2 = Graphics Stretching
 		 *  bit 1 = Text Stretching
 		 *  bit 0 = Centering (do not set with bit1 or bit2)
-		 *  0     = video bios default
+		 *  0     = video BIOS default
 		 */
 		X86_AX = 0x005f;
 		X86_CX = 0x0001;
@@ -142,7 +119,8 @@ static int mainboard_smbios_data(struct device *dev, int *handle,
 		BOARD_TRACKPAD_I2C_BUS,         /* segment */
 		BOARD_TRACKPAD_I2C_ADDR,        /* bus */
 		0,                              /* device */
-		0);                             /* function */
+		0,                             /* function */
+		SMBIOS_DEVICE_TYPE_OTHER);	/* device type */
 #endif
 #ifdef BOARD_TOUCHSCREEN_NAME
 	len += smbios_write_type41(
@@ -152,7 +130,8 @@ static int mainboard_smbios_data(struct device *dev, int *handle,
 		BOARD_TOUCHSCREEN_I2C_BUS,      /* segment */
 		BOARD_TOUCHSCREEN_I2C_ADDR,     /* bus */
 		0,                              /* device */
-		0);                             /* function */
+		0,                             /* function */
+		SMBIOS_DEVICE_TYPE_OTHER);	/* device type */
 #endif
 	return len;
 }
@@ -164,7 +143,7 @@ static void mainboard_enable(struct device *dev)
 {
 	dev->ops->init = mainboard_init;
 	dev->ops->get_smbios_data = mainboard_smbios_data;
-	dev->ops->acpi_inject_dsdt_generator = chromeos_dsdt_generator;
+	dev->ops->acpi_inject_dsdt = chromeos_dsdt_generator;
 #if CONFIG(VGA_ROM_RUN)
 	/* Install custom int15 handler for VGA OPROM */
 	mainboard_interrupt_handlers(0x15, &int15_handler);

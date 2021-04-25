@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2016 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <bootstate.h>
 #include <cbfs.h>
@@ -27,7 +14,6 @@
 #define TEST_PARAM_MAX_SIZE		100
 #define MMA_DATA_SIGNATURE		(('M' << 0) | ('M' << 8) | \
 					('A' << 16) | ('D' << 24))
-#define MMA_CBFS_REGION			"COREBOOT"
 
 struct mma_data_container {
 	uint32_t mma_signature; /* "MMAD" */
@@ -112,31 +98,20 @@ static int label_value(const char *haystack, size_t haystack_sz,
 	return 0;
 }
 
-int mma_locate_param(struct mma_config_param *mma_cfg)
+int mma_map_param(struct mma_config_param *mma_cfg)
 {
 	void *mma_test_metadata;
 	size_t mma_test_metadata_file_len;
 	char test_filename[TEST_NAME_MAX_SIZE],
 		test_param_filename[TEST_PARAM_MAX_SIZE];
-	struct cbfsf metadata_fh, test_content_fh, test_param_fh;
-	uint32_t mma_type = CBFS_TYPE_MMA;
-	uint32_t efi_type = CBFS_TYPE_EFI;
 	bool metadata_parse_flag = true;
 
 	printk(BIOS_DEBUG, "MMA: Entry %s\n", __func__);
 
-	if (cbfs_locate_file_in_region(&metadata_fh, MMA_CBFS_REGION,
-				MMA_TEST_METADATA_FILENAME, &mma_type)) {
-		printk(BIOS_DEBUG, "MMA: Failed to locate %s\n",
-				MMA_TEST_METADATA_FILENAME);
-		return -1;
-	}
-
-	mma_test_metadata = rdev_mmap_full(&metadata_fh.data);
-	mma_test_metadata_file_len = region_device_sz(&metadata_fh.data);
-
-	if (!mma_test_metadata || !mma_test_metadata_file_len) {
-		printk(BIOS_DEBUG, "MMA: Failed to read %s\n",
+	mma_test_metadata = cbfs_ro_map(MMA_TEST_METADATA_FILENAME,
+					&mma_test_metadata_file_len);
+	if (!mma_test_metadata) {
+		printk(BIOS_DEBUG, "MMA: Failed to map %s\n",
 				MMA_TEST_METADATA_FILENAME);
 		return -1;
 	}
@@ -158,7 +133,7 @@ int mma_locate_param(struct mma_config_param *mma_cfg)
 		metadata_parse_flag = false;
 	}
 
-	rdev_munmap(&metadata_fh.data, mma_test_metadata);
+	cbfs_unmap(mma_test_metadata);
 
 	if (!metadata_parse_flag)
 		return -1;
@@ -166,23 +141,17 @@ int mma_locate_param(struct mma_config_param *mma_cfg)
 	printk(BIOS_DEBUG, "MMA: Got MMA_TEST_NAME=%s MMA_TEST_PARAM=%s\n",
 			test_filename, test_param_filename);
 
-	if (cbfs_locate_file_in_region(&test_content_fh, MMA_CBFS_REGION,
-				test_filename, &efi_type)) {
-		printk(BIOS_DEBUG, "MMA: Failed to locate %s\n",
-				test_filename);
+	mma_cfg->test_content = cbfs_ro_map(test_filename, &mma_cfg->test_content_size);
+	if (!mma_cfg->test_content) {
+		printk(BIOS_DEBUG, "MMA: Failed to map %s\n", test_filename);
 		return -1;
 	}
 
-	cbfs_file_data(&mma_cfg->test_content, &test_content_fh);
-
-	if (cbfs_locate_file_in_region(&test_param_fh, MMA_CBFS_REGION,
-				test_param_filename, &mma_type)) {
-		printk(BIOS_DEBUG, "MMA: Failed to locate %s\n",
-				test_param_filename);
+	mma_cfg->test_param = cbfs_ro_map(test_param_filename, &mma_cfg->test_param_size);
+	if (!mma_cfg->test_param) {
+		printk(BIOS_DEBUG, "MMA: Failed to map %s\n", test_param);
 		return -1;
 	}
-
-	cbfs_file_data(&mma_cfg->test_param, &test_param_fh);
 
 	printk(BIOS_DEBUG, "MMA: %s exit success\n", __func__);
 
@@ -219,7 +188,7 @@ static void save_mma_results_data(void *unused)
 	memset(mma_data, 0, mma_data_size);
 
 	printk(BIOS_DEBUG,
-		"MMA: copy MMA data to CBMEM(src 0x%p, dest 0x%p, %u bytes)\n",
+		"MMA: copy MMA data to CBMEM(src %p, dest %p, %u bytes)\n",
 			mma_hob, mma_data, mma_hob_size);
 
 	mma_data->mma_signature = MMA_DATA_SIGNATURE;

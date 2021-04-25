@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef SOC_INTEL_COMMON_BLOCK_PCR_H
 #define SOC_INTEL_COMMON_BLOCK_PCR_H
@@ -20,7 +7,7 @@
 #define PCR_PORTID_SHIFT	16
 
 #if !defined(__ACPI__)
-#include <stdint.h>
+#include <types.h>
 
 uint32_t pcr_read32(uint8_t pid, uint16_t offset);
 uint16_t pcr_read16(uint8_t pid, uint16_t offset);
@@ -58,7 +45,6 @@ struct pcr_sbi_msg {
 	uint16_t bar; /* 0x09 - base address */
 	uint16_t fid; /* 0x0B - Function ID */
 };
-
 
 /*
  * API to perform sideband communication

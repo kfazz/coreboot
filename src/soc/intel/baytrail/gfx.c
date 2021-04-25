@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <device/pci_ops.h>
@@ -21,13 +8,11 @@
 #include <device/pci_ids.h>
 #include <drivers/intel/gma/opregion.h>
 #include <reg_script.h>
-#include <stdlib.h>
 #include <soc/gfx.h>
 #include <soc/iosf.h>
-#include <soc/nvs.h>
 #include <soc/pci_devs.h>
 #include <soc/ramstage.h>
-#include <cbmem.h>
+#include <types.h>
 
 #include "chip.h"
 
@@ -220,7 +205,7 @@ static const struct reg_script gfx_init_script[] = {
 
 static const struct reg_script gpu_pre_vbios_script[] = {
 	/* Make sure GFX is bus master with MMIO access */
-	REG_PCI_OR32(PCI_COMMAND, PCI_COMMAND_MASTER|PCI_COMMAND_MEMORY),
+	REG_PCI_OR32(PCI_COMMAND, PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY),
 	/* Display */
 	REG_IOSF_WRITE(IOSF_PORT_PMC, PUNIT_PWRGT_CONTROL, 0xc0),
 	REG_IOSF_POLL(IOSF_PORT_PMC, PUNIT_PWRGT_STATUS, 0xc0, 0xc0,
@@ -312,20 +297,20 @@ static void set_backlight_pwm(struct device *dev, uint32_t bklt_reg, int req_hz)
 
 static void gfx_panel_setup(struct device *dev)
 {
-	struct soc_intel_baytrail_config *config = dev->chip_info;
+	struct soc_intel_baytrail_config *config = config_of(dev);
 	struct reg_script gfx_pipea_init[] = {
 		/* CONTROL */
 		REG_RES_WRITE32(PCI_BASE_ADDRESS_0, PIPEA_REG(PP_CONTROL),
 				PP_CONTROL_UNLOCK | PP_CONTROL_EDP_FORCE_VDD),
 		/* POWER ON */
 		REG_RES_WRITE32(PCI_BASE_ADDRESS_0, PIPEA_REG(PP_ON_DELAYS),
-				(config->gpu_pipea_port_select << 30 |
-				 config->gpu_pipea_power_on_delay << 16 |
-				 config->gpu_pipea_light_on_delay)),
+				((u32)config->gpu_pipea_port_select << 30 |
+				 (u32)config->gpu_pipea_power_on_delay << 16 |
+				 (u32)config->gpu_pipea_light_on_delay)),
 		/* POWER OFF */
 		REG_RES_WRITE32(PCI_BASE_ADDRESS_0, PIPEA_REG(PP_OFF_DELAYS),
-				(config->gpu_pipea_power_off_delay << 16 |
-				 config->gpu_pipea_light_off_delay)),
+				((u32)config->gpu_pipea_power_off_delay << 16 |
+				 (u32)config->gpu_pipea_light_off_delay)),
 		/* DIVISOR */
 		REG_RES_RMW32(PCI_BASE_ADDRESS_0, PIPEA_REG(PP_DIVISOR),
 			      ~0x1f, config->gpu_pipea_power_cycle_delay),
@@ -337,13 +322,13 @@ static void gfx_panel_setup(struct device *dev)
 				PP_CONTROL_UNLOCK | PP_CONTROL_EDP_FORCE_VDD),
 		/* POWER ON */
 		REG_RES_WRITE32(PCI_BASE_ADDRESS_0, PIPEB_REG(PP_ON_DELAYS),
-				(config->gpu_pipeb_port_select << 30 |
-				 config->gpu_pipeb_power_on_delay << 16 |
-				 config->gpu_pipeb_light_on_delay)),
+				((u32)config->gpu_pipeb_port_select << 30 |
+				 (u32)config->gpu_pipeb_power_on_delay << 16 |
+				 (u32)config->gpu_pipeb_light_on_delay)),
 		/* POWER OFF */
 		REG_RES_WRITE32(PCI_BASE_ADDRESS_0, PIPEB_REG(PP_OFF_DELAYS),
-				(config->gpu_pipeb_power_off_delay << 16 |
-				 config->gpu_pipeb_light_off_delay)),
+				((u32)config->gpu_pipeb_power_off_delay << 16 |
+				 (u32)config->gpu_pipeb_light_off_delay)),
 		/* DIVISOR */
 		REG_RES_RMW32(PCI_BASE_ADDRESS_0, PIPEB_REG(PP_DIVISOR),
 			      ~0x1f, config->gpu_pipeb_power_cycle_delay),
@@ -365,21 +350,10 @@ static void gfx_panel_setup(struct device *dev)
 	}
 }
 
-uintptr_t gma_get_gnvs_aslb(const void *gnvs)
-{
-	const global_nvs_t *gnvs_ptr = gnvs;
-	return (uintptr_t)(gnvs_ptr ? gnvs_ptr->aslb : 0);
-}
-
-void gma_set_gnvs_aslb(void *gnvs, uintptr_t aslb)
-{
-	global_nvs_t *gnvs_ptr = gnvs;
-	if (gnvs_ptr)
-		gnvs_ptr->aslb = aslb;
-}
-
 static void gfx_init(struct device *dev)
 {
+	intel_gma_init_igd_opregion();
+
 	/* Pre VBIOS Init */
 	gfx_pre_vbios_init(dev);
 
@@ -393,35 +367,13 @@ static void gfx_init(struct device *dev)
 
 	/* Post VBIOS Init */
 	gfx_post_vbios_init(dev);
-
-	/* Restore opregion on S3 resume */
-	intel_gma_restore_opregion();
 }
 
-static unsigned long
-gma_write_acpi_tables(struct device *const dev,
-		      unsigned long current,
-		      struct acpi_rsdp *const rsdp)
+static void gma_generate_ssdt(const struct device *dev)
 {
-	igd_opregion_t *opregion = (igd_opregion_t *)current;
-	global_nvs_t *gnvs;
+	const struct soc_intel_baytrail_config *chip = dev->chip_info;
 
-	if (intel_gma_init_igd_opregion(opregion) != CB_SUCCESS)
-		return current;
-
-	current += sizeof(igd_opregion_t);
-
-	/* GNVS has been already set up */
-	gnvs = cbmem_find(CBMEM_ID_ACPI_GNVS);
-	if (gnvs) {
-		/* IGD OpRegion Base Address */
-		gma_set_gnvs_aslb(gnvs, (uintptr_t)opregion);
-	} else {
-		printk(BIOS_ERR, "Error: GNVS table not found.\n");
-	}
-
-	current = acpi_align_current(current);
-	return current;
+	drivers_intel_gma_displays_ssdt_generate(&chip->gfx);
 }
 
 static struct device_operations gfx_device_ops = {
@@ -430,7 +382,7 @@ static struct device_operations gfx_device_ops = {
 	.enable_resources	= pci_dev_enable_resources,
 	.init			= gfx_init,
 	.ops_pci		= &soc_pci_ops,
-	.write_acpi_tables	= gma_write_acpi_tables,
+	.acpi_fill_ssdt		= gma_generate_ssdt,
 };
 
 static const struct pci_driver gfx_driver __pci_driver = {

@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2016 Google Inc.
- * Copyright (C) 2017-2018 Siemens AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <hwilib.h>
@@ -25,15 +11,9 @@
 
 void mainboard_memory_init_params(FSPM_UPD *memupd)
 {
-	const struct pad_config *pads;
 	const struct lpddr4_swizzle_cfg *cfg;
 	const struct lpddr4_chan_swizzle_cfg *chan;
 	uint8_t spd[0x80];
-	size_t num;
-
-	/* setup early gpio before memory */
-	pads = variant_early_gpio_table(&num);
-	gpio_configure_pads(pads, num);
 
 	/*
 	 * Get DRAM configuration data from hwinfo block.

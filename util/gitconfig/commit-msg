@@ -1,8 +1,5 @@
-#!/bin/sh
-#
+#!/usr/bin/env sh
 # Part of Gerrit Code Review (http://code.google.com/p/gerrit/)
-#
-# Copyright (C) 2009 The Android Open Source Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -169,7 +166,7 @@ _gen_ChangeId() {
 	git hash-object -t commit --stdin
 }
 
-if ! grep -qi '^[[:space:]]*\+Signed-off-by:' "$MSG"; then
+if ! grep -qi '^[[:space:]]*Signed-off-by:' "$MSG"; then
 	printf "\nError: No Signed-off-by line in the commit message.\n"
 	exit 1
 fi

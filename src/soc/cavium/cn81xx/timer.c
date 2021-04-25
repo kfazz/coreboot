@@ -1,18 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
 /*
- * This file is part of the coreboot project.
- *
- * Copyright 2018       Facebook, Inc.
- * Copyright 2003-2017  Cavium Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  * Derived from Cavium's BSD-3 Clause OCTEONTX-SDK-6.2.0.
  */
 
@@ -20,7 +8,6 @@
 #include <device/mmio.h>
 #include <arch/lib_helpers.h>
 #include <console/console.h>
-#include <inttypes.h>
 #include <soc/clock.h>
 #include <soc/timer.h>
 #include <stdint.h>
@@ -63,7 +50,6 @@ check_member(cn81xx_timer, cc_imp_ctl, 0x100);
 check_member(cn81xx_timer, ctl_cntacr0, 0x20040);
 check_member(cn81xx_timer, cwd_wdog[0], 0x40000);
 check_member(cn81xx_timer, cwd_poke[0], 0x50000);
-
 
 #define GTI_CC_CNTCR_EN			(1 << 0)
 #define GTI_CC_CNTCR_HDBG		(1 << 1)
@@ -124,7 +110,7 @@ void init_timer(void)
 	write32(&gti->cc_cntrate, ((1ULL << 32) * tickrate) / sclk);
 
 	/* Enable the counter */
-	setbits_le32(&gti->cc_cntcr, GTI_CC_CNTCR_EN);
+	setbits32(&gti->cc_cntcr, GTI_CC_CNTCR_EN);
 
 	//u32 u = (CNTPS_CTL_EL1_IMASK | CNTPS_CTL_EL1_EN);
 	//BDK_MSR(CNTPS_CTL_EL1, u);
@@ -173,11 +159,11 @@ void watchdog_set(const size_t index, unsigned int timeout_ms)
 
 	printk(BIOS_DEBUG, "Watchdog: Set to expire %llu SCLK cycles\n",
 	       timeout_wdog << 18);
-	clrsetbits_le64(&timer->cwd_wdog[index],
-			(GTI_CWD_WDOG_LEN_MASK << GTI_CWD_WDOG_LEN_SHIFT) |
-			(GTI_CWD_WDOG_MODE_MASK << GTI_CWD_WDOG_MODE_SHIFT),
-			(timeout_wdog << GTI_CWD_WDOG_LEN_SHIFT) |
-			(3 << GTI_CWD_WDOG_MODE_SHIFT));
+	clrsetbits64(&timer->cwd_wdog[index],
+		     (GTI_CWD_WDOG_LEN_MASK << GTI_CWD_WDOG_LEN_SHIFT) |
+		     (GTI_CWD_WDOG_MODE_MASK << GTI_CWD_WDOG_MODE_SHIFT),
+		     (timeout_wdog << GTI_CWD_WDOG_LEN_SHIFT) |
+		     (3 << GTI_CWD_WDOG_MODE_SHIFT));
 }
 
 /**

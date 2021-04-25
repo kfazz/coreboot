@@ -1,44 +1,46 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <amdblocks/acpimmio.h>
 #include <console/console.h>
 #include <device/device.h>
+#include <southbridge/amd/common/amd_pci_util.h>
 #include <device/mmio.h>
-#include <southbridge/amd/cimx/cimx_util.h>
 #include <southbridge/amd/cimx/sb800/SBPLATFORM.h>
+
+static const u8 mainboard_intr_data[] = {
+	[0x00] = 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,  /* INTA# - INTH# */
+	[0x08] = 0x00, 0x00, 0x00, 0x00, 0x1F, 0x1F, 0x1F, 0x1F,  /* Misc-nil, 0, 1, 2,  INT from Serial irq */
+	[0x10] = 0x09, 0x1F, 0x1F, 0x10, 0x1F, 0x12, 0x1F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x12, 0x11, 0x12, 0x11, 0x12, 0x11, 0x12, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x11, 0x13, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x10, 0x11, 0x12, 0x13
+};
+
+/* PIRQ Setup */
+static void pirq_setup(void)
+{
+	intr_data_ptr = mainboard_intr_data;
+}
 
 /**********************************************
  * Enable the dedicated functions of the board.
  **********************************************/
 static void mainboard_enable(struct device *dev)
 {
-	printk(BIOS_INFO, "Mainboard " CONFIG_MAINBOARD_PART_NUMBER " Enable.\n");
+	pirq_setup();
 
-	/* Power off unused clock pins of GPP PCIe devices */
-	u8 *misc_mem_clk_cntrl = (u8 *)(ACPI_MMIO_BASE + MISC_BASE);
-	/*
+	/* Power off unused clock pins of GPP PCIe devices
 	 * GPP CLK0 connected to unpopulated mini PCIe slot
 	 * GPP CLK1 connected to ethernet chip
 	 */
-	write8(misc_mem_clk_cntrl + 0, 0xFF);
+	misc_write8(0, 0xff);
 	/* GPP CLK2 connected to the external USB3 controller */
-	write8(misc_mem_clk_cntrl + 1, 0x0F);
-	write8(misc_mem_clk_cntrl + 2, 0x00);
-	write8(misc_mem_clk_cntrl + 3, 0x00);
+	misc_write8(1, 0x0f);
+	misc_write8(2, 0);
+	misc_write8(3, 0);
 	/* SLT_GFX_CLK connected to PCIe slot */
-	write8(misc_mem_clk_cntrl + 4, 0xF0);
+	misc_write8(4, 0xf0);
 
 	/*
 	 * Initialize ASF registers to an arbitrary address because someone
@@ -46,8 +48,8 @@ static void mainboard_enable(struct device *dev)
 	 * SPD read code has been made generic and moved out of the board
 	 * directory, so the ASF init is being done here.
 	 */
-	pm_iowrite(0x29, 0x80);
-	pm_iowrite(0x28, 0x61);
+	pm_write8(0x29, 0x80);
+	pm_write8(0x28, 0x61);
 }
 
 struct chip_operations mainboard_ops = {

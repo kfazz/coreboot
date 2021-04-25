@@ -1,22 +1,7 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018-2019 Qualcomm Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <types.h>
-#include <delay.h>
-#include <timestamp.h>
 #include <gpio.h>
 
 void gpio_configure(gpio_t gpio, uint32_t func, uint32_t pull,
@@ -79,9 +64,9 @@ void gpio_input_irq(gpio_t gpio, enum gpio_irq_type type, uint32_t pull)
 	gpio_configure(gpio, GPIO_FUNC_GPIO,
 				pull, GPIO_2MA, GPIO_DISABLE);
 
-	clrsetbits_le32(&regs->intr_cfg, GPIO_INTR_DECT_CTL_MASK <<
+	clrsetbits32(&regs->intr_cfg, GPIO_INTR_DECT_CTL_MASK <<
 		GPIO_INTR_DECT_CTL_SHIFT, type << GPIO_INTR_DECT_CTL_SHIFT);
-	clrsetbits_le32(&regs->intr_cfg, GPIO_INTR_RAW_STATUS_ENABLE
+	clrsetbits32(&regs->intr_cfg, GPIO_INTR_RAW_STATUS_ENABLE
 		<< GPIO_INTR_RAW_STATUS_EN_SHIFT, GPIO_INTR_RAW_STATUS_ENABLE
 		<< GPIO_INTR_RAW_STATUS_EN_SHIFT);
 }

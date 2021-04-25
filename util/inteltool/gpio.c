@@ -1,17 +1,5 @@
-/*
- * inteltool - dump all registers on an Intel CPU + chipset based system.
- *
- * Copyright (C) 2008 by coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* inteltool - dump all registers on an Intel CPU + chipset based system */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <stdio.h>
 #include "inteltool.h"
@@ -955,6 +943,7 @@ int print_gpios(struct pci_dev *sb, int show_all, int show_diffs)
 		defaults_size = ARRAY_SIZE(pp_pch_mobile_defaults);
 		break;
 	case PCI_DEVICE_ID_INTEL_ICH10:
+	case PCI_DEVICE_ID_INTEL_ICH10DO:
 	case PCI_DEVICE_ID_INTEL_ICH10R:
 		gpiobase = pci_read_word(sb, 0x48) & 0xfffc;
 		gpio_registers = ich10_gpio_registers;
@@ -1024,16 +1013,51 @@ int print_gpios(struct pci_dev *sb, int show_all, int show_diffs)
 		gpio_registers = baytrail_score_ssus_gpio_registers;
 		size = ARRAY_SIZE(baytrail_score_ssus_gpio_registers);
 		break;
+	case PCI_DEVICE_ID_INTEL_H110:
+	case PCI_DEVICE_ID_INTEL_H170:
+	case PCI_DEVICE_ID_INTEL_Z170:
+	case PCI_DEVICE_ID_INTEL_Q170:
+	case PCI_DEVICE_ID_INTEL_Q150:
 	case PCI_DEVICE_ID_INTEL_B150:
+	case PCI_DEVICE_ID_INTEL_C236:
+	case PCI_DEVICE_ID_INTEL_C232:
+	case PCI_DEVICE_ID_INTEL_QM170:
+	case PCI_DEVICE_ID_INTEL_HM170:
 	case PCI_DEVICE_ID_INTEL_CM236:
 	case PCI_DEVICE_ID_INTEL_APL_LPC:
 	case PCI_DEVICE_ID_INTEL_DNV_LPC:
-	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_BASE:
-	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_PREM:
-	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_Y_PREM:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_PRE:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_BASE_SKL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_Y_PREM_SKL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_PREM_SKL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_BASE_KBL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_PREM_KBL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_Y_PREM_KBL:
 	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_IHDCP_BASE:
 	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_IHDCP_PREM:
 	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_Y_IHDCP_PREM:
+	case PCI_DEVICE_ID_INTEL_CANNONPOINT_LP_U_PREM:
+	case PCI_DEVICE_ID_INTEL_COMETPOINT_LP_U_PREM:
+	case PCI_DEVICE_ID_INTEL_COMETPOINT_LP_U_BASE:
+	case PCI_DEVICE_ID_INTEL_C621:
+	case PCI_DEVICE_ID_INTEL_C622:
+	case PCI_DEVICE_ID_INTEL_C624:
+	case PCI_DEVICE_ID_INTEL_C625:
+	case PCI_DEVICE_ID_INTEL_C626:
+	case PCI_DEVICE_ID_INTEL_C627:
+	case PCI_DEVICE_ID_INTEL_C628:
+	case PCI_DEVICE_ID_INTEL_C629:
+	case PCI_DEVICE_ID_INTEL_C621A:
+	case PCI_DEVICE_ID_INTEL_C627A:
+	case PCI_DEVICE_ID_INTEL_C629A:
+	case PCI_DEVICE_ID_INTEL_C624_SUPER:
+	case PCI_DEVICE_ID_INTEL_C627_SUPER_1:
+	case PCI_DEVICE_ID_INTEL_C621_SUPER:
+	case PCI_DEVICE_ID_INTEL_C627_SUPER_2:
+	case PCI_DEVICE_ID_INTEL_C628_SUPER:
+	case PCI_DEVICE_ID_INTEL_C621A_SUPER:
+	case PCI_DEVICE_ID_INTEL_C627A_SUPER:
+	case PCI_DEVICE_ID_INTEL_C629A_SUPER:
 	case PCI_DEVICE_ID_INTEL_H310:
 	case PCI_DEVICE_ID_INTEL_H370:
 	case PCI_DEVICE_ID_INTEL_Z390:
@@ -1044,13 +1068,11 @@ int print_gpios(struct pci_dev *sb, int show_all, int show_diffs)
 	case PCI_DEVICE_ID_INTEL_QM370:
 	case PCI_DEVICE_ID_INTEL_HM370:
 	case PCI_DEVICE_ID_INTEL_CM246:
+	case PCI_DEVICE_ID_INTEL_ICELAKE_LP_U:
 		print_gpio_groups(sb);
 		return 0;
 	case PCI_DEVICE_ID_INTEL_82371XX:
 		printf("This southbridge has GPIOs in the PM unit.\n");
-		return 1;
-	case 0x1234: // Dummy for non-existent functionality
-		printf("This southbridge does not have GPIOBASE.\n");
 		return 1;
 	default:
 		printf("Error: Dumping GPIOs on this southbridge is not (yet) supported.\n");

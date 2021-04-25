@@ -49,28 +49,39 @@ be more frequent than was needed, so we scaled it back to twice a year.
 ## Checklist
 ### ~2 weeks prior to release
 - [ ] Announce upcoming release to mailing list, ask people to test and
-      to update release notes
+      to update release notes.
 
 ### ~1 week prior to release
 - [ ] Send reminder email to mailing list, ask for people to test,
-      and to update the release notes
-- [ ] Update the topic in the irc channel with the date of the upcoming
-      release
+      and to update the release notes.
+- [ ] Update the topic in the IRC channel with the date of the upcoming
+      release.
+- [ ] If there are any deprecations announced for the following release,
+      make sure that a list of currently affected boards and chipsets is
+      part of the release notes.
+- [ ] Finalize release notes (as much as possible), without specifying
+      release commit ids.
 
 ### Day of release
-- [ ] Update release notes, without specifying release commit ids
 - [ ] Select a commit ID to base the release upon, announce to IRC,
       ask for testing.
-- [ ] Test the commit selected for release
-- [ ] Run release script
-- [ ] Test the release from the actual release tarballs
-- [ ] Push signed Tag to repo
-- [ ] Announce that the release tag is done on IRC
-- [ ] Update release notes with actual commit id, push to repo
-- [ ] Upload release files to web server
-- [ ] Update download page to point to files, push to repo
+- [ ] Test the commit selected for release.
+- [ ] Update release notes with actual commit id, push to repo.
+- [ ] Create new release notes doc template for the next version.
+- [ ] Fill in the release date, remove "Upcoming release" and other filler
+      from the current release notes.
+- [ ] Run release script.
+- [ ] Run vboot_list script.
+- [ ] Test the release from the actual release tarballs.
+- [ ] Push signed Tag to repo.
+- [ ] Announce that the release tag is done on IRC.
+- [ ] Upload release files to web server.
+- [ ] Also extract the release notes and place them on the web server.
+- [ ] Upload crossgcc sources to web server.
+- [ ] Update download page to point to files, push to repo.
 - [ ] Write and publish blog post with release notes.
-- [ ] Update the topic in the irc channel that the release is done.
+- [ ] Update the topic in the IRC channel that the release is done.
+- [ ] Announce the release to the mailing list.
 
 ## Pre-Release tasks
 Announce the upcoming release to the mailing list release 2 weeks ahead
@@ -81,9 +92,7 @@ release notes that are in the making and ask people to test the hardware
 they have to make sure it's working with the current master branch,
 from which the release will ultimately be derived from.
 
-People should also be encouraged to provide additions to the
-release notes, for example by putting them on some [collaborative
-editor](https://www.piratenpad.de).
+People should be encouraged to provide additions to the release notes.
 
 The final release notes will reside in coreboot's Documentation/releases
 directory, so asking for additions to that through the regular Gerrit
@@ -98,7 +107,7 @@ to have in the release.  The release was based on the final of those
 patches to be pulled in.
 
 When a release candidate has been selected, announce the commit ID to
-the #coreboot irc channel, and request that it get some testing, just
+the #coreboot IRC channel, and request that it get some testing, just
 to make sure that everything is sane.
 
 ## Generate the release
@@ -168,8 +177,9 @@ commit db508565d2483394b709654c57533e55eebace51 (HEAD, tag: 4.6, origin/master, 
 ...
 ````
 
-When you used the script to generate the release, a tag was generated in the tree that was downloaded.
-From the coreboot-X.Y tree, just run: `git push -f origin <TAG (X.Y)>`
+When you used the script to generate the release, a signed tag was generated in the
+tree that was downloaded. From the coreboot-X.Y tree, just run: `git push origin X.Y`.
+In case you pushed the wrong tag already, you have to force push the new one.
 
 You will need write access for tags to the coreboot git repo to do this.
 
@@ -189,14 +199,30 @@ the coreboot server, and put them in the release directory at
 ````
 
 People can now see the release tarballs on the website at
-https://www.coreboot.org/releases/
+<https://www.coreboot.org/releases/>
 
-The downloads page is the official place to download the releases from, and it needs to be updated with links to the new release tarballs and .sig files. It can be found at https://review.coreboot.org/cgit/homepage.git/tree/downloads.html
+The downloads page is the official place to download the releases from, and it needs to be updated with links to the new release tarballs and .sig files. It can be found at <https://review.coreboot.org/cgit/homepage.git/tree/downloads.html>
 
-Here is an example commit to change it: https://review.coreboot.org/#/c/19515/
+Here is an example commit to change it: <https://review.coreboot.org/c/homepage/+/19515>
+
+## Upload crossgcc sources
+Sometimes the source files for older revisions of
+crossgcc disappear. To deal with that we maintain a mirror at
+<https://www.coreboot.org/releases/crossgcc-sources/> where we host the
+sources used by the crossgcc scripts that are part of coreboot releases.
+
+Run
+
+````
+% util/crossgcc/buildgcc -u
+````
+
+This will output the set of URLs that the script uses to download the
+sources. Download them yourself and copy them into the crossgcc-sources
+directory on the server.
 
 ## After the release is complete
-Post the release notes on https://blogs.coreboot.org
+Post the release notes on <https://blogs.coreboot.org>
 
 ## Making a branch
 At times we will need to create a branch, generally for patch fixes.

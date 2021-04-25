@@ -1,23 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- * Copyright (C) 2012 The Chromium OS Authors.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef SOUTHBRIDGE_INTEL_BD82X6X_PCH_H
 #define SOUTHBRIDGE_INTEL_BD82X6X_PCH_H
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 
 /* PCH types */
 #define PCH_TYPE_CPT	   0x1c /* CougarPoint */
@@ -36,11 +22,10 @@
  * It does not matter where we put the SMBus I/O base, as long as we
  * keep it consistent and don't interfere with other devices.  Stage2
  * will relocate this anyways.
- * Our solution is to have SMB initialization move the I/O to SMBUS_IO_BASE
+ * Our solution is to have SMB initialization move the I/O to CONFIG_FIXED_SMBUS_IO_BASE
  * again. But handling static BARs is a generic problem that should be
  * solved in the device allocator.
  */
-#define SMBUS_IO_BASE		0x0400
 #define SMBUS_SLAVE_ADDR	0x24
 /* TODO Make sure these don't get changed by stage2 */
 #define DEFAULT_GPIOBASE	0x0480
@@ -49,48 +34,55 @@
 #include <southbridge/intel/common/rcba.h>
 
 #ifndef __ACPI__
-#define DEBUG_PERIODIC_SMIS 0
 
-#if !defined(__ASSEMBLER__)
-#if !defined(__PRE_RAM__)
-#if !defined(__SIMPLE_DEVICE__)
-#include "chip.h"
-void pch_enable(struct device *dev);
-#endif
-int pch_silicon_revision(void);
-int pch_silicon_type(void);
-int pch_silicon_supported(int type, int rev);
 void pch_iobp_update(u32 address, u32 andvalue, u32 orvalue);
-void gpi_route_interrupt(u8 gpi, u8 mode);
-#if CONFIG(ELOG)
-void pch_log_state(void);
-#endif
-#else /* __PRE_RAM__ */
-void enable_smbus(void);
 void enable_usb_bar(void);
-int smbus_read_byte(unsigned device, unsigned address);
-int smbus_write_byte(unsigned device, unsigned address, u8 data);
-int smbus_block_read(unsigned device, unsigned cmd, u8 bytes, u8 *buf);
-int smbus_block_write(unsigned device, unsigned cmd, u8 bytes, const u8 *buf);
-int early_spi_read(u32 offset, u32 size, u8 *buffer);
+
+void ibexpeak_setup_bars(void);
+void early_pch_init(void);
+
 void early_thermal_init(void);
 void southbridge_configure_default_intmap(void);
-#endif
-#endif
+void pch_setup_cir(int chipset_type);
+
+enum current_lookup_idx {
+	IF1_F57 = 0,
+	IF1_F5F,
+	IF1_753,
+	IF1_75F,
+	IF1_14B,
+	IF1_74B,
+	IF1_557,
+	IF1_757,
+	IF1_55F,
+	IF1_54B,
+};
+
+struct southbridge_usb_port {
+	int enabled;
+	enum current_lookup_idx current;
+	int oc_pin;
+};
+
+void early_usb_init(const struct southbridge_usb_port *portmap);
+
+extern const struct southbridge_usb_port mainboard_usb_ports[14];
+#include <device/device.h>
+void pch_enable(struct device *dev);
 
 #define MAINBOARD_POWER_OFF	0
 #define MAINBOARD_POWER_ON	1
 #define MAINBOARD_POWER_KEEP	2
+
+/* PM I/O Space */
+#define UPRWC			0x3c
+#define  UPRWC_WR_EN		(1 << 1) /* USB Per-Port Registers Write Enable */
 
 /* PCI Configuration Space (D30:F0): PCI2PCI */
 #define PSTS	0x06
 #define SMLT	0x1b
 #define SECSTS	0x1e
 #define INTR	0x3c
-#define BCTRL	0x3e
-#define   SBR	(1 << 6)
-#define   SEE	(1 << 1)
-#define   PERE	(1 << 0)
 
 #define PCH_EHCI1_DEV		PCI_DEV(0, 0x1d, 0)
 #define PCH_EHCI2_DEV		PCI_DEV(0, 0x1a, 0)
@@ -108,6 +100,9 @@ void southbridge_configure_default_intmap(void);
 #define ETR3			0xac
 #define  ETR3_CWORWRE		(1 << 18)
 #define  ETR3_CF9GR		(1 << 20)
+
+#define CIR4			0xa9
+#define PMIR			0xac
 
 /* GEN_PMCON_3 bits */
 #define RTC_BATTERY_DEAD	(1 << 2)
@@ -153,54 +148,13 @@ void southbridge_configure_default_intmap(void);
 #define LPC_GEN3_DEC		0x8c /* LPC IF Generic Decode Range 3 */
 #define LPC_GEN4_DEC		0x90 /* LPC IF Generic Decode Range 4 */
 
-/* PCI Configuration Space (D31:F1): IDE */
-#define PCH_IDE_DEV		PCI_DEV(0, 0x1f, 1)
+/* PCI Configuration Space (D31:F2): SATA */
 #define PCH_SATA_DEV		PCI_DEV(0, 0x1f, 2)
 #define PCH_SATA2_DEV		PCI_DEV(0, 0x1f, 5)
 #define INTR_LN			0x3c
 #define IDE_TIM_PRI		0x40	/* IDE timings, primary */
 #define   IDE_DECODE_ENABLE	(1 << 15)
-#define   IDE_SITRE		(1 << 14)
-#define   IDE_ISP_5_CLOCKS	(0 << 12)
-#define   IDE_ISP_4_CLOCKS	(1 << 12)
-#define   IDE_ISP_3_CLOCKS	(2 << 12)
-#define   IDE_RCT_4_CLOCKS	(0 <<  8)
-#define   IDE_RCT_3_CLOCKS	(1 <<  8)
-#define   IDE_RCT_2_CLOCKS	(2 <<  8)
-#define   IDE_RCT_1_CLOCKS	(3 <<  8)
-#define   IDE_DTE1		(1 <<  7)
-#define   IDE_PPE1		(1 <<  6)
-#define   IDE_IE1		(1 <<  5)
-#define   IDE_TIME1		(1 <<  4)
-#define   IDE_DTE0		(1 <<  3)
-#define   IDE_PPE0		(1 <<  2)
-#define   IDE_IE0		(1 <<  1)
-#define   IDE_TIME0		(1 <<  0)
 #define IDE_TIM_SEC		0x42	/* IDE timings, secondary */
-
-#define IDE_SDMA_CNT		0x48	/* Synchronous DMA control */
-#define   IDE_SSDE1		(1 <<  3)
-#define   IDE_SSDE0		(1 <<  2)
-#define   IDE_PSDE1		(1 <<  1)
-#define   IDE_PSDE0		(1 <<  0)
-
-#define IDE_SDMA_TIM		0x4a
-
-#define IDE_CONFIG		0x54	/* IDE I/O Configuration Register */
-#define   SIG_MODE_SEC_NORMAL	(0 << 18)
-#define   SIG_MODE_SEC_TRISTATE	(1 << 18)
-#define   SIG_MODE_SEC_DRIVELOW	(2 << 18)
-#define   SIG_MODE_PRI_NORMAL	(0 << 16)
-#define   SIG_MODE_PRI_TRISTATE	(1 << 16)
-#define   SIG_MODE_PRI_DRIVELOW	(2 << 16)
-#define   FAST_SCB1		(1 << 15)
-#define   FAST_SCB0		(1 << 14)
-#define   FAST_PCB1		(1 << 13)
-#define   FAST_PCB0		(1 << 12)
-#define   SCB1			(1 <<  3)
-#define   SCB0			(1 <<  2)
-#define   PCB1			(1 <<  1)
-#define   PCB0			(1 <<  0)
 
 #define SATA_SIRI		0xa0 /* SATA Indexed Register Index */
 #define SATA_SIRD		0xa4 /* SATA Indexed Register Data */
@@ -214,7 +168,6 @@ void southbridge_configure_default_intmap(void);
 #define PCH_SMBUS_DEV		PCI_DEV(0, 0x1f, 3)
 #define SMB_BASE		0x20
 #define HOSTC			0x40
-#define SMB_RCV_SLVA		0x09
 
 /* HOSTC bits */
 #define I2C_EN			(1 << 2)
@@ -357,6 +310,23 @@ void southbridge_configure_default_intmap(void);
 #define SOFT_RESET_CTRL 0x38f4
 #define SOFT_RESET_DATA 0x38f8
 
+#define PRSTS		0x3310
+#define CIR6		0x2024
+#define CIR7		0x3314
+#define CIR8		0x3324
+#define CIR9		0x3330
+#define CIR10		0x3340
+#define CIR13		0x3350
+#define CIR14		0x3368
+#define CIR15		0x3378
+#define CIR16		0x3388
+#define CIR17		0x33a0
+#define CIR18		0x33a8
+#define CIR19		0x33c0
+#define CIR20		0x33cc
+#define CIR21		0x33d0
+#define CIR22		0x33d4
+
 #define DIR_ROUTE(x,a,b,c,d) \
   RCBA32(x) = (((d) << DIR_IDR) | ((c) << DIR_ICR) | \
                ((b) << DIR_IBR) | ((a) << DIR_IAR))
@@ -391,6 +361,36 @@ void southbridge_configure_default_intmap(void);
 #define PCH_DISABLE_MEI2	(1 << 2)
 #define PCH_DISABLE_MEI1	(1 << 1)
 #define PCH_ENABLE_DBDF		(1 << 0)
+
+/* USB Initialization Registers[13:0] */
+#define USBIR0		0x3500	/* 32bit */
+#define USBIR1		0x3504	/* 32bit */
+#define USBIR2		0x3508	/* 32bit */
+#define USBIR3		0x350c	/* 32bit */
+#define USBIR4		0x3510	/* 32bit */
+#define USBIR5		0x3514	/* 32bit */
+#define USBIR6		0x3518	/* 32bit */
+#define USBIR7		0x351c	/* 32bit */
+#define USBIR8		0x3520	/* 32bit */
+#define USBIR9		0x3524	/* 32bit */
+#define USBIR10		0x3528	/* 32bit */
+#define USBIR11		0x352c	/* 32bit */
+#define USBIR12		0x3530	/* 32bit */
+#define USBIR13		0x3534	/* 32bit */
+
+#define USBIRC		0x3564	/* 32bit */
+#define USBIRA		0x3570	/* 32bit */
+#define USBIRB		0x357c	/* 32bit */
+
+/* Miscellaneous Control Register */
+#define MISCCTL		0x3590	/* 32bit */
+/* USB Port Disable Override */
+#define USBPDO		0x359c	/* 32bit */
+/* USB Overcurrent MAP Register */
+#define USBOCM1		0x35a0	/* 32bit */
+#define USBOCM2		0x35a4	/* 32bit */
+/* Rate Matching Hub Wake Control Register */
+#define RMHWKCTL	0x35b0	/* 32bit */
 
 /* ICH7 PMBASE */
 #define PM1_STS		0x00
@@ -456,47 +456,6 @@ void southbridge_configure_default_intmap(void);
 #define TCO1_STS	0x64
 #define   DMISCI_STS	(1 << 9)
 #define TCO2_STS	0x66
-
-/*
- * SPI Opcode Menu setup for SPIBAR lockdown
- * should support most common flash chips.
- */
-
-#define SPI_OPMENU_0 0x01 /* WRSR: Write Status Register */
-#define SPI_OPTYPE_0 0x01 /* Write, no address */
-
-#define SPI_OPMENU_1 0x02 /* BYPR: Byte Program */
-#define SPI_OPTYPE_1 0x03 /* Write, address required */
-
-#define SPI_OPMENU_2 0x03 /* READ: Read Data */
-#define SPI_OPTYPE_2 0x02 /* Read, address required */
-
-#define SPI_OPMENU_3 0x05 /* RDSR: Read Status Register */
-#define SPI_OPTYPE_3 0x00 /* Read, no address */
-
-#define SPI_OPMENU_4 0x20 /* SE20: Sector Erase 0x20 */
-#define SPI_OPTYPE_4 0x03 /* Write, address required */
-
-#define SPI_OPMENU_5 0x9f /* RDID: Read ID */
-#define SPI_OPTYPE_5 0x00 /* Read, no address */
-
-#define SPI_OPMENU_6 0xd8 /* BED8: Block Erase 0xd8 */
-#define SPI_OPTYPE_6 0x03 /* Write, address required */
-
-#define SPI_OPMENU_7 0x0b /* FAST: Fast Read */
-#define SPI_OPTYPE_7 0x02 /* Read, address required */
-
-#define SPI_OPMENU_UPPER ((SPI_OPMENU_7 << 24) | (SPI_OPMENU_6 << 16) | \
-			  (SPI_OPMENU_5 << 8) | SPI_OPMENU_4)
-#define SPI_OPMENU_LOWER ((SPI_OPMENU_3 << 24) | (SPI_OPMENU_2 << 16) | \
-			  (SPI_OPMENU_1 << 8) | SPI_OPMENU_0)
-
-#define SPI_OPTYPE ((SPI_OPTYPE_7 << 14) | (SPI_OPTYPE_6 << 12) | \
-		    (SPI_OPTYPE_5 << 10) | (SPI_OPTYPE_4 << 8) |  \
-		    (SPI_OPTYPE_3 << 6) | (SPI_OPTYPE_2 << 4) |	  \
-		    (SPI_OPTYPE_1 << 2) | (SPI_OPTYPE_0))
-
-#define SPI_OPPREFIX ((0x50 << 8) | 0x06) /* EWSR and WREN */
 
 #define SPIBAR_HSFS                 0x3804   /* SPI hardware sequence status */
 #define  SPIBAR_HSFS_SCIP           (1 << 5) /* SPI Cycle In Progress */

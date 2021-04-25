@@ -1,71 +1,83 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015-2017 Intel Corp.
- * (Written by Alexandru Gagniuc <alexandrux.gagniuc@intel.com> for Intel Corp.)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <stdint.h>
-#include <arch/acpi.h>
-#include <bootmode.h>
-#include <console/console.h>
-#include <fsp/util.h>
+#include <commonlib/helpers.h>
 #include <device/device.h>
-#include <device/pci.h>
-#include <device/pci_ops.h>
+#include <device/mmio.h>
+#include <device/pci_def.h>
 #include <intelblocks/graphics.h>
-#include <drivers/intel/gma/opregion.h>
-#include <drivers/intel/gma/libgfxinit.h>
+#include <drivers/intel/gma/i915_reg.h>
 
-uintptr_t fsp_soc_get_igd_bar(void)
+#include "chip.h"
+
+static void graphics_configure_panelpower(
+		const struct i915_gpu_panel_config *const panel_cfg,
+		uint8_t *const mmio, const unsigned int panel_idx)
 {
-	return graphics_get_memory_base();
+	const unsigned int offset = panel_idx * 0x100;
+	uint32_t reg32;
+
+	reg32 = ((DIV_ROUND_UP(panel_cfg->cycle_delay_ms, 100) + 1) & 0x1f) << 4;
+	reg32 |= PANEL_POWER_RESET;
+	write32(mmio + PCH_PP_CONTROL + offset, reg32);
+
+	reg32 = ((panel_cfg->up_delay_ms * 10) & 0x1fff) << 16;
+	reg32 |= (panel_cfg->backlight_on_delay_ms * 10) & 0x1fff;
+	write32(mmio + PCH_PP_ON_DELAYS + offset, reg32);
+
+	reg32 = ((panel_cfg->down_delay_ms * 10) & 0x1fff) << 16;
+	reg32 |= (panel_cfg->backlight_off_delay_ms * 10) & 0x1fff;
+	write32(mmio + PCH_PP_OFF_DELAYS + offset, reg32);
 }
 
-void graphics_soc_init(struct device *const dev)
+static void graphics_configure_backlight(
+		const struct i915_gpu_panel_config *const panel_cfg,
+		uint8_t *const mmio, const unsigned int panel_idx)
 {
-	if (CONFIG(RUN_FSP_GOP))
+	if (!panel_cfg->backlight_pwm_hz)
 		return;
 
-	uint32_t reg32 = pci_read_config32(dev, PCI_COMMAND);
-	reg32 |= PCI_COMMAND_MASTER;
-	pci_write_config32(dev, PCI_COMMAND, reg32);
+	const unsigned int pwm_period = 19200 * 1000 / panel_cfg->backlight_pwm_hz;
+	write32(mmio + BXT_BLC_PWM_FREQ(panel_idx), pwm_period);
+	write32(mmio + BXT_BLC_PWM_DUTY(panel_idx), pwm_period / 2);
+	write32(mmio + BXT_BLC_PWM_CTL(panel_idx),
+		panel_cfg->backlight_polarity ? BXT_BLC_PWM_POLARITY : 0);
 
-	if (CONFIG(MAINBOARD_USE_LIBGFXINIT)) {
-		if (!acpi_is_wakeup_s3() && display_init_required()) {
-			int lightup_ok;
-			gma_gfxinit(&lightup_ok);
-			gfx_set_init_done(lightup_ok);
-		}
-	} else {
-		/* Initialize PCI device, load/execute BIOS Option ROM */
-		pci_dev_init(dev);
+	/* Second backlight control uses display utility pin. */
+	if (panel_idx == 1) {
+		write32(mmio + UTIL_PIN_CTL, 0); /* Make sure it's disabled, don't know
+						    what FSP might have done already. */
+		write32(mmio + UTIL_PIN_CTL, UTIL_PIN_MODE_PWM | UTIL_PIN_ENABLE);
 	}
 }
 
-uintptr_t graphics_soc_write_acpi_opregion(struct device *device,
-		uintptr_t current, struct acpi_rsdp *rsdp)
+void graphics_soc_panel_init(struct device *const dev)
 {
-	igd_opregion_t *opregion;
+	const struct soc_intel_apollolake_config *const conf = dev->chip_info;
+	const struct resource *mmio_res;
+	void *mmio;
+	unsigned int i;
 
-	printk(BIOS_DEBUG, "ACPI:    * IGD OpRegion\n");
-	opregion = (igd_opregion_t *)current;
+	/* Some hardware configuration first. */
 
-	if (intel_gma_init_igd_opregion(opregion) != CB_SUCCESS)
-		return current;
+	if (!conf)
+		return;
 
-	/* FIXME: Add platform specific mailbox initialization */
+	mmio_res = probe_resource(dev, PCI_BASE_ADDRESS_0);
+	if (!mmio_res || !mmio_res->base)
+		return;
+	mmio = (void *)(uintptr_t)mmio_res->base;
 
-	current += sizeof(igd_opregion_t);
-	return acpi_align_current(current);
+	for (i = 0; i < ARRAY_SIZE(conf->panel_cfg); ++i)
+		graphics_configure_panelpower(&conf->panel_cfg[i], mmio, i);
+
+	for (i = 0; i < ARRAY_SIZE(conf->panel_cfg); ++i)
+		graphics_configure_backlight(&conf->panel_cfg[i], mmio, i);
+}
+
+const struct i915_gpu_controller_info *
+intel_igd_get_controller_info(const struct device *device)
+{
+	struct soc_intel_apollolake_config *chip = device->chip_info;
+	return &chip->gfx;
 }

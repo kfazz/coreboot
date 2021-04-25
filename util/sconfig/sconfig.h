@@ -1,24 +1,11 @@
-/*
- * sconfig, coreboot device tree compiler
- *
- * Copyright (C) 2010 coresystems GmbH
- *   written by Patrick Georgi <patrick@georgi-clan.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* sconfig, coreboot device tree compiler */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
 
@@ -42,16 +29,37 @@ struct pci_irq_info {
 	int ioapic_dst_id;
 };
 
+struct fw_config_option;
+struct fw_config_option {
+	const char *name;
+	uint64_t value;
+	struct fw_config_option *next;
+};
+struct fw_config_field;
+struct fw_config_field {
+	const char *name;
+	unsigned int start_bit;
+	unsigned int end_bit;
+	struct fw_config_field *next;
+	struct fw_config_option *options;
+};
+struct fw_config_probe;
+struct fw_config_probe {
+	const char *field;
+	const char *option;
+	struct fw_config_probe *next;
+};
+
 struct chip;
 struct chip_instance {
-	/*
-	 * Monotonically increasing ID for each newly allocated
-	 * node(chip/device).
-	 */
+	/* Monotonically increasing ID for each chip instance. */
 	int id;
 
 	/* Pointer to registers for this chip. */
 	struct reg *reg;
+
+	/* Pointer to references for this chip. */
+	struct reg *ref;
 
 	/* Pointer to chip of which this is instance. */
 	struct chip *chip;
@@ -60,10 +68,16 @@ struct chip_instance {
 	struct chip_instance *next;
 
 	/*
-	 * Reference count - Indicates how many devices hold pointer to this
-	 * chip instance.
+	 * Pointer to corresponding chip instance in base devicetree.
+	 * a) If the chip instance belongs to the base devicetree, then this pointer is set to
+	 * NULL.
+	 * b) If the chip instance belongs to override tree, then this pointer is set to its
+	 * corresponding chip instance in base devicetree (if it exists), else to NULL.
+	 *
+	 * This is useful when generating chip instances and chip_ops for a device to determine
+	 * if this is the instance to emit or if there is a base chip instance to use instead.
 	 */
-	int ref_count;
+	struct chip_instance *base_chip_instance;
 };
 
 struct chip {
@@ -99,12 +113,11 @@ struct bus {
 };
 
 struct device {
-	/* Monotonically increasing ID for the device. */
-	int id;
-
 	/* Indicates device status (enabled / hidden or not). */
 	int enabled;
 	int hidden;
+	/* non-zero if the device should be included in all cases */
+	int mandatory;
 
 	/* Subsystem IDs for the device. */
 	int subsystem_vendor;
@@ -113,6 +126,9 @@ struct device {
 
 	/* Name of this device. */
 	char *name;
+
+	/* Alias of this device (for internal references) */
+	char *alias;
 
 	/* Path of this device. */
 	char *path;
@@ -141,14 +157,33 @@ struct device {
 	struct bus *bus;
 	/* Pointer to last bus under this device. */
 	struct bus *last_bus;
+
+	/* SMBIOS slot type */
+	char *smbios_slot_type;
+
+	/* SMBIOS slot data width */
+	char *smbios_slot_data_width;
+
+	/* SMBIOS slot description for reference designation */
+	char *smbios_slot_designation;
+
+	/* SMBIOS slot length */
+	char *smbios_slot_length;
+
+	/* List of field+option to probe. */
+	struct fw_config_probe *probe;
 };
 
 extern struct bus *root_parent;
 
-struct device *new_device(struct bus *parent,
-			  struct chip_instance *chip_instance,
-			  const int bustype, const char *devnum,
-			  int status);
+struct device *new_device_raw(struct bus *parent,
+			      struct chip_instance *chip_instance,
+			      const int bustype, const char *devnum,
+			      char *alias, int status);
+
+struct device *new_device_reference(struct bus *parent,
+				    struct chip_instance *chip_instance,
+				    const char *reference, int status);
 
 void add_resource(struct bus *bus, int type, int index, int base);
 
@@ -157,6 +192,9 @@ void add_pci_subsystem_ids(struct bus *bus, int vendor, int device,
 
 void add_ioapic_info(struct bus *bus, int apicid, const char *_srcpin,
 		     int irqpin);
+
+void add_slot_desc(struct bus *bus, char *type, char *length, char *designation,
+		   char *data_width);
 
 void yyrestart(FILE *input_file);
 
@@ -168,3 +206,14 @@ void *chip_dequeue_tail(void);
 
 struct chip_instance *new_chip_instance(char *path);
 void add_register(struct chip_instance *chip, char *name, char *val);
+void add_reference(struct chip_instance *chip, char *name, char *alias);
+
+struct fw_config_field *get_fw_config_field(const char *name);
+
+struct fw_config_field *new_fw_config_field(const char *name,
+					    unsigned int start_bit, unsigned int end_bit);
+
+void add_fw_config_option(struct fw_config_field *field, const char *name,
+			  uint64_t value);
+
+void add_fw_config_probe(struct bus *bus, const char *field, const char *option);

@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 Scope (\_SB.PCI0.I2C2)
 {
@@ -36,46 +23,45 @@ Scope (\_SB.PCI0.I2C2)
 		Name (AVB3, Zero)
 		Method (_REG, 2, NotSerialized)
 		{
-			If (LEqual (Arg0, 0x08))
+			If (Arg0 == 0x08)
 			{
 				/* Marks the availability of GeneralPurposeIO
 				 * 0x08: opregion space for GeneralPurposeIO
 				 */
-				Store (Arg1, AVGP)
+				AVGP = Arg1
 			}
-			If (LEqual (Arg0, 0xB0))
+			If (Arg0 == 0xB0)
 			{
 				/* Marks the availability of
 				 * TI_PMIC_POWER_OPREGION_ID */
-				Store (Arg1, AVB0)
+				AVB0 = Arg1
 			}
-			If (LEqual (Arg0, 0xB1))
+			If (Arg0 == 0xB1)
 			{
 				/* Marks the availability of
 				 * TI_PMIC_VR_VAL_OPREGION_ID */
-				Store (Arg1, AVB1)
+				AVB1 = Arg1
 			}
-			If (LEqual (Arg0, 0xB2))
+			If (Arg0 == 0xB2)
 			{
 				/* Marks the availability of
 				 * TI_PMIC_CLK_OPREGION_ID */
-				Store (Arg1, AVB2)
+				AVB2 = Arg1
 			}
-			If (LEqual (Arg0, 0xB3))
+			If (Arg0 == 0xB3)
 			{
 				/* Marks the availability of
 				 * TI_PMIC_CLK_FREQ_OPREGION_ID */
-				Store (Arg1, AVB3)
+				AVB3 = Arg1
 			}
-			If (LAnd (AVGP, LAnd (LAnd (AVB0, AVB1),
-							 LAnd(AVB2, AVB3))))
+			If (AVGP && AVB0 && AVB1 && AVB2 && AVB3)
 			{
 				/* Marks the availability of all opregions */
-				Store (1, AVP1)
+				AVP1 = 1
 			}
 			Else
 			{
-				Store (0, AVP1)
+				AVP1 = 0
 			}
 		}
 
@@ -176,9 +162,9 @@ Scope (\_SB.PCI0.I2C2)
 		Method (CLKE, 0, Serialized) {
 			/* save Acquire result so we can check for
 			Mutex acquired */
-			Store (Acquire (MUTC, 1000), Local0)
+			Local0 = Acquire (MUTC, 1000)
 			/* check for Mutex acquired */
-			If (LEqual (Local0, Zero)) {
+			If (Local0 == 0) {
 				/* Set boost clock divider */
 				BODI = 3
 				/* Set buck clock divider */
@@ -210,9 +196,9 @@ Scope (\_SB.PCI0.I2C2)
 		Method (CLKD, 0, Serialized) {
 			/* save Acquire result so we can check for
 			Mutex acquired */
-			Store (Acquire (MUTC, 1000), Local0)
+			Local0 = Acquire (MUTC, 1000)
 			/* check for Mutex acquired */
-			If (LEqual (Local0, Zero)) {
+			If (Local0 == 0) {
 				BODI = 0
 				BUDI = 0
 				PSWR = 0
@@ -233,26 +219,26 @@ Scope (\_SB.PCI0.I2C2)
 		Method (DOVD, 1, Serialized) {
 			/* Save Acquire result so we can check for
 			Mutex acquired */
-			Store (Acquire (MUTV, 1000), Local0)
+			Local0 = Acquire (MUTV, 1000)
 			/* Check for Mutex acquired */
-			If (LEqual (Local0, Zero)) {
+			If (Local0 == 0) {
 				/* Turn off VSIO */
-				If (LEqual (Arg0, Zero)) {
+				If (Arg0 == 0) {
 					/* Decrement only if VSIC > 0 */
-					if (LGreater (VSIC, 0)) {
-						Decrement (VSIC)
-						If (LEqual (VSIC, Zero)) {
+					if (VSIC > 0) {
+						VSIC--
+						If (VSIC == 0) {
 							VSIO = 0
 						}
 					}
-				} ElseIf (LEqual (Arg0, 1)) {
+				} ElseIf (Arg0 == 1) {
 					/* Increment only if VSIC < 2 */
-					If (LLess (VSIC, 2)) {
+					If (VSIC < 2) {
 						/* Turn on VSIO */
-						If (LEqual (VSIC, Zero)) {
+						If (VSIC == 0) {
 							VSIO = 3
 						}
-						Increment (VSIC)
+						VSIC++
 					}
 				}
 
@@ -264,18 +250,18 @@ Scope (\_SB.PCI0.I2C2)
 		PowerResource (OVTH, 0, 0) {
 			Name (STA, 0)
 			Method (_ON, 0, Serialized) {
-				If (LEqual (AVP1, 1)) {
-					If (LEqual (STA, 0)) {
+				If (AVP1 == 1) {
+					If (STA == 0) {
 						/* Enable VSIO regulator +
 						daisy chain */
 						DOVD(1)
 
-						if (LNotEqual (IOVA, 52)) {
+						if (IOVA != 52) {
 							/* Set VSIO value as
 							1.8006 V */
 							IOVA = 52
 						}
-						if (LNotEqual (SIOV, 52)) {
+						if (SIOV != 52) {
 							/* Set VSIO value as
 							1.8006 V */
 							SIOV = 52
@@ -283,7 +269,7 @@ Scope (\_SB.PCI0.I2C2)
 						Sleep(3)
 
 						VACT = 1
-						if (LNotEqual (ACVA, 109)) {
+						if (ACVA != 109) {
 							/* Set ANA at 2.8152V */
 							ACVA = 109
 						}
@@ -292,7 +278,7 @@ Scope (\_SB.PCI0.I2C2)
 						\_SB.PCI0.I2C2.PMIC.CLKE()
 
 						VDCT = 1
-						if (LNotEqual (DCVA, 12)) {
+						if (DCVA != 12) {
 							/* Set CORE at 1.2V */
 							DCVA = 12
 						}
@@ -306,8 +292,8 @@ Scope (\_SB.PCI0.I2C2)
 			}
 
 			Method (_OFF, 0, Serialized) {
-				If (LEqual (AVP1, 1)) {
-					If (LEqual (STA, 1)) {
+				If (AVP1 == 1) {
+					If (STA == 1) {
 						Sleep(2)
 						\_SB.PCI0.I2C2.PMIC.CLKD()
 						Sleep(2)
@@ -332,17 +318,17 @@ Scope (\_SB.PCI0.I2C2)
 		PowerResource (VCMP, 0, 0) {
 			Name (STA, 0)
 			Method (_ON, 0, Serialized) {
-				If (LEqual (AVP1, 1)) {
-					If (LEqual (STA, 0)) {
+				If (AVP1 == 1) {
+					If (STA == 0) {
 						/* Enable VSIO regulator +
 						daisy chain */
 						DOVD(1)
-						if (LNotEqual (IOVA, 52)) {
+						if (IOVA != 52) {
 							/* Set VSIO value as
 							1.8006 V */
 							IOVA = 52
 						}
-						if (LNotEqual (SIOV, 52)) {
+						if (SIOV != 52) {
 							/* Set VSIO value as
 							1.8006 V */
 							SIOV = 52
@@ -351,7 +337,7 @@ Scope (\_SB.PCI0.I2C2)
 
 						/* Enable VCM regulator */
 						VCMC = 1
-						if (LNotEqual (VCMV, 109)) {
+						if (VCMV != 109) {
 							/* Set VCM value at
 							2.8152 V */
 							VCMV = 109
@@ -364,8 +350,8 @@ Scope (\_SB.PCI0.I2C2)
 			}
 
 			Method (_OFF, 0, Serialized) {
-				If (LEqual (AVP1, 1)) {
-					If (LEqual (STA, 1)) {
+				If (AVP1 == 1) {
+					If (STA == 1) {
 						VCMC = 0 /* Disable regulator */
 						Sleep(1)
 						DOVD(0) /* Disable regulator */
@@ -535,46 +521,45 @@ Scope (\_SB.PCI0.I2C3)
 		Name (AVB3, Zero)
 		Method (_REG, 2, NotSerialized)
 		{
-			If (LEqual (Arg0, 0x08))
+			If (Arg0 == 0x08)
 			{
 				/* Marks the availability of GeneralPurposeIO
 				 * 0x08: opregion space for GeneralPurposeIO
 				 */
-				Store (Arg1, AVGP)
+				AVGP = Arg1
 			}
-			If (LEqual (Arg0, 0xB0))
+			If (Arg0 == 0xB0)
 			{
 				/* Marks the availability of
 				 * TI_PMIC_POWER_OPREGION_ID */
-				Store (Arg1, AVB0)
+				AVB0 = Arg1
 			}
-			If (LEqual (Arg0, 0xB1))
+			If (Arg0 == 0xB1)
 			{
 				/* Marks the availability of
 				 * TI_PMIC_VR_VAL_OPREGION_ID */
-				Store (Arg1, AVB1)
+				AVB1 = Arg1
 			}
-			If (LEqual (Arg0, 0xB2))
+			If (Arg0 == 0xB2)
 			{
 				/* Marks the availability of
 				 * TI_PMIC_CLK_OPREGION_ID */
-				Store (Arg1, AVB2)
+				AVB2 = Arg1
 			}
-			If (LEqual (Arg0, 0xB3))
+			If (Arg0 == 0xB3)
 			{
 				/* Marks the availability of
 				 * TI_PMIC_CLK_FREQ_OPREGION_ID */
-				Store (Arg1, AVB3)
+				AVB3 = Arg1
 			}
-			If (LAnd (AVGP, LAnd (LAnd (AVB0, AVB1),
-							 LAnd(AVB2, AVB3))))
+			If (AVGP && AVB0 && AVB1 && AVB2 && AVB3)
 			{
 				/* Marks the availability of all opregions */
-				Store (1, AVP2)
+				AVP2 = 1
 			}
 			Else
 			{
-				Store (0, AVP2)
+				AVP2 = 0
 			}
 		}
 
@@ -682,9 +667,9 @@ Scope (\_SB.PCI0.I2C3)
 		Method (CLKE, 0, Serialized) {
 			/* save Acquire result so we can check for
 			Mutex acquired */
-			Store (Acquire (MUTC, 1000), Local0)
+			Local0 = Acquire (MUTC, 1000)
 			/* check for Mutex acquired */
-			If (LEqual (Local0, Zero)) {
+			If (Local0 == 0) {
 				/* Set boost clock divider */
 				BODI = 3
 				/* Set buck clock divider */
@@ -716,9 +701,9 @@ Scope (\_SB.PCI0.I2C3)
 		Method (CLKD, 0, Serialized) {
 			/* save Acquire result so we can check for
 			Mutex acquired */
-			Store (Acquire (MUTC, 1000), Local0)
+			Local0 = Acquire (MUTC, 1000)
 			/* check for Mutex acquired */
-			If (LEqual (Local0, Zero)) {
+			If (Local0 == 0) {
 				BODI = 0
 				BUDI = 0
 				PSWR = 0
@@ -739,13 +724,13 @@ Scope (\_SB.PCI0.I2C3)
 		Method (DOVD, 1, Serialized) {
 			/* Save Acquire result so we can check for
 			Mutex acquired */
-			Store (Acquire (MUTV, 1000), Local0)
+			Local0 = Acquire (MUTV, 1000)
 			/* Check for Mutex acquired */
-			If (LEqual (Local0, Zero)) {
+			If (Local0 == 0) {
 				/* Turn off VSIO */
-				If (LEqual (Arg0, Zero)) {
+				If (Arg0 == 0) {
 					VSIO = 0
-				} ElseIf (LEqual (Arg0, 1)) {
+				} ElseIf (Arg0 == 1) {
 					VSIO = 3
 				}
 				Release (MUTV)
@@ -756,15 +741,15 @@ Scope (\_SB.PCI0.I2C3)
 		PowerResource (OVFI, 0, 0) {
 			Name (STA, 0)
 			Method (_ON, 0, Serialized) {
-				If (LEqual (AVP2, 1)) {
-					If (LEqual (STA, 0)) {
+				If (AVP2 == 1) {
+					If (STA == 0) {
 						/* Enable VSIO regulator +
 						daisy chain */
 						DOVD(1)
 
 						VAX2 = 1 /* Enable VAUX2 */
 
-						if (LNotEqual (AX2V, 52)) {
+						if (AX2V != 52) {
 							/* Set VAUX2 as
 							1.8006 V */
 							AX2V = 52
@@ -774,7 +759,7 @@ Scope (\_SB.PCI0.I2C3)
 						\_SB.PCI0.I2C3.PMIC.CLKE()
 
 						VAX1 = 1 /* Enable VAUX1 */
-						if (LNotEqual (AX1V, 19)) {
+						if (AX1V != 19) {
 						/* Set VAUX1 as 1.2132V */
 							AX1V = 19
 						}
@@ -791,8 +776,8 @@ Scope (\_SB.PCI0.I2C3)
 			}
 
 			Method (_OFF, 0, Serialized) {
-				If (LEqual (AVP2, 1)) {
-					If (LEqual (STA, 1)) {
+				If (AVP2 == 1) {
+					If (STA == 1) {
 						Sleep(2)
 						\_SB.PCI0.I2C3.PMIC.CLKD()
 						Sleep(2)

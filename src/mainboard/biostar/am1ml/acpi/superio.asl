@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 The ChromiumOS Authors.  All rights reserved.
- * Copyright (C) 2015 Sergej Ivanov <getinaks@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 // Scope is \_SB.PCI0.LPCB
 
@@ -26,8 +12,8 @@ Device (PS2M) {
 		IRQNoFlags () {12}
 	})
 	Method (_STA, 0, NotSerialized) {
-		And (FLG0, 0x04, Local0)
-		If (LEqual (Local0, 0x04)) {
+		Local0 = FLG0 & 0x04
+		If (Local0 == 0x04) {
 			Return (0x0F)
 		} Else {
 			Return (0x00)
@@ -38,8 +24,8 @@ Device (PS2M) {
 Device (PS2K) {
 	Name (_HID, EisaId ("PNP0303"))
 	Method (_STA, 0, NotSerialized) {
-		And (FLG0, 0x04, Local0)
-		If (LEqual (Local0, 0x04)) {
+		Local0 = FLG0 & 0x04
+		If (Local0 == 0x04) {
 			Return (0x0F)
 		} Else {
 			Return (0x00)
@@ -56,8 +42,8 @@ Device (COM1) {
 	Name (_HID, EISAID ("PNP0501"))
 	Name (_UID, 1)
 	Method (_STA, 0, NotSerialized) {
-		And (FLG0, 0x04, Local0)
-		If (LEqual (Local0, 0x04)) {
+		Local0 = FLG0 & 0x04
+		If (Local0 == 0x04) {
 			Return (0x0F)
 		} Else {
 			Return (0x00)
@@ -79,8 +65,8 @@ Device (LPT1) {
 	Name (_HID, EISAID ("PNP0400"))
 	Name (_UID, 1)
 	Method (_STA, 0, NotSerialized) {
-		And (FLG0, 0x04, Local0)
-		If (LEqual (Local0, 0x04)) {
+		Local0 = FLG0 & 0x04
+		If (Local0 == 0x04) {
 			Return (0x0F)
 		} Else {
 			Return (0x00)

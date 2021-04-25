@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015 Sergej Ivanov <getinaks@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
-
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <arch/pirq_routing.h>
 
@@ -32,6 +17,7 @@ const struct irq_routing_table intel_irq_routing_table = {
 				 * would give 0 after the sum of all bytes
 				 * for this structure (including checksum).
 				 */
+	/* clang-format off */
 	{
 		/* bus,        dev | fn,   {link, bitmap}, {link, bitmap}, {link, bitmap}, {link, bitmap}, slot, rfu */
 		{0x00, (0x00 << 3) | 0x0, {{0x01, 0xccb0}, {0x02, 0xccb0}, {0x03, 0xccb0}, {0x04, 0xdab8}}, 0x0, 0x0},
@@ -45,6 +31,7 @@ const struct irq_routing_table intel_irq_routing_table = {
 		{0x00, (0x11 << 3) | 0x0, {{0x04, 0xdab8}, {0x00, 0x0000}, {0x00, 0x0000}, {0x00, 0x0000}}, 0x0, 0x0},
 		{0x01, (0x00 << 3) | 0x0, {{0x05, 0xccb0}, {0x06, 0xccb0}, {0x07, 0xccb0}, {0x08, 0xccb0}}, 0x12, 0x0},
 	}
+	/* clang-format on */
 };
 
 unsigned long write_pirq_routing_table(unsigned long addr)

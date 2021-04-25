@@ -1,30 +1,16 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- * Copyright (C) 2012 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 DefinitionBlock(
 	"dsdt.aml",
 	"DSDT",
-	0x02,		// DSDT revision: ACPI v2.0 and up
+	ACPI_DSDT_REV_2,
 	OEM_ID,
 	ACPI_TABLE_CREATOR,
 	0x20110725	// OEM revision
 )
 {
-	// Some generic macros
+	#include <acpi/dsdt_top.asl>
 	#include "acpi/platform.asl"
 
 	// Thermal handler
@@ -39,19 +25,13 @@ DefinitionBlock(
 	Scope (\_SB) {
 		Device (PCI0)
 		{
-			#include <northbridge/intel/haswell/acpi/haswell.asl>
+			#include <northbridge/intel/haswell/acpi/hostbridge.asl>
 			#include <southbridge/intel/lynxpoint/acpi/pch.asl>
-
-			#include <drivers/intel/gma/acpi/default_brightness_levels.asl>
 		}
 	}
 
 	// Mainboard devices
 	#include "acpi/mainboard.asl"
 
-	// Chrome OS specific
-	#include <vendorcode/google/chromeos/acpi/chromeos.asl>
-
-	// Chipset specific sleep states
-	#include <southbridge/intel/lynxpoint/acpi/sleepstates.asl>
+	#include <southbridge/intel/common/acpi/sleepstates.asl>
 }

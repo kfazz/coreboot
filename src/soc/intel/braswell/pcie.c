@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- * Copyright (C) 2015 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include "chip.h"
 #include <console/console.h>
@@ -42,8 +28,6 @@ static inline int is_first_port(struct device *dev)
 
 static void pcie_init(struct device *dev)
 {
-	printk(BIOS_SPEW, "%s/%s (%s)\n",
-			__FILE__, __func__, dev_name(dev));
 }
 
 static const struct reg_script no_dev_behind_port[] = {
@@ -56,9 +40,6 @@ static const struct reg_script no_dev_behind_port[] = {
 static void check_port_enabled(struct device *dev)
 {
 	int rp_config = (strpfusecfg & LANECFG_MASK) >> LANECFG_SHIFT;
-
-	printk(BIOS_SPEW, "%s/%s (%s)\n",
-			__FILE__, __func__, dev_name(dev));
 
 	switch (root_port_offset(dev)) {
 	case PCIE_PORT1_FUNC:
@@ -88,20 +69,16 @@ static void check_device_present(struct device *dev)
 	static struct device *port1_dev;
 
 	/*
-	 * The SOC has 4 ROOT ports defined with MAX_ROOT_PORTS_BSW.
-	 * For each port initial assumption is that, each port will have
-	 * devices connected to it. Later we will scan each PORT and if
-	 * the device is not attached to that port we will update
-	 * rootports_in_use. If none of the root port is in use we will
-	 * disable PORT1 otherwise we will keep PORT1 enabled per spec.
-	 * In future if the Soc has more number of PCIe Root ports then
-	 * change MAX_ROOT_PORTS_BSW value accordingly.
+	 * The SOC has 4 ROOT ports defined with MAX_ROOT_PORTS_BSW. For each port initial
+	 * assumption is that, each port will have devices connected to it. Later we will
+	 * scan each PORT and if the device is not attached to that port we will update
+	 * rootports_in_use. If none of the root port is in use we will disable PORT1
+	 * otherwise we will keep PORT1 enabled per spec. In future if the SoC has more
+	 * number of PCIe Root ports then change MAX_ROOT_PORTS_BSW value accordingly.
 	 */
 
 	static uint32_t rootports_in_use = MAX_ROOT_PORTS_BSW;
 
-	printk(BIOS_SPEW, "%s/%s (%s)\n",
-			__FILE__, __func__, dev_name(dev));
 	/* Set slot implemented. */
 	pci_write_config32(dev, XCAP, pci_read_config32(dev, XCAP) | SI);
 
@@ -111,9 +88,9 @@ static void check_device_present(struct device *dev)
 		printk(BIOS_DEBUG, "No PCIe device present.");
 
 		/*
-		 * Defer PORT1 disabling for now. When we are at Last port
-		 * we will check rootports_in_use and disable PORT1 if none
-		 * of the port has any device connected
+		 * Defer PORT1 disabling for now. When we are at Last port we will check
+		 * rootports_in_use and disable PORT1 if none of the ports have any device
+		 * connected to it.
 		 */
 		if (!is_first_port(dev)) {
 			reg_script_run_on_dev(dev, no_dev_behind_port);
@@ -121,8 +98,8 @@ static void check_device_present(struct device *dev)
 		} else
 			port1_dev = dev;
 		/*
-		 * If none of the ROOT PORT has devices connected then
-		 * disable PORT1 else keep the PORT1 enable
+		 * If none of the ROOT PORT has devices connected then disable PORT1.
+		 * Else, keep the PORT1 enabled.
 		 */
 		if (!rootports_in_use) {
 			reg_script_run_on_dev(port1_dev, no_dev_behind_port);
@@ -138,18 +115,15 @@ static void check_device_present(struct device *dev)
 
 static void pcie_enable(struct device *dev)
 {
-	printk(BIOS_SPEW, "%s/%s (%s)\n",
-			__FILE__, __func__, dev_name(dev));
 	if (is_first_port(dev)) {
-		struct soc_intel_braswell_config *config = dev->chip_info;
+		struct soc_intel_braswell_config *config = config_of(dev);
 		uint32_t reg = pci_read_config32(dev, PHYCTL2_IOSFBCTL);
 		pll_en_off = !!(reg & PLL_OFF_EN);
 
 		strpfusecfg = pci_read_config32(dev, STRPFUSECFG);
 
-		if (config && config->pcie_wake_enable)
-			southcluster_smm_save_param(
-				SMM_SAVE_PARAM_PCIE_WAKE_ENABLE, 1);
+		if (config->pcie_wake_enable)
+			smm_southcluster_save_param(SMM_SAVE_PARAM_PCIE_WAKE_ENABLE, 1);
 	}
 
 	/* Check if device is enabled in strapping. */
@@ -160,10 +134,6 @@ static void pcie_enable(struct device *dev)
 	southcluster_enable_dev(dev);
 }
 
-static struct pci_operations pcie_root_ops = {
-	.set_subsystem = pci_dev_set_subsystem,
-};
-
 static struct device_operations device_ops = {
 	.read_resources		= pci_bus_read_resources,
 	.set_resources		= pci_dev_set_resources,
@@ -171,7 +141,7 @@ static struct device_operations device_ops = {
 	.init			= pcie_init,
 	.scan_bus		= pciexp_scan_bridge,
 	.enable			= pcie_enable,
-	.ops_pci		= &pcie_root_ops,
+	.ops_pci		= &pci_dev_ops_pci,
 };
 
 static const unsigned short pci_device_ids[] = {

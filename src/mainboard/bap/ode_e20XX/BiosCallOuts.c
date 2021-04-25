@@ -1,24 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <AGESA.h>
 #include <northbridge/amd/agesa/BiosCallOuts.h>
 #include <northbridge/amd/agesa/state_machine.h>
 #include <FchPlatform.h>
-#include <stdlib.h>
 #include <spd_bin.h>
 
 #include "imc.h"
@@ -97,15 +83,15 @@ static const CODEC_TBL_LIST CodecTableList[] =
 #define FREQ_14HZ			0xFE
 #define FREQ_11HZ			0xFF
 
-/*  Hardware Monitor Fan Control
+/* Hardware Monitor Fan Control
  * Hardware limitation:
- *  HWM failed to read the input temperture vi I2C,
- *  if other software switch the I2C switch by mistake or intention.
- *  We recommend to using IMC to control Fans, instead of HWM.
+ *  HWM failed to read the input temperature via I2C,
+ *  if other software switches the I2C switch by mistake or intention.
+ *  We recommend using IMC to control Fans, instead of HWM.
  */
 static void oem_fan_control(FCH_DATA_BLOCK *FchParams)
 {
-	/* Enable IMC fan control. the recommand way */
+	/* Enable IMC fan control, the recommended way */
 	if (CONFIG(HUDSON_IMC_FWM)) {
 		imc_reg_init();
 
@@ -128,7 +114,7 @@ static void oem_fan_control(FCH_DATA_BLOCK *FchParams)
 		FchParams->Imc.EcStruct.MsgFun81Zone0MsgReg5 = 0x04;
 		FchParams->Imc.EcStruct.MsgFun81Zone0MsgReg6 = 0x9a;	/* SMBUS Address for SMBUS based temperature sensor such as SB-TSI and ADM1032 */
 		FchParams->Imc.EcStruct.MsgFun81Zone0MsgReg7 = 0x01;
-		FchParams->Imc.EcStruct.MsgFun81Zone0MsgReg8 = 0x01;	/* PWM steping rate in unit of PWM level percentage */
+		FchParams->Imc.EcStruct.MsgFun81Zone0MsgReg8 = 0x01;	/* PWM stepping rate in unit of PWM level percentage */
 		FchParams->Imc.EcStruct.MsgFun81Zone0MsgReg9 = 0x00;
 
 		/* IMC Fan Policy temperature thresholds */
@@ -160,12 +146,12 @@ static void oem_fan_control(FCH_DATA_BLOCK *FchParams)
 		FchParams->Imc.EcStruct.IMCFUNSupportBitMap = 0x111;//BIT0 | BIT4 |BIT8;
 
 		/* NOTE:
-		 * FchInitLateHwm will overwrite the EcStruct with EcDefaultMassege,
-		 * AGESA put EcDefaultMassege as global data in ROM, so we can't overwride it.
-		 * so we remove it from AGESA code. Please Seee FchInitLateHwm.
+		 * FchInitLateHwm will overwrite the EcStruct with EcDefaultMessage,
+		 * AGESA puts EcDefaultMessage as global data in ROM, so we can't overwrite it.
+		 * So we remove it from AGESA code. Please See FchInitLateHwm.
 		 */
 	} else {
-		/* HWM fan control, the way not recommand */
+		/* HWM fan control, the way not recommended */
 		FchParams->Imc.ImcEnable = FALSE;
 		FchParams->Hwm.HwMonitorEnable = TRUE;
 		FchParams->Hwm.HwmFchtsiAutoPoll = TRUE;/* 1 enable, 0 disable TSI Auto Polling */
@@ -191,10 +177,11 @@ void board_FCH_InitEnv(struct sysinfo *cb_NA, FCH_DATA_BLOCK *FchParams_env)
 
 static AGESA_STATUS board_ReadSpd_from_cbfs(UINT32 Func, UINTN Data, VOID *ConfigPtr)
 {
-	AGESA_STATUS Status = AGESA_UNSUPPORTED;
-#ifdef __PRE_RAM__
 	AGESA_READ_SPD_PARAMS *info = ConfigPtr;
 	u8 index;
+
+	if (!ENV_ROMSTAGE)
+		return AGESA_UNSUPPORTED;
 
 	if (CONFIG(BAP_E20_DDR3_1066))
 		index = 1;
@@ -212,7 +199,5 @@ static AGESA_STATUS board_ReadSpd_from_cbfs(UINT32 Func, UINTN Data, VOID *Confi
 	if (read_ddr3_spd_from_cbfs((u8 *)info->Buffer, index) < 0)
 		die("No SPD data\n");
 
-	Status = AGESA_SUCCESS;
-#endif
-	return Status;
+	return AGESA_SUCCESS;
 }

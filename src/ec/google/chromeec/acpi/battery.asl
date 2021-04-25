@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 The Chromium OS Authors. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 // Scope (EC0)
 
@@ -194,7 +180,7 @@ Method (BBST, 4, Serialized)
 	Store (Local1, Index (Arg1, 0))
 
 	// Notify if battery state has changed since last time
-	If (LNotEqual (Local1, Arg2)) {
+	If (LNotEqual (Local1, DeRefOf (Arg2))) {
 		Store (Local1, Arg2)
 		If (LEqual(Arg0, 0)) {
 			Notify (BAT0, 0x80)
@@ -326,7 +312,7 @@ Device (BAT0)
 
 	Method (_BST, 0, Serialized)
 	{
-		Return (BBST (0, PBST, BSTP, BFWK))
+		Return (BBST (0, PBST, RefOf (BSTP), BFWK))
 	}
 }
 
@@ -416,7 +402,7 @@ Device (BAT1)
 
 	Method (_BST, 0, Serialized)
 	{
-		Return (BBST (1, PBST, BSTP, BFWK))
+		Return (BBST (1, PBST, RefOf (BSTP), BFWK))
 	}
 }
 #endif

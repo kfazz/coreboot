@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/cache.h>
 #include <boot/coreboot_tables.h>
@@ -20,7 +7,6 @@
 #include <device/device.h>
 #include <device/i2c_simple.h>
 #include <drivers/ti/tps65090/tps65090.h>
-#include <edid.h>
 #include <soc/clk.h>
 #include <soc/dp.h>
 #include <soc/dp-core.h>
@@ -31,7 +17,7 @@
 #include <soc/tmu.h>
 #include <soc/usb.h>
 #include <symbols.h>
-#include <vbe.h>
+#include <framebuffer_info.h>
 
 #include "exynos5250.h"
 
@@ -41,15 +27,6 @@
 #define DRAM_START	((uintptr_t)_dram/MiB)
 #define DRAM_SIZE	CONFIG_DRAM_SIZE_MB
 #define DRAM_END	(DRAM_START + DRAM_SIZE)	/* plus one... */
-
-static struct edid edid = {
-	.mode.ha = 1366,
-	.mode.va = 768,
-	.framebuffer_bits_per_pixel = 16,
-	.x_resolution = 1366,
-	.y_resolution = 768,
-	.bytes_per_line = 2 * 1366
-};
 
 /* TODO: transplanted DP stuff, clean up once we have something that works */
 static enum exynos5_gpio_pin dp_pd_l = GPIO_Y25;	/* active low */
@@ -277,7 +254,7 @@ static void mainboard_init(struct device *dev)
 
 	sdmmc_vdd();
 
-	set_vbe_mode_info_valid(&edid, (uintptr_t)fb_addr);
+	fb_add_framebuffer_info((uintptr_t)fb_addr, 1366, 768, 2 * 1366, 16);
 
 	lcd_vdd();
 
@@ -330,9 +307,9 @@ static void mainboard_enable(struct device *dev)
 	mmu_config_range(DRAM_END, 4096 - DRAM_END, DCACHE_OFF);
 	dcache_mmu_enable();
 
-	const unsigned epll_hz = 192000000;
-	const unsigned sample_rate = 48000;
-	const unsigned lr_frame_size = 256;
+	const unsigned int epll_hz = 192000000;
+	const unsigned int sample_rate = 48000;
+	const unsigned int lr_frame_size = 256;
 	clock_epll_set_rate(epll_hz);
 	clock_select_i2s_clk_source();
 	clock_set_i2s_clk_prescaler(epll_hz, sample_rate * lr_frame_size);
@@ -350,7 +327,7 @@ void lb_board(struct lb_header *header)
 	struct lb_range *dma;
 
 	dma = (struct lb_range *)lb_new_record(header);
-	dma->tag = LB_TAB_DMA;
+	dma->tag = LB_TAG_DMA;
 	dma->size = sizeof(*dma);
 	dma->range_start = (uintptr_t)_dma_coherent;
 	dma->range_size = REGION_SIZE(dma_coherent);

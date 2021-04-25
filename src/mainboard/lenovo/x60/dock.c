@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Sven Schnelle <svens@stackframe.org>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <device/device.h>
@@ -86,7 +72,7 @@ int dlpc_init(void)
 
 	/* Enable 14.318MHz CLK on CLKIN */
 	dlpc_write_register(0x29, 0xa0);
-	while(!(dlpc_read_register(0x29) & 0x10) && timeout--)
+	while (!(dlpc_read_register(0x29) & 0x10) && timeout--)
 		udelay(1000);
 
 	if (!timeout)
@@ -113,7 +99,7 @@ int dock_connect(void)
 
 	timeout = 1000;
 
-	while(!(inb(0x164c) & 8) && timeout--)
+	while (!(inb(0x164c) & 8) && timeout--)
 		udelay(1000);
 
 	if (!timeout) {
@@ -135,7 +121,7 @@ int dock_connect(void)
 	dock_write_register(0x29, 0x06);
 	/* wait until clock is settled */
 	timeout = 1000;
-	while(!(dock_read_register(0x29) & 0x08) && timeout--)
+	while (!(dock_read_register(0x29) & 0x08) && timeout--)
 		udelay(1000);
 
 	if (!timeout)

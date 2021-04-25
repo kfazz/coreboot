@@ -1,26 +1,12 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* RAM driver for the SMSC LPC47M15X Super I/O chip */
 
 #include <device/device.h>
 #include <device/pnp.h>
 #include <superio/conf_mode.h>
-#include <device/smbus.h>
 #include <pc80/keyboard.h>
-#include <stdlib.h>
+
 #include "lpc47m15x.h"
 
 /* Forward declarations */

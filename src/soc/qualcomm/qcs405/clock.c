@@ -1,24 +1,9 @@
- /* This file is part of the coreboot project.
- *
- * Copyright 2018 Qualcomm Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+ /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <device/mmio.h>
 #include <types.h>
-#include <delay.h>
-#include <timestamp.h>
 #include <commonlib/helpers.h>
-#include <string.h>
 #include <soc/clock.h>
 
 #define DIV(div) (div ? (2*div - 1) : 0)
@@ -98,7 +83,7 @@ struct clock_config spi_cfg[] = {
 static int clock_configure_gpll0(void)
 {
 	/* Keep existing GPLL0 configuration, in RUN mode @800Mhz. */
-	setbits_le32(&gcc->gpll0.user_ctl,
+	setbits32(&gcc->gpll0.user_ctl,
 			1 << CLK_CTL_GPLL_PLLOUT_LV_EARLY_SHFT |
 			1 << CLK_CTL_GPLL_PLLOUT_AUX2_SHFT |
 			1 << CLK_CTL_GPLL_PLLOUT_AUX_SHFT |
@@ -146,7 +131,7 @@ static int clock_configure(struct qcs405_clock *clk,
 				clk_cfg[idx].d_2);
 
 	/* Commit config to RCG*/
-	setbits_le32(&clk->rcg.cmd, BIT(CLK_CTL_CMD_UPDATE_SHFT));
+	setbits32(&clk->rcg.cmd, BIT(CLK_CTL_CMD_UPDATE_SHFT));
 
 	return 0;
 }
@@ -161,7 +146,7 @@ static int clock_enable_vote(void *cbcr_addr, void *vote_addr,
 {
 
 	/* Set clock vote bit */
-	setbits_le32(vote_addr, BIT(vote_bit));
+	setbits32(vote_addr, BIT(vote_bit));
 
 	/* Ensure clock is enabled */
 	while (clock_is_off(cbcr_addr));
@@ -173,7 +158,7 @@ static int clock_enable(void *cbcr_addr)
 {
 
 	/* Set clock enable bit */
-	setbits_le32(cbcr_addr, BIT(CLK_CTL_CBC_CLK_EN_SHFT));
+	setbits32(cbcr_addr, BIT(CLK_CTL_CBC_CLK_EN_SHFT));
 
 	/* Ensure clock is enabled */
 	while (clock_is_off(cbcr_addr))
@@ -186,7 +171,7 @@ static int clock_disable(void *cbcr_addr)
 {
 
 	/* Set clock enable bit */
-	clrbits_le32(cbcr_addr, BIT(CLK_CTL_CBC_CLK_EN_SHFT));
+	clrbits32(cbcr_addr, BIT(CLK_CTL_CBC_CLK_EN_SHFT));
 	return 0;
 }
 
@@ -195,9 +180,9 @@ int clock_reset_bcr(void *bcr_addr, bool reset)
 	struct qcs405_bcr *bcr = bcr_addr;
 
 	if (reset)
-		setbits_le32(&bcr->bcr, BIT(CLK_CTL_BCR_BLK_ARES_SHFT));
+		setbits32(&bcr->bcr, BIT(CLK_CTL_BCR_BLK_ARES_SHFT));
 	else
-		clrbits_le32(&bcr->bcr, BIT(CLK_CTL_BCR_BLK_ARES_SHFT));
+		clrbits32(&bcr->bcr, BIT(CLK_CTL_BCR_BLK_ARES_SHFT));
 
 	return 0;
 }
@@ -236,14 +221,26 @@ void clock_configure_spi(int blsp, int qup, uint32_t hz)
 			spi_clk = (struct qcs405_clock *)
 					&gcc->blsp1_qup4_spi_clk;
 			break;
+		default:
+			printk(BIOS_ERR, "Invalid QUP %d\n", qup);
+			return;
 		}
-	} else if (blsp == 2)
+	} else if (blsp == 2) {
 		spi_clk = (struct qcs405_clock *)&gcc->blsp2_qup0_spi_clk;
-
-	else
-		printk(BIOS_ERR, "BLSP%d not supported\n", blsp);
+	} else {
+		printk(BIOS_ERR, "BLSP %d not supported\n", blsp);
+		return;
+	}
 
 	clock_configure(spi_clk, spi_cfg, hz, ARRAY_SIZE(spi_cfg));
+}
+
+void clock_configure_i2c(uint32_t hz)
+{
+	struct qcs405_clock *i2c_clk =
+			(struct qcs405_clock *)&gcc->blsp1_qup1_i2c_clk;
+
+	clock_configure(i2c_clk, i2c_cfg, hz, ARRAY_SIZE(i2c_cfg));
 }
 
 void clock_enable_uart(void)
@@ -307,6 +304,16 @@ void clock_disable_spi(int blsp, int qup)
 	else
 		printk(BIOS_ERR, "BLSP%d not supported\n", blsp);
 
+}
+
+void clock_enable_i2c(void)
+{
+	clock_enable(&gcc->blsp1_qup1_i2c_apps_cbcr);
+}
+
+void clock_disable_i2c(void)
+{
+	clock_disable(&gcc->blsp1_qup1_i2c_apps_cbcr);
 }
 
 void clock_init(void)

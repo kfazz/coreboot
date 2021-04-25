@@ -1,48 +1,29 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
+#include <option.h>
 #include <pc80/mc146818rtc.h>
 #include <pc80/isa-dma.h>
 #include <pc80/i8259.h>
 #include <arch/io.h>
 #include <device/pci_ops.h>
 #include <arch/ioapic.h>
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <cpu/x86/smm.h>
-#include <arch/acpigen.h>
+#include <acpi/acpigen.h>
 #include <arch/smp/mpspec.h>
-#include <cbmem.h>
-#include <string.h>
-#include <drivers/intel/gma/i915.h>
 #include <southbridge/intel/common/acpi_pirq_gen.h>
+#include <southbridge/intel/common/hpet.h>
 #include <southbridge/intel/common/pmbase.h>
+#include <southbridge/intel/common/spi.h>
 
+#include "chip.h"
 #include "i82801gx.h"
-#include "nvs.h"
 
 #define NMI_OFF	0
-
-#define ENABLE_ACPI_MODE_IN_COREBOOT	0
-#define TEST_SMM_FLASH_LOCKDOWN		0
-
-typedef struct southbridge_intel_i82801gx_config config_t;
 
 /**
  * Set miscellaneous static southbridge features.
@@ -51,9 +32,6 @@ typedef struct southbridge_intel_i82801gx_config config_t;
  */
 static void i82801gx_enable_ioapic(struct device *dev)
 {
-	/* Enable ACPI I/O range decode */
-	pci_write_config8(dev, ACPI_CNTL, ACPI_EN);
-
 	set_ioapic_id(VIO_APIC_VADDR, 0x02);
 
 	/*
@@ -66,8 +44,7 @@ static void i82801gx_enable_ioapic(struct device *dev)
 static void i82801gx_enable_serial_irqs(struct device *dev)
 {
 	/* Set packet length and toggle silent mode bit for one frame. */
-	pci_write_config8(dev, SERIRQ_CNTL,
-			  (1 << 7) | (1 << 6) | ((21 - 17) << 2) | (0 << 0));
+	pci_write_config8(dev, SERIRQ_CNTL, (1 << 7) | (1 << 6) | ((21 - 17) << 2) | (0 << 0));
 }
 
 /* PIRQ[n]_ROUT[3:0] - PIRQ Routing Control
@@ -95,7 +72,7 @@ static void i82801gx_pirq_init(struct device *dev)
 {
 	struct device *irq_dev;
 	/* Get the chip configuration */
-	config_t *config = dev->chip_info;
+	const struct southbridge_intel_i82801gx_config *config = dev->chip_info;
 
 	pci_write_config8(dev, PIRQA_ROUT, config->pirqa_routing);
 	pci_write_config8(dev, PIRQB_ROUT, config->pirqb_routing);
@@ -140,12 +117,10 @@ static void i82801gx_pirq_init(struct device *dev)
 static void i82801gx_gpi_routing(struct device *dev)
 {
 	/* Get the chip configuration */
-	config_t *config = dev->chip_info;
+	const struct southbridge_intel_i82801gx_config *config = dev->chip_info;
 	u32 reg32 = 0;
 
-	/* An array would be much nicer here, or some
-	 * other method of doing this.
-	 */
+	/* An array would be much nicer here, or some other method of doing this. */
 	reg32 |= (config->gpi0_routing & 0x03) << 0;
 	reg32 |= (config->gpi1_routing & 0x03) << 2;
 	reg32 |= (config->gpi2_routing & 0x03) << 4;
@@ -173,10 +148,7 @@ static void i82801gx_power_options(struct device *dev)
 	u32 reg32;
 	const char *state;
 	/* Get the chip configuration */
-	config_t *config = dev->chip_info;
-
-	int pwr_on = CONFIG_MAINBOARD_POWER_FAILURE_STATE;
-	int nmi_option;
+	const struct southbridge_intel_i82801gx_config *config = dev->chip_info;
 
 	/* Which state do we want to goto after g3 (power restored)?
 	 * 0 == S0 Full On
@@ -184,8 +156,7 @@ static void i82801gx_power_options(struct device *dev)
 	 *
 	 * If the option is not existent (Laptops), use MAINBOARD_POWER_ON.
 	 */
-	pwr_on = MAINBOARD_POWER_ON;
-	get_option(&pwr_on, "power_on_after_fail");
+	const int pwr_on = get_int_option("power_on_after_fail", MAINBOARD_POWER_ON);
 
 	reg8 = pci_read_config8(dev, GEN_PMCON_3);
 	reg8 &= 0xfe;
@@ -221,8 +192,7 @@ static void i82801gx_power_options(struct device *dev)
 	outb(reg8, 0x61);
 
 	reg8 = inb(0x70);
-	nmi_option = NMI_OFF;
-	get_option(&nmi_option, "nmi");
+	const int nmi_option = get_int_option("nmi", NMI_OFF);
 	if (nmi_option) {
 		printk(BIOS_INFO, "NMI sources enabled.\n");
 		reg8 &= ~(1 << 7);	/* Set NMI. */
@@ -245,12 +215,8 @@ static void i82801gx_power_options(struct device *dev)
 	// another laptop wants this?
 	// reg16 &= ~(1 << 10);	// BIOS_PCI_EXP_EN - Desktop/Mobile only
 	reg16 |= (1 << 10);	// BIOS_PCI_EXP_EN - Desktop/Mobile only
-#if DEBUG_PERIODIC_SMIS
-	/* Set DEBUG_PERIODIC_SMIS in i82801gx.h to debug using
-	 * periodic SMIs.
-	 */
-	reg16 |= (3 << 0); // Periodic SMI every 8s
-#endif
+	if (CONFIG(DEBUG_PERIODIC_SMI))
+		reg16 |= (3 << 0); // Periodic SMI every 8s
 	pci_write_config16(dev, GEN_PMCON_1, reg16);
 
 	// Set the board's GPI routing.
@@ -270,18 +236,13 @@ static void i82801gx_power_options(struct device *dev)
 
 static void i82801gx_configure_cstates(struct device *dev)
 {
-	u8 reg8;
-
-	reg8 = pci_read_config8(dev, 0xa9); // Cx state configuration
-	reg8 |= (1 << 4) | (1 << 3) | (1 << 2);	// Enable Popup & Popdown
-	pci_write_config8(dev, 0xa9, reg8);
+	// Enable Popup & Popdown
+	pci_or_config8(dev, 0xa9, (1 << 4) | (1 << 3) | (1 << 2));
 
 	// Set Deeper Sleep configuration to recommended values
-	reg8 = pci_read_config8(dev, 0xaa);
-	reg8 &= 0xf0;
-	reg8 |= (2 << 2);	// Deeper Sleep to Stop CPU: 34-40us
-	reg8 |= (2 << 0);	// Deeper Sleep to Sleep: 15us
-	pci_write_config8(dev, 0xaa, reg8);
+	// Deeper Sleep to Stop CPU: 34-40us
+	// Deeper Sleep to Sleep: 15us
+	pci_update_config8(dev, 0xaa, 0xf0, (2 << 2) | (2 << 0));
 }
 
 static void i82801gx_rtc_init(struct device *dev)
@@ -298,17 +259,6 @@ static void i82801gx_rtc_init(struct device *dev)
 	printk(BIOS_DEBUG, "rtc_failed = 0x%x\n", rtc_failed);
 
 	cmos_init(rtc_failed);
-}
-
-static void enable_hpet(void)
-{
-	u32 reg32;
-
-	/* Move HPET to default address 0xfed00000 and enable it */
-	reg32 = RCBA32(HPTC);
-	reg32 |= (1 << 7); // HPET Address Enable
-	reg32 &= ~(3 << 0);
-	RCBA32(HPTC) = reg32;
 }
 
 static void enable_clock_gating(void)
@@ -330,56 +280,14 @@ static void enable_clock_gating(void)
 	RCBA32(CG) = reg32;
 }
 
-#if CONFIG(HAVE_SMI_HANDLER)
-static void i82801gx_lock_smm(struct device *dev)
+static void i82801gx_set_acpi_mode(struct device *dev)
 {
-#if TEST_SMM_FLASH_LOCKDOWN
-	u8 reg8;
-#endif
-
 	if (!acpi_is_wakeup_s3()) {
-#if ENABLE_ACPI_MODE_IN_COREBOOT
-		printk(BIOS_DEBUG, "Enabling ACPI via APMC:\n");
-		outb(APM_CNT_ACPI_ENABLE, APM_CNT); // Enable ACPI mode
-		printk(BIOS_DEBUG, "done.\n");
-#else
-		printk(BIOS_DEBUG, "Disabling ACPI via APMC:\n");
-		outb(APM_CNT_ACPI_DISABLE, APM_CNT); // Disable ACPI mode
-		printk(BIOS_DEBUG, "done.\n");
-#endif
+		apm_control(APM_CNT_ACPI_DISABLE);
 	} else {
-		printk(BIOS_DEBUG, "S3 wakeup, enabling ACPI via APMC\n");
-		outb(APM_CNT_ACPI_ENABLE, APM_CNT);
+		apm_control(APM_CNT_ACPI_ENABLE);
 	}
-
-#if TEST_SMM_FLASH_LOCKDOWN
-	/* Now try this: */
-	printk(BIOS_DEBUG, "Locking BIOS to RO... ");
-	reg8 = pci_read_config8(dev, 0xdc);	/* BIOS_CNTL */
-	printk(BIOS_DEBUG, " BLE: %s; BWE: %s\n", (reg8&2)?"on":"off",
-			(reg8&1)?"rw":"ro");
-	reg8 &= ~(1 << 0);			/* clear BIOSWE */
-	pci_write_config8(dev, 0xdc, reg8);
-	reg8 |= (1 << 1);			/* set BLE */
-	pci_write_config8(dev, 0xdc, reg8);
-	printk(BIOS_DEBUG, "ok.\n");
-	reg8 = pci_read_config8(dev, 0xdc);	/* BIOS_CNTL */
-	printk(BIOS_DEBUG, " BLE: %s; BWE: %s\n", (reg8&2)?"on":"off",
-			(reg8&1)?"rw":"ro");
-
-	printk(BIOS_DEBUG, "Writing:\n");
-	*(volatile u8 *)0xfff00000 = 0x00;
-	printk(BIOS_DEBUG, "Testing:\n");
-	reg8 |= (1 << 0);			/* set BIOSWE */
-	pci_write_config8(dev, 0xdc, reg8);
-
-	reg8 = pci_read_config8(dev, 0xdc);	/* BIOS_CNTL */
-	printk(BIOS_DEBUG, " BLE: %s; BWE: %s\n", (reg8&2)?"on":"off",
-			(reg8&1)?"rw":"ro");
-	printk(BIOS_DEBUG, "Done.\n");
-#endif
 }
-#endif
 
 #define SPIBASE 0x3020
 static void i82801gx_spi_init(void)
@@ -405,10 +313,7 @@ static void i82801gx_fixups(struct device *dev)
 
 static void lpc_init(struct device *dev)
 {
-	printk(BIOS_DEBUG, "i82801gx: lpc_init\n");
-
-	/* Set the value for PCI command register. */
-	pci_write_config16(dev, PCI_COMMAND, 0x000f);
+	printk(BIOS_DEBUG, "i82801gx: %s\n", __func__);
 
 	/* IO APIC initialization. */
 	i82801gx_enable_ioapic(dev);
@@ -423,9 +328,6 @@ static void lpc_init(struct device *dev)
 
 	/* Configure Cx state registers */
 	i82801gx_configure_cstates(dev);
-
-	/* Set the state of the GPIO lines. */
-	//gpio_init(dev);
 
 	/* Initialize the real time clock. */
 	i82801gx_rtc_init(dev);
@@ -445,9 +347,7 @@ static void lpc_init(struct device *dev)
 	/* Interrupt 9 should be level triggered (SCI) */
 	i8259_configure_irq_trigger(9, 1);
 
-#if CONFIG(HAVE_SMI_HANDLER)
-	i82801gx_lock_smm(dev);
-#endif
+	i82801gx_set_acpi_mode(dev);
 
 	i82801gx_spi_init();
 
@@ -460,8 +360,7 @@ unsigned long acpi_fill_madt(unsigned long current)
 	current = acpi_create_madt_lapics(current);
 
 	/* IOAPIC */
-	current += acpi_create_madt_ioapic((acpi_madt_ioapic_t *) current,
-				2, IO_APIC_ADDR, 0);
+	current += acpi_create_madt_ioapic((acpi_madt_ioapic_t *) current, 2, IO_APIC_ADDR, 0);
 
 	/* LAPIC_NMI */
 	current += acpi_create_madt_lapic_nmi((acpi_madt_lapic_nmi_t *)
@@ -478,126 +377,7 @@ unsigned long acpi_fill_madt(unsigned long current)
 	current += acpi_create_madt_irqoverride((acpi_madt_irqoverride_t *)
 		 current, 0, 9, 9, MP_IRQ_POLARITY_HIGH | MP_IRQ_TRIGGER_LEVEL);
 
-
 	return current;
-}
-
-void acpi_fill_fadt(acpi_fadt_t *fadt)
-{
-	struct device *dev = pcidev_on_root(0x1f, 0);
-	config_t *chip = dev->chip_info;
-	u16 pmbase = lpc_get_pmbase();
-
-	fadt->pm1a_evt_blk = pmbase;
-	fadt->pm1b_evt_blk = 0x0;
-	fadt->pm1a_cnt_blk = pmbase + PM1_CNT;
-	fadt->pm1b_cnt_blk = 0x0;
-	fadt->pm2_cnt_blk = pmbase + PM2_CNT;
-	fadt->pm_tmr_blk = pmbase + PM1_TMR;
-	fadt->gpe0_blk = pmbase + GPE0_STS;
-	fadt->gpe1_blk = 0;
-
-	fadt->pm1_evt_len = 4;
-	fadt->pm1_cnt_len = 2;
-	fadt->pm2_cnt_len = 1;
-	fadt->pm_tmr_len = 4;
-	fadt->gpe0_blk_len = 8;
-	fadt->gpe1_blk_len = 0;
-	fadt->gpe1_base = 0;
-
-	fadt->reset_reg.space_id = 1;
-	fadt->reset_reg.bit_width = 8;
-	fadt->reset_reg.bit_offset = 0;
-	fadt->reset_reg.access_size = ACPI_ACCESS_SIZE_BYTE_ACCESS;
-	fadt->reset_reg.addrl = 0xcf9;
-	fadt->reset_reg.addrh = 0;
-
-	fadt->reset_value = 6;
-
-	fadt->x_pm1a_evt_blk.space_id = 1;
-	fadt->x_pm1a_evt_blk.bit_width = 32;
-	fadt->x_pm1a_evt_blk.bit_offset = 0;
-	fadt->x_pm1a_evt_blk.access_size = ACPI_ACCESS_SIZE_DWORD_ACCESS;
-	fadt->x_pm1a_evt_blk.addrl = pmbase;
-	fadt->x_pm1a_evt_blk.addrh = 0x0;
-
-	fadt->x_pm1b_evt_blk.space_id = 0;
-	fadt->x_pm1b_evt_blk.bit_width = 0;
-	fadt->x_pm1b_evt_blk.bit_offset = 0;
-	fadt->x_pm1b_evt_blk.access_size = 0;
-	fadt->x_pm1b_evt_blk.addrl = 0x0;
-	fadt->x_pm1b_evt_blk.addrh = 0x0;
-
-	fadt->x_pm1a_cnt_blk.space_id = 1;
-	fadt->x_pm1a_cnt_blk.bit_width = 16;
-	fadt->x_pm1a_cnt_blk.bit_offset = 0;
-	fadt->x_pm1a_cnt_blk.access_size = ACPI_ACCESS_SIZE_WORD_ACCESS;
-	fadt->x_pm1a_cnt_blk.addrl = pmbase + PM1_CNT;
-	fadt->x_pm1a_cnt_blk.addrh = 0x0;
-
-	fadt->x_pm1b_cnt_blk.space_id = 0;
-	fadt->x_pm1b_cnt_blk.bit_width = 0;
-	fadt->x_pm1b_cnt_blk.bit_offset = 0;
-	fadt->x_pm1b_cnt_blk.access_size = 0;
-	fadt->x_pm1b_cnt_blk.addrl = 0x0;
-	fadt->x_pm1b_cnt_blk.addrh = 0x0;
-
-	fadt->x_pm2_cnt_blk.space_id = 1;
-	fadt->x_pm2_cnt_blk.bit_width = 8;
-	fadt->x_pm2_cnt_blk.bit_offset = 0;
-	fadt->x_pm2_cnt_blk.access_size = ACPI_ACCESS_SIZE_BYTE_ACCESS;
-	fadt->x_pm2_cnt_blk.addrl = pmbase + PM2_CNT;
-	fadt->x_pm2_cnt_blk.addrh = 0x0;
-
-	fadt->x_pm_tmr_blk.space_id = 1;
-	fadt->x_pm_tmr_blk.bit_width = 32;
-	fadt->x_pm_tmr_blk.bit_offset = 0;
-	fadt->x_pm_tmr_blk.access_size = ACPI_ACCESS_SIZE_DWORD_ACCESS;
-	fadt->x_pm_tmr_blk.addrl = pmbase + PM1_TMR;
-	fadt->x_pm_tmr_blk.addrh = 0x0;
-
-	fadt->x_gpe0_blk.space_id = 1;
-	fadt->x_gpe0_blk.bit_width = 64;
-	fadt->x_gpe0_blk.bit_offset = 0;
-	fadt->x_gpe0_blk.access_size = ACPI_ACCESS_SIZE_DWORD_ACCESS;
-	fadt->x_gpe0_blk.addrl = pmbase + GPE0_STS;
-	fadt->x_gpe0_blk.addrh = 0x0;
-
-	fadt->x_gpe1_blk.space_id = 0;
-	fadt->x_gpe1_blk.bit_width = 0;
-	fadt->x_gpe1_blk.bit_offset = 0;
-	fadt->x_gpe1_blk.access_size = 0;
-	fadt->x_gpe1_blk.addrl = 0x0;
-	fadt->x_gpe1_blk.addrh = 0x0;
-	fadt->day_alrm = 0xd;
-	fadt->mon_alrm = 0x00;
-	fadt->century = 0x32;
-
-	fadt->reserved = 0;
-	fadt->sci_int = 0x9;
-	fadt->smi_cmd = APM_CNT;
-	fadt->acpi_enable = APM_CNT_ACPI_ENABLE;
-	fadt->acpi_disable = APM_CNT_ACPI_DISABLE;
-	fadt->s4bios_req = 0x0;
-	fadt->pstate_cnt = APM_CNT_PST_CONTROL;
-
-	fadt->cst_cnt = APM_CNT_CST_CONTROL;
-	fadt->p_lvl2_lat = 1;
-	fadt->p_lvl3_lat = chip->c3_latency;
-	fadt->flush_size = 0;
-	fadt->flush_stride = 0;
-	fadt->duty_offset = 1;
-	if (chip->p_cnt_throttling_supported)
-		fadt->duty_width = 3;
-	else
-		fadt->duty_width = 0;
-	fadt->iapc_boot_arch = 0x03;
-	fadt->flags = (ACPI_FADT_WBINVD | ACPI_FADT_C1_SUPPORTED
-		       | ACPI_FADT_SLEEP_BUTTON | ACPI_FADT_S4_RTC_WAKE
-		       | ACPI_FADT_PLATFORM_CLOCK | ACPI_FADT_RESET_REGISTER
-		       | ACPI_FADT_C2_MP_SUPPORTED);
-	if (chip->docking_supported)
-		fadt->flags |= ACPI_FADT_DOCKING_SUPPORTED;
 }
 
 static void i82801gx_lpc_read_resources(struct device *dev)
@@ -652,11 +432,8 @@ static void lpc_final(struct device *dev)
 	if (!CONFIG(INTEL_CHIPSET_LOCKDOWN))
 		return;
 
-	SPIBAR16(PREOP) = SPI_OPPREFIX;
-	/* Set SPI opcode menu */
-	SPIBAR16(OPTYPE) = SPI_OPTYPE;
-	SPIBAR32(OPMENU) = SPI_OPMENU_LOWER;
-	SPIBAR32(OPMENU + 4) = SPI_OPMENU_UPPER;
+	if (CONFIG(BOOT_DEVICE_SPI_FLASH))
+		spi_finalize_ops();
 
 	/* Lock SPIBAR */
 	SPIBAR16(0) = SPIBAR16(0) | (1 << 15);
@@ -676,72 +453,37 @@ static void lpc_final(struct device *dev)
 	outb(POST_OS_BOOT, 0x80);
 }
 
-static void southbridge_inject_dsdt(struct device *dev)
-{
-	global_nvs_t *gnvs = cbmem_add(CBMEM_ID_ACPI_GNVS, sizeof(*gnvs));
-
-	if (gnvs) {
-		const struct i915_gpu_controller_info *gfx = intel_gma_get_controller_info();
-
-		memset(gnvs, 0, sizeof(*gnvs));
-
-		gnvs->apic = 1;
-		gnvs->mpen = 1; /* Enable Multi Processing */
-
-		acpi_create_gnvs(gnvs);
-
-		if (gfx) {
-			gnvs->ndid = gfx->ndid;
-			memcpy(gnvs->did, gfx->did, sizeof(gnvs->did));
-		}
-
-		/* And tell SMI about it */
-		smm_setup_structures(gnvs, NULL, NULL);
-
-		/* Add it to SSDT.  */
-		acpigen_write_scope("\\");
-		acpigen_write_name_dword("NVSA", (u32) gnvs);
-		acpigen_pop_len();
-	}
-}
-
 static const char *lpc_acpi_name(const struct device *dev)
 {
 	return "LPCB";
 }
 
-static void southbridge_fill_ssdt(struct device *device)
+static void southbridge_fill_ssdt(const struct device *device)
 {
 	intel_acpi_gen_def_acpi_pirq(device);
 }
-
-static struct pci_operations pci_ops = {
-	.set_subsystem = pci_dev_set_subsystem,
-};
 
 static struct device_operations device_ops = {
 	.read_resources		= i82801gx_lpc_read_resources,
 	.set_resources		= pci_dev_set_resources,
 	.enable_resources	= pci_dev_enable_resources,
-	.acpi_inject_dsdt_generator = southbridge_inject_dsdt,
 	.write_acpi_tables      = acpi_write_hpet,
-	.acpi_fill_ssdt_generator = southbridge_fill_ssdt,
+	.acpi_fill_ssdt		= southbridge_fill_ssdt,
 	.acpi_name		= lpc_acpi_name,
 	.init			= lpc_init,
-	.scan_bus		= scan_lpc_bus,
+	.scan_bus		= scan_static_bus,
 	.enable			= i82801gx_enable,
-	.ops_pci		= &pci_ops,
+	.ops_pci		= &pci_dev_ops_pci,
 	.final			= lpc_final,
 };
 
-/* 27b0: 82801GH (ICH7 DH) */
-/* 27b8: 82801GB/GR (ICH7/ICH7R) */
-/* 27b9: 82801GBM/GU (ICH7-M/ICH7-U) */
-/* 27bc: 82NM10 (NM10) */
-/* 27bd: 82801GHM (ICH7-M DH) */
-
 static const unsigned short pci_device_ids[] = {
-	0x27b0, 0x27b8, 0x27b9, 0x27bc, 0x27bd, 0
+	0x27b0, /* 82801GH (ICH7 DH) */
+	0x27b8, /* 82801GB/GR (ICH7/ICH7R) */
+	0x27b9, /* 82801GBM/GU (ICH7-M/ICH7-U) */
+	0x27bc, /* 82NM10 (NM10) */
+	0x27bd, /* 82801GHM (ICH7-M DH) */
+	0
 };
 
 static const struct pci_driver ich7_lpc __pci_driver = {

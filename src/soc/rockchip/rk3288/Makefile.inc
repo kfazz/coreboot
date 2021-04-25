@@ -1,24 +1,10 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright 2014 Rockchip Inc.
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+## SPDX-License-Identifier: GPL-2.0-only
 
 ifeq ($(CONFIG_SOC_ROCKCHIP_RK3288),y)
 
 IDBTOOL = util/rockchip/make_idb.py
 
 bootblock-y += bootblock.c
-bootblock-y += ../common/cbmem.c
 bootblock-y += ../common/uart.c
 bootblock-y += timer.c
 bootblock-y += clock.c
@@ -55,7 +41,6 @@ romstage-y += tsadc.c
 romstage-y += ../common/i2c.c
 
 ramstage-y += soc.c
-ramstage-y += ../common/cbmem.c
 ramstage-y += timer.c
 ramstage-y += ../common/i2c.c
 ramstage-$(CONFIG_SOFTWARE_I2C) += software_i2c.c
@@ -77,7 +62,7 @@ CPPFLAGS_common += -Isrc/soc/rockchip/common/include
 
 $(objcbfs)/bootblock.bin: $(objcbfs)/bootblock.raw.bin
 	@printf "Generating: $(subst $(obj)/,,$(@))\n"
-	@mkdir -p $(dir $@)
-	@$(IDBTOOL) --from=$< --to=$@ --enable-align --chip=RK32
+	$(Q)mkdir -p $(dir $@)
+	$(Q)$(IDBTOOL) --from=$< --to=$@ --enable-align --chip=RK32
 
 endif

@@ -1,20 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- * Copyright (C) 2014 Vladimir Serbinenko
- * Copyright (C) 2017 Tobias Diedrich <ranma+coreboot@tdiedrich.de>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <cpu/x86/smm.h>
@@ -31,23 +15,6 @@
 #define GPE_EC_SMI	8
 /* FIXME: check this */
 #define GPE_EC_WAKE	13
-
-static void mainboard_smm_init(void)
-{
-	printk(BIOS_DEBUG, "initializing SMI\n");
-}
-
-int mainboard_io_trap_handler(int smif)
-{
-	static int smm_initialized;
-
-	if (!smm_initialized) {
-		mainboard_smm_init();
-		smm_initialized = 1;
-	}
-
-	return 0;
-}
 
 enum sleep_states {
 	S0 = 0,
@@ -107,18 +74,14 @@ void mainboard_smi_gpi(u32 gpi_sts)
 
 int mainboard_smi_apmc(u8 data)
 {
-	printk(BIOS_INFO, "mainboard_smi_apmc(%02x)\n", data);
-
 	switch (data) {
 	case APM_CNT_ACPI_ENABLE:
-		printk(BIOS_DEBUG, "Enable ACPI mode\n");
 		ec_enter_acpi_mode();
 		gpi_route_interrupt(GPE_EC_SCI, GPI_IS_SCI);
 		gpi_route_interrupt(GPE_PALMDET1, GPI_IS_SCI);
 		gpi_route_interrupt(GPE_PALMDET2, GPI_IS_SCI);
 		break;
 	case APM_CNT_ACPI_DISABLE:
-		printk(BIOS_DEBUG, "Disable ACPI mode\n");
 		ec_enter_apm_mode();
 		gpi_route_interrupt(GPE_EC_SCI, GPI_IS_SMI);
 		break;

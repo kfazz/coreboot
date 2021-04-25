@@ -1,30 +1,14 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017-2018 Arthur Heymans <arthur@aheymans.xyz>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <device/mmio.h>
 #include <console/console.h>
 #include <delay.h>
-#include <stdint.h>
 #include <string.h>
 #include <types.h>
+#include "raminit.h"
 #include "x4x.h"
-#include "iomap.h"
 
-static void print_dll_setting(const struct dll_setting *dll_setting,
-			u8 default_verbose)
+static void print_dll_setting(const struct dll_setting *dll_setting, u8 default_verbose)
 {
 	u8 debug_level = default_verbose ? BIOS_DEBUG : RAM_DEBUG;
 
@@ -88,13 +72,11 @@ static void set_db(const struct sysinfo *s, struct dll_setting *dq_dqs_setting)
 	}
 }
 
-const static u8 max_tap[3] = {12, 10, 13};
+static const u8 max_tap[3] = {12, 10, 13};
 
-static int increment_dq_dqs(const struct sysinfo *s,
-			struct dll_setting *dq_dqs_setting)
+static int increment_dq_dqs(const struct sysinfo *s, struct dll_setting *dq_dqs_setting)
 {
-	u8 max_tap_val = max_tap[s->selected_timings.mem_clk
-				- MEM_CLOCK_800MHz];
+	u8 max_tap_val = max_tap[s->selected_timings.mem_clk - MEM_CLOCK_800MHz];
 
 	if (dq_dqs_setting->pi < 6) {
 		dq_dqs_setting->pi += 1;
@@ -117,11 +99,9 @@ static int increment_dq_dqs(const struct sysinfo *s,
 	return CB_SUCCESS;
 }
 
-static int decrement_dq_dqs(const struct sysinfo *s,
-			struct dll_setting *dq_dqs_setting)
+static int decrement_dq_dqs(const struct sysinfo *s, struct dll_setting *dq_dqs_setting)
 {
-	u8 max_tap_val = max_tap[s->selected_timings.mem_clk
-				- MEM_CLOCK_800MHz];
+	u8 max_tap_val = max_tap[s->selected_timings.mem_clk - MEM_CLOCK_800MHz];
 
 	if (dq_dqs_setting->pi > 0) {
 		dq_dqs_setting->pi -= 1;
@@ -143,7 +123,6 @@ static int decrement_dq_dqs(const struct sysinfo *s,
 	set_db(s, dq_dqs_setting);
 	return CB_SUCCESS;
 }
-
 
 #define WT_PATTERN_SIZE 80
 
@@ -175,8 +154,7 @@ enum training_modes {
 	FAILING = 1
 };
 
-static u8 test_dq_aligned(const struct sysinfo *s,
-					const u8 channel)
+static u8 test_dq_aligned(const struct sysinfo *s, const u8 channel)
 {
 	u32 address;
 	int rank, lane;
@@ -189,18 +167,15 @@ static u8 test_dq_aligned(const struct sysinfo *s,
 		for (count = 0; count < WT_PATTERN_SIZE; count++) {
 			for (count1 = 0; count1 < WT_PATTERN_SIZE; count1++) {
 				if ((count1 % 16) == 0)
-					MCHBAR32(0xf90) = 1;
-				const u32 pattern =
-					write_training_schedule[count1];
+					mchbar_write32(0xf90, 1);
+				const u32 pattern = write_training_schedule[count1];
 				write32((u32 *)address + 8 * count1, pattern);
-				write32((u32 *)address + 8 * count1 + 4,
-					pattern);
+				write32((u32 *)address + 8 * count1 + 4, pattern);
 			}
 
 			const u32 good = write_training_schedule[count];
 			write32(&data[0], read32((u32 *)address + 8 * count));
-			write32(&data[4],
-				read32((u32 *)address + 8 * count + 4));
+			write32(&data[4], read32((u32 *)address + 8 * count + 4));
 			FOR_EACH_BYTELANE(lane) {
 				u8 expected = (good >> ((lane % 4) * 8)) & 0xff;
 				if (data[lane] != expected)
@@ -229,13 +204,13 @@ static int find_dq_limit(const struct sysinfo *s, const u8 channel,
 	int lane;
 	u8 test_result;
 	u8 pass_count[TOTAL_BYTELANES];
-	u8 succes_mask = 0xff;
+	u8 success_mask = 0xff;
 
 	printk(RAM_DEBUG, "Looking for %s writes on channel %d\n",
 		expected_result == FAILING ? "failing" : "succeeding", channel);
 	memset(pass_count, 0, sizeof(pass_count));
 
-	while(succes_mask) {
+	while (success_mask) {
 		test_result = test_dq_aligned(s, channel);
 		FOR_EACH_BYTELANE(lane) {
 			if (((test_result >> lane) & 1) != expected_result) {
@@ -248,11 +223,11 @@ static int find_dq_limit(const struct sysinfo *s, const u8 channel,
 				dq_lim[lane]++;
 				pass_count[lane]++;
 			} else if (pass_count[lane] == CONSISTENCY) {
-				succes_mask &= ~(1 << lane);
+				success_mask &= ~(1 << lane);
 			}
 			if (status == CB_ERR) {
-				printk(BIOS_CRIT, "Could not find a case of %s "
-					"writes on CH%d, lane %d\n",
+				printk(BIOS_CRIT,
+					"Could not find a case of %s writes on CH%d, lane %d\n",
 					expected_result == FAILING ? "failing"
 					: "succeeding", channel, lane);
 				return CB_ERR;
@@ -294,22 +269,18 @@ int do_write_training(struct sysinfo *s)
 			s->dq_settings[channel][lane] = s->dqs_settings[channel][lane];
 		}
 		memset(dq_lower, 0, sizeof(dq_lower));
-			/* Start from DQS settings */
+		/* Start from DQS settings */
 		memcpy(dq_setting, s->dqs_settings[channel], sizeof(dq_setting));
 
-		if (find_dq_limit(s, channel, dq_setting, dq_lower,
-					SUCCEEDING)) {
-			printk(BIOS_CRIT,
-				"Could not find working lower limit DQ setting\n");
+		if (find_dq_limit(s, channel, dq_setting, dq_lower, SUCCEEDING)) {
+			printk(BIOS_CRIT, "Could not find working lower limit DQ setting\n");
 			return CB_ERR;
 		}
 
 		memcpy(dq_upper, dq_lower, sizeof(dq_lower));
 
-		if (find_dq_limit(s, channel, dq_setting, dq_upper,
-					FAILING)) {
-			printk(BIOS_WARNING,
-				"Could not find failing upper limit DQ setting\n");
+		if (find_dq_limit(s, channel, dq_setting, dq_upper, FAILING)) {
+			printk(BIOS_WARNING, "Could not find failing upper limit DQ setting\n");
 			return CB_ERR;
 		}
 
@@ -318,8 +289,8 @@ int do_write_training(struct sysinfo *s)
 			dq_upper[lane] -= CONSISTENCY - 1;
 			u8 dq_center = (dq_upper[lane] + dq_lower[lane]) / 2;
 
-			printk(RAM_DEBUG, "Centered value for DQ DLL:"
-				" ch%d, lane %d, #steps = %d\n",
+			printk(RAM_DEBUG,
+				"Centered value for DQ DLL: ch%d, lane %d, #steps = %d\n",
 				channel, lane, dq_center);
 			for (i = 0; i < dq_center; i++) {
 				/* Should never happen */
@@ -405,7 +376,7 @@ static int rt_find_dqs_limit(struct sysinfo *s, u8 channel,
 	FOR_EACH_BYTELANE(lane)
 		rt_set_dqs(channel, lane, 0, &dqs_setting[lane]);
 
-	while(status == CB_SUCCESS) {
+	while (status == CB_SUCCESS) {
 		test_result = test_dqs_aligned(s, channel);
 		if (test_result == (expected_result == SUCCEEDING ? 0 : 0xff))
 			return CB_SUCCESS;
@@ -419,13 +390,10 @@ static int rt_find_dqs_limit(struct sysinfo *s, u8 channel,
 	}
 
 	if (expected_result == SUCCEEDING) {
-		printk(BIOS_CRIT,
-			"Could not find RT DQS setting\n");
+		printk(BIOS_CRIT, "Could not find RT DQS setting\n");
 		return CB_ERR;
 	} else {
-		printk(RAM_DEBUG,
-			"Read succeeded over all DQS"
-			" settings, continuing\n");
+		printk(RAM_DEBUG, "Read succeeded over all DQS settings, continuing\n");
 		return CB_SUCCESS;
 	}
 }
@@ -513,7 +481,7 @@ int do_read_training(struct sysinfo *s)
 		FOR_EACH_BYTELANE(lane) {
 			saved_dqs_center[channel][lane] /= RT_LOOPS;
 			while (saved_dqs_center[channel][lane]--) {
-				if(rt_increment_dqs(&s->rt_dqs[channel][lane])
+				if (rt_increment_dqs(&s->rt_dqs[channel][lane])
 							== CB_ERR)
 					/* Should never happen */
 					printk(BIOS_ERR,
@@ -540,50 +508,50 @@ static void set_rank_write_level(struct sysinfo *s, u8 channel, u8 config,
 	u32 emrs1;
 
 	/* Is shifted by bits 2 later so u8 can be used to reduce size */
-	const static u8 emrs1_lut[8][4][4]={ /* [Config][Leveling Rank][Rank] */
-		{  /* Config 0: 2R2R */
+	static const u8 emrs1_lut[8][4][4] = { /* [Config][Leveling Rank][Rank] */
+		{ /* Config 0: 2R2R */
 			{0x11, 0x00, 0x91, 0x00},
 			{0x00, 0x11, 0x91, 0x00},
 			{0x91, 0x00, 0x11, 0x00},
 			{0x91, 0x00, 0x00, 0x11}
 		},
-		{  // Config 1: 2R1R
+		{ /* Config 1: 2R1R */
 			{0x11, 0x00, 0x91, 0x00},
 			{0x00, 0x11, 0x91, 0x00},
 			{0x91, 0x00, 0x11, 0x00},
 			{0x00, 0x00, 0x00, 0x00}
 		},
-		{  // Config 2: 1R2R
+		{ /* Config 2: 1R2R */
 			{0x11, 0x00, 0x91, 0x00},
 			{0x00, 0x00, 0x00, 0x00},
 			{0x91, 0x00, 0x11, 0x00},
 			{0x91, 0x00, 0x00, 0x11}
 		},
-		{  // Config 3: 1R1R
+		{ /* Config 3: 1R1R */
 			{0x11, 0x00, 0x91, 0x00},
 			{0x00, 0x00, 0x00, 0x00},
 			{0x91, 0x00, 0x11, 0x00},
 			{0x00, 0x00, 0x00, 0x00}
 		},
-		{  // Config 4: 2R0R
+		{ /* Config 4: 2R0R */
 			{0x11, 0x00, 0x00, 0x00},
 			{0x00, 0x11, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x00}
 		},
-		{  // Config 5: 0R2R
+		{ /* Config 5: 0R2R */
 			{0x00, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x11, 0x00},
 			{0x00, 0x00, 0x00, 0x11}
 		},
-		{  // Config 6: 1R0R
+		{ /* Config 6: 1R0R */
 			{0x11, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x00}
 		},
-		{  // Config 7: 0R1R
+		{ /* Config 7: 0R1R */
 			{0x00, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x00, 0x00},
 			{0x00, 0x00, 0x11, 0x00},
@@ -652,7 +620,7 @@ static void sample_dq(const struct sysinfo *s, u8 channel, u8 rank,
 		write32((u32 *)address + 4, 0x12341234);
 		udelay(5);
 		FOR_EACH_BYTELANE(lane) {
-			u8 dq_high = (MCHBAR8(0x561 + 0x400 * channel
+			u8 dq_high = (mchbar_read8(0x561 + 0x400 * channel
 					+ (lane * 4)) >> 7) & 1;
 			high_found[lane] += dq_high;
 		}
@@ -671,7 +639,7 @@ static enum cb_err increment_to_dqs_edge(struct sysinfo *s, u8 channel, u8 rank)
 	FOR_EACH_BYTELANE(lane)
 		dqsset(channel, lane, &dqs_setting[lane]);
 
-	saved_24d = MCHBAR8(0x24d + 0x400 * channel);
+	saved_24d = mchbar_read8(0x24d + 0x400 * channel);
 
 	/* Loop 0: Find DQ sample low, by decreasing */
 	while (bytelane_ok != 0xff) {
@@ -680,8 +648,7 @@ static enum cb_err increment_to_dqs_edge(struct sysinfo *s, u8 channel, u8 rank)
 			if (bytelane_ok & (1 << lane))
 				continue;
 
-			printk(RAM_SPEW, "%d, %d, %02d, %d,"
-				" lane%d sample: %d\n",
+			printk(RAM_SPEW, "%d, %d, %02d, %d, lane%d sample: %d\n",
 				dqs_setting[lane].coarse,
 				dqs_setting[lane].clk_delay,
 				dqs_setting[lane].tap,
@@ -689,16 +656,13 @@ static enum cb_err increment_to_dqs_edge(struct sysinfo *s, u8 channel, u8 rank)
 				lane,
 				dq_sample[lane]);
 
-			if (dq_sample[lane] > 0) {
-				if (decrement_dq_dqs(s, &dqs_setting[lane])) {
-					printk(BIOS_EMERG,
-						"DQS setting channel%d, "
-						"lane %d reached a minimum!\n",
-						channel, lane);
-					return CB_ERR;
-				}
-			} else {
+			if (dq_sample[lane] == 0) {
 				bytelane_ok |= (1 << lane);
+			} else if (decrement_dq_dqs(s, &dqs_setting[lane])) {
+				printk(BIOS_EMERG,
+					"DQS setting channel%d, lane %d reached a minimum!\n",
+					channel, lane);
+				return CB_ERR;
 			}
 			dqsset(channel, lane, &dqs_setting[lane]);
 		}
@@ -728,14 +692,11 @@ static enum cb_err increment_to_dqs_edge(struct sysinfo *s, u8 channel, u8 rank)
 
 			if (dq_sample[lane] == N_SAMPLES) {
 				bytelane_ok |= (1 << lane);
-			} else {
-				if (increment_dq_dqs(s, &dqs_setting[lane])) {
-					printk(BIOS_EMERG,
-						"DQS setting channel%d, "
-						"lane %d reached a maximum!\n",
-						channel, lane);
-					return CB_ERR;
-				}
+			} else if (increment_dq_dqs(s, &dqs_setting[lane])) {
+				printk(BIOS_EMERG,
+					"DQS setting channel%d, lane %d reached a maximum!\n",
+					channel, lane);
+				return CB_ERR;
 			}
 			dqsset(channel, lane, &dqs_setting[lane]);
 		}
@@ -754,7 +715,7 @@ static enum cb_err increment_to_dqs_edge(struct sysinfo *s, u8 channel, u8 rank)
 		s->dqs_settings[channel][lane] = dqs_setting[lane];
 	}
 
-	MCHBAR8(0x24d + 0x400 * channel) = saved_24d;
+	mchbar_write8(0x24d + 0x400 * channel, saved_24d);
 	return CB_SUCCESS;
 }
 
@@ -762,19 +723,19 @@ static enum cb_err increment_to_dqs_edge(struct sysinfo *s, u8 channel, u8 rank)
  * DDR3 uses flyby topology where the clock signal takes a different path
  * than the data signal, to allow for better signal intergrity.
  * Therefore the delay on the data signals needs to account for this.
- * This is done by by sampleling the the DQS write (tx) signal back over
- * the DQ signal and looking for delay values where the sample transitions
+ * This is done by sampling the DQS write (tx) signal back over the DQ
+ * signal and looking for delay values where the sample transitions
  * from high to low.
  * Here the following is done:
- * - enable write levelling on the first populated rank
- * - disable output on other populated ranks
- * - start from safe DQS (tx) delays (other transitions can be
- *   found at different starting values but are generally bad)
+ * - Enable write levelling on the first populated rank.
+ * - Disable output on other populated ranks.
+ * - Start from safe DQS (tx) delays. Other transitions can be
+ *   found at different starting values but are generally bad.
  * - loop0: decrease DQS (tx) delays until low is sampled,
  *   loop1: increase DQS (tx) delays until high is sampled,
- *   That way we are sure to hit a low-high transition
- * - put all ranks in normal mode of operation again
- * - note: All ranks need to be leveled together
+ *   This way, we are sure to have hit a low-high transition.
+ * - Put all ranks in normal mode of operation again.
+ * Note: All ranks need to be leveled together.
  */
 void search_write_leveling(struct sysinfo *s)
 {
@@ -782,9 +743,9 @@ void search_write_leveling(struct sysinfo *s)
 	u8 config, rank0, rank1, lane;
 	struct dll_setting dq_setting;
 
-	u8 chanconfig_lut[16]={0, 6, 4, 6, 7, 3, 1, 3, 5, 2, 0, 2, 7, 3, 1, 3};
+	const u8 chanconfig_lut[16] = {0, 6, 4, 6, 7, 3, 1, 3, 5, 2, 0, 2, 7, 3, 1, 3};
 
-	u8 odt_force[8][4] = { /* [Config][leveling rank] */
+	const u8 odt_force[8][4] = { /* [Config][leveling rank] */
 		{0x5, 0x6, 0x5, 0x9},
 		{0x5, 0x6, 0x5, 0x0},
 		{0x5, 0x0, 0x5, 0x9},
@@ -801,12 +762,9 @@ void search_write_leveling(struct sysinfo *s)
 		printk(BIOS_DEBUG, "\tCH%d\n", ch);
 		config = chanconfig_lut[s->dimm_config[ch]];
 
-		MCHBAR8(0x5d8 + 0x400 * ch) =
-			MCHBAR8(0x5d8 + 0x400 * ch) & ~0x0e;
-		MCHBAR16(0x5c4 + 0x400 * ch) = (MCHBAR16(0x5c4 + 0x400 * ch) &
-						~0x3fff) | 0x3fff;
-		MCHBAR8(0x265 + 0x400 * ch) =
-			MCHBAR8(0x265 + 0x400 * ch) & ~0x1f;
+		mchbar_clrbits8(0x5d8 + 0x400 * ch, 0x0e);
+		mchbar_clrsetbits16(0x5c4 + 0x400 * ch, 0x3fff, 0x3fff);
+		mchbar_clrbits8(0x265 + 0x400 * ch, 0x1f);
 		/* find the first populated rank */
 		FOR_EACH_POPULATED_RANK_IN_CHANNEL(s->dimms, ch, rank0)
 			break;
@@ -816,45 +774,33 @@ void search_write_leveling(struct sysinfo *s)
 		FOR_EACH_POPULATED_RANK_IN_CHANNEL(s->dimms, ch, rank1)
 			set_rank_write_level(s, ch, config, rank1, rank0, 1);
 
-		MCHBAR8(0x298 + 2 + 0x400 * ch) =
-			(MCHBAR8(0x298 + 2 + 0x400 * ch) & ~0x0f)
-			| odt_force[config][rank0];
-		MCHBAR8(0x271 + 0x400 * ch) = (MCHBAR8(0x271 + 0x400 * ch)
-					& ~0x7e) | 0x4e;
-		MCHBAR8(0x5d9 + 0x400 * ch) =
-			(MCHBAR8(0x5d9 + 0x400 * ch) & ~0x04) | 0x04;
-		MCHBAR32(0x1a0) = (MCHBAR32(0x1a0) & ~0x07ffffff)
-			| 0x00014000;
+		mchbar_clrsetbits8(0x298 + 2 + 0x400 * ch, 0x0f, odt_force[config][rank0]);
+		mchbar_clrsetbits8(0x271 + 0x400 * ch, 0x7e, 0x4e);
+		mchbar_setbits8(0x5d9 + 0x400 * ch, 1 << 2);
+		mchbar_clrsetbits32(0x1a0, 0x07ffffff, 0x00014000);
 
 		if (increment_to_dqs_edge(s, ch, rank0))
 			die("Write Leveling failed!");
 
-		MCHBAR8(0x298 + 2 + 0x400 * ch) =
-			MCHBAR8(0x298 + 2 + 0x400 * ch) & ~0x0f;
-		MCHBAR8(0x271 + 0x400 * ch) =
-			(MCHBAR8(0x271 + 0x400 * ch) & ~0x7e)
-			| 0x0e;
-		MCHBAR8(0x5d9 + 0x400 * ch) =
-			(MCHBAR8(0x5d9 + 0x400 * ch) & ~0x04);
-		MCHBAR32(0x1a0) = (MCHBAR32(0x1a0)
-				& ~0x07ffffff) | 0x00555801;
+		mchbar_clrbits8(0x298 + 2 + 0x400 * ch, 0x0f);
+		mchbar_clrsetbits8(0x271 + 0x400 * ch, 0x7e, 0x0e);
+		mchbar_clrbits8(0x5d9 + 0x400 * ch, 1 << 2);
+		mchbar_clrsetbits32(0x1a0, 0x07ffffff, 0x00555801);
 
 		/* Disable WL on the trained rank */
 		set_rank_write_level(s, ch, config, rank0, rank0, 0);
 		send_jedec_cmd(s, rank0, ch, NORMALOP_CMD, 1 << 12);
 
-		MCHBAR8(0x5d8 + 0x400 * ch) = (MCHBAR8(0x5d8 + 0x400 * ch)
-					& ~0x0e) | 0x0e;
-		MCHBAR16(0x5c4 + 0x400 * ch) = (MCHBAR16(0x5c4 + 0x400 * ch)
-						& ~0x3fff) | 0x1807;
-		MCHBAR8(0x265 + 0x400 * ch) = MCHBAR8(0x265 + 0x400 * ch) & ~0x1f;
+		mchbar_setbits8(0x5d8 + 0x400 * ch, 0x0e);
+		mchbar_clrsetbits16(0x5c4 + 0x400 * ch, 0x3fff, 0x1807);
+		mchbar_clrbits8(0x265 + 0x400 * ch, 0x1f);
 
 		/* Disable write level mode for all ranks */
 		FOR_EACH_POPULATED_RANK_IN_CHANNEL(s->dimms, ch, rank0)
 			set_rank_write_level(s, ch, config, rank0, rank0, 0);
 	}
 
-	MCHBAR8(0x5dc) = (MCHBAR8(0x5dc) & ~0x80) | 0x80;
+	mchbar_setbits8(0x5dc, 1 << 7);
 
 	/* Increment DQ (rx) dll setting by a standard amount past DQS,
 	   This is further trained in write training. */

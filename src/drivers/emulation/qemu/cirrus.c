@@ -1,30 +1,13 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Vladimir Serbinenko
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <stdint.h>
-#include <edid.h>
-#include <stdlib.h>
-#include <boot/coreboot_tables.h>
 #include <console/console.h>
 #include <device/device.h>
 #include <device/pci.h>
-#include <device/pci_ids.h>
 #include <device/pci_ops.h>
 #include <pc80/vga.h>
 #include <pc80/vga_io.h>
+#include <framebuffer_info.h>
 
 static int width  = CONFIG_DRIVERS_EMULATION_QEMU_BOCHS_XRES;
 static int height = CONFIG_DRIVERS_EMULATION_QEMU_BOCHS_YRES;
@@ -201,23 +184,23 @@ write_hidden_dac (uint8_t data)
 static void cirrus_init_linear_fb(struct device *dev)
 {
 	uint8_t cr_ext, cr_overlay;
-	unsigned pitch = (width * 4) / VGA_CR_PITCH_DIVISOR;
+	unsigned int pitch = (width * 4) / VGA_CR_PITCH_DIVISOR;
 	uint8_t sr_ext = 0, hidden_dac = 0;
-	unsigned vdisplay_end = height - 2;
-	unsigned line_compare = 0x3ff;
+	unsigned int vdisplay_end = height - 2;
+	unsigned int line_compare = 0x3ff;
 	uint8_t overflow, cell_height_reg;
-	unsigned horizontal_end = width / VGA_CR_WIDTH_DIVISOR;
-	unsigned horizontal_total = horizontal_end + 40;
-	unsigned horizontal_blank_start = horizontal_end;
-	unsigned horizontal_sync_pulse_start = horizontal_end + 3;
-	unsigned horizontal_sync_pulse_end = 0;
+	unsigned int horizontal_end = width / VGA_CR_WIDTH_DIVISOR;
+	unsigned int horizontal_total = horizontal_end + 40;
+	unsigned int horizontal_blank_start = horizontal_end;
+	unsigned int horizontal_sync_pulse_start = horizontal_end + 3;
+	unsigned int horizontal_sync_pulse_end = 0;
 
-	unsigned horizontal_blank_end = 0;
-	unsigned vertical_blank_start = height + 1;
-	unsigned vertical_blank_end = 0;
-	unsigned vertical_sync_start = height + 3;
-	unsigned vertical_sync_end = 0;
-	unsigned vertical_total = height + 40;
+	unsigned int horizontal_blank_end = 0;
+	unsigned int vertical_blank_start = height + 1;
+	unsigned int vertical_blank_end = 0;
+	unsigned int vertical_sync_start = height + 3;
+	unsigned int vertical_sync_end = 0;
+	unsigned int vertical_total = height + 40;
 
 	/* find lfb pci bar */
 	addr = pci_read_config32(dev, PCI_BASE_ADDRESS_0);
@@ -316,14 +299,7 @@ static void cirrus_init_linear_fb(struct device *dev)
 	vga_sr_write (CIRRUS_SR_EXTENDED_MODE, sr_ext);
 	write_hidden_dac (hidden_dac);
 
-
-	struct edid edid;
-	edid.mode.ha = width;
-	edid.mode.va = height;
-	edid.panel_bits_per_color = 8;
-	edid.panel_bits_per_pixel = 24;
-	edid_set_framebuffer_bits_per_pixel(&edid, 32, 0);
-	set_vbe_mode_info_valid(&edid, addr);
+	fb_add_framebuffer_info(addr, width, height, 4 * width, 32);
 }
 
 static void cirrus_init_text_mode(struct device *dev)
@@ -345,7 +321,6 @@ static struct device_operations qemu_cirrus_graph_ops = {
 	.set_resources	  = pci_dev_set_resources,
 	.enable_resources = pci_dev_enable_resources,
 	.init		  = cirrus_init,
-	.scan_bus	  = 0,
 };
 
 static const struct pci_driver qemu_cirrus_driver __pci_driver = {

@@ -39,13 +39,14 @@ func LenovoEC(ctx Context) {
 			Value: "1",
 		}, GPEDefine)
 
+	Add_gpl(ap)
 	ap.WriteString(
-		`Method(_WAK,1)
+		`Method(_WAK, 1)
 {
-	/* ME may not be up yet.  */
-	Store (0, \_TZ.MEB1)
-	Store (0, \_TZ.MEB2)
-	Return(Package(){0,0})
+	/* ME may not be up yet. */
+	Store(0, \_TZ.MEB1)
+	Store(0, \_TZ.MEB2)
+	Return(Package() {0, 0})
 }
 
 Method(_PTS,1)
@@ -57,21 +58,8 @@ Method(_PTS,1)
 	si := Create(ctx, "acpi/superio.asl")
 	defer si.Close()
 
+	Add_gpl(si)
 	si.WriteString("#include <drivers/pc80/pc/ps2_controller.asl>\n")
-
-	dock := Create(ctx, "dock.c")
-	defer dock.Close()
-
-	AddRAMStageFile("dock.c", "")
-
-	dock.WriteString(
-		`#include <ec/lenovo/h8/h8.h>
-
-void h8_mainboard_init_dock (void)
-{
-/* FIXME: fill this if needed.  */
-}
-`)
 
 	/* FIXME:XX Move this to ec/lenovo.  */
 	smi := Create(ctx, "smihandler.c")
@@ -126,7 +114,7 @@ static void mainboard_smi_handle_ec_sci(void)
 		return;
 
 	event = ec_query();
-	printk(BIOS_DEBUG, "EC event %02x\n", event);
+	printk(BIOS_DEBUG, "EC event %#02x\n", event);
 }
 
 void mainboard_smi_gpi(u32 gpi_sts)
@@ -165,9 +153,9 @@ void mainboard_smi_sleep(u8 slp_typ)
 {
 	if (slp_typ == 3) {
 		u8 ec_wake = ec_read(0x32);
-		/* If EC wake events are enabled, enable wake on EC WAKE GPE.  */
+		/* If EC wake events are enabled, enable wake on EC WAKE GPE. */
 		if (ec_wake & 0x14) {
-			/* Redirect EC WAKE GPE to SCI.  */
+			/* Redirect EC WAKE GPE to SCI. */
 			gpi_route_interrupt(GPE_EC_WAKE, GPI_IS_SCI);
 		}
 	}
@@ -177,6 +165,7 @@ void mainboard_smi_sleep(u8 slp_typ)
 	ec := Create(ctx, "acpi/ec.asl")
 	defer ec.Close()
 
+	Add_gpl(ec)
 	ec.WriteString("#include <ec/lenovo/h8/acpi/ec.asl>\n")
 
 	KconfigBool["EC_LENOVO_PMH7"] = true

@@ -1,20 +1,8 @@
-/*
- * Copyright (C) 2015 Alexander Couzens <lynxis@fe80.eu>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include "sata.h"
-
-#include <arch/acpi.h>
-#include <arch/acpigen.h>
+#include <acpi/acpi.h>
+#include <acpi/acpigen.h>
+#include <acpi/acpi_sata.h>
 
 /* e.g.
  * generate_sata_ssdt_ports("\_SB.PCI0.SATA", 0x3);

@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2008 Advanced Micro Devices, Inc.
  *
@@ -73,7 +72,7 @@ char *strerror(int errnum);
  * @defgroup string Unicode functions
  * @{
  */
-char *utf16le_to_ascii(uint16_t *utf16_string, int maxlen);
+char *utf16le_to_ascii(const uint16_t *utf16_string, size_t maxlen);
 /** @} */
 
 /**
@@ -83,6 +82,5 @@ char *utf16le_to_ascii(uint16_t *utf16_string, int maxlen);
 size_t strlcpy(char *d, const char *s, size_t n);
 size_t strlcat(char *d, const char *s, size_t n);
 /** @} */
-
 
 #endif

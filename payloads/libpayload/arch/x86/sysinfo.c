@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2008 Advanced Micro Devices, Inc.
  *
@@ -78,6 +77,11 @@ int lib_get_sysinfo(void)
 		lib_sysinfo.memrange[1].size = 31 * 1024 * 1024;
 		lib_sysinfo.memrange[1].type = CB_MEM_RAM;
 	}
+
+#if CONFIG(LP_PCI)
+	pci_init(&lib_sysinfo.pacc);
+	pci_scan_bus(&lib_sysinfo.pacc);
+#endif
 
 	return ret;
 }

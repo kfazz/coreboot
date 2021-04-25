@@ -1,21 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2016 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <console/console.h>
 #include <ec/google/chromeec/ec.h>
+#include <amdblocks/lpc.h>
 #include <soc/southbridge.h>
 #include <variant/ec.h>
 
@@ -49,7 +37,7 @@ static void early_ec_init(void)
 	printk(BIOS_DEBUG,
 		"LPC Setup google_chromeec_ioport_range: %04x, %08zx\n",
 		ec_ioport_base, ec_ioport_size);
-	status = sb_set_wideio_range(ec_ioport_base, ec_ioport_size);
+	status = lpc_set_wideio_range(ec_ioport_base, ec_ioport_size);
 	if (status == WIDEIO_RANGE_ERROR)
 		printk(BIOS_WARNING, "ERROR: Failed to assign a range\n");
 	else

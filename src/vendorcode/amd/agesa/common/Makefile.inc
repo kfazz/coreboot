@@ -1,8 +1,5 @@
 #*****************************************************************************
 #
-# Copyright (c) 2011, Advanced Micro Devices, Inc.
-# All rights reserved.
-#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #     * Redistributions of source code must retain the above copyright
@@ -30,6 +27,7 @@
 romstage-y += agesa-entry.c
 ramstage-y += agesa-entry.c
 
+libagesa-y += debug_util.c
 libagesa-y += amdlib.c
 
 # Do not optimise performance-critical low-level IO for size with -Os,

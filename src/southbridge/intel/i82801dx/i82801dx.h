@@ -1,20 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2004 Ron G. Minnich
- * Copyright (C) 2004 Eric Biederman
- * Copyright (C) 2008-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* the problem: we have 82801dbm support in fb1, and 82801er in fb2.
  * fb1 code is what we want, fb2 structure is needed however.
@@ -27,16 +11,16 @@
 #ifndef I82801DX_H
 #define I82801DX_H
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 
 #if !defined(__ASSEMBLER__)
-#if !defined(__SIMPLE_DEVICE__)
-#include "chip.h"
-extern void i82801dx_enable(struct device *dev);
-#else
-void enable_smbus(void);
-int smbus_read_byte(unsigned device, unsigned address);
-#endif
+
+#include <device/device.h>
+
+void i82801dx_enable(struct device *dev);
+void i82801dx_early_init(void);
+void aseg_smm_lock(void);
+
 #endif
 
 #define DEBUG_PERIODIC_SMIS 0
@@ -61,8 +45,6 @@ int smbus_read_byte(unsigned device, unsigned address);
 
 /* IDE_TIM bits */
 #define IDE_DECODE_ENABLE	(1 << 15)
-
-
 
 #define PCI_DMA_CFG     0x90
 #define SERIRQ_CNTL     0x64
@@ -108,9 +90,6 @@ int smbus_read_byte(unsigned device, unsigned address);
 #define PCI_MAST_STS    0x82
 
 #define RTC_FAILED      (1 <<2)
-
-
-#define SMBUS_IO_BASE 0x1000
 
 #define PM1_STS		0x00
 #define   WAK_STS	(1 << 15)

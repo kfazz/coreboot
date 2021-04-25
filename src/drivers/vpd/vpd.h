@@ -1,17 +1,19 @@
-/*
- * Copyright (c) 2014 The Chromium OS Authors. All rights reserved.
- * Use of this source code is governed by a BSD-style license that can be
- * found in the LICENSE file.
- */
+/* SPDX-License-Identifier: BSD-3-Clause */
 
 #ifndef __VPD_H__
 #define __VPD_H__
 
+#include <types.h>
+
+#define GOOGLE_VPD_2_0_OFFSET 0x600
+
 enum vpd_region {
-	VPD_ANY = 0,
-	VPD_RO = 1,
-	VPD_RW = 2
+	VPD_RO,
+	VPD_RW,
+	VPD_RO_THEN_RW,
+	VPD_RW_THEN_RO
 };
+
 /*
  * Reads VPD string value by key.
  *
@@ -38,5 +40,23 @@ char *vpd_gets(const char *key, char *buffer, int size, enum vpd_region region);
  */
 
 const void *vpd_find(const char *key, int *size, enum vpd_region region);
+
+/*
+ * Find value of boolean type vpd key.
+ *
+ * During the process, necessary checking is done, such as making
+ * sure the value length is 1, and value is either '1' or '0'.
+ */
+bool vpd_get_bool(const char *key, enum vpd_region region,
+	uint8_t *val);
+
+/*
+ * Find value of integer type by vpd key.
+ *
+ * Expects to find a decimal string, trailing chars are ignored.
+ * Returns true if the key is found and the value is not too long and
+ * starts with a decimal digit.
+ */
+bool vpd_get_int(const char *key, enum vpd_region region, int *val);
 
 #endif  /* __VPD_H__ */

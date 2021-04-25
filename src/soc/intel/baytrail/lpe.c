@@ -1,21 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <device/pci_ops.h>
-#include <cbmem.h>
+#include <acpi/acpi_gnvs.h>
 #include <console/console.h>
 #include <device/device.h>
 #include <device/pci.h>
@@ -25,16 +12,17 @@
 #include <soc/iomap.h>
 #include <soc/iosf.h>
 #include <soc/lpc.h>
-#include <soc/nvs.h>
+#include <soc/device_nvs.h>
 #include <soc/pattrs.h>
 #include <soc/pci_devs.h>
-#include <soc/pmc.h>
+#include <soc/pm.h>
 #include <soc/ramstage.h>
 #include "chip.h"
 
-
-/* The LPE audio devices needs 1MiB of memory reserved aligned to a 512MiB
- * address. Just take 1MiB @ 512MiB. */
+/*
+ * The LPE audio devices needs 1MiB of memory reserved aligned to a 512MiB
+ * address. Just take 1MiB @ 512MiB.
+ */
 #define FIRMWARE_PHYS_BASE (512 << 20)
 #define FIRMWARE_PHYS_LENGTH (1 << 20)
 #define FIRMWARE_PCI_REG_BASE 0xa8
@@ -42,7 +30,7 @@
 #define FIRMWARE_REG_BASE_C0 0x144000
 #define FIRMWARE_REG_LENGTH_C0 (FIRMWARE_REG_BASE_C0 + 4)
 
-static void assign_device_nvs(struct device *dev, u32 *field, unsigned index)
+static void assign_device_nvs(struct device *dev, u32 *field, unsigned int index)
 {
 	struct resource *res;
 
@@ -55,30 +43,24 @@ static void lpe_enable_acpi_mode(struct device *dev)
 {
 	static const struct reg_script ops[] = {
 		/* Disable PCI interrupt, enable Memory and Bus Master */
-		REG_PCI_OR32(PCI_COMMAND,
-			     PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER | (1<<10)),
+		REG_PCI_OR16(PCI_COMMAND,
+			     PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER | PCI_COMMAND_INT_DISABLE),
+
 		/* Enable ACPI mode */
 		REG_IOSF_OR(IOSF_PORT_0x58, LPE_PCICFGCTR1,
-			    LPE_PCICFGCTR1_PCI_CFG_DIS |
-			    LPE_PCICFGCTR1_ACPI_INT_EN),
+			    LPE_PCICFGCTR1_PCI_CFG_DIS | LPE_PCICFGCTR1_ACPI_INT_EN),
+
 		REG_SCRIPT_END
 	};
-	global_nvs_t *gnvs;
-
-	/* Find ACPI NVS to update BARs */
-	gnvs = (global_nvs_t *)cbmem_find(CBMEM_ID_ACPI_GNVS);
-	if (!gnvs) {
-		printk(BIOS_ERR, "Unable to locate Global NVS\n");
-		return;
-	}
+	struct device_nvs *dev_nvs = acpi_get_device_nvs();
 
 	/* Save BAR0, BAR1, and firmware base  to ACPI NVS */
-	assign_device_nvs(dev, &gnvs->dev.lpe_bar0, PCI_BASE_ADDRESS_0);
-	assign_device_nvs(dev, &gnvs->dev.lpe_bar1, PCI_BASE_ADDRESS_1);
-	assign_device_nvs(dev, &gnvs->dev.lpe_fw, FIRMWARE_PCI_REG_BASE);
+	assign_device_nvs(dev, &dev_nvs->lpe_bar0, PCI_BASE_ADDRESS_0);
+	assign_device_nvs(dev, &dev_nvs->lpe_bar1, PCI_BASE_ADDRESS_1);
+	assign_device_nvs(dev, &dev_nvs->lpe_fw, FIRMWARE_PCI_REG_BASE);
 
 	/* Device is enabled in ACPI mode */
-	gnvs->dev.lpe_en = 1;
+	dev_nvs->lpe_en = 1;
 
 	/* Put device in ACPI mode */
 	reg_script_run_on_dev(dev, ops);
@@ -91,16 +73,18 @@ static void setup_codec_clock(struct device *dev)
 	struct soc_intel_baytrail_config *config;
 	const char *freq_str;
 
-	config = dev->chip_info;
+	config = config_of(dev);
 	switch (config->lpe_codec_clk_freq) {
 	case 19:
 		freq_str = "19.2";
 		reg = CLK_FREQ_19P2MHZ;
 		break;
+
 	case 25:
 		freq_str = "25";
 		reg = CLK_FREQ_25MHZ;
 		break;
+
 	default:
 		printk(BIOS_DEBUG, "LPE codec clock not required.\n");
 		return;
@@ -135,7 +119,7 @@ static void lpe_stash_firmware_info(struct device *dev)
 	}
 
 	/* Continue using old way of informing firmware address / size. */
-	pci_write_config32(dev, FIRMWARE_PCI_REG_BASE, res->base);
+	pci_write_config32(dev, FIRMWARE_PCI_REG_BASE,   res->base);
 	pci_write_config32(dev, FIRMWARE_PCI_REG_LENGTH, res->size);
 
 	/* C0 and later steppings use an offset in the MMIO space. */
@@ -150,10 +134,9 @@ static void lpe_stash_firmware_info(struct device *dev)
 
 static void lpe_init(struct device *dev)
 {
-	struct soc_intel_baytrail_config *config = dev->chip_info;
+	struct soc_intel_baytrail_config *config = config_of(dev);
 
 	lpe_stash_firmware_info(dev);
-
 	setup_codec_clock(dev);
 
 	if (config->lpe_acpi_mode)
@@ -174,8 +157,6 @@ static const struct device_operations device_ops = {
 	.set_resources		= pci_dev_set_resources,
 	.enable_resources	= pci_dev_enable_resources,
 	.init			= lpe_init,
-	.enable			= NULL,
-	.scan_bus		= NULL,
 	.ops_pci		= &soc_pci_ops,
 };
 

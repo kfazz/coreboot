@@ -1,28 +1,15 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Sven Schnelle <svens@stackframe.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <console/console.h>
 #include <device/device.h>
 #include <device/pnp.h>
 #include <ec/acpi/ec.h>
-#include <stdlib.h>
 #include <string.h>
 #include <smbios.h>
-#include <pc80/mc146818rtc.h>
+#include <option.h>
 #include <pc80/keyboard.h>
+#include <types.h>
 
 #include "h8.h"
 #include "chip.h"
@@ -86,6 +73,14 @@ static void h8_sticky_fn(int on)
 		ec_clr_bit(0x0, 3);
 }
 
+static void f1_to_f12_as_primary(int on)
+{
+	if (on)
+		ec_set_bit(0x3b, 3);
+	else
+		ec_clr_bit(0x3b, 3);
+}
+
 static void h8_log_ec_version(void)
 {
 	char ecfw[17];
@@ -98,7 +93,7 @@ static void h8_log_ec_version(void)
 	fwvh = ec_read(0xe9);
 	fwvl = ec_read(0xe8);
 
-	printk(BIOS_INFO, "EC Firmware ID %s, Version %d.%d%d%c\n", ecfw,
+	printk(BIOS_INFO, "H8: EC Firmware ID %s, Version %d.%d%d%c\n", ecfw,
 	       fwvh >> 4, fwvh & 0x0f, fwvl >> 4, 0x41 + (fwvl & 0xf));
 }
 
@@ -177,14 +172,14 @@ u8 h8_build_id_and_function_spec_version(char *buf, u8 buf_len)
 	for (i = 0; i < 8; i++) {
 		c = ec_read(0xf0 + i);
 		if (c < 0x20 || c > 0x7f) {
-			i = snprintf(str, sizeof (str), "*INVALID");
+			i = snprintf(str, sizeof(str), "*INVALID");
 			break;
 		}
 		str[i] = c;
 	}
 
 	/* EC firmware function specification version */
-	i += snprintf(str + i, sizeof (str) - i, "-%u.%u", ec_read(0xef), ec_read(0xeb));
+	i += snprintf(str + i, sizeof(str) - i, "-%u.%u", ec_read(0xef), ec_read(0xeb));
 
 	i = MIN(buf_len, i);
 	memcpy(buf, str, i);
@@ -220,11 +215,13 @@ struct device_operations h8_dev_ops = {
 	.get_smbios_strings = h8_smbios_strings,
 #endif
 #if CONFIG(HAVE_ACPI_TABLES)
-	.acpi_fill_ssdt_generator = h8_ssdt_generator,
+	.acpi_fill_ssdt = h8_ssdt_generator,
 	.acpi_name = h8_acpi_name,
 #endif
 	.init = h8_init,
 };
+
+void __weak h8_mb_init(void){ /* NOOP */ }
 
 static void h8_enable(struct device *dev)
 {
@@ -245,9 +242,8 @@ static void h8_enable(struct device *dev)
 
 	reg8 = conf->config1;
 	if (conf->has_keyboard_backlight) {
-		if (get_option(&val, "backlight") != CB_SUCCESS)
-			val = 0; /* Both backlights.  */
-		reg8 = (reg8 & 0xf3) | ((val & 0x3) << 2);
+		/* Default to both backlights */
+		reg8 = (reg8 & 0xf3) | ((get_int_option("backlight", 0) & 0x3) << 2);
 	}
 	ec_write(H8_CONFIG1, reg8);
 	ec_write(H8_CONFIG2, conf->config2);
@@ -256,17 +252,15 @@ static void h8_enable(struct device *dev)
 	beepmask0 = conf->beepmask0;
 	beepmask1 = conf->beepmask1;
 
-	if (conf->has_power_management_beeps
-	    && get_option(&val, "power_management_beeps") == CB_SUCCESS
-	    && val == 0) {
-		beepmask0 = 0x00;
-		beepmask1 = 0x00;
+	if (conf->has_power_management_beeps) {
+		if (get_int_option("power_management_beeps", 1) == 0) {
+			beepmask0 = 0x00;
+			beepmask1 = 0x00;
+		}
 	}
 
 	if (conf->has_power_management_beeps) {
-		if (get_option(&val, "low_battery_beep") != CB_SUCCESS)
-			val = 1;
-		if (val)
+		if (get_int_option("low_battery_beep", 1))
 			beepmask0 |= 2;
 		else
 			beepmask0 &= ~2;
@@ -298,19 +292,16 @@ static void h8_enable(struct device *dev)
 
 	ec_write(H8_FAN_CONTROL, H8_FAN_CONTROL_AUTO);
 
-	if (get_option(&val, "usb_always_on") != CB_SUCCESS)
-		val = 0;
-	h8_usb_always_on_enable(val);
+	h8_usb_always_on_enable(get_int_option("usb_always_on", 0));
 
-	if (get_option(&val, "wlan") != CB_SUCCESS)
-		val = 1;
-	h8_wlan_enable(val);
+	h8_wlan_enable(get_int_option("wlan", 1));
 
 	h8_trackpoint_enable(1);
 	h8_usb_power_enable(1);
 
-	if (get_option(&val, "volume") == CB_SUCCESS && !acpi_is_wakeup_s3())
-		ec_write(H8_VOLUME_CONTROL, val);
+	int volume = get_int_option("volume", -1);
+	if (volume >= 0 && !acpi_is_wakeup_s3())
+		ec_write(H8_VOLUME_CONTROL, volume);
 
 	val = (CONFIG(H8_SUPPORT_BT_ON_WIFI) || h8_has_bdc(dev)) &&
 		h8_bluetooth_nv_enable();
@@ -319,30 +310,20 @@ static void h8_enable(struct device *dev)
 	val = h8_has_wwan(dev) && h8_wwan_nv_enable();
 	h8_wwan_enable(val);
 
-	if (conf->has_uwb) {
-		if (get_option(&val, "uwb") != CB_SUCCESS)
-			val = 1;
+	if (conf->has_uwb)
+		h8_uwb_enable(get_int_option("uwb", 1));
 
-		h8_uwb_enable(val);
-	}
+	h8_fn_ctrl_swap(get_int_option("fn_ctrl_swap", 0));
 
-	if (get_option(&val, "fn_ctrl_swap") != CB_SUCCESS)
-		val = 0;
-	h8_fn_ctrl_swap(val);
+	h8_sticky_fn(get_int_option("sticky_fn", 0));
 
-	if (get_option(&val, "sticky_fn") != CB_SUCCESS)
-		val = 0;
-	h8_sticky_fn(val);
+	if (CONFIG(H8_HAS_PRIMARY_FN_KEYS))
+		f1_to_f12_as_primary(get_int_option("f1_to_f12_as_primary", 1));
 
-	if (get_option(&val, "first_battery") != CB_SUCCESS)
-		val = PRIMARY_BATTERY;
-	h8_charge_priority(val);
+	h8_charge_priority(get_int_option("first_battery", PRIMARY_BATTERY));
 
 	h8_set_audio_mute(0);
-
-#if !CONFIG(H8_DOCK_EARLY_INIT)
-	h8_mainboard_init_dock();
-#endif
+	h8_mb_init();
 }
 
 struct chip_operations ec_lenovo_h8_ops = {

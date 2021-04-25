@@ -1,34 +1,21 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2016 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _SOC_MMA_H_
 #define _SOC_MMA_H_
 
-#include <stdint.h>
-#include <commonlib/region.h>
+#include <types.h>
 
 struct mma_config_param {
-	struct region_device test_content;
-	struct region_device test_param;
+	void *test_content;
+	size_t test_content_size;
+	void *test_param;
+	size_t test_param_size;
 };
 
-/* Locate mma metadata in CBFS, parse, find and fill rdev for
- * mma test content and test param.
+/* Locate mma metadata in CBFS, parse, find and map mma test content and test param.
  * Returns 0 on success, < 0 on failure.
  */
-int mma_locate_param(struct mma_config_param *mma_cfg);
+int mma_map_param(struct mma_config_param *mma_cfg);
 /* Locate the MMA hob from the FSP Hob list, This is implemented
  * specific to FSP version.
  * Returns 0 on success, < 0 on failure.

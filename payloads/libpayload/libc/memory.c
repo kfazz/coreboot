@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * It has originally been taken from the HelenOS project
  * (http://www.helenos.eu), and slightly modified for our purposes.
@@ -91,7 +90,7 @@ static void *default_memmove(void *dst, const void *src, size_t n)
 	ssize_t i;
 
 	if (src > dst)
-		return memcpy(dst, src, n);
+		return default_memcpy(dst, src, n);
 
 	if (!IS_ALIGNED((uintptr_t)dst, sizeof(unsigned long)) ||
 	    !IS_ALIGNED((uintptr_t)src, sizeof(unsigned long))) {
@@ -145,7 +144,6 @@ static int default_memcmp(const void *s1, const void *s2, size_t n)
 
 int memcmp(const void *s1, const void *s2, size_t n)
 	__attribute__((weak, alias("default_memcmp")));
-
 
 void *memchr(const void *s, int c, size_t n)
 {

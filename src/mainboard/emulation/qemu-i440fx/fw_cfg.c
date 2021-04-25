@@ -1,22 +1,12 @@
-/*
- * This file is part of the coreboot project.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <endian.h>
+#include <stdlib.h>
 #include <string.h>
 #include <smbios.h>
 #include <console/console.h>
 #include <arch/io.h>
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <commonlib/endian.h>
 
 #include "fw_cfg.h"
@@ -24,20 +14,29 @@
 
 #define FW_CFG_PORT_CTL       0x0510
 #define FW_CFG_PORT_DATA      0x0511
+#define FW_CFG_DMA_ADDR_HIGH  0x0514
+#define FW_CFG_DMA_ADDR_LOW   0x0518
 
 static int fw_cfg_detected;
+static uint8_t fw_ver;
+
+static void fw_cfg_dma(int control, void *buf, int len);
 
 static int fw_cfg_present(void)
 {
 	static const char qsig[] = "QEMU";
-	unsigned char sig[4];
+	unsigned char sig[FW_CFG_SIG_SIZE];
 	int detected = 0;
 
 	if (fw_cfg_detected == 0) {
 		fw_cfg_get(FW_CFG_SIGNATURE, sig, sizeof(sig));
-		detected = memcmp(sig, qsig, 4) == 0;
+		detected = memcmp(sig, qsig, FW_CFG_SIG_SIZE) == 0;
 		printk(BIOS_INFO, "QEMU: firmware config interface %s\n",
 				detected ? "detected" : "not found");
+		if (detected) {
+			fw_cfg_get(FW_CFG_ID, &fw_ver, sizeof(fw_ver));
+			printk(BIOS_INFO, "Firmware config version id: %d\n", fw_ver);
+		}
 		fw_cfg_detected = detected + 1;
 	}
 	return fw_cfg_detected - 1;
@@ -50,7 +49,10 @@ static void fw_cfg_select(uint16_t entry)
 
 static void fw_cfg_read(void *dst, int dstlen)
 {
-	insb(FW_CFG_PORT_DATA, dst, dstlen);
+	if (fw_ver & FW_CFG_VERSION_DMA)
+		fw_cfg_dma(FW_CFG_DMA_CTL_READ, dst, dstlen);
+	else
+		insb(FW_CFG_PORT_DATA, dst, dstlen);
 }
 
 void fw_cfg_get(uint16_t entry, void *dst, int dstlen)
@@ -72,9 +74,11 @@ static int fw_cfg_find_file(FWCfgFile *file, const char *name)
 		if (strcmp(file->name, name) == 0) {
 			file->size = be32_to_cpu(file->size);
 			file->select = be16_to_cpu(file->select);
+			printk(BIOS_INFO, "QEMU: firmware config: Found '%s'\n", name);
 			return 0;
 		}
 	}
+	printk(BIOS_INFO, "QEMU: firmware config: Couldn't find '%s'\n", name);
 	return -1;
 }
 
@@ -114,7 +118,7 @@ uintptr_t fw_cfg_tolud(void)
 	uint64_t top = 0;
 	uint32_t size = 0, pos = 0;
 
-	if (fw_cfg_e820_select(&size)) {
+	if (fw_cfg_e820_select(&size) == 0) {
 		while (!fw_cfg_e820_read(&e, &size, &pos)) {
 			uint64_t limit = e.address + e.length;
 			if (e.type == 1 && limit < 4ULL * GiB && limit > top)
@@ -499,4 +503,32 @@ void smbios_system_set_uuid(u8 *uuid)
 {
 	fw_cfg_smbios_init();
 	memcpy(uuid, type1_uuid, 16);
+}
+
+/*
+ * Configure DMA setup
+ */
+
+static void fw_cfg_dma(int control, void *buf, int len)
+{
+	volatile FwCfgDmaAccess dma;
+	uintptr_t dma_desc_addr;
+	uint32_t dma_desc_addr_hi, dma_desc_addr_lo;
+
+	dma.control = be32_to_cpu(control);
+	dma.length  = be32_to_cpu(len);
+	dma.address = be64_to_cpu((uintptr_t)buf);
+
+	dma_desc_addr = (uintptr_t)&dma;
+	dma_desc_addr_lo = (uint32_t)(dma_desc_addr & 0xFFFFFFFFU);
+	dma_desc_addr_hi = sizeof(uintptr_t) > sizeof(uint32_t)
+				? (uint32_t)(dma_desc_addr >> 32) : 0;
+
+	// Skip writing high half if unnecessary.
+	if (dma_desc_addr_hi)
+		outl(be32_to_cpu(dma_desc_addr_hi), FW_CFG_DMA_ADDR_HIGH);
+	outl(be32_to_cpu(dma_desc_addr_lo), FW_CFG_DMA_ADDR_LOW);
+
+	while (be32_to_cpu(dma.control) & ~FW_CFG_DMA_CTL_ERROR)
+		;
 }

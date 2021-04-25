@@ -1,22 +1,14 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _DRAMC_COMMON_MT8183_H_
 #define _DRAMC_COMMON_MT8183_H_
 
-#define DRAM_DFS_SHUFFLE_MAX 3
+enum {
+	DRAM_DFS_SHUFFLE_1 = 0,
+	DRAM_DFS_SHUFFLE_2,
+	DRAM_DFS_SHUFFLE_3,
+	DRAM_DFS_SHUFFLE_MAX
+};
 
 enum {
 	CHANNEL_A = 0,
@@ -32,10 +24,12 @@ enum {
 
 enum dram_odt_type {
 	ODT_OFF = 0,
-	ODT_ON
+	ODT_ON,
+	ODT_MAX
 };
 
 enum {
+	CA_NUM_LP4 = 6,
 	DQ_DATA_WIDTH = 16,
 	DQS_BIT_NUMBER = 8,
 	DQS_NUMBER = (DQ_DATA_WIDTH / DQS_BIT_NUMBER)
@@ -51,6 +45,19 @@ enum {
 enum {
 	CBT_NORMAL_MODE = 0,
 	CBT_BYTE_MODE1
+};
+
+enum {
+	CBT_R0_R1_NORMAL = 0,	/* Normal mode */
+	CBT_R0_R1_BYTE,		/* Byte mode */
+	CBT_R0_NORMAL_R1_BYTE,	/* Mixed mode R0: Normal R1: Byte */
+	CBT_R0_BYTE_R1_NORMAL	/* Mixed mode R0: Byte R1: Normal */
+};
+
+enum {
+	FSP_0 = 0,
+	FSP_1,
+	FSP_MAX
 };
 
 #endif   /* _DRAMC_COMMON_MT8183_H_ */

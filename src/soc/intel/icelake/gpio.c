@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <intelblocks/gpio.h>
 #include <intelblocks/pcr.h>
@@ -63,21 +49,20 @@ static const struct pad_group icl_community2_groups[] = {
 	INTEL_GPP(GPD0, GPD0, GPD11),				/* GPD */
 };
 
-
 static const struct pad_group icl_community4_groups[] = {
 	INTEL_GPP_BASE(GPP_C0, GPP_C0, GPP_C23, 224),		/* GPP_C */
 	INTEL_GPP_BASE(GPP_C0, GPP_E0, GPP_E23, 256),		/* GPP_E */
 	INTEL_GPP(GPP_C0, GPIO_RSVD_3, GPIO_RSVD_8),
 };
 
-
 static const struct pad_group icl_community5_groups[] = {
 	INTEL_GPP_BASE(GPP_R0, GPP_R0, GPP_R7, 288),		/* GPP_R */
 	INTEL_GPP_BASE(GPP_C0, GPP_S0, GPP_S7, 320),		/* GPP_S */
 };
 
-static const struct pad_community icl_communities[] = {
-	{ /* GPP G, B, A */
+static const struct pad_community icl_communities[TOTAL_GPIO_COMM] = {
+	/* GPP G, B, A */
+	[COMM_0] = {
 		.port = PID_GPIOCOM0,
 		.first_pad = GPP_G0,
 		.last_pad = GPP_A23,
@@ -95,7 +80,9 @@ static const struct pad_community icl_communities[] = {
 		.num_reset_vals = ARRAY_SIZE(rst_map_com0),
 		.groups = icl_community0_groups,
 		.num_groups = ARRAY_SIZE(icl_community0_groups),
-	}, { /* GPP H, D, F */
+	},
+	/* GPP H, D, F */
+	[COMM_1] = {
 		.port = PID_GPIOCOM1,
 		.first_pad = GPP_H0,
 		.last_pad = GPP_F19,
@@ -113,7 +100,9 @@ static const struct pad_community icl_communities[] = {
 		.num_reset_vals = ARRAY_SIZE(rst_map),
 		.groups = icl_community1_groups,
 		.num_groups = ARRAY_SIZE(icl_community1_groups),
-	}, { /* GPD */
+	},
+	 /* GPD */
+	[COMM_2] = {
 		.port = PID_GPIOCOM2,
 		.first_pad = GPD0,
 		.last_pad = GPD11,
@@ -131,7 +120,9 @@ static const struct pad_community icl_communities[] = {
 		.num_reset_vals = ARRAY_SIZE(rst_map),
 		.groups = icl_community2_groups,
 		.num_groups = ARRAY_SIZE(icl_community2_groups),
-	}, { /* GPP C, E */
+	},
+	/* GPP C, E */
+	[COMM_3] = {
 		.port = PID_GPIOCOM4,
 		.first_pad = GPP_C0,
 		.last_pad = GPP_E23,
@@ -149,7 +140,9 @@ static const struct pad_community icl_communities[] = {
 		.num_reset_vals = ARRAY_SIZE(rst_map),
 		.groups = icl_community4_groups,
 		.num_groups = ARRAY_SIZE(icl_community4_groups),
-	}, { /* GPP R, S */
+	},
+	/* GPP R, S */
+	[COMM_4] = {
 		.port = PID_GPIOCOM5,
 		.first_pad = GPP_R0,
 		.last_pad = GPP_S7,

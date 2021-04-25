@@ -2,7 +2,7 @@ if BOARD_INTEL_EMERALDLAKE2
 
 config BOARD_SPECIFIC_OPTIONS
 	def_bool y
-	select NORTHBRIDGE_INTEL_IVYBRIDGE
+	select NORTHBRIDGE_INTEL_SANDYBRIDGE
 	select SOUTHBRIDGE_INTEL_C216
 	select SUPERIO_SMSC_SIO1007
 	select BOARD_ROMSIZE_KB_8192
@@ -19,7 +19,7 @@ config VBOOT
 
 config MAINBOARD_DIR
 	string
-	default intel/emeraldlake2
+	default "intel/emeraldlake2"
 
 config MAINBOARD_PART_NUMBER
 	string

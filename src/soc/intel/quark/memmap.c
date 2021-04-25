@@ -1,34 +1,31 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015-2016 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <arch/romstage.h>
 #include <cbmem.h>
+#include <cpu/x86/mtrr.h>
 #include <soc/reg_access.h>
 
-void *cbmem_top(void)
+void fill_postcar_frame(struct postcar_frame *pcf)
 {
-	uint32_t top_of_memory;
+	uintptr_t top_of_ram;
+	uintptr_t top_of_low_usable_memory;
 
-	/* Determine the TSEG base */
-	top_of_memory = reg_host_bridge_unit_read(QNC_MSG_FSBIC_REG_HSMMC);
-	top_of_memory &= SMM_START_MASK;
-	top_of_memory <<= 16;
+	/* Locate the top of RAM */
+	top_of_low_usable_memory = (uintptr_t) cbmem_top();
+	top_of_ram = ALIGN(top_of_low_usable_memory, 16 * MiB);
 
-	/* Reserve 64 KiB for RMU firmware */
-	if (top_of_memory)
-		top_of_memory -= 0x10000;
+	/* Cache postcar and ramstage */
+	postcar_frame_add_mtrr(pcf, top_of_ram - (16 * MiB), 16 * MiB,
+		MTRR_TYPE_WRBACK);
 
-	/* Return the top of memory */
-	return (void *)top_of_memory;
+	/* Cache RMU area */
+	postcar_frame_add_mtrr(pcf, (uintptr_t) top_of_low_usable_memory,
+		0x10000, MTRR_TYPE_WRTHROUGH);
+
+	/* Cache ESRAM */
+	postcar_frame_add_mtrr(pcf, 0x80000000, 0x80000, MTRR_TYPE_WRBACK);
+
+	pcf->skip_common_mtrr = 1;
+	/* Cache SPI flash - Write protect not supported */
+	postcar_frame_add_romcache(pcf, MTRR_TYPE_WRTHROUGH);
 }

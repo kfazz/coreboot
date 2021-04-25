@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2010 coresystems GmbH
  *
@@ -29,6 +28,7 @@
 
 //#define USB_DEBUG
 
+#include <inttypes.h>
 #include <libpayload.h>
 #include <arch/barrier.h>
 #include <arch/cache.h>
@@ -47,15 +47,15 @@ static void dump_td(u32 addr)
 		usb_debug("|..[OUT]............................................|\n");
 	else
 		usb_debug("|..[]...............................................|\n");
-	usb_debug("|:|============ EHCI TD at [0x%08lx] ==========|:|\n", addr);
-	usb_debug("|:| ERRORS = [%ld] | TOKEN = [0x%08lx] |         |:|\n",
+	usb_debug("|:|============ EHCI TD at [0x%08"PRIx32"] ==========|:|\n", addr);
+	usb_debug("|:| ERRORS = [%"PRId32"] | TOKEN = [0x%08"PRIx32"] |         |:|\n",
 		3 - ((td->token & QTD_CERR_MASK) >> QTD_CERR_SHIFT), td->token);
 	usb_debug("|:+-----------------------------------------------+:|\n");
-	usb_debug("|:| Next qTD        [0x%08lx]                  |:|\n", td->next_qtd);
+	usb_debug("|:| Next qTD        [0x%08"PRIx32"]                  |:|\n", td->next_qtd);
 	usb_debug("|:+-----------------------------------------------+:|\n");
-	usb_debug("|:| Alt. Next qTD   [0x%08lx]                  |:|\n", td->alt_next_qtd);
+	usb_debug("|:| Alt. Next qTD   [0x%08"PRIx32"]                  |:|\n", td->alt_next_qtd);
 	usb_debug("|:+-----------------------------------------------+:|\n");
-	usb_debug("|:|       | Bytes to Transfer            |[%05ld] |:|\n", (td->token & QTD_TOTAL_LEN_MASK) >> 16);
+	usb_debug("|:|       | Bytes to Transfer            |[%05"PRId32"] |:|\n", (td->token & QTD_TOTAL_LEN_MASK) >> 16);
 	usb_debug("|:|       | PID CODE:                    |    [%ld] |:|\n", (td->token & (3UL << 8)) >> 8);
 	usb_debug("|:|       | Interrupt On Complete (IOC)  |    [%ld] |:|\n", (td->token & (1UL << 15)) >> 15);
 	usb_debug("|:|       | Status Active                |    [%ld] |:|\n", (td->token & (1UL << 7)) >> 7);
@@ -78,7 +78,7 @@ static void dump_qh(ehci_qh_t *cur)
 	usb_debug("+===================================================+\n");
 	usb_debug("| ############# EHCI QH at [0x%08lx] ########### |\n", virt_to_phys(cur));
 	usb_debug("+---------------------------------------------------+\n");
-	usb_debug("| Horizonal Link Pointer         [0x%08lx]       |\n", cur->horiz_link_ptr);
+	usb_debug("| Horizontal Link Pointer        [0x%08lx]       |\n", cur->horiz_link_ptr);
 	usb_debug("+------------------[ 0x%08lx ]-------------------+\n", cur->epchar);
 	usb_debug("|        | Maximum Packet Length           | [%04ld] |\n", ((cur->epchar & (0x7ffUL << 16)) >> 16));
 	usb_debug("|        | Device Address                  |    [%ld] |\n", cur->epchar & 0x7F);
@@ -133,7 +133,7 @@ static void ehci_reset (hci_t *controller)
 {
 	short count = 0;
 	ehci_stop(controller);
-	/* wait 10 ms just to be shure */
+	/* wait 10 ms just to be sure */
 	mdelay(10);
 	if (EHCI_INST(controller)->operation->usbsts & HC_OP_HC_HALTED) {
 		EHCI_INST(controller)->operation->usbcmd = HC_OP_HC_RESET;
@@ -215,7 +215,7 @@ static int fill_td(qtd_t *td, void* data, int datalen)
 		total_len += page_len;
 
 		while (page_no < 5) {
-			/* we have a continguous mapping between virtual and physical memory */
+			/* we have a contiguous mapping between virtual and physical memory */
 			page += 4096;
 
 			td->bufptrs[page_no++] = page;
@@ -247,6 +247,8 @@ static void free_qh_and_tds(ehci_qh_t *qh, qtd_t *cur)
 	free((void *)qh);
 }
 
+#define EHCI_SLEEP_TIME_US	50
+
 static int wait_for_tds(qtd_t *head)
 {
 	/* returns the amount of bytes *not* transmitted, or -1 for error */
@@ -256,18 +258,10 @@ static int wait_for_tds(qtd_t *head)
 		if (0) dump_td(virt_to_phys(cur));
 
 		/* wait for results */
-		/* how long to wait?
-		 * tested with some USB2.0 flash sticks:
-		 * TUR turn around took
-		 *   about 2.2s for the slowest (13fe:3800)
-		 *   max. 250ms for the others
-		 * slowest non-TUR turn around took about 1.3s
-		 * set to 3s to be safe as a failed TUR can be fatal
-		 */
-		int timeout = 60000; /* time out after 60000 * 50us == 3s */
+		int timeout = USB_MAX_PROCESSING_TIME_US / EHCI_SLEEP_TIME_US;
 		while ((cur->token & QTD_ACTIVE) && !(cur->token & QTD_HALTED)
 				&& timeout--)
-			udelay(50);
+			udelay(EHCI_SLEEP_TIME_US);
 		if (timeout < 0) {
 			usb_debug("Error: ehci: queue transfer "
 				"processing timed out.\n");
@@ -284,9 +278,11 @@ static int wait_for_tds(qtd_t *head)
 		if (cur->next_qtd & 1) {
 			break;
 		}
-		if (0) dump_td(virt_to_phys(cur));
+		if (0)
+			dump_td(virt_to_phys(cur));
 		/* helps debugging the TD chain */
-		if (0) usb_debug("\nmoving from %x to %x\n", cur, phys_to_virt(cur->next_qtd));
+		if (0)
+			usb_debug("\nmoving from %p to %p\n", cur, phys_to_virt(cur->next_qtd));
 		cur = phys_to_virt(cur->next_qtd);
 	}
 	return result;
@@ -297,7 +293,7 @@ static int ehci_set_async_schedule(ehci_t *ehcic, int enable)
 
 	/* Memory barrier to ensure that all memory accesses before we set the
 	 * async schedule are complete. It was observed especially in the case of
-	 * arm64, that netboot and usb stuff resulted in lots of errors possibly
+	 * arm64, that netboot and USB stuff resulted in lots of errors possibly
 	 * due to CPU reordering. Hence, enforcing strict CPU ordering.
 	 */
 	mb();
@@ -433,7 +429,6 @@ oom:
 	return -1;
 }
 
-
 /* FIXME: Handle control transfers as 3 QHs, so the 2nd stage can be >0x4000 bytes */
 static int ehci_control (usbdev_t *dev, direction_t dir, int drlen, void *setup,
 			 int dalen, u8 *src)
@@ -550,7 +545,6 @@ oom:
 	free_qh_and_tds(qh, head);
 	return -1;
 }
-
 
 typedef struct _intr_qtd_t intr_qtd_t;
 
@@ -866,9 +860,9 @@ ehci_pci_init (pcidev_t addr)
 	hci_t *controller;
 	u32 reg_base;
 
-	u32 pci_command = pci_read_config32(addr, PCI_COMMAND);
+	u16 pci_command = pci_read_config16(addr, PCI_COMMAND);
 	pci_command = (pci_command | PCI_COMMAND_MEMORY) & ~PCI_COMMAND_IO ;
-	pci_write_config32(addr, PCI_COMMAND, pci_command);
+	pci_write_config16(addr, PCI_COMMAND, pci_command);
 
 	reg_base = pci_read_config32 (addr, USBBASE);
 

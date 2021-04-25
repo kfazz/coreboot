@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 Google Inc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <memlayout.h>
 #include <arch/header.ld>
@@ -26,30 +13,22 @@ SECTIONS
 	 * conditionalize with macros.
 	 */
 #if ENV_RAMSTAGE
-	RAMSTAGE(CONFIG_RAMBASE, (CONFIG(RELOCATABLE_RAMSTAGE) ? 8M :
-					CONFIG_RAMTOP - CONFIG_RAMBASE))
+	RAMSTAGE(CONFIG_RAMBASE, 8M)
 
 #elif ENV_ROMSTAGE
 	/* The 1M size is not allocated. It's just for basic size checking.
 	 * Link at 32MiB address and rely on cbfstool to relocate to XIP. */
 	ROMSTAGE(CONFIG_ROMSTAGE_ADDR, 1M)
 
-	/* Pull in the cache-as-ram rules. */
 	#include "car.ld"
-#elif ENV_VERSTAGE
+#elif ENV_SEPARATE_VERSTAGE
 	/* The 1M size is not allocated. It's just for basic size checking.
 	 * Link at 32MiB address and rely on cbfstool to relocate to XIP. */
 	VERSTAGE(CONFIG_VERSTAGE_ADDR, 1M)
 
-	/* Pull in the cache-as-ram rules. */
 	#include "car.ld"
 #elif ENV_BOOTBLOCK
-	/* This is for C_ENVIRONMENT_BOOTBLOCK. arch/x86/bootblock.ld contains
-	 * the logic for the romcc linking. */
-	BOOTBLOCK(0xffffffff - CONFIG_C_ENV_BOOTBLOCK_SIZE + 1,
-			CONFIG_C_ENV_BOOTBLOCK_SIZE)
 
-	/* Pull in the cache-as-ram rules. */
 	#include "car.ld"
 
 #elif ENV_POSTCAR
@@ -58,11 +37,5 @@ SECTIONS
 }
 
 #if ENV_BOOTBLOCK
-/* Bootblock specific scripts which provide more SECTION directives. */
-#include <cpu/x86/16bit/entry16.ld>
-#include <cpu/x86/16bit/reset16.ld>
-#include <arch/x86/id.ld>
-#if CONFIG(CPU_INTEL_FIRMWARE_INTERFACE_TABLE)
-#include <cpu/intel/fit/fit.ld>
-#endif
+#include <arch/x86/bootblock.ld>
 #endif  /* ENV_BOOTBLOCK */

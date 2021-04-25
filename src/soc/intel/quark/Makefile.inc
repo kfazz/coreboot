@@ -1,17 +1,4 @@
-#
-# This file is part of the coreboot project.
-#
-# Copyright (C) 2015-2016 Intel Corporation.
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
+# SPDX-License-Identifier: GPL-2.0-only
 
 ifeq ($(CONFIG_SOC_INTEL_QUARK),y)
 
@@ -37,11 +24,10 @@ romstage-y += reg_access.c
 romstage-$(CONFIG_STORAGE_TEST) += storage_test.c
 romstage-y += tsc_freq.c
 romstage-$(CONFIG_ENABLE_BUILTIN_HSUART1) += uart_common.c
-romstage-$(CONFIG_PLATFORM_USES_FSP2_0) += reset.c
+romstage-y += reset.c
 
-postcar-y += fsp2_0.c
+postcar-y += fsp_params.c
 postcar-y += i2c.c
-postcar-y += memmap.c
 postcar-y += reg_access.c
 postcar-y += tsc_freq.c
 postcar-$(CONFIG_ENABLE_BUILTIN_HSUART1) += uart_common.c
@@ -49,14 +35,13 @@ postcar-$(CONFIG_ENABLE_BUILTIN_HSUART1) += uart_common.c
 ramstage-$(CONFIG_HAVE_ACPI_TABLES) += acpi.c
 ramstage-y += chip.c
 ramstage-y += ehci.c
-ramstage-$(CONFIG_PLATFORM_USES_FSP2_0) += fsp2_0.c
+ramstage-y += fsp_params.c
 ramstage-y += gpio_i2c.c
 ramstage-y += i2c.c
 ramstage-y += lpc.c
-ramstage-y += memmap.c
 ramstage-y += northcluster.c
 ramstage-y += reg_access.c
-ramstage-$(CONFIG_PLATFORM_USES_FSP2_0) += reset.c
+ramstage-y += reset.c
 ramstage-y += sd.c
 ramstage-y += spi.c
 ramstage-y += spi_debug.c
@@ -73,7 +58,7 @@ CPPFLAGS_common += -I$(src)/soc/intel/quark/include/soc/fsp
 CPPFLAGS_common += -I3rdparty/blobs/soc/intel/quark
 
 # Since FSP-M runs in CAR we need to relocate it to a specific address
-$(CONFIG_FSP_M_CBFS)-options := -b $(CONFIG_FSP_ESRAM_LOC)
+$(call strip_quotes,$(CONFIG_FSP_M_CBFS))-options := -b $(CONFIG_FSP_ESRAM_LOC)
 
 # Add the FSP binary to the CBFS image
 cbfs-files-$(CONFIG_ADD_FSP_RAW_BIN) += fsp.bin

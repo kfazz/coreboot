@@ -1,29 +1,15 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/mmu.h>
 #include <assert.h>
 #include <soc/addressmap.h>
 #include <soc/mmu_operations.h>
-#include <stdlib.h>
-#include <stdint.h>
 #include <symbols.h>
+#include <types.h>
 
 static void tegra210_mmu_config(void)
 {
-	uint64_t start,end;
+	uintptr_t start, end;
 	const unsigned long devmem = MA_DEV | MA_S | MA_RW;
 	const unsigned long cachedmem = MA_MEM | MA_NS | MA_RW;
 	const unsigned long secure_mem = MA_MEM | MA_S | MA_RW;

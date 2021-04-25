@@ -1,17 +1,4 @@
-/*
- * This file is part of the ectool project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <stdio.h>
 #include <stdint.h>
@@ -180,7 +167,10 @@ int get_ec_ports(void)
 		return -1;
 
 	while (!feof(fp) && (data == 0 || cmd == 0)) {
-		fgets(line, sizeof(line), fp);
+		if (fgets(line, sizeof(line), fp) == NULL) {
+			fprintf(stderr, "Can not read from /proc/ioports.\n");
+			break;
+		}
 		if (strstr(line, "EC data") != NULL)
 			data = strtol(line, NULL, 16);
 

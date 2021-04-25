@@ -1,27 +1,77 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 Intel Corporation.
- * Copyright 2019 Google LLC
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#define __SIMPLE_DEVICE__
 
 #include <bootstate.h>
-#include <cbmem.h>
 #include <console/console.h>
+#include <device/pci_ops.h>
 #include <stdint.h>
 #include <elog.h>
 #include <intelblocks/pmclib.h>
+#include <intelblocks/xhci.h>
 #include <soc/pci_devs.h>
 #include <soc/pm.h>
+
+struct pme_status_info {
+	pci_devfn_t dev;
+	uint8_t reg_offset;
+	uint32_t elog_event;
+};
+
+#define PME_STS_BIT		(1 << 15)
+
+static void pch_log_pme_internal_wake_source(void)
+{
+	size_t i;
+	pci_devfn_t dev;
+	uint16_t val;
+	bool dev_found = false;
+
+	const struct pme_status_info pme_status_info[] = {
+		{ PCH_DEV_HDA, 0x54, ELOG_WAKE_SOURCE_PME_HDA },
+		{ PCH_DEV_GBE, 0xcc, ELOG_WAKE_SOURCE_PME_GBE },
+		{ PCH_DEV_SATA, 0x74, ELOG_WAKE_SOURCE_PME_SATA },
+		{ PCH_DEV_CSE, 0x54, ELOG_WAKE_SOURCE_PME_CSE },
+		{ PCH_DEV_USBOTG, 0x84, ELOG_WAKE_SOURCE_PME_XDCI },
+		/*
+		 * The power management control/status register is not
+		 * listed in the cannonlake PCH EDS. We have been told
+		 * that the PMCS register is at offset 0xCC.
+		 */
+		{ PCH_DEV_CNViWIFI, 0xcc, ELOG_WAKE_SOURCE_PME_WIFI },
+	};
+	const struct xhci_wake_info xhci_wake_info[] = {
+		{ PCH_DEVFN_XHCI, ELOG_WAKE_SOURCE_PME_XHCI },
+	};
+
+	for (i = 0; i < ARRAY_SIZE(pme_status_info); i++) {
+		dev = pme_status_info[i].dev;
+		if (!dev)
+			continue;
+
+		val = pci_read_config16(dev, pme_status_info[i].reg_offset);
+
+		if ((val == 0xFFFF) || !(val & PME_STS_BIT))
+			continue;
+
+		elog_add_event_wake(pme_status_info[i].elog_event, 0);
+		dev_found = true;
+	}
+
+	/*
+	 * Check the XHCI controllers' USB2 & USB3 ports for wake events. There
+	 * are cases (GSMI logging for S0ix clears PME_STS_BIT) where the XHCI
+	 * controller's PME_STS_BIT may have already been cleared, so the host
+	 * controller wake wouldn't get logged here; therefore, the host
+	 * controller wake event is logged before its corresponding port wake
+	 * event is logged.
+	 */
+	dev_found |= xhci_update_wake_event(xhci_wake_info,
+					    ARRAY_SIZE(xhci_wake_info));
+
+	if (!dev_found)
+		elog_add_event_wake(ELOG_WAKE_SOURCE_PME_INTERNAL, 0);
+}
 
 static void pch_log_gpio_gpe(u32 gpe0_sts, u32 gpe0_en, int start)
 {
@@ -31,11 +81,11 @@ static void pch_log_gpio_gpe(u32 gpe0_sts, u32 gpe0_en, int start)
 
 	for (i = 0; i <= 31; i++) {
 		if (gpe0_sts & (1 << i))
-			elog_add_event_wake(ELOG_WAKE_SOURCE_GPIO, i + start);
+			elog_add_event_wake(ELOG_WAKE_SOURCE_GPE, i + start);
 	}
 }
 
-static void pch_log_wake_source(struct chipset_power_state *ps)
+static void pch_log_wake_source(const struct chipset_power_state *ps)
 {
 	/* Power Button */
 	if (ps->pm1_sts & PWRBTN_STS)
@@ -53,9 +103,9 @@ static void pch_log_wake_source(struct chipset_power_state *ps)
 	if (ps->gpe0_sts[GPE_STD] & PME_STS)
 		elog_add_event_wake(ELOG_WAKE_SOURCE_PME, 0);
 
-	/* Internal PME (TODO: determine wake device) */
+	/* XHCI - "Power Management Event Bus 0" events include XHCI */
 	if (ps->gpe0_sts[GPE_STD] & PME_B0_STS)
-		elog_add_event_wake(ELOG_WAKE_SOURCE_PME_INTERNAL, 0);
+		pch_log_pme_internal_wake_source();
 
 	/* SMBUS Wake */
 	if (ps->gpe0_sts[GPE_STD] & SMB_WAK_STS)
@@ -69,7 +119,7 @@ static void pch_log_wake_source(struct chipset_power_state *ps)
 	pch_log_gpio_gpe(ps->gpe0_sts[GPE_STD], ps->gpe0_en[GPE_STD], 96);
 }
 
-static void pch_log_power_and_resets(struct chipset_power_state *ps)
+static void pch_log_power_and_resets(const struct chipset_power_state *ps)
 {
 	/* Thermal Trip */
 	if (ps->gblrst_cause[0] & GBLRST_CAUSE0_THERMTRIP)

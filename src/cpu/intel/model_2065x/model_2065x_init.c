@@ -1,27 +1,14 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- * Copyright (C) 2011 The ChromiumOS Authors.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <assert.h>
 #include <console/console.h>
 #include <device/device.h>
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <cpu/cpu.h>
 #include <cpu/x86/mtrr.h>
 #include <cpu/x86/msr.h>
 #include <cpu/x86/lapic.h>
+#include <cpu/x86/mp.h>
 #include <cpu/intel/microcode.h>
 #include <cpu/intel/speedstep.h>
 #include <cpu/intel/turbo.h>
@@ -29,122 +16,9 @@
 #include <cpu/x86/name.h>
 #include "model_2065x.h"
 #include "chip.h"
-#include <cpu/intel/smm/gen1/smi.h>
+#include <cpu/intel/smm_reloc.h>
 #include <cpu/intel/common/common.h>
-
-/*
- * List of supported C-states in this processor
- *
- * Latencies are typical worst-case package exit time in uS
- * taken from the SandyBridge BIOS specification.
- */
-static acpi_cstate_t cstate_map[] = {
-	{	/* 0: C0 */
-	}, {	/* 1: C1 */
-		.latency = 1,
-		.power = 1000,
-		.resource = {
-			.addrl = 0x00,	/* MWAIT State 0 */
-			.space_id = ACPI_ADDRESS_SPACE_FIXED,
-			.bit_width = ACPI_FFIXEDHW_VENDOR_INTEL,
-			.bit_offset = ACPI_FFIXEDHW_CLASS_MWAIT,
-			.access_size = ACPI_FFIXEDHW_FLAG_HW_COORD,
-		}
-	},
-	{	/* 2: C1E */
-		.latency = 1,
-		.power = 1000,
-		.resource = {
-			.addrl = 0x01,	/* MWAIT State 0 Sub-state 1 */
-			.space_id = ACPI_ADDRESS_SPACE_FIXED,
-			.bit_width = ACPI_FFIXEDHW_VENDOR_INTEL,
-			.bit_offset = ACPI_FFIXEDHW_CLASS_MWAIT,
-			.access_size = ACPI_FFIXEDHW_FLAG_HW_COORD,
-		}
-	},
-	{	/* 3: C3 */
-		.latency = 63,
-		.power = 500,
-		.resource = {
-			.addrl = 0x10,	/* MWAIT State 1 */
-			.space_id = ACPI_ADDRESS_SPACE_FIXED,
-			.bit_width = ACPI_FFIXEDHW_VENDOR_INTEL,
-			.bit_offset = ACPI_FFIXEDHW_CLASS_MWAIT,
-			.access_size = ACPI_FFIXEDHW_FLAG_HW_COORD,
-		}
-	},
-	{	/* 4: C6 */
-		.latency = 87,
-		.power = 350,
-		.resource = {
-			.addrl = 0x20,	/* MWAIT State 2 */
-			.space_id = ACPI_ADDRESS_SPACE_FIXED,
-			.bit_width = ACPI_FFIXEDHW_VENDOR_INTEL,
-			.bit_offset = ACPI_FFIXEDHW_CLASS_MWAIT,
-			.access_size = ACPI_FFIXEDHW_FLAG_HW_COORD,
-		}
-	},
-	{	/* 5: C7 */
-		.latency = 90,
-		.power = 200,
-		.resource = {
-			.addrl = 0x30,	/* MWAIT State 3 */
-			.space_id = ACPI_ADDRESS_SPACE_FIXED,
-			.bit_width = ACPI_FFIXEDHW_VENDOR_INTEL,
-			.bit_offset = ACPI_FFIXEDHW_CLASS_MWAIT,
-			.access_size = ACPI_FFIXEDHW_FLAG_HW_COORD,
-		}
-	},
-	{	/* 6: C7S */
-		.latency = 90,
-		.power = 200,
-		.resource = {
-			.addrl = 0x31,	/* MWAIT State 3 Sub-state 1 */
-			.space_id = ACPI_ADDRESS_SPACE_FIXED,
-			.bit_width = ACPI_FFIXEDHW_VENDOR_INTEL,
-			.bit_offset = ACPI_FFIXEDHW_CLASS_MWAIT,
-			.access_size = ACPI_FFIXEDHW_FLAG_HW_COORD,
-		}
-	},
-	{ 0 }
-};
-
-int cpu_get_apic_id_map(int *apic_id_map)
-{
-	int i;
-	struct cpuid_result result;
-	unsigned int threads_per_package, threads_per_core;
-
-	/* Logical processors (threads) per core */
-	result = cpuid_ext(0xb, 0);
-	threads_per_core = result.ebx & 0xffff;
-
-	/* Logical processors (threads) per package */
-	result = cpuid_ext(0xb, 1);
-	threads_per_package = result.ebx & 0xffff;
-
-	for (i = 0; i < threads_per_package && i < CONFIG_MAX_CPUS; ++i) {
-		apic_id_map[i] = (i % threads_per_core)
-			+ ((i / threads_per_core) << 2);
-	}
-
-	return threads_per_package;
-}
-
-
-int cpu_config_tdp_levels(void)
-{
-	msr_t platform_info;
-
-	/* Minimum CPU revision */
-	if (cpuid_eax(1) < IVB_CONFIG_TDP_MIN_CPUID)
-		return 0;
-
-	/* Bits 34:33 indicate how many levels supported */
-	platform_info = rdmsr(MSR_PLATFORM_INFO);
-	return (platform_info.hi >> 1) & 3;
-}
-
+#include <smp/node.h>
 
 static void configure_thermal_target(void)
 {
@@ -182,24 +56,7 @@ static void configure_misc(void)
 	msr.lo = 0;
 	msr.hi = 0;
 	wrmsr(IA32_THERM_INTERRUPT, msr);
-
-#ifdef DISABLED
-	/* Enable package critical interrupt only */
-	msr.lo = 1 << 4;
-	msr.hi = 0;
-	wrmsr(IA32_PACKAGE_THERM_INTERRUPT, msr);
-#endif
 }
-
-static void enable_lapic_tpr(void)
-{
-	msr_t msr;
-
-	msr = rdmsr(MSR_PIC_MSG_CONTROL);
-	msr.lo &= ~(1 << 10);	/* Enable APIC TPR updates */
-	wrmsr(MSR_PIC_MSG_CONTROL, msr);
-}
-
 
 static void set_max_ratio(void)
 {
@@ -207,36 +64,13 @@ static void set_max_ratio(void)
 
 	perf_ctl.hi = 0;
 
-	/* Check for configurable TDP option */
-	if (cpu_config_tdp_levels()) {
-		/* Set to nominal TDP ratio */
-		msr = rdmsr(MSR_CONFIG_TDP_NOMINAL);
-		perf_ctl.lo = (msr.lo & 0xff) << 8;
-	} else {
-		/* Platform Info bits 15:8 give max ratio */
-		msr = rdmsr(MSR_PLATFORM_INFO);
-		perf_ctl.lo = msr.lo & 0xff00;
-	}
+	/* Platform Info bits 15:8 give max ratio */
+	msr = rdmsr(MSR_PLATFORM_INFO);
+	perf_ctl.lo = msr.lo & 0xff00;
 	wrmsr(IA32_PERF_CTL, perf_ctl);
 
-	printk(BIOS_DEBUG, "model_x06ax: frequency set to %d\n",
-	       ((perf_ctl.lo >> 8) & 0xff) * NEHALEM_BCLK);
-}
-
-static void set_energy_perf_bias(u8 policy)
-{
-#ifdef DISABLED
-	msr_t msr;
-
-	/* Energy Policy is bits 3:0 */
-	msr = rdmsr(IA32_ENERGY_PERF_BIAS);
-	msr.lo &= ~0xf;
-	msr.lo |= policy & 0xf;
-	wrmsr(IA32_ENERGY_PERF_BIAS, msr);
-
-	printk(BIOS_DEBUG, "model_x06ax: energy policy set to %u\n",
-	       policy);
-#endif
+	printk(BIOS_DEBUG, "model_x065x: frequency set to %d\n",
+	       ((perf_ctl.lo >> 8) & 0xff) * IRONLAKE_BCLK);
 }
 
 static void configure_mca(void)
@@ -250,66 +84,9 @@ static void configure_mca(void)
 		wrmsr(IA32_MC0_STATUS + (i * 4), msr);
 }
 
-/*
- * Initialize any extra cores/threads in this package.
- */
-static void intel_cores_init(struct device *cpu)
-{
-	struct cpuid_result result;
-	unsigned int threads_per_package, threads_per_core, i;
-
-	/* Logical processors (threads) per core */
-	result = cpuid_ext(0xb, 0);
-	threads_per_core = result.ebx & 0xffff;
-
-	/* Logical processors (threads) per package */
-	result = cpuid_ext(0xb, 1);
-	threads_per_package = result.ebx & 0xffff;
-
-	/* Only initialize extra cores from BSP */
-	if (cpu->path.apic.apic_id)
-		return;
-
-	printk(BIOS_DEBUG, "CPU: %u has %u cores, %u threads per core\n",
-	       cpu->path.apic.apic_id, threads_per_package/threads_per_core,
-	       threads_per_core);
-
-	for (i = 1; i < threads_per_package; ++i) {
-		struct device_path cpu_path;
-		struct device *new;
-
-		/* Build the CPU device path */
-		cpu_path.type = DEVICE_PATH_APIC;
-		cpu_path.apic.apic_id =
-		  cpu->path.apic.apic_id + (i % threads_per_core)
-			+ ((i / threads_per_core) << 2);
-
-		/* Allocate the new CPU device structure */
-		new = alloc_dev(cpu->bus, &cpu_path);
-		if (!new)
-			continue;
-
-		printk(BIOS_DEBUG, "CPU: %u has core %u\n",
-		       cpu->path.apic.apic_id,
-		       new->path.apic.apic_id);
-
-		/* Start the new CPU */
-		if (is_smp_boot() && !start_cpu(new)) {
-			/* Record the error in cpu? */
-			printk(BIOS_ERR, "CPU %u would not start!\n",
-			       new->path.apic.apic_id);
-		}
-	}
-}
-
 static void model_2065x_init(struct device *cpu)
 {
 	char processor_name[49];
-
-	/* Turn on caching if we haven't already */
-	x86_enable_cache();
-
-	intel_update_microcode_from_cbfs();
 
 	/* Clear out pending MCEs */
 	configure_mca();
@@ -317,12 +94,8 @@ static void model_2065x_init(struct device *cpu)
 	/* Print processor name */
 	fill_processor_name(processor_name);
 	printk(BIOS_INFO, "CPU: %s.\n", processor_name);
-	printk(BIOS_INFO, "CPU:lapic=%ld, boot_cpu=%d\n", lapicid(),
+	printk(BIOS_INFO, "CPU:lapic=%d, boot_cpu=%d\n", lapicid(),
 		boot_cpu());
-
-	/* Setup MTRRs based on physical address size */
-	x86_setup_mtrrs_with_detect();
-	x86_mtrr_check();
 
 	/* Setup Page Attribute Tables (PAT) */
 	// TODO set up PAT
@@ -334,37 +107,102 @@ static void model_2065x_init(struct device *cpu)
 	/* Set virtualization based on Kconfig option */
 	set_vmx_and_lock();
 
+	set_aesni_lock();
+
 	/* Configure Enhanced SpeedStep and Thermal Sensors */
 	configure_misc();
 
 	/* Thermal throttle activation offset */
 	configure_thermal_target();
 
-	/* Set energy policy */
-	set_energy_perf_bias(ENERGY_POLICY_NORMAL);
-
 	/* Set Max Ratio */
 	set_max_ratio();
 
 	/* Enable Turbo */
 	enable_turbo();
+}
 
-	/* Start up extra cores */
-	intel_cores_init(cpu);
+/* MP initialization support. */
+static void pre_mp_init(void)
+{
+	/* Setup MTRRs based on physical address size. */
+	x86_setup_mtrrs_with_detect();
+	x86_mtrr_check();
+}
+
+static int get_cpu_count(void)
+{
+	msr_t msr;
+	int num_threads;
+	int num_cores;
+
+	msr = rdmsr(MSR_CORE_THREAD_COUNT);
+	num_threads = (msr.lo >> 0) & 0xffff;
+	num_cores = (msr.lo >> 16) & 0xffff;
+	printk(BIOS_DEBUG, "CPU has %u cores, %u threads enabled.\n",
+	       num_cores, num_threads);
+
+	return num_threads;
+}
+
+static void get_microcode_info(const void **microcode, int *parallel)
+{
+	*microcode = intel_microcode_find();
+	*parallel = !intel_ht_supported();
+}
+
+static void per_cpu_smm_trigger(void)
+{
+	/* Relocate the SMM handler. */
+	smm_relocate();
+
+	/* After SMM relocation a 2nd microcode load is required. */
+	const void *microcode_patch = intel_microcode_find();
+	intel_microcode_load_unlocked(microcode_patch);
+}
+
+static void post_mp_init(void)
+{
+	/* Now that all APs have been relocated as well as the BSP let SMIs
+	 * start flowing. */
+	global_smi_enable();
+
+	/* Lock down the SMRAM space. */
+	smm_lock();
+}
+
+static const struct mp_ops mp_ops = {
+	.pre_mp_init = pre_mp_init,
+	.get_cpu_count = get_cpu_count,
+	.get_smm_info = smm_info,
+	.get_microcode_info = get_microcode_info,
+	.pre_mp_smm_init = smm_initialize,
+	.per_cpu_smm_trigger = per_cpu_smm_trigger,
+	.relocation_handler = smm_relocation_handler,
+	.post_mp_init = post_mp_init,
+};
+
+void mp_init_cpus(struct bus *cpu_bus)
+{
+	if (mp_init_with_smm(cpu_bus, &mp_ops))
+		printk(BIOS_ERR, "MP initialization failure.\n");
 }
 
 static struct device_operations cpu_dev_ops = {
 	.init     = model_2065x_init,
 };
 
+/* Arrandale / Clarkdale CPU IDs */
 static const struct cpu_device_id cpu_table[] = {
-	{ X86_VENDOR_INTEL, 0x20652 }, /* Intel Nehalem */
-	{ X86_VENDOR_INTEL, 0x20655 }, /* Intel Nehalem */
+	{ X86_VENDOR_INTEL, 0x20650 },
+	{ X86_VENDOR_INTEL, 0x20651 },
+	{ X86_VENDOR_INTEL, 0x20652 },
+	{ X86_VENDOR_INTEL, 0x20654 },
+	{ X86_VENDOR_INTEL, 0x20655 },
 	{ 0, 0 },
 };
 
 static const struct cpu_driver driver __cpu_driver = {
 	.ops      = &cpu_dev_ops,
 	.id_table = cpu_table,
-	.cstates  = cstate_map,
 };

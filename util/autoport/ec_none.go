@@ -4,13 +4,14 @@ func NoEC(ctx Context) {
 	ap := Create(ctx, "acpi/platform.asl")
 	defer ap.Close()
 
+	Add_gpl(ap)
 	ap.WriteString(
-		`Method(_WAK,1)
+		`Method(_WAK, 1)
 {
-	Return(Package(){0,0})
+	Return(Package() {0, 0})
 }
 
-Method(_PTS,1)
+Method(_PTS, 1)
 {
 }
 `)

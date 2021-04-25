@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014-2017 Siemens AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include "i210.h"
 #include <device/device.h>
@@ -219,19 +206,17 @@ static void init(struct device *dev)
 	return;
 }
 
-static void set_resources(struct device *dev)
+static void enable_bus_master(struct device *dev)
 {
-	pci_dev_set_resources(dev);
-	dev->command |= PCI_COMMAND_MASTER;
+	pci_or_config16(dev, PCI_COMMAND, PCI_COMMAND_MASTER);
 }
 
 static struct device_operations i210_ops  = {
 	.read_resources   = pci_dev_read_resources,
-	.set_resources    = set_resources,
+	.set_resources    = pci_dev_set_resources,
 	.enable_resources = pci_dev_enable_resources,
 	.init             = init,
-	.scan_bus         = 0,
-	.ops_pci          = 0,
+	.final            = enable_bus_master,
 };
 
 static const unsigned short i210_device_ids[] = { 0x1537, 0x1538, 0x1533, 0 };

@@ -1,19 +1,7 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 The ChromiumOS Authors.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <bootstate.h>
+#include <boot/coreboot_tables.h>
 #include <console/console.h>
 #include <types.h>
 #include <pc80/mc146818rtc.h>
@@ -81,13 +69,13 @@ void save_vbnv_cmos(const uint8_t *vbnv_copy)
 
 void vbnv_init_cmos(uint8_t *vbnv_copy)
 {
-	/* If no cmos failure just defer to the normal read path for checking
+	/* If no CMOS failure just defer to the normal read path for checking
 	   vbnv contents' integrity. */
 	if (!vbnv_cmos_failed())
 		return;
 
-	/* In the case of cmos failure force the backup. If backup wasn't used
-	   force the vbnv cmos to be reset. */
+	/* In the case of CMOS failure force the backup. If backup wasn't used
+	   force the vbnv CMOS to be reset. */
 	if (!restore_from_backup(vbnv_copy)) {
 		vbnv_reset(vbnv_copy);
 		/* This parallels the vboot_reference implementation. */
@@ -97,6 +85,17 @@ void vbnv_init_cmos(uint8_t *vbnv_copy)
 		regen_vbnv_crc(vbnv_copy);
 		save_vbnv_cmos(vbnv_copy);
 	}
+}
+
+void lb_table_add_vbnv_cmos(struct lb_header *header)
+{
+	struct lb_range *vbnv;
+
+	vbnv = (struct lb_range *)lb_new_record(header);
+	vbnv->tag = LB_TAG_VBNV;
+	vbnv->size = sizeof(*vbnv);
+	vbnv->range_start = CONFIG_VBOOT_VBNV_OFFSET + 14;
+	vbnv->range_size = VBOOT_VBNV_BLOCK_SIZE;
 }
 
 #if CONFIG(VBOOT_VBNV_CMOS_BACKUP_TO_FLASH)

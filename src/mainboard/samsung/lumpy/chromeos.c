@@ -1,23 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 The ChromiumOS Authors.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <string.h>
 #include <bootmode.h>
+#include <boot/coreboot_tables.h>
 #include <device/pci_ops.h>
 #include <device/device.h>
-#include <device/pci.h>
 #include <northbridge/intel/sandybridge/sandybridge.h>
 #include <southbridge/intel/bd82x6x/pch.h>
 #include <southbridge/intel/common/gpio.h>
@@ -29,25 +15,19 @@
 #define FLAG_SPI_WP	0
 #define FLAG_REC_MODE	1
 
-#if ENV_RAMSTAGE
-#include <boot/coreboot_tables.h>
 #include "ec.h"
 #include <ec/smsc/mec1308/ec.h>
 
 void fill_lb_gpios(struct lb_gpios *gpios)
 {
-	struct device *dev = pcidev_on_root(0x1f, 0);
-	u16 gen_pmcon_1 = pci_read_config32(dev, GEN_PMCON_1);
+	const pci_devfn_t dev = PCI_DEV(0, 0x1f, 0);
+	u16 gen_pmcon_1 = pci_s_read_config32(dev, GEN_PMCON_1);
 	u8 lid = ec_read(0x83);
 
 	struct lb_gpio chromeos_gpios[] = {
-		/* Write Protect: GPIO24 = KBC3_SPI_WP# */
-		{GPIO_SPI_WP, ACTIVE_HIGH, get_write_protect_state(),
-		 "write protect"},
-
 		/* Recovery: GPIO42 = CHP3_REC_MODE# */
 		{GPIO_REC_MODE, ACTIVE_LOW, !get_recovery_mode_switch(),
-		 "recovery"},
+		 "presence"},
 
 		{100, ACTIVE_HIGH, lid & 1, "lid"},
 
@@ -60,36 +40,23 @@ void fill_lb_gpios(struct lb_gpios *gpios)
 	};
 	lb_add_gpios(gpios, chromeos_gpios, ARRAY_SIZE(chromeos_gpios));
 }
-#endif
 
 int get_write_protect_state(void)
 {
-#ifdef __SIMPLE_DEVICE__
-	pci_devfn_t dev = PCI_DEV(0, 0x1f, 2);
-#else
-	struct device *dev = pcidev_on_root(0x1f, 2);
-#endif
-	return (pci_read_config32(dev, SATA_SP) >> FLAG_SPI_WP) & 1;
+	const pci_devfn_t dev = PCI_DEV(0, 0x1f, 2);
+	return (pci_s_read_config32(dev, SATA_SP) >> FLAG_SPI_WP) & 1;
 }
 
 int get_recovery_mode_switch(void)
 {
-#ifdef __SIMPLE_DEVICE__
-	pci_devfn_t dev = PCI_DEV(0, 0x1f, 2);
-#else
-	struct device *dev = pcidev_on_root(0x1f, 2);
-#endif
-	return (pci_read_config32(dev, SATA_SP) >> FLAG_REC_MODE) & 1;
+	const pci_devfn_t dev = PCI_DEV(0, 0x1f, 2);
+	return (pci_s_read_config32(dev, SATA_SP) >> FLAG_REC_MODE) & 1;
 }
 
 void init_bootmode_straps(void)
 {
 	u32 flags = 0;
-#ifdef __SIMPLE_DEVICE__
-	pci_devfn_t dev = PCI_DEV(0, 0x1f, 2);
-#else
-	struct device *dev = pcidev_on_root(0x1f, 2);
-#endif
+	const pci_devfn_t dev = PCI_DEV(0, 0x1f, 2);
 
 	/* Write Protect: GPIO24 = KBC3_SPI_WP#, active high */
 	if (get_gpio(GPIO_SPI_WP))
@@ -98,7 +65,7 @@ void init_bootmode_straps(void)
 	if (!get_gpio(GPIO_REC_MODE))
 		flags |= (1 << FLAG_REC_MODE);
 
-	pci_write_config32(dev, SATA_SP, flags);
+	pci_s_write_config32(dev, SATA_SP, flags);
 }
 
 static const struct cros_gpio cros_gpios[] = {

@@ -1,9 +1,7 @@
-/* Copyright (c) 2012 The Chromium OS Authors. All rights reserved.
- * Use of this source code is governed by a BSD-style license that can be
- * found in the LICENSE file.
- */
+/* SPDX-License-Identifier: BSD-3-Clause */
 
-/* A lightweight TPM command library.
+/*
+ * A lightweight TPM command library.
  *
  * The general idea is that TPM commands are array of bytes whose
  * fields are mostly compile-time constant.  The goal is to build much
@@ -14,7 +12,6 @@
  * time.
  */
 
-#include <arch/early_variables.h>
 #include <assert.h>
 #include <string.h>
 #include <security/tpm/tis.h>
@@ -24,13 +21,8 @@
 #include "tss_internal.h"
 #include "tss_commands.h"
 
-#ifdef FOR_TEST
-#include <stdio.h>
-#define VBDEBUG(format, args...) printf(format, ## args)
-#else
 #include <console/console.h>
 #define VBDEBUG(format, args...) printk(BIOS_DEBUG, format, ## args)
-#endif
 
 static int tpm_send_receive(const uint8_t *request,
 				uint32_t request_length,
@@ -76,7 +68,8 @@ static inline int tpm_return_code(const uint8_t *buffer)
 	return tpm_command_code(buffer);
 }
 
-/* Like TlclSendReceive below, but do not retry if NEEDS_SELFTEST or
+/*
+ * Like TlclSendReceive below, but do not retry if NEEDS_SELFTEST or
  * DOING_SELFTEST errors are returned.
  */
 static uint32_t tlcl_send_receive_no_retry(const uint8_t *request,
@@ -105,7 +98,6 @@ static uint32_t tlcl_send_receive_no_retry(const uint8_t *request,
 
 return result;
 }
-
 
 /* Sends a TPM command and gets a response.  Returns 0 if success or the TPM
  * error code if error. Waits for the self test to complete if needed. */
@@ -148,12 +140,11 @@ static uint32_t send(const uint8_t *command)
 
 /* Exported functions. */
 
-static uint8_t tlcl_init_done CAR_GLOBAL;
+static uint8_t tlcl_init_done;
 
 uint32_t tlcl_lib_init(void)
 {
-	uint8_t done = car_get_var(tlcl_init_done);
-	if (done)
+	if (tlcl_init_done)
 		return VB2_SUCCESS;
 
 	if (tis_init())
@@ -161,7 +152,7 @@ uint32_t tlcl_lib_init(void)
 	if (tis_open())
 		return VB2_ERROR_UNKNOWN;
 
-	car_set_var(tlcl_init_done, 1);
+	tlcl_init_done = 1;
 
 	return VB2_SUCCESS;
 }
@@ -217,7 +208,7 @@ uint32_t tlcl_write(uint32_t index, const void *data, uint32_t length)
 	const int total_length =
 			kTpmRequestHeaderLength + kWriteInfoLength + length;
 
-	VBDEBUG("TPM: tlcl_write(0x%x, %d)\n", index, length);
+	VBDEBUG("TPM: %s(0x%x, %d)\n", __func__, index, length);
 	memcpy(&cmd, &tpm_nv_write_cmd, sizeof(cmd));
 	assert(total_length <= TPM_LARGE_ENOUGH_COMMAND_SIZE);
 	set_tpm_command_size(cmd.buffer, total_length);
@@ -236,7 +227,7 @@ uint32_t tlcl_read(uint32_t index, void *data, uint32_t length)
 	uint32_t result_length;
 	uint32_t result;
 
-	VBDEBUG("TPM: tlcl_read(0x%x, %d)\n", index, length);
+	VBDEBUG("TPM: %s(0x%x, %d)\n", __func__, index, length);
 	memcpy(&cmd, &tpm_nv_read_cmd, sizeof(cmd));
 	to_tpm_uint32(cmd.buffer + tpm_nv_read_cmd.index, index);
 	to_tpm_uint32(cmd.buffer + tpm_nv_read_cmd.length, length);
@@ -253,7 +244,6 @@ uint32_t tlcl_read(uint32_t index, void *data, uint32_t length)
 
 	return result;
 }
-
 
 uint32_t tlcl_assert_physical_presence(void)
 {
@@ -359,5 +349,24 @@ uint32_t tlcl_extend(int pcr_num, const uint8_t *in_digest,
 	if (out_digest)
 		memcpy(out_digest, response + kTpmResponseHeaderLength,
 		       kPcrDigestLength);
+	return result;
+}
+
+uint32_t tlcl_get_permissions(uint32_t index, uint32_t *permissions)
+{
+	struct s_tpm_getpermissions_cmd cmd;
+	uint8_t response[TPM_LARGE_ENOUGH_COMMAND_SIZE];
+	uint8_t *nvdata;
+	uint32_t result;
+	uint32_t size;
+
+	memcpy(&cmd, &tpm_getpermissions_cmd, sizeof(cmd));
+	to_tpm_uint32(cmd.buffer + tpm_getpermissions_cmd.index, index);
+	result = tlcl_send_receive(cmd.buffer, response, sizeof(response));
+	if (result != TPM_SUCCESS)
+		return result;
+
+	nvdata = response + kTpmResponseHeaderLength + sizeof(size);
+	from_tpm_uint32(nvdata + kNvDataPublicPermissionsOffset, permissions);
 	return result;
 }

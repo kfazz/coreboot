@@ -1,28 +1,13 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <arch/io.h>
 #include <console/console.h>
 #include <cpu/x86/smm.h>
 #include <soc/pm.h>
-#include <soc/smm.h>
 #include <elog.h>
 #include <ec/google/chromeec/ec.h>
-#include <soc/gpio.h>
+#include <southbridge/intel/lynxpoint/lp_gpio.h>
 #include <soc/iomap.h>
 #include <soc/nvs.h>
 #include "ec.h"
@@ -33,11 +18,9 @@ static u8 mainboard_smi_ec(void)
 	u8 cmd = google_chromeec_get_event();
 	u32 pm1_cnt;
 
-#if CONFIG(ELOG_GSMI)
 	/* Log this event */
 	if (cmd)
-		elog_add_event_byte(ELOG_TYPE_EC_EVENT, cmd);
-#endif
+		elog_gsmi_add_event_byte(ELOG_TYPE_EC_EVENT, cmd);
 
 	switch (cmd) {
 	case EC_HOST_EVENT_LID_CLOSED:
@@ -82,7 +65,7 @@ void mainboard_smi_sleep(u8 slp_typ)
 	/* Disable USB charging if required */
 	switch (slp_typ) {
 	case ACPI_S3:
-		if (smm_get_gnvs()->s3u0 == 0) {
+		if (gnvs->s3u0 == 0) {
 			google_chromeec_set_usb_charge_mode(
 				0, USB_CHARGE_MODE_DISABLED);
 			google_chromeec_set_usb_charge_mode(
@@ -95,7 +78,7 @@ void mainboard_smi_sleep(u8 slp_typ)
 		google_chromeec_set_wake_mask(MAINBOARD_EC_S3_WAKE_EVENTS);
 		break;
 	case ACPI_S5:
-		if (smm_get_gnvs()->s5u0 == 0) {
+		if (gnvs->s5u0 == 0) {
 			google_chromeec_set_usb_charge_mode(
 				0, USB_CHARGE_MODE_DISABLED);
 			google_chromeec_set_usb_charge_mode(

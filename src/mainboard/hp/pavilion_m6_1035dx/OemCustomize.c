@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <Porting.h>
 #include <AGESA.h>
@@ -184,7 +171,7 @@ void board_BeforeInitEarly(struct sysinfo *cb, AMD_EARLY_PARAMS *InitEarly)
 }
 
 /*----------------------------------------------------------------------------------------
- *                        CUSTOMER OVERIDES MEMORY TABLE
+ *                        CUSTOMER OVERRIDES MEMORY TABLE
  *----------------------------------------------------------------------------------------
  */
 
@@ -196,15 +183,14 @@ void board_BeforeInitEarly(struct sysinfo *cb, AMD_EARLY_PARAMS *InitEarly)
  * data from the table. Otherwise, it will use its default conservative settings
  */
 static CONST PSO_ENTRY ROMDATA PlatformMemoryTable[] = {
+	NUMBER_OF_DIMMS_SUPPORTED(ANY_SOCKET, ANY_CHANNEL, 1),
+	NUMBER_OF_CHANNELS_SUPPORTED(ANY_SOCKET, 2),
+	MEMCLK_DIS_MAP(ANY_SOCKET, ANY_CHANNEL, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00),
+	CKE_TRI_MAP(ANY_SOCKET, ANY_CHANNEL, 0x05, 0x0A),
+	ODT_TRI_MAP(ANY_SOCKET, ANY_CHANNEL, 0x01, 0x02, 0x00, 0x00),
+	CS_TRI_MAP(ANY_SOCKET, ANY_CHANNEL, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00),
 
-  NUMBER_OF_DIMMS_SUPPORTED(ANY_SOCKET, ANY_CHANNEL, 1),
-  NUMBER_OF_CHANNELS_SUPPORTED(ANY_SOCKET, 2),
-  MEMCLK_DIS_MAP(ANY_SOCKET, ANY_CHANNEL, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00),
-  CKE_TRI_MAP(ANY_SOCKET, ANY_CHANNEL, 0x05, 0x0A),
-  ODT_TRI_MAP(ANY_SOCKET, ANY_CHANNEL, 0x01, 0x02, 0x00, 0x00),
-  CS_TRI_MAP(ANY_SOCKET, ANY_CHANNEL, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00),
-
-  PSO_END
+	PSO_END
 };
 
 void board_BeforeInitPost(struct sysinfo *cb, AMD_POST_PARAMS *InitPost)

@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2019 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #define DPTF_CPU_PASSIVE	95
 #define DPTF_CPU_CRITICAL	105
@@ -21,7 +8,7 @@
 #define DPTF_CPU_ACTIVE_AC3	80
 #define DPTF_CPU_ACTIVE_AC4	75
 
-#define DPTF_TSR0_SENSOR_ID	1
+#define DPTF_TSR0_SENSOR_ID	0
 #define DPTF_TSR0_SENSOR_NAME	"Thermal Sensor 1"
 #define DPTF_TSR0_PASSIVE	65
 #define DPTF_TSR0_CRITICAL	75
@@ -31,15 +18,15 @@
 #define DPTF_TSR0_ACTIVE_AC3	42
 #define DPTF_TSR0_ACTIVE_AC4	39
 
-#define DPTF_TSR1_SENSOR_ID	2
+#define DPTF_TSR1_SENSOR_ID	1
 #define DPTF_TSR1_SENSOR_NAME	"Thermal Sensor 2"
 #define DPTF_TSR1_PASSIVE	65
 #define DPTF_TSR1_CRITICAL	75
-#define DPTF_TSR1_ACTIVE_AC0    50
-#define DPTF_TSR1_ACTIVE_AC1    47
-#define DPTF_TSR1_ACTIVE_AC2    45
-#define DPTF_TSR1_ACTIVE_AC3    42
-#define DPTF_TSR1_ACTIVE_AC4    39
+#define DPTF_TSR1_ACTIVE_AC0	50
+#define DPTF_TSR1_ACTIVE_AC1	47
+#define DPTF_TSR1_ACTIVE_AC2	45
+#define DPTF_TSR1_ACTIVE_AC3	42
+#define DPTF_TSR1_ACTIVE_AC4	39
 
 #define DPTF_ENABLE_CHARGER
 #define DPTF_ENABLE_FAN_CONTROL
@@ -118,7 +105,7 @@ Name (MPPC, Package ()
 	Package () {	/* Power Limit 2 */
 		1,	/* PowerLimitIndex, 1 for Power Limit 2 */
 		15000,	/* PowerLimitMinimum */
-		44000,	/* PowerLimitMaximum */
+		64000,	/* PowerLimitMaximum */
 		28000,	/* TimeWindowMinimum */
 		32000,	/* TimeWindowMaximum */
 		1000	/* StepSize */

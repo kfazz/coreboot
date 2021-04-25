@@ -1,23 +1,14 @@
-/*
- * This file is part of the coreboot project.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <cpu/x86/post_code.h>
+#include <arch/ram_segs.h>
 
 /* Place the stack in the bss section. It's not necessary to define it in the
  * the linker script. */
 	.section .bss, "aw", @nobits
 .global _stack
 .global _estack
+.global _stack_size
 
 /* Stack alignment is not enforced with rmodule loader, reserve one
  * extra CPU such that alignment can be enforced on entry. */
@@ -25,6 +16,7 @@
 _stack:
 .space (CONFIG_MAX_CPUS+1)*CONFIG_STACK_SIZE
 _estack:
+.set _stack_size, _estack - _stack
 #if CONFIG(COOP_MULTITASKING)
 .global thread_stacks
 thread_stacks:
@@ -42,22 +34,30 @@ _start:
 	cli
 	lgdt	%cs:gdtaddr
 #ifndef __x86_64__
-	ljmp	$0x10, $1f
+	ljmp	$RAM_CODE_SEG, $1f
 #endif
-1:	movl	$0x18, %eax
+1:	movl	$RAM_DATA_SEG, %eax
 	movl	%eax, %ds
 	movl	%eax, %es
 	movl	%eax, %ss
 	movl	%eax, %fs
 	movl	%eax, %gs
 #ifdef __x86_64__
-	mov	$0x48, %ecx
+	mov	$RAM_CODE_SEG64, %ecx
 	call	SetCodeSelector
 #endif
 
 	post_code(POST_ENTRY_C_START)		/* post 13 */
 
 	cld
+
+#ifdef	__x86_64__
+	mov	%rdi, _cbmem_top_ptr
+#else
+	/* The return argument is at 0(%esp), the calling argument at 4(%esp) */
+	movl	4(%esp), %eax
+	movl	%eax, _cbmem_top_ptr
+#endif
 
 	/** poison the stack. Code should not count on the
 	 * stack being full of zeros. This stack poisoning
@@ -92,6 +92,10 @@ _start:
 	post_code(POST_PRE_HARDWAREMAIN)	/* post fe */
 
 	andl	$0xFFFFFFF0, %esp
+
+#if CONFIG(ASAN_IN_RAMSTAGE)
+	call asan_init
+#endif
 
 #if CONFIG(GDB_WAIT)
 	call gdb_hw_init
@@ -139,11 +143,11 @@ gdtaddr:
 	 .data
 
 	/* This is the gdt for GCC part of coreboot.
-	 * It is different from the gdt in ROMCC/ASM part of coreboot
-	 * which is defined in entry32.inc
+	 * It is different from the gdt in ASM part of coreboot
+	 * which is defined in gdt_init.S
 	 *
 	 * When the machine is initially started, we use a very simple
-	 * gdt from ROM (that in entry32.inc) which only contains those
+	 * gdt from ROM (that in gdt_init.S) which only contains those
 	 * entries we need for protected mode.
 	 *
 	 * When we're executing code from RAM, we want to do more complex
@@ -233,10 +237,4 @@ setCodeSelectorLongJump:
 	# restore rsp, it might not have been 16-byte aligned on entry
 	mov	%rdx, %rsp
 	ret
-
-	.previous
-.code64
-#else
-	.previous
-.code32
 #endif

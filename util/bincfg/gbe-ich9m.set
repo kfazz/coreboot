@@ -1,16 +1,4 @@
-#
-# Copyright (C) 2017 Damien Zammit <damien@zamaudio.com>
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 # GbE values for ICH9M
 {
@@ -84,5 +72,13 @@
 	"ssdid" = 0x20ee,
 	"ssvid" = 0x17aa,
 	"did" = 0x10f5,
-	"vid" = 0x8086
+	"vid" = 0x8086,
+
+	# This example sets MAC address to 00:11:22:33:44:55
+	"macaddress0" = 0x00,
+	"macaddress1" = 0x11,
+	"macaddress2" = 0x22,
+	"macaddress3" = 0x33,
+	"macaddress4" = 0x44,
+	"macaddress5" = 0x55
 }

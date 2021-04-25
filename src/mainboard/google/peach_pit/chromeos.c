@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boot/coreboot_tables.h>
 #include <bootmode.h>
@@ -19,19 +6,11 @@
 #include <ec/google/chromeec/ec_commands.h>
 #include <soc/cpu.h>
 #include <soc/gpio.h>
-#include <string.h>
 #include <vendorcode/google/chromeos/chromeos.h>
 
 void fill_lb_gpios(struct lb_gpios *gpios)
 {
 	struct lb_gpio chromeos_gpios[] = {
-		/* Write Protect: active low (WP_GPIO) */
-		{EXYNOS5_GPX3, ACTIVE_LOW, !get_write_protect_state(),
-		 "write protect"},
-
-		/* Recovery: active low */
-		{-1, ACTIVE_HIGH, get_recovery_mode_switch(), "recovery"},
-
 		/* Lid: active high (LID_GPIO) */
 		{EXYNOS5_GPX3, ACTIVE_HIGH, gpio_get_value(GPIO_X34), "lid"},
 

@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef CONSOLE_SPI_H
 #define CONSOLE_SPI_H 1
@@ -21,7 +8,7 @@
 void spiconsole_init(void);
 void spiconsole_tx_byte(unsigned char c);
 
-#define __CONSOLE_SPI_ENABLE__	(CONFIG(SPI_CONSOLE) && \
+#define __CONSOLE_SPI_ENABLE__	(CONFIG(EM100PRO_SPI_CONSOLE) && \
 	(ENV_RAMSTAGE || (ENV_SMM && CONFIG(DEBUG_SMI))))
 
 #if __CONSOLE_SPI_ENABLE__
@@ -64,7 +51,5 @@ struct em100_msg {
 	struct em100_msg_header header;
 	char data[MAX_MSG_LENGTH];
 } __packed;
-
-
 
 #endif /* CONSOLE_SPI_H */

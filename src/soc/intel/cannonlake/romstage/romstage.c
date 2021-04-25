@@ -1,25 +1,13 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2016 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <cpu/x86/mtrr.h>
+#include <arch/romstage.h>
 #include <cbmem.h>
 #include <console/console.h>
 #include <fsp/util.h>
-#include <intelblocks/chip.h>
+#include <intelblocks/cfg.h>
 #include <intelblocks/cse.h>
 #include <intelblocks/pmclib.h>
+#include <intelblocks/smbus.h>
 #include <memory_info.h>
 #include <soc/intel/common/smbios.h>
 #include <soc/iomap.h>
@@ -27,7 +15,6 @@
 #include <soc/pm.h>
 #include <soc/romstage.h>
 #include <string.h>
-#include <timestamp.h>
 
 #include "../chip.h"
 
@@ -35,11 +22,6 @@
 {	\
 	0xd4, 0x71, 0x20, 0x9b, 0x54, 0xb0, 0x0c, 0x4e,	\
 	0x8d, 0x09, 0x11, 0xcf, 0x8b, 0x9f, 0x03, 0x23	\
-}
-
-void __weak mainboard_get_dram_part_num(const char **part_num, size_t *len)
-{
-	/* Default weak implementation, no need to override part number. */
 }
 
 /* Save the DIMM information for SMBIOS table 17 */
@@ -56,7 +38,8 @@ static void save_dimm_info(void)
 	const uint8_t smbios_memory_info_guid[16] =
 			FSP_SMBIOS_MEMORY_INFO_GUID;
 	const char *dram_part_num;
-	size_t dram_part_num_len;
+	size_t dram_part_num_len = 0;
+	bool part_num_overridden = false;
 
 	/* Locate the memory info HOB, presence validated by raminit */
 	memory_info_hob = fsp_find_extension_hob_by_guid(
@@ -78,6 +61,13 @@ static void save_dimm_info(void)
 	}
 	memset(mem_info, 0, sizeof(*mem_info));
 
+	/* Allow mainboard to override DRAM part number. */
+	dram_part_num = mainboard_get_dram_part_num();
+	if (dram_part_num) {
+		dram_part_num_len = strlen(dram_part_num);
+		part_num_overridden = true;
+	}
+
 	/* Describe the first N DIMMs in the system */
 	index = 0;
 	dimm_max = ARRAY_SIZE(mem_info->dimm);
@@ -93,13 +83,14 @@ static void save_dimm_info(void)
 			if (src_dimm->Status != DIMM_PRESENT)
 				continue;
 
-			dram_part_num_len = sizeof(src_dimm->ModulePartNum);
-			dram_part_num = (const char *)
+			if (!part_num_overridden) {
+				dram_part_num_len =
+						sizeof(src_dimm->ModulePartNum);
+				dram_part_num = (const char *)
 						&src_dimm->ModulePartNum[0];
+			}
 
-			/* Allow mainboard to override DRAM part number. */
-			mainboard_get_dram_part_num(&dram_part_num,
-							&dram_part_num_len);
+			u8 memProfNum = memory_info_hob->MemoryProfile;
 
 			/* Populate the DIMM information */
 			dimm_info_fill(dest_dimm,
@@ -111,7 +102,12 @@ static void save_dimm_info(void)
 				src_dimm->DimmId,
 				dram_part_num,
 				dram_part_num_len,
-				memory_info_hob->DataWidth);
+				src_dimm->SpdSave + SPD_SAVE_OFFSET_SERIAL,
+				memory_info_hob->DataWidth,
+				memory_info_hob->VddVoltage[memProfNum],
+				memory_info_hob->EccSupport,
+				src_dimm->MfgId,
+				src_dimm->SpdModuleType);
 			index++;
 		}
 	}
@@ -119,42 +115,21 @@ static void save_dimm_info(void)
 	printk(BIOS_DEBUG, "%d DIMMs found\n", mem_info->dimm_cnt);
 }
 
-asmlinkage void car_stage_entry(void)
+void mainboard_romstage_entry(void)
 {
 	bool s3wake;
-	struct postcar_frame pcf;
-	uintptr_t top_of_ram;
 	struct chipset_power_state *ps = pmc_get_power_state();
-
-	console_init();
 
 	/* Program MCHBAR, DMIBAR, GDXBAR and EDRAMBAR */
 	systemagent_early_init();
+	/* Program SMBus base address and enable it */
+	smbus_common_init();
 	/* initialize Heci interface */
 	heci_init(HECI1_BASE_ADDRESS);
 
-	timestamp_add_now(TS_START_ROMSTAGE);
 	s3wake = pmc_fill_power_state(ps) == ACPI_S3;
 	fsp_memory_init(s3wake);
 	pmc_set_disb();
 	if (!s3wake)
 		save_dimm_info();
-	if (postcar_frame_init(&pcf, 1 * KiB))
-		die("Unable to initialize postcar frame.\n");
-
-	/*
-	 * We need to make sure ramstage will be run cached. At this
-	 * point exact location of ramstage in cbmem is not known.
-	 * Instruct postcar to cache 16 megs under cbmem top which is
-	 * a safe bet to cover ramstage.
-	 */
-	top_of_ram = (uintptr_t) cbmem_top();
-	printk(BIOS_DEBUG, "top_of_ram = 0x%lx\n", top_of_ram);
-	top_of_ram -= 16*MiB;
-	postcar_frame_add_mtrr(&pcf, top_of_ram, 16*MiB, MTRR_TYPE_WRBACK);
-
-	/* Cache the ROM as WP just below 4GiB. */
-	postcar_frame_add_romcache(&pcf, MTRR_TYPE_WRPROT);
-
-	run_postcar_phase(&pcf);
 }

@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Damien Zammit <damien@zamaudio.com>
- * Copyright (C) 2014 Edward O'Callaghan <eocallaghan@alterapraxis.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <arch/io.h>
 #include <device/pnp_ops.h>
@@ -22,12 +7,12 @@
 #include "ite.h"
 
 /* Global configuration registers. */
-#define ITE_CONFIG_REG_CC        0x02 /* Configure Control (write-only). */
-#define ITE_CONFIG_REG_LDN       0x07 /* Logical Device Number. */
-#define ITE_CONFIG_REG_CLOCKSEL  0x23 /* Clock Selection. */
-#define ITE_CONFIG_REG_SWSUSP    0x24 /* Software Suspend, Flash I/F. */
-#define ITE_CONFIG_REG_MFC       0x2a /* multi function pin */
-#define ITE_CONFIG_REG_WATCHDOG  0x72 /* watchdog config */
+#define ITE_CONFIG_REG_CC	0x02 /* Configure Control (write-only). */
+#define ITE_CONFIG_REG_LDN	0x07 /* Logical Device Number. */
+#define ITE_CONFIG_REG_CLOCKSEL	0x23 /* Clock Selection. */
+#define ITE_CONFIG_REG_SWSUSP	0x24 /* Software Suspend, Flash I/F. */
+#define ITE_CONFIG_REG_MFC	0x2a /* multi function pin */
+#define ITE_CONFIG_REG_WATCHDOG	0x72 /* watchdog config */
 
 /* Helper procedure */
 static void ite_sio_write(pnp_devfn_t dev, u8 reg, u8 value)
@@ -59,7 +44,6 @@ void ite_reg_write(pnp_devfn_t dev, u8 reg, u8 value)
 	ite_sio_write(dev, reg, value);
 	pnp_exit_conf_state(dev);
 }
-
 
 /*
  * in romstage.c
@@ -105,6 +89,33 @@ void ite_enable_3vsbsw(pnp_devfn_t dev)
 	pnp_set_logical_device(dev);
 	tmp = pnp_read_config(dev, ITE_CONFIG_REG_MFC);
 	tmp |= 0x80;
+	pnp_write_config(dev, ITE_CONFIG_REG_MFC, tmp);
+	pnp_exit_conf_state(dev);
+}
+
+/*
+ *
+ * LDN 7, reg 0x2a, bit 0 - delay PWRGD3 rising edge after 3VSBSW# rising edge
+ * This can be needed for S3 resume.
+ * Documented in IT8728F V0.4.2 but also applies to IT8720F where it is marked
+ * as reserved.
+ *
+ * Delay PWRGD3 assertion after setting 3VSBSW#.
+ * 0: There will be no extra delay before PWRGD3 is set.
+ * 1: The delay after 3VSBSW# rising edge before PWRGD3 is set is increased.
+ *
+ * in romstage.c
+ * #define GPIO_DEV PNP_DEV(0x2e, ITE_GPIO)
+ * and pass: GPIO_DEV
+ */
+
+void ite_delay_pwrgd3(pnp_devfn_t dev)
+{
+	u8 tmp;
+	pnp_enter_conf_state(dev);
+	pnp_set_logical_device(dev);
+	tmp = pnp_read_config(dev, ITE_CONFIG_REG_MFC);
+	tmp |= 0x01;
 	pnp_write_config(dev, ITE_CONFIG_REG_MFC, tmp);
 	pnp_exit_conf_state(dev);
 }

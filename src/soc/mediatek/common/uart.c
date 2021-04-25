@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <boot/coreboot_tables.h>
@@ -20,6 +7,7 @@
 #include <stdint.h>
 
 #include <soc/addressmap.h>
+#include <soc/pll.h>
 
 struct mtk_uart {
 	union {
@@ -84,7 +72,7 @@ static int mtk_uart_tst_byte(void);
 static void mtk_uart_init(void)
 {
 	/* Use a hardcoded divisor for now. */
-	const unsigned int uartclk = 26 * MHz;
+	const unsigned int uartclk = UART_HZ;
 	const unsigned int baudrate = get_uart_baudrate();
 	const uint8_t line_config = UART8250_LCR_WLS_8;  /* 8n1 */
 	unsigned int highspeed, quot, divisor, remainder;
@@ -151,27 +139,26 @@ static int mtk_uart_tst_byte(void)
 	return (read8(&uart_ptr->lsr) & UART8250_LSR_DR) == UART8250_LSR_DR;
 }
 
-void uart_init(int idx)
+void uart_init(unsigned int idx)
 {
 	mtk_uart_init();
 }
 
-unsigned char uart_rx_byte(int idx)
+unsigned char uart_rx_byte(unsigned int idx)
 {
 	return mtk_uart_rx_byte();
 }
 
-void uart_tx_byte(int idx, unsigned char data)
+void uart_tx_byte(unsigned int idx, unsigned char data)
 {
 	mtk_uart_tx_byte(data);
 }
 
-void uart_tx_flush(int idx)
+void uart_tx_flush(unsigned int idx)
 {
 	mtk_uart_tx_flush();
 }
 
-#ifndef __PRE_RAM__
 void uart_fill_lb(void *data)
 {
 	struct lb_serial serial;
@@ -179,8 +166,9 @@ void uart_fill_lb(void *data)
 	serial.baseaddr = UART0_BASE;
 	serial.baud = get_uart_baudrate();
 	serial.regwidth = 4;
+	serial.input_hertz = UART_HZ;
+	serial.uart_pci_addr = CONFIG_UART_PCI_ADDR;
 	lb_add_serial(&serial, data);
 
 	lb_add_console(LB_TAG_CONSOLE_SERIAL8250MEM, data);
 }
-#endif

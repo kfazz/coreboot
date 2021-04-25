@@ -1,24 +1,11 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/io.h>
 #include <device/pci_ops.h>
+#include <device/pci_def.h>
 #include <console/console.h>
 #include <cpu/x86/smm.h>
-#include <southbridge/intel/i82801gx/nvs.h>
+#include <soc/nvs.h>
 #include <southbridge/intel/common/pmutil.h>
 #include <ec/acpi/ec.h>
 #include "dock.h"
@@ -28,44 +15,38 @@
 
 #define LVTMA_BL_MOD_LEVEL 0x7af9 /* ATI Radeon backlight level */
 
-static void mainboard_smm_init(void)
-{
-	printk(BIOS_DEBUG, "initializing SMI\n");
-	/* Enable 0x1600/0x1600 register pair */
-	ec_set_bit(0x00, 0x05);
-}
-
 static void mainboard_smi_brightness_down(void)
 {
-	u8 *bar;
-	if ((bar = (u8 *)pci_read_config32(PCI_DEV(1, 0, 0), 0x18))) {
-		printk(BIOS_DEBUG, "bar: %08X, level %02X\n",  (unsigned int)bar, *(bar+LVTMA_BL_MOD_LEVEL));
-		*(bar+LVTMA_BL_MOD_LEVEL) &= 0xf0;
-		if (*(bar+LVTMA_BL_MOD_LEVEL) > 0x10)
-			*(bar+LVTMA_BL_MOD_LEVEL) -= 0x10;
-	}
+	uint32_t reg32 = pci_read_config32(PCI_DEV(1, 0, 0), PCI_BASE_ADDRESS_2) & ~0xf;
+	u8 *bar = (void *)(uintptr_t)reg32;
+
+	/* Validate pointer before using it */
+	if (!bar || smm_points_to_smram(bar, LVTMA_BL_MOD_LEVEL + sizeof(uint8_t)))
+		return;
+
+	printk(BIOS_DEBUG, "bar: %p, level %02X\n", bar, *(bar+LVTMA_BL_MOD_LEVEL));
+	*(bar+LVTMA_BL_MOD_LEVEL) &= 0xf0;
+	if (*(bar+LVTMA_BL_MOD_LEVEL) > 0x10)
+		*(bar+LVTMA_BL_MOD_LEVEL) -= 0x10;
 }
 
 static void mainboard_smi_brightness_up(void)
 {
-	u8 *bar;
-	if ((bar = (u8 *)pci_read_config32(PCI_DEV(1, 0, 0), 0x18))) {
-		printk(BIOS_DEBUG, "bar: %08X, level %02X\n",  (unsigned int)bar, *(bar+LVTMA_BL_MOD_LEVEL));
-		*(bar+LVTMA_BL_MOD_LEVEL) |= 0x0f;
-		if (*(bar+LVTMA_BL_MOD_LEVEL) < 0xf0)
-			*(bar+LVTMA_BL_MOD_LEVEL) += 0x10;
-	}
+	uint32_t reg32 = pci_read_config32(PCI_DEV(1, 0, 0), PCI_BASE_ADDRESS_2) & ~0xf;
+	u8 *bar = (void *)(uintptr_t)reg32;
+
+	/* Validate pointer before using it */
+	if (!bar || smm_points_to_smram(bar, LVTMA_BL_MOD_LEVEL + sizeof(uint8_t)))
+		return;
+
+	printk(BIOS_DEBUG, "bar: %p, level %02X\n", bar, *(bar+LVTMA_BL_MOD_LEVEL));
+	*(bar+LVTMA_BL_MOD_LEVEL) |= 0x0f;
+	if (*(bar+LVTMA_BL_MOD_LEVEL) < 0xf0)
+		*(bar+LVTMA_BL_MOD_LEVEL) += 0x10;
 }
 
 int mainboard_io_trap_handler(int smif)
 {
-	static int smm_initialized;
-
-	if (!smm_initialized) {
-		mainboard_smm_init();
-		smm_initialized = 1;
-	}
-
 	switch (smif) {
 	case SMI_DOCK_CONNECT:
 		/* If there's an legacy I/O module present, we're not
@@ -118,7 +99,7 @@ static void mainboard_smi_handle_ec_sci(void)
 		return;
 
 	event = ec_query();
-	printk(BIOS_DEBUG, "EC event %02x\n", event);
+	printk(BIOS_DEBUG, "EC event %#02x\n", event);
 
 	switch (event) {
 		/* brightness up */

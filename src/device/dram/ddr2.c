@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Patrick Rudolph <siro@das-labor.org>
- * Copyright (C) 2017 Arthur Heymans <arthur@aheymans.xyz>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
  * @file ddr2.c
@@ -26,6 +11,7 @@
 #include <device/dram/ddr2.h>
 #include <lib.h>
 #include <string.h>
+#include <types.h>
 
 /*==============================================================================
  * = DDR2 SPD decoding helpers
@@ -92,7 +78,7 @@ u16 spd_ddr2_calc_unique_crc(const u8 *spd, int len)
 	for (i = 93; i <= 98; i++)
 		id_bytes[j++] = spd[i];
 
-	return ddr3_crc16(id_bytes, 15);
+	return ddr_crc16(id_bytes, 15);
 }
 
 /**
@@ -667,7 +653,7 @@ static void print_us(const char *msg, u32 val)
 /**
 * \brief Print the info in DIMM
 *
-* Print info about the DIMM. Useful to use when CONFIG_DEBUG_RAM_SETUP is
+* Print info about the DIMM. Useful to use when CONFIG(DEBUG_RAM_SETUP) is
 * selected, or for a purely informative output.
 *
 * @param dimm pointer to already decoded @ref dimm_attr structure

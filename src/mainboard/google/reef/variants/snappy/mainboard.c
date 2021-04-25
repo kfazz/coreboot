@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2016, 2017 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <string.h>
 #include <baseboard/variants.h>
@@ -59,7 +46,7 @@ uint8_t variant_board_sku(void)
 	if (!CONFIG(CHROMEOS))
 		return board_sku_num;
 
-	if (!vpd_gets(vpd_skuid, vpd_buffer, ARRAY_SIZE(vpd_buffer), VPD_ANY))
+	if (!vpd_gets(vpd_skuid, vpd_buffer, ARRAY_SIZE(vpd_buffer), VPD_RO_THEN_RW))
 		return board_sku_num;
 
 	vpd_len = strlen(vpd_buffer);
@@ -70,8 +57,8 @@ uint8_t variant_board_sku(void)
 		if ((ch < '0') || (ch > '9')) {
 			vpd_sku_num = -1;
 			break;
-		} else
-			vpd_sku_num = vpd_sku_num * 10 + (ch - '0');
+		}
+		vpd_sku_num = vpd_sku_num * 10 + (ch - '0');
 	}
 
 	if (vpd_sku_num != -1)

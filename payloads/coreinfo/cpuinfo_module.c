@@ -1,20 +1,6 @@
-/*
- * This file is part of the coreinfo project.
- *
- * It is derived from the x86info project, which is GPLv2-licensed.
- *
- * Copyright (C) 2001-2007 Dave Jones <davej@codemonkey.org.uk>
- * Copyright (C) 2008 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+/* It is derived from the x86info project, which is GPLv2-licensed. */
 
 #include "coreinfo.h"
 
@@ -85,7 +71,7 @@ static const char *amd_cap_extended_ecx_flags[] = {
 	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
 };
 
-static unsigned long vendor;
+static uint32_t vendor;
 static unsigned int cpu_khz;
 
 static void decode_flags(WINDOW *win, unsigned long reg, const char **flags,
@@ -114,7 +100,7 @@ static void decode_flags(WINDOW *win, unsigned long reg, const char **flags,
 
 static void get_features(WINDOW *win, int *row)
 {
-	unsigned long eax, ebx, ecx, edx;
+	uint32_t eax, ebx, ecx, edx;
 	int lrow = *row;
 
 	wmove(win, lrow++, 1);
@@ -150,12 +136,12 @@ static void get_features(WINDOW *win, int *row)
 static void do_name(WINDOW *win, int row)
 {
 	char name[49], *p;
-	unsigned long eax, ebx, ecx, edx;
-	int i, t;
+	uint32_t eax, ebx, ecx, edx;
+	int t;
 
 	p = name;
 
-	for (i = 0x80000002; i <= 0x80000004; i++) {
+	for (uint32_t i = 0x80000002; i <= 0x80000004; i++) {
 		docpuid(i, &eax, &ebx, &ecx, &edx);
 
 		if (eax == 0)
@@ -176,7 +162,7 @@ static void do_name(WINDOW *win, int row)
 
 static int cpuinfo_module_redraw(WINDOW *win)
 {
-	unsigned long eax, ebx, ecx, edx;
+	uint32_t eax, ebx, ecx, edx;
 	unsigned int brand;
 	char *vstr;
 	int row = 2;
@@ -233,7 +219,7 @@ static int cpuinfo_module_redraw(WINDOW *win)
 	}
 
 	if (cpu_khz != 0)
-		mvwprintw(win, row++, 1, "CPU Speed: %d Mhz", cpu_khz / 1000);
+		mvwprintw(win, row++, 1, "CPU Speed: %d MHz", cpu_khz / 1000);
 	else
 		mvwprintw(win, row++, 1, "CPU Speed: Error");
 

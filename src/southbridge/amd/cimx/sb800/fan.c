@@ -1,19 +1,6 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Sage Electronic Engineering, LLC
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <southbridge/amd/cimx/cimx_util.h>
+#include <amdblocks/acpimmio.h>
 #include <device/device.h>
 #include <device/pci.h>		/* device_operations */
 #include <device/pci_ops.h>
@@ -31,33 +18,31 @@ void init_sb800_MANUAL_fans(struct device *dev)
 	/* Init Fan 0 */
 	if (sb_chip->fan0_enabled)
 		for (i = 0; i < FAN_REGISTER_COUNT; i++)
-			pm2_iowrite(FAN_0_OFFSET + i, sb_chip->fan0_config_vals[i]);
+			pm2_write8(FAN_0_OFFSET + i, sb_chip->fan0_config_vals[i]);
 
 	/* Init Fan 1 */
 	if (sb_chip->fan1_enabled)
 		for (i = 0; i < FAN_REGISTER_COUNT; i++)
-			pm2_iowrite(FAN_1_OFFSET + i, sb_chip->fan1_config_vals[i]);
+			pm2_write8(FAN_1_OFFSET + i, sb_chip->fan1_config_vals[i]);
 
 	/* Init Fan 2 */
 	if (sb_chip->fan2_enabled)
 		for (i = 0; i < FAN_REGISTER_COUNT; i++)
-			pm2_iowrite(FAN_2_OFFSET + i, sb_chip->fan2_config_vals[i]);
+			pm2_write8(FAN_2_OFFSET + i, sb_chip->fan2_config_vals[i]);
 
 	/* Init Fan 3 */
 	if (sb_chip->fan3_enabled)
 		for (i = 0; i < FAN_REGISTER_COUNT; i++)
-			pm2_iowrite(FAN_3_OFFSET + i, sb_chip->fan3_config_vals[i]);
+			pm2_write8(FAN_3_OFFSET + i, sb_chip->fan3_config_vals[i]);
 
 	/* Init Fan 4 */
 	if (sb_chip->fan4_enabled)
 		for (i = 0; i < FAN_REGISTER_COUNT; i++)
-			pm2_iowrite(FAN_4_OFFSET + i, sb_chip->fan4_config_vals[i]);
-
+			pm2_write8(FAN_4_OFFSET + i, sb_chip->fan4_config_vals[i]);
 }
 
 void init_sb800_IMC_fans(struct device *dev)
 {
-
 	AMDSBCFG sb_config;
 	unsigned char *message_ptr;
 	int i;
@@ -75,7 +60,6 @@ void init_sb800_IMC_fans(struct device *dev)
 	 */
 
 	pci_write_config16(dev, 0xA4, sb_chip->imc_port_address | 0x01);
-
 
 	/*
 	 * Do an initial manual setup of the fans for things like polarity
@@ -120,7 +104,6 @@ if (sb_chip->imc_fan_zone0_enabled) {
 	message_ptr = &sb_config.Pecstruct.MSGFun85zone0MSGREG2;
 	for (i = 0; i < IMC_FAN_SPEED_COUNT; i++)
 		*(message_ptr + i) = sb_chip->imc_zone0_fanspeeds[i];
-
 }
 
 /*
@@ -151,9 +134,7 @@ if (sb_chip->imc_fan_zone1_enabled) {
 	message_ptr = &sb_config.Pecstruct.MSGFun85zone1MSGREG2;
 	for (i = 0; i < IMC_FAN_SPEED_COUNT; i++)
 		*(message_ptr + i) = sb_chip->imc_zone1_fanspeeds[i];
-
 }
-
 
 /*
  ********** Zone 2 **********
@@ -183,7 +164,6 @@ if (sb_chip->imc_fan_zone2_enabled) {
 	message_ptr = &sb_config.Pecstruct.MSGFun85zone2MSGREG2;
 	for (i = 0; i < IMC_FAN_SPEED_COUNT; i++)
 		*(message_ptr + i) = sb_chip->imc_zone2_fanspeeds[i];
-
 }
 
 /*
@@ -215,7 +195,6 @@ if (sb_chip->imc_fan_zone3_enabled) {
 	message_ptr = &sb_config.Pecstruct.MSGFun85zone3MSGREG2;
 	for (i = 0; i < IMC_FAN_SPEED_COUNT; i++)
 		*(message_ptr + i) = sb_chip->imc_zone3_fanspeeds[i];
-
 }
 
 	/*

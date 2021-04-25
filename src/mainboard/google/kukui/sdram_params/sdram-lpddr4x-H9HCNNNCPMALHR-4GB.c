@@ -1,34 +1,21 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <soc/emi.h>
+#include <soc/dramc_param.h>
 
 struct sdram_params params = {
-	.impedance = {
-		[ODT_OFF] = {0x7, 0x6, 0x0, 0xF},
-		[ODT_ON] = {0x9, 0x9, 0x0, 0xF}
-	},
+	.source = DRAMC_PARAM_SOURCE_SDRAM_CONFIG,
+	.frequency = 1600,
+	.rank_num = 2,
+	.ddr_geometry = DDR_TYPE_2CH_2RK_4GB_2_2,
 	.wr_level = {
 		[CHANNEL_A] = { {0x22, 0x1b}, {0x22, 0x19} },
 		[CHANNEL_B] = { {0x24, 0x20}, {0x25, 0x20} }
 	},
-	.cbt_cs = {
+	.cbt_cs_dly = {
 		[CHANNEL_A] = {0x0, 0x0},
 		[CHANNEL_B] = {0x0, 0x0}
 	},
-	.cbt_mr12 = {
+	.cbt_final_vref = {
 		[CHANNEL_A] = {0x52, 0x52},
 		[CHANNEL_B] = {0x52, 0x52}
 	},

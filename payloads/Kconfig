@@ -30,7 +30,7 @@ config PAYLOAD_ELF
 
 config PAYLOAD_FIT
 	bool "A FIT payload"
-	depends on ARCH_ARM64
+	depends on ARCH_ARM64 || ARCH_RISCV || ARCH_ARM
 	select PAYLOAD_FIT_SUPPORT
 	help
 	  Select this option if you have a payload image (a FIT file) which
@@ -40,20 +40,11 @@ config PAYLOAD_FIT
 	  You will be able to specify the location and file name of the
 	  payload image later.
 
-config PAYLOAD_BAYOU
-	bool "Bayou"
-	depends on ARCH_X86
-	help
-	  Select this option if you want to set bayou as your primary
-	  payload.
-
 source "payloads/external/*/Kconfig.name"
 
 endchoice
 
 source "payloads/external/*/Kconfig"
-
-source "payloads/bayou/Kconfig"
 
 config PAYLOAD_FILE
 	string "Payload path and filename"
@@ -66,10 +57,16 @@ config PAYLOAD_FILE
 choice
 	prompt "Payload compression algorithm"
 	default COMPRESSED_PAYLOAD_LZMA
+	default COMPRESSED_PAYLOAD_NONE if PAYLOAD_LINUX || PAYLOAD_LINUXBOOT || PAYLOAD_FIT
 	depends on !PAYLOAD_NONE && !PAYLOAD_LINUX && !PAYLOAD_LINUXBOOT && !PAYLOAD_FIT
 	help
 	  Choose the compression algorithm for the chosen payloads.
-	  You can choose between LZMA and LZ4.
+	  You can choose between None, LZMA, or LZ4.
+
+config COMPRESSED_PAYLOAD_NONE
+	bool "Use no compression for payloads"
+	help
+	  Do not compress the payload.
 
 config COMPRESSED_PAYLOAD_LZMA
 	bool "Use LZMA compression for payloads"
@@ -99,8 +96,8 @@ config PAYLOAD_IS_FLAT_BINARY
 config PAYLOAD_FIT_SUPPORT
 	bool "FIT support"
 	default n
-	default y if PAYLOAD_LINUX && (ARCH_ARM || ARCH_ARM64)
-	depends on ARCH_ARM64
+	default y if PAYLOAD_LINUX && (ARCH_ARM || ARCH_ARM64 || ARCH_RISCV)
+	depends on ARCH_ARM64 || ARCH_RISCV || ARCH_ARM
 	select FLATTENED_DEVICE_TREE
 	help
 	  Select this option if your payload is of type FIT.
@@ -135,7 +132,8 @@ config MEMTEST_SECONDARY_PAYLOAD
 config NVRAMCUI_SECONDARY_PAYLOAD
 	bool "Load nvramcui as a secondary payload"
 	default n
-	depends on ARCH_X86
+	depends on ARCH_X86 && HAVE_OPTION_TABLE
+	select USE_OPTION_TABLE
 	help
 	  nvramcui can be loaded as a secondary payload under SeaBIOS, GRUB,
 	  or any other payload that can load additional payloads.

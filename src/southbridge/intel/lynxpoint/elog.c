@@ -1,20 +1,7 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 The ChromiumOS Authors.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/io.h>
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ops.h>
@@ -49,7 +36,7 @@ static void pch_log_gpio_gpe(u32 gpe0_sts_reg, u32 gpe0_en_reg, int start)
 
 	for (i = 0; i <= 31; i++) {
 		if (gpe0_sts & (1 << i))
-			elog_add_event_wake(ELOG_WAKE_SOURCE_GPIO, i + start);
+			elog_add_event_wake(ELOG_WAKE_SOURCE_GPE, i + start);
 	}
 }
 
@@ -59,7 +46,7 @@ static void pch_log_gpe(void)
 	u16 pmbase = get_pmbase();
 	u32 gpe0_sts, gpe0_en;
 	int gpe0_high_gpios[] = {
-		[0] = 27,
+		[0]  = 27,
 		[24] = 17,
 		[25] = 19,
 		[26] = 21,
@@ -77,7 +64,7 @@ static void pch_log_gpe(void)
 	gpe0_sts = inw(pmbase + GPE0_STS + 2) & gpe0_en;
 	for (i = 0; i <= 15; i++) {
 		if (gpe0_sts & (1 << i))
-			elog_add_event_wake(ELOG_WAKE_SOURCE_GPIO, i);
+			elog_add_event_wake(ELOG_WAKE_SOURCE_GPE, i);
 	}
 
 	/*
@@ -91,7 +78,7 @@ static void pch_log_gpe(void)
 		if (!gpe0_high_gpios[i])
 			continue;
 		if (gpe0_sts & (1 << i))
-			elog_add_event_wake(ELOG_WAKE_SOURCE_GPIO,
+			elog_add_event_wake(ELOG_WAKE_SOURCE_GPE,
 					    gpe0_high_gpios[i]);
 	}
 }

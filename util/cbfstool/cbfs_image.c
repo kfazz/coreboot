@@ -1,18 +1,5 @@
-/*
- * CBFS Image Manipulation
- *
- * Copyright (C) 2013 The Chromium OS Authors. All rights reserved.
- * Copyright (C) 2016 Siemens AG. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* CBFS Image Manipulation */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <inttypes.h>
 #include <libgen.h>
@@ -22,6 +9,7 @@
 #include <string.h>
 #include <strings.h>
 #include <commonlib/endian.h>
+#include <vb2_sha.h>
 
 #include "common.h"
 #include "cbfs_image.h"
@@ -45,10 +33,6 @@
  * in the commit message before making significant changes that would risk
  * removing said guarantees.
  */
-
-/* The file name align is not defined in CBFS spec -- only a preference by
- * (old) cbfstool. */
-#define CBFS_FILENAME_ALIGN	(16)
 
 static const char *lookup_name_by_type(const struct typedesc_t *desc, uint32_t type,
 				const char *default_value)
@@ -77,22 +61,12 @@ int cbfs_parse_comp_algo(const char *name)
 	return lookup_type_by_name(types_cbfs_compression, name);
 }
 
-static const char *get_hash_attr_name(uint16_t hash_type)
-{
-	return lookup_name_by_type(types_cbfs_hash, hash_type, "(invalid)");
-}
-
-int cbfs_parse_hash_algo(const char *name)
-{
-	return lookup_type_by_name(types_cbfs_hash, name);
-}
-
 /* CBFS image */
 
 size_t cbfs_calculate_file_header_size(const char *name)
 {
 	return (sizeof(struct cbfs_file) +
-		align_up(strlen(name) + 1, CBFS_FILENAME_ALIGN));
+		align_up(strlen(name) + 1, CBFS_ATTRIBUTE_ALIGN));
 }
 
 /* Only call on legacy CBFSes possessing a master header. */
@@ -224,7 +198,7 @@ int cbfs_image_create(struct cbfs_image *image, size_t entries_size)
 
 	size_t empty_header_len = cbfs_calculate_file_header_size("");
 	uint32_t entries_offset = 0;
-	uint32_t align = CBFS_ENTRY_ALIGNMENT;
+	uint32_t align = CBFS_ALIGNMENT;
 	if (image->has_header) {
 		entries_offset = image->header.offset;
 
@@ -263,7 +237,7 @@ int cbfs_image_create(struct cbfs_image *image, size_t entries_size)
 
 	size_t capacity = entries_size - empty_header_len;
 	LOG("Created CBFS (capacity = %zu bytes)\n", capacity);
-	return cbfs_create_empty_entry(entry_header, CBFS_COMPONENT_NULL,
+	return cbfs_create_empty_entry(entry_header, CBFS_TYPE_NULL,
 		capacity, "");
 }
 
@@ -288,14 +262,6 @@ int cbfs_legacy_image_create(struct cbfs_image *image,
 	      "header=0x%x+0x%zx, entries_offset=0x%x\n",
 	      bootblock_offset, bootblock->size, header_offset,
 	      sizeof(image->header), entries_offset);
-
-	// Adjust legacy top-aligned address to ROM offset.
-	if (IS_TOP_ALIGNED_ADDRESS(entries_offset))
-		entries_offset = size + (int32_t)entries_offset;
-	if (IS_TOP_ALIGNED_ADDRESS(bootblock_offset))
-		bootblock_offset = size + (int32_t)bootblock_offset;
-	if (IS_TOP_ALIGNED_ADDRESS(header_offset))
-		header_offset = size + (int32_t)header_offset;
 
 	DEBUG("cbfs_create_image: (real offset) bootblock=0x%x, "
 	      "header=0x%x, entries_offset=0x%x\n",
@@ -399,7 +365,7 @@ int cbfs_copy_instance(struct cbfs_image *image, struct buffer *dst)
 
 	size_t copy_end = buffer_size(dst);
 
-	align = CBFS_ENTRY_ALIGNMENT;
+	align = CBFS_ALIGNMENT;
 
 	dst_entry = (struct cbfs_file *)buffer_get(dst);
 
@@ -409,9 +375,9 @@ int cbfs_copy_instance(struct cbfs_image *image, struct buffer *dst)
 	     src_entry = cbfs_find_next_entry(image, src_entry)) {
 		size_t entry_size;
 
-		if ((src_entry->type == htonl(CBFS_COMPONENT_NULL)) ||
-		    (src_entry->type == htonl(CBFS_COMPONENT_CBFSHEADER)) ||
-		    (src_entry->type == htonl(CBFS_COMPONENT_DELETED)))
+		if ((src_entry->type == htonl(CBFS_TYPE_NULL)) ||
+		    (src_entry->type == htonl(CBFS_TYPE_CBFSHEADER)) ||
+		    (src_entry->type == htonl(CBFS_TYPE_DELETED)))
 			continue;
 
 		entry_size = htonl(src_entry->len) + htonl(src_entry->offset);
@@ -437,7 +403,7 @@ int cbfs_copy_instance(struct cbfs_image *image, struct buffer *dst)
 	if (last_entry_size < 0)
 		WARN("No room to create the last entry!\n")
 	else
-		cbfs_create_empty_entry(dst_entry, CBFS_COMPONENT_NULL,
+		cbfs_create_empty_entry(dst_entry, CBFS_TYPE_NULL,
 			last_entry_size, "");
 
 	return 0;
@@ -473,10 +439,10 @@ int cbfs_expand_to_region(struct buffer *region)
 		cbfs_calculate_file_header_size("") - sizeof(int32_t);
 
 	if (last_entry_size > 0) {
-		cbfs_create_empty_entry(entry, CBFS_COMPONENT_NULL,
+		cbfs_create_empty_entry(entry, CBFS_TYPE_NULL,
 			last_entry_size, "");
 		/* If the last entry was an empty file, merge them. */
-		cbfs_walk(&image, cbfs_merge_empty_entry, NULL);
+		cbfs_legacy_walk(&image, cbfs_merge_empty_entry, NULL);
 	}
 
 	return 0;
@@ -507,8 +473,8 @@ int cbfs_truncate_space(struct buffer *region, uint32_t *size)
 	 * maximum size.
 	 */
 	if ((strlen(trailer->filename) != 0) &&
-	    (trailer->type != htonl(CBFS_COMPONENT_NULL)) &&
-	    (trailer->type != htonl(CBFS_COMPONENT_DELETED))) {
+	    (trailer->type != htonl(CBFS_TYPE_NULL)) &&
+	    (trailer->type != htonl(CBFS_TYPE_DELETED))) {
 		/* nothing to truncate. Return de-facto CBFS size in case it
 		 * was already truncated. */
 		*size = (uint8_t *)entry - (uint8_t *)buffer_get(region);
@@ -562,8 +528,8 @@ int cbfs_compact_instance(struct cbfs_image *image)
 		uint32_t type = htonl(cur->type);
 
 		/* Current entry is empty. Kepp track of it. */
-		if ((type == htonl(CBFS_COMPONENT_NULL)) ||
-		    (type == htonl(CBFS_COMPONENT_DELETED))) {
+		if ((type == htonl(CBFS_TYPE_NULL)) ||
+		    (type == htonl(CBFS_TYPE_DELETED))) {
 			prev = cur;
 			continue;
 		}
@@ -573,7 +539,7 @@ int cbfs_compact_instance(struct cbfs_image *image)
 			continue;
 
 		/* At this point prev is an empty entry. Put the non-empty
-		 * file in prev's location. Then add a new emptry entry. This
+		 * file in prev's location. Then add a new empty entry. This
 		 * essentialy bubbles empty entries towards the end. */
 
 		prev_size = cbfs_file_entry_size(prev);
@@ -624,11 +590,11 @@ int cbfs_compact_instance(struct cbfs_image *image)
 		prev_size -= spill_size + empty_metadata_size;
 
 		/* Create new empty file. */
-		cbfs_create_empty_entry(cur, CBFS_COMPONENT_NULL,
+		cbfs_create_empty_entry(cur, CBFS_TYPE_NULL,
 					prev_size, "");
 
 		/* Merge any potential empty entries together. */
-		cbfs_walk(image, cbfs_merge_empty_entry, NULL);
+		cbfs_legacy_walk(image, cbfs_merge_empty_entry, NULL);
 
 		/*
 		 * Since current switched to an empty file keep track of it.
@@ -655,7 +621,8 @@ static int cbfs_add_entry_at(struct cbfs_image *image,
 			     struct cbfs_file *entry,
 			     const void *data,
 			     uint32_t content_offset,
-			     const struct cbfs_file *header)
+			     const struct cbfs_file *header,
+			     const size_t len_align)
 {
 	struct cbfs_file *next = cbfs_find_next_entry(image, entry);
 	uint32_t addr = cbfs_get_entry_addr(image, entry),
@@ -663,7 +630,7 @@ static int cbfs_add_entry_at(struct cbfs_image *image,
 	uint32_t min_entry_size = cbfs_calculate_file_header_size("");
 	uint32_t len, header_offset;
 	uint32_t align = image->has_header ? image->header.align :
-							CBFS_ENTRY_ALIGNMENT;
+							CBFS_ALIGNMENT;
 	uint32_t header_size = ntohl(header->offset);
 
 	header_offset = content_offset - header_size;
@@ -678,7 +645,7 @@ static int cbfs_add_entry_at(struct cbfs_image *image,
 	if (header_offset - addr > min_entry_size) {
 		DEBUG("|min|...|header|content|... <create new entry>\n");
 		len = header_offset - addr - min_entry_size;
-		cbfs_create_empty_entry(entry, CBFS_COMPONENT_NULL, len, "");
+		cbfs_create_empty_entry(entry, CBFS_TYPE_NULL, len, "");
 		if (verbose > 1) cbfs_print_entry_info(image, entry, stderr);
 		entry = cbfs_find_next_entry(image, entry);
 		addr = cbfs_get_entry_addr(image, entry);
@@ -687,15 +654,28 @@ static int cbfs_add_entry_at(struct cbfs_image *image,
 	len = content_offset - addr - header_size;
 	memcpy(entry, header, header_size);
 	if (len != 0) {
-		/* the header moved backwards a bit to accommodate cbfs_file
+		/*
+		 * The header moved backwards a bit to accommodate cbfs_file
 		 * alignment requirements, so patch up ->offset to still point
-		 * to file data.
+		 * to file data. Move attributes forward so the end of the
+		 * attribute list still matches the end of the metadata.
 		 */
+		uint32_t offset = ntohl(entry->offset);
+		uint32_t attrs = ntohl(entry->attributes_offset);
 		DEBUG("|..|header|content|... <use offset to create entry>\n");
-		DEBUG("before: offset=0x%x\n", ntohl(entry->offset));
-		// TODO reset expanded name buffer to 0xFF.
-		entry->offset = htonl(ntohl(entry->offset) + len);
-		DEBUG("after: offset=0x%x\n", ntohl(entry->len));
+		DEBUG("before: attr_offset=0x%x, offset=0x%x\n", attrs, offset);
+		if (attrs == 0) {
+			memset((uint8_t *)entry + offset, 0, len);
+		} else {
+			uint8_t *p = (uint8_t *)entry + attrs;
+			memmove(p + len, p, offset - attrs);
+			memset(p, 0, len);
+			attrs += len;
+			entry->attributes_offset = htonl(attrs);
+		}
+		offset += len;
+		entry->offset = htonl(offset);
+		DEBUG("after: attr_offset=0x%x, offset=0x%x\n", attrs, offset);
 	}
 
 	// Ready to fill data into entry.
@@ -706,6 +686,13 @@ static int cbfs_add_entry_at(struct cbfs_image *image,
 	       (ptrdiff_t)content_offset);
 	memcpy(CBFS_SUBHEADER(entry), data, ntohl(entry->len));
 	if (verbose > 1) cbfs_print_entry_info(image, entry, stderr);
+
+	// Align the length to a multiple of len_align
+	if (len_align &&
+	    ((ntohl(entry->offset) + ntohl(entry->len)) % len_align)) {
+		size_t off = (ntohl(entry->offset) + ntohl(entry->len)) % len_align;
+		entry->len = htonl(ntohl(entry->len) + len_align - off);
+	}
 
 	// Process buffer AFTER entry.
 	entry = cbfs_find_next_entry(image, entry);
@@ -730,19 +717,20 @@ static int cbfs_add_entry_at(struct cbfs_image *image,
 			buffer_size(&image->buffer) - sizeof(int32_t)) {
 		len -= sizeof(int32_t);
 	}
-	cbfs_create_empty_entry(entry, CBFS_COMPONENT_NULL, len, "");
+	cbfs_create_empty_entry(entry, CBFS_TYPE_NULL, len, "");
 	if (verbose > 1) cbfs_print_entry_info(image, entry, stderr);
 	return 0;
 }
 
 int cbfs_add_entry(struct cbfs_image *image, struct buffer *buffer,
 		   uint32_t content_offset,
-		   struct cbfs_file *header)
+		   struct cbfs_file *header,
+		   const size_t len_align)
 {
 	assert(image);
 	assert(buffer);
 	assert(buffer->data);
-	assert(!IS_TOP_ALIGNED_ADDRESS(content_offset));
+	assert(!IS_HOST_SPACE_ADDRESS(content_offset));
 
 	const char *name = header->filename;
 
@@ -758,14 +746,14 @@ int cbfs_add_entry(struct cbfs_image *image, struct buffer *buffer,
 
 	// Merge empty entries.
 	DEBUG("(trying to merge empty entries...)\n");
-	cbfs_walk(image, cbfs_merge_empty_entry, NULL);
+	cbfs_legacy_walk(image, cbfs_merge_empty_entry, NULL);
 
 	for (entry = cbfs_find_first_entry(image);
 	     entry && cbfs_is_valid_entry(image, entry);
 	     entry = cbfs_find_next_entry(image, entry)) {
 
 		entry_type = ntohl(entry->type);
-		if (entry_type != CBFS_COMPONENT_NULL)
+		if (entry_type != CBFS_TYPE_NULL)
 			continue;
 
 		addr = cbfs_get_entry_addr(image, entry);
@@ -811,7 +799,7 @@ int cbfs_add_entry(struct cbfs_image *image, struct buffer *buffer,
 		      addr, addr_next - addr, content_offset);
 
 		if (cbfs_add_entry_at(image, entry, buffer->data,
-				      content_offset, header) == 0) {
+				      content_offset, header, len_align) == 0) {
 			return 0;
 		}
 		break;
@@ -834,69 +822,6 @@ struct cbfs_file *cbfs_get_entry(struct cbfs_image *image, const char *name)
 		}
 	}
 	return NULL;
-}
-
-static int cbfs_stage_decompress(struct cbfs_stage *stage, struct buffer *buff)
-{
-	struct buffer reader;
-	char *orig_buffer;
-	char *new_buffer;
-	size_t new_buff_sz;
-	decomp_func_ptr decompress;
-
-	buffer_clone(&reader, buff);
-
-	/* The stage metadata is in little endian. */
-	stage->compression = xdr_le.get32(&reader);
-	stage->entry = xdr_le.get64(&reader);
-	stage->load = xdr_le.get64(&reader);
-	stage->len = xdr_le.get32(&reader);
-	stage->memlen = xdr_le.get32(&reader);
-
-	/* Create a buffer just with the uncompressed program now that the
-	 * struct cbfs_stage has been peeled off. */
-	if (stage->compression == CBFS_COMPRESS_NONE) {
-		new_buff_sz = buffer_size(buff) - sizeof(struct cbfs_stage);
-
-		orig_buffer = buffer_get(buff);
-		new_buffer = calloc(1, new_buff_sz);
-		memcpy(new_buffer, orig_buffer + sizeof(struct cbfs_stage),
-			new_buff_sz);
-		buffer_init(buff, buff->name, new_buffer, new_buff_sz);
-		free(orig_buffer);
-		return 0;
-	}
-
-	decompress = decompression_function(stage->compression);
-	if (decompress == NULL)
-		return -1;
-
-	orig_buffer = buffer_get(buff);
-
-	/* This can be too big of a buffer needed, but there's no current
-	 * field indicating decompressed size of data. */
-	new_buff_sz = stage->memlen;
-	new_buffer = calloc(1, new_buff_sz);
-
-	if (decompress(orig_buffer + sizeof(struct cbfs_stage),
-			(int)(buffer_size(buff) - sizeof(struct cbfs_stage)),
-			new_buffer, (int)new_buff_sz, &new_buff_sz)) {
-		ERROR("Couldn't decompress stage.\n");
-		free(new_buffer);
-		return -1;
-	}
-
-	/* Include correct size for full stage info. */
-	buffer_init(buff, buff->name, new_buffer, new_buff_sz);
-
-	/* True decompressed size is just the data size -- no metadata. */
-	stage->len = new_buff_sz;
-	/* Stage is not compressed. */
-	stage->compression = CBFS_COMPRESS_NONE;
-
-	free(orig_buffer);
-
-	return 0;
 }
 
 static int cbfs_payload_decompress(struct cbfs_payload_segment *segments,
@@ -1032,11 +957,11 @@ static int init_elf_from_arch(Elf64_Ehdr *ehdr, uint32_t cbfs_arch)
 	return 0;
 }
 
-static int cbfs_stage_make_elf(struct buffer *buff, uint32_t arch)
+static int cbfs_stage_make_elf(struct buffer *buff, uint32_t arch,
+			       struct cbfs_file *entry)
 {
 	Elf64_Ehdr ehdr;
 	Elf64_Shdr shdr;
-	struct cbfs_stage stage;
 	struct elf_writer *ew;
 	struct buffer elf_out;
 	size_t empty_sz;
@@ -1047,15 +972,22 @@ static int cbfs_stage_make_elf(struct buffer *buff, uint32_t arch)
 		return -1;
 	}
 
-	if (cbfs_stage_decompress(&stage, buff)) {
-		ERROR("Failed to decompress stage.\n");
+	struct cbfs_file_attr_stageheader *stage = NULL;
+	for (struct cbfs_file_attribute *attr = cbfs_file_first_attr(entry);
+	     attr != NULL; attr = cbfs_file_next_attr(entry, attr)) {
+		if (ntohl(attr->tag) == CBFS_FILE_ATTR_TAG_STAGEHEADER) {
+			stage = (struct cbfs_file_attr_stageheader *)attr;
+			break;
+		}
+	}
+
+	if (stage == NULL) {
+		ERROR("Stage header not found for %s\n", entry->filename);
 		return -1;
 	}
 
 	if (init_elf_from_arch(&ehdr, arch))
 		return -1;
-
-	ehdr.e_entry = stage.entry;
 
 	/* Attempt rmodule translation first. */
 	rmod_ret = rmodule_stage_to_elf(&ehdr, buff);
@@ -1068,6 +1000,8 @@ static int cbfs_stage_make_elf(struct buffer *buff, uint32_t arch)
 
 	/* Rmodule couldn't do anything with the data. Continue on with SELF. */
 
+	ehdr.e_entry = ntohll(stage->loadaddr) + ntohl(stage->entry_offset);
+
 	ew = elf_writer_init(&ehdr);
 	if (ew == NULL) {
 		ERROR("Unable to init ELF writer.\n");
@@ -1077,9 +1011,9 @@ static int cbfs_stage_make_elf(struct buffer *buff, uint32_t arch)
 	memset(&shdr, 0, sizeof(shdr));
 	shdr.sh_type = SHT_PROGBITS;
 	shdr.sh_flags = SHF_WRITE | SHF_ALLOC | SHF_EXECINSTR;
-	shdr.sh_addr = stage.load;
-	shdr.sh_size = stage.len;
-	empty_sz = stage.memlen - stage.len;
+	shdr.sh_addr = ntohll(stage->loadaddr);
+	shdr.sh_size = buffer_size(buff);
+	empty_sz = ntohl(stage->memlen) - buffer_size(buff);
 
 	if (elf_writer_add_section(ew, &shdr, buff, ".program")) {
 		ERROR("Unable to add ELF section: .program\n");
@@ -1094,7 +1028,7 @@ static int cbfs_stage_make_elf(struct buffer *buff, uint32_t arch)
 		memset(&shdr, 0, sizeof(shdr));
 		shdr.sh_type = SHT_NOBITS;
 		shdr.sh_flags = SHF_WRITE | SHF_ALLOC;
-		shdr.sh_addr = stage.load + stage.len;
+		shdr.sh_addr = ntohl(stage->loadaddr) + buffer_size(buff);
 		shdr.sh_size = empty_sz;
 		if (elf_writer_add_section(ew, &shdr, &b, ".empty")) {
 			ERROR("Unable to add ELF section: .empty\n");
@@ -1118,7 +1052,8 @@ static int cbfs_stage_make_elf(struct buffer *buff, uint32_t arch)
 	return 0;
 }
 
-static int cbfs_payload_make_elf(struct buffer *buff, uint32_t arch)
+static int cbfs_payload_make_elf(struct buffer *buff, uint32_t arch,
+				 unused struct cbfs_file *entry)
 {
 	Elf64_Ehdr ehdr;
 	Elf64_Shdr shdr;
@@ -1270,7 +1205,7 @@ static int cbfs_payload_make_elf(struct buffer *buff, uint32_t arch)
 	}
 
 	if (elf_writer_serialize(ew, &elf_out)) {
-		ERROR("Unable to create ELF file from stage.\n");
+		ERROR("Unable to create ELF file from payload.\n");
 		goto out;
 	}
 
@@ -1332,22 +1267,22 @@ int cbfs_export_entry(struct cbfs_image *image, const char *entry_name,
 	}
 
 	/*
-	 * The stage metadata is never compressed proper for cbfs_stage
-	 * files. The contents of the stage data can be though. Therefore
-	 * one has to do a second pass for stages to potentially decompress
-	 * the stage data to make it more meaningful.
+	 * We want to export stages and payloads as ELFs, not with coreboot's
+	 * custom stage/SELF binary formats, so we need to do extra processing
+	 * to turn them back into an ELF.
 	 */
 	if (do_processing) {
-		int (*make_elf)(struct buffer *, uint32_t) = NULL;
+		int (*make_elf)(struct buffer *, uint32_t,
+				struct cbfs_file *) = NULL;
 		switch (ntohl(entry->type)) {
-		case CBFS_COMPONENT_STAGE:
+		case CBFS_TYPE_STAGE:
 			make_elf = cbfs_stage_make_elf;
 			break;
-		case CBFS_COMPONENT_SELF:
+		case CBFS_TYPE_SELF:
 			make_elf = cbfs_payload_make_elf;
 			break;
 		}
-		if (make_elf && make_elf(&buffer, arch)) {
+		if (make_elf && make_elf(&buffer, arch, entry)) {
 			ERROR("Failed to write %s into %s.\n",
 			      entry_name, filename);
 			buffer_delete(&buffer);
@@ -1377,8 +1312,8 @@ int cbfs_remove_entry(struct cbfs_image *image, const char *name)
 	}
 	DEBUG("cbfs_remove_entry: Removed %s @ 0x%x\n",
 	      entry->filename, cbfs_get_entry_addr(image, entry));
-	entry->type = htonl(CBFS_COMPONENT_DELETED);
-	cbfs_walk(image, cbfs_merge_empty_entry, NULL);
+	entry->type = htonl(CBFS_TYPE_DELETED);
+	cbfs_legacy_walk(image, cbfs_merge_empty_entry, NULL);
 	return 0;
 }
 
@@ -1399,17 +1334,29 @@ int cbfs_print_header_info(struct cbfs_image *image)
 	return 0;
 }
 
-static int cbfs_print_stage_info(struct cbfs_stage *stage, FILE* fp)
+static int cbfs_print_stage_info(struct cbfs_file *entry, FILE* fp)
 {
+
+	struct cbfs_file_attr_stageheader *stage = NULL;
+	for (struct cbfs_file_attribute *attr = cbfs_file_first_attr(entry);
+	     attr != NULL; attr = cbfs_file_next_attr(entry, attr)) {
+		if (ntohl(attr->tag) == CBFS_FILE_ATTR_TAG_STAGEHEADER) {
+			stage = (struct cbfs_file_attr_stageheader *)attr;
+			break;
+		}
+	}
+
+	if (stage == NULL) {
+		fprintf(fp, "    ERROR: stage header not found!\n");
+		return -1;
+	}
+
 	fprintf(fp,
-		"    %s compression, entry: 0x%" PRIx64 ", load: 0x%" PRIx64 ", "
-		"length: %d/%d\n",
-		lookup_name_by_type(types_cbfs_compression,
-				    stage->compression, "(unknown)"),
-		stage->entry,
-		stage->load,
-		stage->len,
-		stage->memlen);
+		"    entry: 0x%" PRIx64 ", load: 0x%" PRIx64 ", "
+		"memlen: %d\n",
+		ntohll(stage->loadaddr) + ntohl(stage->entry_offset),
+		ntohll(stage->loadaddr),
+		ntohl(stage->memlen));
 	return 0;
 }
 
@@ -1501,34 +1448,27 @@ int cbfs_print_entry_info(struct cbfs_image *image, struct cbfs_file *entry,
 			decompressed_size
 			);
 
-	struct cbfs_file_attr_hash *hash = NULL;
-	while ((hash = cbfs_file_get_next_hash(entry, hash)) != NULL) {
-		unsigned int hash_type = ntohl(hash->hash_type);
-		if (hash_type >= CBFS_NUM_SUPPORTED_HASHES) {
-			fprintf(fp, "invalid hash type %d\n", hash_type);
+	if (!verbose)
+		return 0;
+
+	struct cbfs_file_attr_hash *attr = NULL;
+	while ((attr = cbfs_file_get_next_hash(entry, attr)) != NULL) {
+		size_t hash_len = vb2_digest_size(attr->hash.algo);
+		if (!hash_len) {
+			fprintf(fp, "invalid/unsupported hash algorithm: %d\n",
+				attr->hash.algo);
 			break;
 		}
-		size_t hash_len = widths_cbfs_hash[hash_type];
-		char *hash_str = bintohex(hash->hash_data, hash_len);
-		uint8_t local_hash[hash_len];
-		if (vb2_digest_buffer(CBFS_SUBHEADER(entry),
-			ntohl(entry->len), hash_type, local_hash,
-			hash_len) != VB2_SUCCESS) {
-			fprintf(fp, "failed to hash '%s'\n", name);
-			free(hash_str);
-			break;
-		}
-		int valid = memcmp(local_hash, hash->hash_data, hash_len) == 0;
+		char *hash_str = bintohex(attr->hash.raw, hash_len);
+		int valid = vb2_hash_verify(CBFS_SUBHEADER(entry),
+			ntohl(entry->len), &attr->hash) == VB2_SUCCESS;
 		const char *valid_str = valid ? "valid" : "invalid";
 
 		fprintf(fp, "    hash %s:%s %s\n",
-			get_hash_attr_name(hash_type),
+			vb2_get_hash_algorithm_name(attr->hash.algo),
 			hash_str, valid_str);
 		free(hash_str);
 	}
-
-	if (!verbose)
-		return 0;
 
 	DEBUG(" cbfs_file=0x%x, offset=0x%x, content_address=0x%x+0x%x\n",
 	      cbfs_get_entry_addr(image, entry), ntohl(entry->offset),
@@ -1537,12 +1477,11 @@ int cbfs_print_entry_info(struct cbfs_image *image, struct cbfs_file *entry,
 
 	/* note the components of the subheader may be in host order ... */
 	switch (ntohl(entry->type)) {
-		case CBFS_COMPONENT_STAGE:
-			cbfs_print_stage_info((struct cbfs_stage *)
-					      CBFS_SUBHEADER(entry), fp);
+		case CBFS_TYPE_STAGE:
+			cbfs_print_stage_info(entry, fp);
 			break;
 
-		case CBFS_COMPONENT_SELF:
+		case CBFS_TYPE_SELF:
 			payload = (struct cbfs_payload_segment *)
 					CBFS_SUBHEADER(entry);
 			while (payload) {
@@ -1592,21 +1531,45 @@ static int cbfs_print_parseable_entry_info(struct cbfs_image *image,
 	fprintf(fp, "%s%s", type, sep);
 	fprintf(fp, "0x%zx%s", metadata_size, sep);
 	fprintf(fp, "0x%zx%s", data_size, sep);
-	fprintf(fp, "0x%zx\n", metadata_size + data_size);
+	fprintf(fp, "0x%zx", metadata_size + data_size);
+
+	if (verbose) {
+		unsigned int decompressed_size = 0;
+		unsigned int compression = cbfs_file_get_compression_info(entry,
+			&decompressed_size);
+		if (compression != CBFS_COMPRESS_NONE)
+			fprintf(fp, "%scomp:%s:0x%x", sep, lookup_name_by_type(
+				types_cbfs_compression, compression, "????"),
+				decompressed_size);
+
+		struct cbfs_file_attr_hash *attr = NULL;
+		while ((attr = cbfs_file_get_next_hash(entry, attr)) != NULL) {
+			size_t hash_len = vb2_digest_size(attr->hash.algo);
+			if (!hash_len)
+				continue;
+			char *hash_str = bintohex(attr->hash.raw, hash_len);
+			int valid = vb2_hash_verify(CBFS_SUBHEADER(entry),
+				ntohl(entry->len), &attr->hash) == VB2_SUCCESS;
+			fprintf(fp, "%shash:%s:%s:%s", sep,
+				vb2_get_hash_algorithm_name(attr->hash.algo),
+				hash_str, valid ? "valid" : "invalid");
+			free(hash_str);
+		}
+	}
+	fprintf(fp, "\n");
 
 	return 0;
 }
 
-int cbfs_print_directory(struct cbfs_image *image)
+void cbfs_print_directory(struct cbfs_image *image)
 {
 	if (cbfs_is_legacy_cbfs(image))
 		cbfs_print_header_info(image);
 	printf("%-30s %-10s %-12s   Size   Comp\n", "Name", "Offset", "Type");
-	cbfs_walk(image, cbfs_print_entry_info, NULL);
-	return 0;
+	cbfs_legacy_walk(image, cbfs_print_entry_info, NULL);
 }
 
-int cbfs_print_parseable_directory(struct cbfs_image *image)
+void cbfs_print_parseable_directory(struct cbfs_image *image)
 {
 	size_t i;
 	const char *header[] = {
@@ -1622,8 +1585,7 @@ int cbfs_print_parseable_directory(struct cbfs_image *image)
 	for (i = 0; i < ARRAY_SIZE(header) - 1; i++)
 		fprintf(stdout, "%s%s", header[i], sep);
 	fprintf(stdout, "%s\n", header[i]);
-	cbfs_walk(image, cbfs_print_parseable_entry_info, stdout);
-	return 0;
+	cbfs_legacy_walk(image, cbfs_print_parseable_entry_info, stdout);
 }
 
 int cbfs_merge_empty_entry(struct cbfs_image *image, struct cbfs_file *entry,
@@ -1638,8 +1600,8 @@ int cbfs_merge_empty_entry(struct cbfs_image *image, struct cbfs_file *entry,
 	/* Loop until non-empty entry is found, starting from the current entry.
 	   After the loop, next_addr points to the next non-empty entry. */
 	next = entry;
-	while (ntohl(next->type) == CBFS_COMPONENT_DELETED ||
-			ntohl(next->type) == CBFS_COMPONENT_NULL) {
+	while (ntohl(next->type) == CBFS_TYPE_DELETED ||
+			ntohl(next->type) == CBFS_TYPE_NULL) {
 		next = cbfs_find_next_entry(image, next);
 		if (!next)
 			break;
@@ -1660,12 +1622,12 @@ int cbfs_merge_empty_entry(struct cbfs_image *image, struct cbfs_file *entry,
 	uint32_t addr = cbfs_get_entry_addr(image, entry);
 	size_t len = next_addr - addr - cbfs_calculate_file_header_size("");
 	DEBUG("join_empty_entry: [0x%x, 0x%x) len=%zu\n", addr, next_addr, len);
-	cbfs_create_empty_entry(entry, CBFS_COMPONENT_NULL, len, "");
+	cbfs_create_empty_entry(entry, CBFS_TYPE_NULL, len, "");
 
 	return 0;
 }
 
-int cbfs_walk(struct cbfs_image *image, cbfs_entry_callback callback,
+int cbfs_legacy_walk(struct cbfs_image *image, cbfs_entry_callback callback,
 	      void *arg)
 {
 	int count = 0;
@@ -1754,8 +1716,7 @@ struct cbfs_file *cbfs_find_next_entry(struct cbfs_image *image,
 				       struct cbfs_file *entry)
 {
 	uint32_t addr = cbfs_get_entry_addr(image, entry);
-	int align = image->has_header ? image->header.align :
-							CBFS_ENTRY_ALIGNMENT;
+	int align = image->has_header ? image->header.align : CBFS_ALIGNMENT;
 	assert(entry && cbfs_is_valid_entry(image, entry));
 	addr += ntohl(entry->offset) + ntohl(entry->len);
 	addr = align_up(addr, align);
@@ -1796,8 +1757,8 @@ int cbfs_is_valid_entry(struct cbfs_image *image, struct cbfs_file *entry)
 struct cbfs_file *cbfs_create_file_header(int type,
 			    size_t len, const char *name)
 {
-	struct cbfs_file *entry = malloc(MAX_CBFS_FILE_HEADER_BUFFER);
-	memset(entry, CBFS_CONTENT_DEFAULT_VALUE, MAX_CBFS_FILE_HEADER_BUFFER);
+	struct cbfs_file *entry = malloc(CBFS_METADATA_MAX_SIZE);
+	memset(entry, CBFS_CONTENT_DEFAULT_VALUE, CBFS_METADATA_MAX_SIZE);
 	memcpy(entry->magic, CBFS_FILE_MAGIC, sizeof(entry->magic));
 	entry->type = htonl(type);
 	entry->len = htonl(len);
@@ -1863,6 +1824,7 @@ struct cbfs_file_attribute *cbfs_add_file_attr(struct cbfs_file *header,
 					       uint32_t tag,
 					       uint32_t size)
 {
+	assert(IS_ALIGNED(size, CBFS_ATTRIBUTE_ALIGN));
 	struct cbfs_file_attribute *attr, *next;
 	next = cbfs_file_first_attr(header);
 	do {
@@ -1870,7 +1832,7 @@ struct cbfs_file_attribute *cbfs_add_file_attr(struct cbfs_file *header,
 		next = cbfs_file_next_attr(header, attr);
 	} while (next != NULL);
 	uint32_t header_size = ntohl(header->offset) + size;
-	if (header_size > MAX_CBFS_FILE_HEADER_BUFFER) {
+	if (header_size > CBFS_METADATA_MAX_SIZE) {
 		DEBUG("exceeding allocated space for cbfs_file headers");
 		return NULL;
 	}
@@ -1892,35 +1854,31 @@ struct cbfs_file_attribute *cbfs_add_file_attr(struct cbfs_file *header,
 			ntohl(attr->len));
 	}
 	header->offset = htonl(header_size);
-	memset(attr, CBFS_CONTENT_DEFAULT_VALUE, size);
+	/* Attributes are expected to be small (much smaller than a flash page)
+	   and not really meant to be overwritten in-place. To avoid surprising
+	   values in reserved fields of attribute structures, initialize them to
+	   0, not 0xff. */
+	memset(attr, 0, size);
 	attr->tag = htonl(tag);
 	attr->len = htonl(size);
 	return attr;
 }
 
 int cbfs_add_file_hash(struct cbfs_file *header, struct buffer *buffer,
-	enum vb2_hash_algorithm hash_type)
+	enum vb2_hash_algorithm alg)
 {
-	uint32_t hash_index = hash_type;
-
-	if (hash_index >= CBFS_NUM_SUPPORTED_HASHES)
+	if (!vb2_digest_size(alg))
 		return -1;
 
-	unsigned hash_size = widths_cbfs_hash[hash_type];
-	if (hash_size == 0)
-		return -1;
-
-	struct cbfs_file_attr_hash *attrs =
+	struct cbfs_file_attr_hash *attr =
 		(struct cbfs_file_attr_hash *)cbfs_add_file_attr(header,
-			CBFS_FILE_ATTR_TAG_HASH,
-			sizeof(struct cbfs_file_attr_hash) + hash_size);
+			CBFS_FILE_ATTR_TAG_HASH, cbfs_file_attr_hash_size(alg));
 
-	if (attrs == NULL)
+	if (attr == NULL)
 		return -1;
 
-	attrs->hash_type = htonl(hash_type);
-	if (vb2_digest_buffer(buffer_get(buffer), buffer_size(buffer),
-		hash_type, attrs->hash_data, hash_size) != VB2_SUCCESS)
+	if (vb2_hash_calculate(buffer_get(buffer), buffer_size(buffer),
+			       alg, &attr->hash) != VB2_SUCCESS)
 		return -1;
 
 	return 0;
@@ -1972,7 +1930,7 @@ int32_t cbfs_locate_entry(struct cbfs_image *image, size_t size,
 		      size, page_size);
 
 	size_t image_align = image->has_header ? image->header.align :
-							CBFS_ENTRY_ALIGNMENT;
+							CBFS_ALIGNMENT;
 	if (page_size % image_align)
 		WARN("%s: Page size (%#zx) not aligned with CBFS image (%#zx).\n",
 		     __func__, page_size, image_align);
@@ -1980,7 +1938,7 @@ int32_t cbfs_locate_entry(struct cbfs_image *image, size_t size,
 	need_len = metadata_size + size;
 
 	// Merge empty entries to build get max available space.
-	cbfs_walk(image, cbfs_merge_empty_entry, NULL);
+	cbfs_legacy_walk(image, cbfs_merge_empty_entry, NULL);
 
 	/* Three cases of content location on memory page:
 	 * case 1.
@@ -2008,7 +1966,7 @@ int32_t cbfs_locate_entry(struct cbfs_image *image, size_t size,
 	     entry = cbfs_find_next_entry(image, entry)) {
 
 		uint32_t type = ntohl(entry->type);
-		if (type != CBFS_COMPONENT_NULL)
+		if (type != CBFS_TYPE_NULL)
 			continue;
 
 		addr = cbfs_get_entry_addr(image, entry);

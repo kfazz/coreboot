@@ -1,24 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
-#include <arch/acpigen.h>
+#include <acpi/acpi.h>
+#include <acpi/acpi_gnvs.h>
+#include <acpi/acpigen.h>
 #include <device/mmio.h>
 #include <arch/smp/mpspec.h>
-#include <cbmem.h>
-#include <ec/google/chromeec/ec.h>
 #include <intelblocks/cpulib.h>
 #include <intelblocks/pmclib.h>
 #include <intelblocks/acpi.h>
@@ -27,11 +13,9 @@
 #include <soc/nvs.h>
 #include <soc/pci_devs.h>
 #include <soc/pm.h>
+#include <soc/soc_chip.h>
+#include <soc/systemagent.h>
 #include <string.h>
-#include <vendorcode/google/chromeos/gnvs.h>
-#include <wrdd.h>
-
-#include "chip.h"
 
 /*
  * List of supported C-states in this processor.
@@ -51,15 +35,6 @@ enum {
 	C_STATE_C10,		/* 11 */
 	NUM_C_STATES
 };
-
-#define MWAIT_RES(state, sub_state)				\
-	{							\
-		.addrl = (((state) << 4) | (sub_state)),	\
-		.space_id = ACPI_ADDRESS_SPACE_FIXED,		\
-		.bit_width = ACPI_FFIXEDHW_VENDOR_INTEL,	\
-		.bit_offset = ACPI_FFIXEDHW_CLASS_MWAIT,	\
-		.access_size = ACPI_FFIXEDHW_FLAG_HW_COORD,	\
-	}
 
 static const acpi_cstate_t cstate_map[NUM_C_STATES] = {
 	[C_STATE_C0] = {},
@@ -138,8 +113,9 @@ acpi_cstate_t *soc_get_cstate_map(size_t *entries)
 				ARRAY_SIZE(cstate_set_non_s0ix))];
 	int *set;
 	int i;
-	struct device *dev = SA_DEV_ROOT;
-	config_t *config = dev->chip_info;
+
+	config_t *config = config_of_soc();
+
 	int is_s0ix_enable = config->s0ix_enable;
 
 	if (is_s0ix_enable) {
@@ -159,8 +135,8 @@ acpi_cstate_t *soc_get_cstate_map(size_t *entries)
 
 void soc_power_states_generation(int core_id, int cores_per_package)
 {
-	struct device *dev = SA_DEV_ROOT;
-	config_t *config = dev->chip_info;
+	config_t *config = config_of_soc();
+
 	if (config->eist_enable)
 		/* Generate P-state tables */
 		generate_p_state_entries(core_id, cores_per_package);
@@ -169,19 +145,17 @@ void soc_power_states_generation(int core_id, int cores_per_package)
 void soc_fill_fadt(acpi_fadt_t *fadt)
 {
 	const uint16_t pmbase = ACPI_BASE_ADDRESS;
-	const struct device *dev = PCH_DEV_LPC;
-	const struct soc_intel_icelake_config *config = dev->chip_info;
 
-	if (!config->PmTimerDisabled) {
-		fadt->pm_tmr_blk = pmbase + PM1_TMR;
-		fadt->pm_tmr_len = 4;
-		fadt->x_pm_tmr_blk.space_id = 1;
-		fadt->x_pm_tmr_blk.bit_width = fadt->pm_tmr_len * 8;
-		fadt->x_pm_tmr_blk.bit_offset = 0;
-		fadt->x_pm_tmr_blk.access_size = 0;
-		fadt->x_pm_tmr_blk.addrl = pmbase + PM1_TMR;
-		fadt->x_pm_tmr_blk.addrh = 0x0;
-	}
+	config_t *config = config_of_soc();
+
+	fadt->pm_tmr_blk = pmbase + PM1_TMR;
+	fadt->pm_tmr_len = 4;
+	fadt->x_pm_tmr_blk.space_id = ACPI_ADDRESS_SPACE_IO;
+	fadt->x_pm_tmr_blk.bit_width = fadt->pm_tmr_len * 8;
+	fadt->x_pm_tmr_blk.bit_offset = 0;
+	fadt->x_pm_tmr_blk.access_size = ACPI_ACCESS_SIZE_DWORD_ACCESS;
+	fadt->x_pm_tmr_blk.addrl = pmbase + PM1_TMR;
+	fadt->x_pm_tmr_blk.addrh = 0x0;
 
 	if (config->s0ix_enable)
 		fadt->flags |= ACPI_FADT_LOW_PWR_IDLE_S0;
@@ -192,40 +166,19 @@ uint32_t soc_read_sci_irq_select(void)
 	return read32((void *)pmc_bar + IRQ_REG);
 }
 
-void acpi_create_gnvs(struct global_nvs_t *gnvs)
+void soc_fill_gnvs(struct global_nvs *gnvs)
 {
-	const struct device *dev = PCH_DEV_LPC;
-	const struct soc_intel_icelake_config *config = dev->chip_info;
-
-	/* Set unknown wake source */
-	gnvs->pm1i = -1;
-
-	/* CPU core count */
-	gnvs->pcnt = dev_count_cpu();
-
-	if (CONFIG(CONSOLE_CBMEM))
-		/* Update the mem console pointer. */
-		gnvs->cbmc = (uintptr_t)cbmem_find(CBMEM_ID_CONSOLE);
-
-	if (CONFIG(CHROMEOS)) {
-		/* Initialize Verified Boot data */
-		chromeos_init_chromeos_acpi(&(gnvs->chromeos));
-		if (CONFIG(EC_GOOGLE_CHROMEEC)) {
-			gnvs->chromeos.vbt2 = google_ec_running_ro() ?
-				ACTIVE_ECFW_RO : ACTIVE_ECFW_RW;
-		} else
-			gnvs->chromeos.vbt2 = ACTIVE_ECFW_RO;
-	}
+	config_t *config = config_of_soc();
 
 	/* Enable DPTF based on mainboard configuration */
 	gnvs->dpte = config->dptf_enable;
 
-	/* Fill in the Wifi Region id */
-	gnvs->cid1 = wifi_regulatory_domain();
-
 	/* Set USB2/USB3 wake enable bitmaps. */
 	gnvs->u2we = config->usb2_wake_enable_bitmap;
 	gnvs->u3we = config->usb3_wake_enable_bitmap;
+
+	/* Fill in Above 4GB MMIO resource */
+	sa_fill_gnvs(gnvs);
 }
 
 uint32_t acpi_fill_soc_wake(uint32_t generic_pm1_en,

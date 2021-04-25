@@ -1,26 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Sven Schnelle <svens@stackframe.org>
- * Copyright (C) 2013 Vladimir Serbinenko <phcoder@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #define __SIMPLE_DEVICE__
 #include <console/console.h>
 #include <arch/io.h>
 #include <device/pnp_ops.h>
 #include <device/device.h>
-#include <device/pci.h>
 #include <device/pnp.h>
 #include <delay.h>
 #include "dock.h"
@@ -39,7 +23,7 @@ static int poll_clk_stable(pnp_devfn_t dev, int timeout)
 {
 	/* Enable 14.318MHz CLK on CLKIN */
 	pnp_write_config(dev, 0x29, 0xa0);
-	while(!(pnp_read_config(dev, 0x29) & 0x10) && timeout--)
+	while (!(pnp_read_config(dev, 0x29) & 0x10) && timeout--)
 		udelay(1000);
 	if (!timeout)
 		return 1;

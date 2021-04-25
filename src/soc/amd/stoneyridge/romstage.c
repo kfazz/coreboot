@@ -1,24 +1,14 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015-2016 Advanced Micro Devices, Inc.
- * Copyright (C) 2015 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <amdblocks/acpi.h>
+#include <amdblocks/biosram.h>
 #include <device/pci_ops.h>
 #include <arch/cpu.h>
-#include <arch/acpi.h>
+#include <arch/romstage.h>
+#include <acpi/acpi.h>
 #include <cpu/x86/msr.h>
 #include <cpu/x86/mtrr.h>
+#include <cpu/x86/smm.h>
 #include <cpu/amd/mtrr.h>
 #include <cbmem.h>
 #include <commonlib/helpers.h>
@@ -30,37 +20,15 @@
 #include <amdblocks/agesawrapper.h>
 #include <amdblocks/agesawrapper_call.h>
 #include <soc/northbridge.h>
-#include <soc/romstage.h>
+#include <soc/pci_devs.h>
 #include <soc/southbridge.h>
 #include <amdblocks/psp.h>
 
 #include "chip.h"
 
-void __weak mainboard_romstage_entry(int s3_resume)
+void __weak mainboard_romstage_entry(void)
 {
 	/* By default, don't do anything */
-}
-
-static void load_smu_fw1(void)
-{
-	u32 base, limit, cmd;
-
-	/* Open a posted hole from 0x80000000 : 0xfed00000-1 */
-	base = (0x80000000 >> 8) | MMIO_WE | MMIO_RE;
-	limit = (ALIGN_DOWN(HPET_BASE_ADDRESS - 1, 64 * KiB) >> 8);
-	pci_write_config32(SOC_ADDR_DEV, D18F1_MMIO_LIMIT0_LO, limit);
-	pci_write_config32(SOC_ADDR_DEV, D18F1_MMIO_BASE0_LO, base);
-
-	/* Preload a value into "BAR3" and enable it */
-	pci_write_config32(SOC_PSP_DEV, PSP_MAILBOX_BAR, PSP_MAILBOX_BAR3_BASE);
-	pci_write_config32(SOC_PSP_DEV, PSP_BAR_ENABLES, PSP_MAILBOX_BAR_EN);
-
-	/* Enable memory access and master */
-	cmd = pci_read_config32(SOC_PSP_DEV, PCI_COMMAND);
-	cmd |= PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER;
-	pci_write_config32(SOC_PSP_DEV, PCI_COMMAND, cmd);
-
-	psp_load_named_blob(MBOX_BIOS_CMD_SMU_FW, "smu_fw");
 }
 
 static void agesa_call(void)
@@ -83,21 +51,20 @@ asmlinkage void car_stage_entry(void)
 {
 	struct postcar_frame pcf;
 	uintptr_t top_of_ram;
-	void *smm_base;
-	size_t smm_size;
-	uintptr_t tseg_base;
 	msr_t base, mask;
 	msr_t mtrr_cap = rdmsr(MTRR_CAP_MSR);
 	int vmtrrs = mtrr_cap.lo & MTRR_CAP_VCNT;
-	int s3_resume = acpi_s3_resume_allowed() && acpi_is_wakeup_s3();
+	int s3_resume = acpi_is_wakeup_s3();
 	int i;
 
 	console_init();
 
+	soc_enable_psp_early();
 	if (CONFIG(SOC_AMD_PSP_SELECTABLE_SMU_FW))
-		load_smu_fw1();
+		psp_load_named_blob(BLOB_SMU_FW, "smu_fw");
 
-	mainboard_romstage_entry(s3_resume);
+	mainboard_romstage_entry();
+	elog_boot_notify(s3_resume);
 
 	bsp_agesa_call();
 
@@ -113,7 +80,7 @@ asmlinkage void car_stage_entry(void)
 		 *
 		 * After setting up DRAM, AGESA also completes the configuration
 		 * of the MTRRs, setting regions to WB.  Anything written to
-		 * memory between now and and when CAR is dismantled will be
+		 * memory between now and when CAR is dismantled will be
 		 * in cache and lost.  For now, set the regions UC to ensure
 		 * the writes get to DRAM.
 		 */
@@ -133,8 +100,6 @@ asmlinkage void car_stage_entry(void)
 		msr_t sys_cfg = rdmsr(SYSCFG_MSR);
 		sys_cfg.lo &= ~SYSCFG_MSR_TOM2WB;
 		wrmsr(SYSCFG_MSR, sys_cfg);
-		if (CONFIG(ELOG_BOOT_COUNT))
-			boot_count_increment();
 	} else {
 		printk(BIOS_INFO, "S3 detected\n");
 		post_code(0x60);
@@ -152,8 +117,11 @@ asmlinkage void car_stage_entry(void)
 	if (romstage_handoff_init(s3_resume))
 		printk(BIOS_ERR, "Failed to set romstage handoff data\n");
 
+	if (CONFIG(SMM_TSEG))
+		smm_list_regions();
+
 	post_code(0x44);
-	if (postcar_frame_init(&pcf, 1 * KiB))
+	if (postcar_frame_init(&pcf, 0))
 		die("Unable to initialize postcar frame.\n");
 
 	/*
@@ -168,16 +136,8 @@ asmlinkage void car_stage_entry(void)
 	/* Cache the memory-mapped boot media. */
 	postcar_frame_add_romcache(&pcf, MTRR_TYPE_WRPROT);
 
-	/*
-	 * Cache the TSEG region at the top of ram. This region is
-	 * not restricted to SMM mode until SMM has been relocated.
-	 * By setting the region to cacheable it provides faster access
-	 * when relocating the SMM handler as well as using the TSEG
-	 * region for other purposes.
-	 */
-	smm_region_info(&smm_base, &smm_size);
-	tseg_base = (uintptr_t)smm_base;
-	postcar_frame_add_mtrr(&pcf, tseg_base, smm_size, MTRR_TYPE_WRBACK);
+	/* Cache the TSEG region */
+	postcar_enable_tseg_cache(&pcf);
 
 	post_code(0x45);
 	run_postcar_phase(&pcf);
@@ -245,3 +205,15 @@ void soc_customize_init_early(AMD_EARLY_PARAMS *InitEarly)
 		platform->PlatStapmConfig.CfgStapmBoost = StapmBoostEnabled;
 	}
 }
+
+static void migrate_power_state(int is_recovery)
+{
+	struct chipset_power_state *state;
+	state = cbmem_add(CBMEM_ID_POWER_STATE, sizeof(*state));
+	if (state) {
+		acpi_fill_pm_gpe_state(&state->gpe_state);
+		acpi_pm_gpe_add_events_print_events();
+	}
+	acpi_clear_pm_gpe_status();
+}
+ROMSTAGE_CBMEM_INIT_HOOK(migrate_power_state)

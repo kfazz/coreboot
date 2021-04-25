@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2012 Samsung Electronics
- *
- * Author: Donghwa Lee <dh09.lee@samsung.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <device/mmio.h>
 #include <console/console.h>
@@ -22,7 +8,6 @@
 #include <soc/i2c.h>
 #include <soc/power.h>
 #include <soc/sysreg.h>
-#include <stdlib.h>
 
 /* FIXME: I think the DP controller shouldn't be hardcoded here... */
 static struct exynos_dp * const dp_regs = (void *)EXYNOS5_DP1_BASE;
@@ -89,7 +74,6 @@ void exynos_dp_enable_video_mute(unsigned int enable)
 
 	return;
 }
-
 
 static void exynos_dp_init_analog_param(void)
 {
@@ -1013,7 +997,6 @@ int exynos_dp_init_video(void)
 	lwrite32(reg, &dp_regs->sys_ctl1);
 	return 0;
 }
-
 
 void exynos_dp_config_video_slave_mode(struct edp_video_info *video_info)
 {

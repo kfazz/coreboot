@@ -1,21 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/cpu.h>
 #include <device/pci_ops.h>
 #include <console/console.h>
+#include <cpu/intel/microcode.h>
 #include <cpu/x86/msr.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
@@ -24,8 +12,6 @@
 #include <soc/pch.h>
 #include <soc/pci_devs.h>
 #include <string.h>
-
-#define BIOS_SIGN_ID	0x8B
 
 static struct {
 	u32 cpuid;
@@ -46,16 +32,16 @@ static struct {
 };
 
 static struct {
-	u16 lpcid;
+	u16 espiid;
 	const char *name;
 } pch_table[] = {
-	{ PCI_DEVICE_ID_INTEL_ICL_BASE_U_LPC, "Icelake-U Base" },
-	{ PCI_DEVICE_ID_INTEL_ICL_BASE_Y_LPC, "Icelake-Y Base" },
-	{ PCI_DEVICE_ID_INTEL_ICL_U_PREMIUM_LPC, "Icelake-U Premium" },
-	{ PCI_DEVICE_ID_INTEL_ICL_U_SUPER_U_LPC, "Icelake-U Super" },
-	{ PCI_DEVICE_ID_INTEL_ICL_U_SUPER_U_LPC_REV0, "Icelake-U Super REV0" },
-	{ PCI_DEVICE_ID_INTEL_ICL_SUPER_Y_LPC, "Icelake-Y Super" },
-	{ PCI_DEVICE_ID_INTEL_ICL_Y_PREMIUM_LPC, "Icelake-Y Premium" },
+	{ PCI_DEVICE_ID_INTEL_ICL_BASE_U_ESPI, "Icelake-U Base" },
+	{ PCI_DEVICE_ID_INTEL_ICL_BASE_Y_ESPI, "Icelake-Y Base" },
+	{ PCI_DEVICE_ID_INTEL_ICL_U_PREMIUM_ESPI, "Icelake-U Premium" },
+	{ PCI_DEVICE_ID_INTEL_ICL_U_SUPER_U_ESPI, "Icelake-U Super" },
+	{ PCI_DEVICE_ID_INTEL_ICL_U_SUPER_U_ESPI_REV0, "Icelake-U Super REV0" },
+	{ PCI_DEVICE_ID_INTEL_ICL_SUPER_Y_ESPI, "Icelake-Y Super" },
+	{ PCI_DEVICE_ID_INTEL_ICL_Y_PREMIUM_ESPI, "Icelake-Y Premium" },
 };
 
 static struct {
@@ -93,18 +79,16 @@ static void report_cpu_info(void)
 {
 	struct cpuid_result cpuidr;
 	u32 i, index, cpu_id, cpu_feature_flag;
-	char cpu_string[50], *cpu_name = cpu_string; /* 48 bytes are reported */
+	const char cpu_not_found[] = "Platform info not available";
+	const char *cpu_name = cpu_not_found; /* 48 bytes are reported */
 	int vt, txt, aes;
-	msr_t microcode_ver;
 	static const char *const mode[] = {"NOT ", ""};
 	const char *cpu_type = "Unknown";
 	u32 p[13];
 
 	index = 0x80000000;
 	cpuidr = cpuid(index);
-	if (cpuidr.eax < 0x80000004) {
-		strcpy(cpu_string, "Platform info not available");
-	} else {
+	if (cpuidr.eax >= 0x80000004) {
 		int j = 0;
 
 		for (i = 2; i <= 4; i++) {
@@ -116,16 +100,13 @@ static void report_cpu_info(void)
 		}
 		p[12] = 0;
 		cpu_name = (char *)p;
-	}
-	/* Skip leading spaces in CPU name string */
-	while (cpu_name[0] == ' ')
-		cpu_name++;
 
-	microcode_ver.lo = 0;
-	microcode_ver.hi = 0;
-	wrmsr(BIOS_SIGN_ID, microcode_ver);
+		/* Skip leading spaces in CPU name string */
+		while (cpu_name[0] == ' ' && strlen(cpu_name) > 0)
+			cpu_name++;
+	}
+
 	cpu_id = cpu_get_cpuid();
-	microcode_ver = rdmsr(BIOS_SIGN_ID);
 
 	/* Look for string to match the name */
 	for (i = 0; i < ARRAY_SIZE(cpu_table); i++) {
@@ -137,7 +118,7 @@ static void report_cpu_info(void)
 
 	printk(BIOS_DEBUG, "CPU: %s\n", cpu_name);
 	printk(BIOS_DEBUG, "CPU: ID %x, %s, ucode: %08x\n",
-	       cpu_id, cpu_type, microcode_ver.hi);
+	       cpu_id, cpu_type, get_current_microcode_rev());
 
 	cpu_feature_flag = cpu_get_feature_flags_ecx();
 	aes = (cpu_feature_flag & CPUID_AES) ? 1 : 0;
@@ -170,18 +151,18 @@ static void report_mch_info(void)
 static void report_pch_info(void)
 {
 	int i;
-	pci_devfn_t dev = PCH_DEV_LPC;
-	uint16_t lpcid = get_dev_id(dev);
+	pci_devfn_t dev = PCH_DEV_ESPI;
+	uint16_t espiid = get_dev_id(dev);
 	const char *pch_type = "Unknown";
 
 	for (i = 0; i < ARRAY_SIZE(pch_table); i++) {
-		if (pch_table[i].lpcid == lpcid) {
+		if (pch_table[i].espiid == espiid) {
 			pch_type = pch_table[i].name;
 			break;
 		}
 	}
 	printk(BIOS_DEBUG, "PCH: device id %04x (rev %02x) is %s\n",
-		lpcid, get_dev_revision(dev), pch_type);
+		espiid, get_dev_revision(dev), pch_type);
 }
 
 static void report_igd_info(void)

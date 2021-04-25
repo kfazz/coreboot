@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (c) 2013 The Chromium OS Authors. All rights reserved.
- * Copyright 2018 Facebook Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef CR50_TSS_STRUCTURES_H_
 #define CR50_TSS_STRUCTURES_H_
 
@@ -28,11 +14,14 @@
 #define TPM2_CR50_SUB_CMD_TURN_UPDATE_ON (24)
 #define TPM2_CR50_SUB_CMD_GET_REC_BTN (29)
 #define TPM2_CR50_SUB_CMD_TPM_MODE (40)
+#define TPM2_CR50_SUB_CMD_GET_BOOT_MODE (52)
+#define TPM2_CR50_SUB_CMD_RESET_EC (53)
 
 /* Cr50 vendor-specific error codes. */
 #define VENDOR_RC_ERR              0x00000500
 enum cr50_vendor_rc {
 	VENDOR_RC_INTERNAL_ERROR = (VENDOR_RC_ERR | 6),
+	VENDOR_RC_NO_SUCH_SUBCOMMAND = (VENDOR_RC_ERR | 8),
 	VENDOR_RC_NO_SUCH_COMMAND = (VENDOR_RC_ERR | 127),
 };
 
@@ -51,7 +40,6 @@ enum cr50_tpm_mode {
 
 	TPM_MODE_INVALID,
 };
-
 
 /**
  * CR50 specific tpm command to enable nvmem commits before internal timeout
@@ -92,6 +80,14 @@ uint32_t tlcl_cr50_get_recovery_button(uint8_t *recovery_button_state);
 uint32_t tlcl_cr50_get_tpm_mode(uint8_t *tpm_mode);
 
 /**
+ * CR50 specific TPM command sequence to query the current boot mode.
+ *
+ * Returns TPM_SUCCESS if boot mode is successfully retrieved.
+ * Returns TPM_E_* for errors.
+ */
+uint32_t tlcl_cr50_get_boot_mode(uint8_t *boot_mode);
+
+/**
  * CR50 specific TPM command sequence to trigger an immediate reset to the Cr50
  * device after the specified timeout in milliseconds.  A timeout of zero means
  * "IMMEDIATE REBOOT".
@@ -100,5 +96,12 @@ uint32_t tlcl_cr50_get_tpm_mode(uint8_t *tpm_mode);
  */
 uint32_t tlcl_cr50_immediate_reset(uint16_t timeout_ms);
 
+/**
+ * CR50 specific TPM command sequence to issue an EC reset.
+ *
+ * Returns TPM_E_* for errors.
+ * On Success, this function invokes halt() and does not return.
+ */
+uint32_t tlcl_cr50_reset_ec(void);
 
 #endif /* CR50_TSS_STRUCTURES_H_ */

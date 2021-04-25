@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Sage Electronic Engineering, LLC.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef AMD_PCI_INT_DEFS_H
 #define AMD_PCI_INT_DEFS_H
@@ -41,9 +28,9 @@
 #define PIRQ_MISC1	0x0A	/* Miscellaneous1 IRQ Settings */
 #define PIRQ_MISC2	0x0B	/* Miscellaneous2 IRQ Settings */
 #define PIRQ_SIRQA	0x0C	/* Serial IRQ INTA */
-#define PIRQ_SIRQB	0x0D	/* Serial IRQ INTA */
-#define PIRQ_SIRQC	0x0E	/* Serial IRQ INTA */
-#define PIRQ_SIRQD	0x0F	/* Serial IRQ INTA */
+#define PIRQ_SIRQB	0x0D	/* Serial IRQ INTB */
+#define PIRQ_SIRQC	0x0E	/* Serial IRQ INTC */
+#define PIRQ_SIRQD	0x0F	/* Serial IRQ INTD */
 #define PIRQ_SCI	0x10	/* SCI IRQ */
 #define PIRQ_SMBUS	0x11	/* SMBUS	14h.0 */
 #define PIRQ_ASF	0x12	/* ASF */

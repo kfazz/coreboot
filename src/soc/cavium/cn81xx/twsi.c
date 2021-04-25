@@ -1,20 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
 /*
- * This file is part of the coreboot project.
- *
- * Copyright 2018       Facebook, Inc.
- * Copyright 2003-2017  Cavium Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  * Derived from Cavium's BSD-3 Clause OCTEONTX-SDK-6.2.0.
  */
+
 #include <console/console.h>
 #include <soc/twsi.h>
 #include <soc/clock.h>
@@ -667,7 +656,7 @@ int twsi_init(unsigned int bus, enum i2c_speed hz)
 	return 0;
 }
 
-int platform_i2c_transfer(unsigned bus, struct i2c_msg *segments,
+int platform_i2c_transfer(unsigned int bus, struct i2c_msg *segments,
 			  int seg_count)
 {
 	int result;

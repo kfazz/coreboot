@@ -1,18 +1,4 @@
-/*
- * This file is part of msrtool.
- *
- * Copyright (c) 2008 Peter Stuge <peter@stuge.se>
- * Copyright (c) 2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef MSRTOOL_H
 #define MSRTOOL_H
@@ -32,14 +18,14 @@
 
 #define HEXCHARS "0123456789abcdefABCDEF"
 
-enum {
+typedef enum {
 	MSRTYPE_RDONLY,
 	MSRTYPE_RDWR,
 	MSRTYPE_WRONLY,
 	MSRTYPE_EOT
 } MsrTypes;
 
-enum {
+typedef enum {
 	PRESENT_RSVD,
 	PRESENT_DEC,
 	PRESENT_BIN,

@@ -1,25 +1,13 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <console/console.h>
 #include <delay.h>
 #include <device/i2c_simple.h>
-#include <stdlib.h>
 #include <string.h>
 #include <soc/addressmap.h>
+#include <stdint.h>
+
 #include "i2c.h"
 
 static void do_bus_clear(int bus)
@@ -137,7 +125,7 @@ static int tegra_i2c_send_recv(int bus, int read,
 	return 0;
 }
 
-static int tegra_i2c_request(int bus, unsigned chip, int cont, int restart,
+static int tegra_i2c_request(int bus, unsigned int chip, int cont, int restart,
 			     int read, void *data, int data_len)
 {
 	uint32_t headers[3];
@@ -169,7 +157,7 @@ static int tegra_i2c_request(int bus, unsigned chip, int cont, int restart,
 				   data, data_len);
 }
 
-static int i2c_transfer_segment(unsigned bus, unsigned chip, int restart,
+static int i2c_transfer_segment(unsigned int bus, unsigned int chip, int restart,
 				int read, void *buf, int len)
 {
 	const uint32_t max_payload =
@@ -187,12 +175,12 @@ static int i2c_transfer_segment(unsigned bus, unsigned chip, int restart,
 	return 0;
 }
 
-int platform_i2c_transfer(unsigned bus, struct i2c_msg *segments, int count)
+int platform_i2c_transfer(unsigned int bus, struct i2c_msg *segments, int count)
 {
 	struct i2c_msg *seg = segments;
 	int i;
 
-	if (bus >= g_num_i2c_buses) {
+	if (bus >= num_i2c_buses) {
 		printk(BIOS_ERR, "%s: ERROR: invalid I2C bus (%u)\n", __func__,
 		       bus);
 		return -1;
@@ -207,11 +195,11 @@ int platform_i2c_transfer(unsigned bus, struct i2c_msg *segments, int count)
 	return 0;
 }
 
-void i2c_init(unsigned bus)
+void i2c_init(unsigned int bus)
 {
 	struct tegra_i2c_regs *regs;
 
-	if (bus >= g_num_i2c_buses) {
+	if (bus >= num_i2c_buses) {
 		printk(BIOS_ERR, "%s: ERROR: invalid I2C bus (%u)\n", __func__,
 		       bus);
 		return;

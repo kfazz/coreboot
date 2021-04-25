@@ -1,17 +1,4 @@
-/*
- *  Copyright (C) 2012 Samsung Electronics
- *  Alim Akhtar <alim.akhtar@samsung.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef __MAX77686_H_
 #define __MAX77686_H_
@@ -61,7 +48,7 @@ enum max77686_regnum {
  * @param vol_bitpos	bit position to be set or clear within register
  * @param vol_bitmask	bit mask value
  * @param reg_enaddr	control register address, which enable the given
- *			given buck/ldo.
+ *			buck/ldo.
  * @param reg_enbitpos	bit position to be enabled
  * @param reg_enbiton	value to be written to buck/ldo to make it ON
  * @param reg_enbitoff	value to be written to buck/ldo to make it OFF

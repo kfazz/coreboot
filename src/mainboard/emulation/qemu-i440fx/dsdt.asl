@@ -1,28 +1,17 @@
-/*
- * Bochs/QEMU ACPI DSDT ASL definition
- *
- * Copyright (c) 2006 Fabrice Bellard
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License version 2 as published by the Free Software Foundation.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- */
+/* Bochs/QEMU ACPI DSDT ASL definition */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 DefinitionBlock (
-	"dsdt.aml",         // Output Filename
-	"DSDT",             // Signature
-	0x01,               // DSDT Compliance Revision
+	"dsdt.aml",
+	"DSDT",
+	ACPI_DSDT_REV_1,
 	OEM_ID,
 	ACPI_TABLE_CREATOR,
 	0x1                 // OEM Revision
 	)
 {
+	#include <acpi/dsdt_top.asl>
 
 #include "acpi/dbug.asl"
 
@@ -34,7 +23,6 @@ DefinitionBlock (
 	Scope(\_SB) {
 		Device(PCI0) {
 			Name(_HID, EisaId("PNP0A03"))
-			Name(_ADR, 0x00)
 			Name(_UID, 1)
 		}
 	}
@@ -61,7 +49,7 @@ DefinitionBlock (
 				Return (0x00)
 			}
 			Method(_S3D, 0, NotSerialized) {
-				If (LEqual(VEND, 0x1001b36)) {
+				If (VEND == 0x1001b36) {
 				Return (0x03)           // QXL
 				} Else {
 				Return (0x00)
@@ -133,7 +121,7 @@ DefinitionBlock (
 		/* Methods called by hotplug devices */
 		Method(PCEJ, 1, NotSerialized) {
 			// _EJ0 method - eject callback
-			Store(ShiftLeft(1, Arg0), B0EJ)
+			B0EJ = 1 << Arg0
 			Return (0x0)
 		}
 
@@ -143,13 +131,13 @@ DefinitionBlock (
 		/* PCI hotplug notify method */
 		Method(PCNF, 0) {
 			// Local0 = iterator
-			Store(Zero, Local0)
-			While (LLess(Local0, 31)) {
-				Increment(Local0)
-				If (And(PCIU, ShiftLeft(1, Local0))) {
+			Local0 = 0
+			While (Local0 < 31) {
+				Local0++
+				If (PCIU & (1 << Local0)) {
 				PCNT(Local0, 1)
 				}
-				If (And(PCID, ShiftLeft(1, Local0))) {
+				If (PCID & (1 << Local0)) {
 				PCNT(Local0, 3)
 				}
 			}
@@ -225,7 +213,7 @@ DefinitionBlock (
 
 		Method(IQST, 1, NotSerialized) {
 			// _STA method - get status
-			If (And(0x80, Arg0)) {
+			If (0x80 & Arg0) {
 				Return (0x09)
 			}
 			Return (0x0B)
@@ -236,8 +224,8 @@ DefinitionBlock (
 				Interrupt(, Level, ActiveHigh, Shared) { 0 }
 			})
 			CreateDWordField(PRR0, 0x05, PRRI)
-			If (LLess(Arg0, 0x80)) {
-				Store(Arg0, PRRI)
+			If (Arg0 < 0x80) {
+				PRRI = Arg0
 			}
 			Return (PRR0)
 		}
@@ -255,14 +243,14 @@ DefinitionBlock (
 				Return (IQST(reg))                              \
 			}                                                   \
 			Method(_DIS, 0, NotSerialized) {                    \
-				Or(reg, 0x80, reg)                              \
+				reg |= 0x80                              \
 			}                                                   \
 			Method(_CRS, 0, NotSerialized) {                    \
 				Return (IQCR(reg))                              \
 			}                                                   \
 			Method(_SRS, 1, NotSerialized) {                    \
 				CreateDWordField(Arg0, 0x05, PRRI)              \
-				Store(PRRI, reg)                                \
+				reg = PRRI                                \
 			}                                                   \
 		}
 
@@ -288,11 +276,6 @@ DefinitionBlock (
 		}
 	}
 
-#if 0
-#include "acpi/cpu-hotplug.asl"
-#endif
-
-
 /****************************************************************
  * General purpose events
  ****************************************************************/
@@ -303,16 +286,8 @@ DefinitionBlock (
 		Method(_L00) {
 		}
 		Method(_E01) {
-#if 0
-			// PCI hotplug event
-			\_SB.PCI0.PCNF()
-#endif
 		}
 		Method(_E02) {
-#if 0
-			// CPU hotplug event
-			\_SB.PRSC()
-#endif
 		}
 		Method(_L03) {
 		}

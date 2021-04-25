@@ -1,35 +1,7 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (c) 2015, The Linux Foundation. All rights reserved.
- * Copyright 2013 Google Inc.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- */
+/* SPDX-License-Identifier: BSD-3-Clause */
 
 #include <assert.h>
-#include <stdlib.h>
+#include <commonlib/helpers.h>
 #include <stdint.h>
 #include <symbols.h>
 
@@ -115,9 +87,6 @@ typedef uint32_t pte_t;
 
 static pte_t *const ttb_buff = (void *)_ttb;
 
-/* Not all boards want to use subtables and declare them in memlayout.ld. */
-DECLARE_OPTIONAL_REGION(ttb_subtables);
-
 static struct {
 	pte_t value;
 	const char *name;
@@ -146,7 +115,7 @@ static void mmu_fill_table(pte_t *table, u32 start_idx, u32 end_idx,
 
 	/* Invalidate the TLB entries. */
 	for (i = start_idx; i < end_idx; i++)
-		tlbimvaa(offset + (i << shift));
+		tlbimva(offset + (i << shift));
 	dsb();
 	isb();
 }
@@ -164,7 +133,7 @@ static pte_t *mmu_create_subtable(pte_t *pgd_entry)
 
 	/* We assume that *pgd_entry must already be a valid block mapping. */
 	uintptr_t start_addr = (uintptr_t)(*pgd_entry & BLOCK_MASK);
-	printk(BIOS_DEBUG, "Creating new subtable @%p for [%#.8x:%#.8lx)\n",
+	printk(BIOS_DEBUG, "Creating new subtable @%p for [%#.8lx:%#.8lx)\n",
 	       table, start_addr, start_addr + BLOCK_SIZE);
 
 	/* Initialize the new subtable with entries of the same attributes
@@ -180,7 +149,7 @@ static pte_t *mmu_create_subtable(pte_t *pgd_entry)
 	*pgd_entry = (pte_t)(uintptr_t)table | ATTR_NEXTLEVEL;
 	dccmvac((uintptr_t)pgd_entry);
 	dsb();
-	tlbimvaa(start_addr);
+	tlbimva(start_addr);
 	dsb();
 	isb();
 

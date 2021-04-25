@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* The APM port can be used for generating software SMIs */
 
@@ -31,26 +17,15 @@ Field (POST, ByteAcc, Lock, Preserve)
 	DBG0, 8
 }
 
+#if CONFIG(ACPI_SOC_NVS)
 /* SMI I/O Trap */
 Method(TRAP, 1, Serialized)
 {
-	Store (Arg0, SMIF)	// SMI Function
-	Store (0, TRP0)		// Generate trap
+	SMIF = Arg0	// SMI Function
+	TRP0 = 0		// Generate trap
 	Return (SMIF)		// Return value of SMI handler
 }
-
-/* The _PIC method is called by the OS to choose between interrupt
- * routing via the i8259 interrupt controller or the APIC.
- *
- * _PIC is called with a parameter of 0 for i8259 configuration and
- * with a parameter of 1 for Local Apic/IOAPIC configuration.
- */
-
-Method(_PIC, 1)
-{
-	// Remember the OS' IRQ routing choice.
-	Store(Arg0, PICM)
-}
+#endif /* ACPI_SOC_NVS */
 
 Method(GOS, 0)
 {
@@ -68,33 +43,39 @@ Method(GOS, 0)
 	 */
 
 	/* Let's assume we're running at least Windows 2000 */
-	Store (2000, OSYS)
+	OSYS = 2000
 
 	If (CondRefOf(_OSI)) {
-		/* Linux answers _OSI with "True" for a couple of
-		 * Windows version queries. But unlike Windows it
-		 * needs a Video repost, so let's determine whether
-		 * we're running Linux.
-		 */
-
-		If (_OSI("Linux")) {
-			Store (1, LINX)
-		}
-
 		If (_OSI("Windows 2001")) {
-			Store (2001, OSYS)
+			OSYS = 2001
 		}
 
 		If (_OSI("Windows 2001 SP1")) {
-			Store (2001, OSYS)
+			OSYS = 2001
 		}
 
 		If (_OSI("Windows 2001 SP2")) {
-			Store (2002, OSYS)
+			OSYS = 2002
 		}
 
 		If (_OSI("Windows 2006")) {
-			Store (2006, OSYS)
+			OSYS = 2006
 		}
 	}
+}
+
+/* Arg0 is state of HPET hardware enablement. */
+Method (HPTS, 1)
+{
+	/* HPET hardware disabled. */
+	If (!Arg0) {
+		Return (0x0)
+	}
+
+	/* Ancient versions of Windows don't want to see the HPET. */
+	If (OSYS < 2001) {
+		Return (0xb)
+	}
+
+	Return (0xf)
 }

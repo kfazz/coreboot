@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2003 Eric Biederman
- * Copyright (C) 2006-2010 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <boot/coreboot_tables.h>
@@ -91,7 +77,7 @@ static unsigned char uart8250_mem_rx_byte(void *base)
 		return 0x0;
 }
 
-static void uart8250_mem_init(void *base, unsigned divisor)
+static void uart8250_mem_init(void *base, unsigned int divisor)
 {
 	/* Disable interrupts */
 	uart8250_write(base, UART8250_IER, 0x0);
@@ -111,7 +97,7 @@ static void uart8250_mem_init(void *base, unsigned divisor)
 	uart8250_write(base, UART8250_LCR, CONFIG_TTYS0_LCS);
 }
 
-void uart_init(int idx)
+void uart_init(unsigned int idx)
 {
 	void *base = uart_platform_baseptr(idx);
 	if (!base)
@@ -123,7 +109,7 @@ void uart_init(int idx)
 	uart8250_mem_init(base, div);
 }
 
-void uart_tx_byte(int idx, unsigned char data)
+void uart_tx_byte(unsigned int idx, unsigned char data)
 {
 	void *base = uart_platform_baseptr(idx);
 	if (!base)
@@ -131,7 +117,7 @@ void uart_tx_byte(int idx, unsigned char data)
 	uart8250_mem_tx_byte(base, data);
 }
 
-unsigned char uart_rx_byte(int idx)
+unsigned char uart_rx_byte(unsigned int idx)
 {
 	void *base = uart_platform_baseptr(idx);
 	if (!base)
@@ -139,7 +125,7 @@ unsigned char uart_rx_byte(int idx)
 	return uart8250_mem_rx_byte(base);
 }
 
-void uart_tx_flush(int idx)
+void uart_tx_flush(unsigned int idx)
 {
 	void *base = uart_platform_baseptr(idx);
 	if (!base)
@@ -147,7 +133,6 @@ void uart_tx_flush(int idx)
 	uart8250_mem_tx_flush(base);
 }
 
-#if ENV_RAMSTAGE
 void uart_fill_lb(void *data)
 {
 	struct lb_serial serial;
@@ -166,4 +151,3 @@ void uart_fill_lb(void *data)
 
 	lb_add_console(LB_TAG_CONSOLE_SERIAL8250MEM, data);
 }
-#endif

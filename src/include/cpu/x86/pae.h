@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
 #ifndef CPU_X86_PAE_H
 #define CPU_X86_PAE_H
 
@@ -40,5 +42,14 @@ int paging_identity_map_addr(uintptr_t base, size_t size, int pat);
 
 #define MAPPING_ERROR ((void *)0xffffffffUL)
 void *map_2M_page(unsigned long page);
+
+/* To be used with memset_pae */
+#define MEMSET_PAE_VMEM_ALIGN (2 * MiB)
+#define MEMSET_PAE_VMEM_SIZE (2 * MiB)
+#define MEMSET_PAE_PGTL_ALIGN (4 * KiB)
+#define MEMSET_PAE_PGTL_SIZE (20 * KiB)
+
+int memset_pae(uint64_t dest, unsigned char pat, uint64_t length, void *pgtbl,
+	       void *vmem_addr);
 
 #endif /* CPU_X86_PAE_H  */

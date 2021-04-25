@@ -1,21 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2016 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
-#include <arch/acpi_device.h>
-#include <arch/acpigen.h>
+#include <acpi/acpi.h>
+#include <acpi/acpi_device.h>
+#include <acpi/acpigen.h>
 #include <console/console.h>
 #include <device/i2c_simple.h>
 #include <device/device.h>
@@ -31,7 +18,7 @@
 #define NAU8825_DP_INT(key,val) \
 	acpi_dp_add_integer(dp, "nuvoton," key, (val))
 
-static void nau8825_fill_ssdt(struct device *dev)
+static void nau8825_fill_ssdt(const struct device *dev)
 {
 	struct drivers_i2c_nau8825_config *config = dev->chip_info;
 	const char *scope = acpi_device_scope(dev);
@@ -43,7 +30,7 @@ static void nau8825_fill_ssdt(struct device *dev)
 	};
 	struct acpi_dp *dp = NULL;
 
-	if (!dev->enabled || !scope)
+	if (!scope)
 		return;
 	if (config->sar_threshold_num > NAU8825_MAX_BUTTONS)
 		return;
@@ -60,7 +47,11 @@ static void nau8825_fill_ssdt(struct device *dev)
 	acpigen_write_name("_CRS");
 	acpigen_write_resourcetemplate_header();
 	acpi_device_write_i2c(&i2c);
-	acpi_device_write_interrupt(&config->irq);
+	/* Allow either GpioInt() or Interrupt() */
+	if (config->irq_gpio.pin_count)
+		acpi_device_write_gpio(&config->irq_gpio);
+	else
+		acpi_device_write_interrupt(&config->irq);
 	acpigen_write_resourcetemplate_footer();
 
 	/* Device Properties */
@@ -98,12 +89,11 @@ static const char *nau8825_acpi_name(const struct device *dev)
 #endif
 
 static struct device_operations nau8825_ops = {
-	.read_resources		  = DEVICE_NOOP,
-	.set_resources		  = DEVICE_NOOP,
-	.enable_resources	  = DEVICE_NOOP,
+	.read_resources		= noop_read_resources,
+	.set_resources		= noop_set_resources,
 #if CONFIG(HAVE_ACPI_TABLES)
-	.acpi_name                = nau8825_acpi_name,
-	.acpi_fill_ssdt_generator = nau8825_fill_ssdt,
+	.acpi_name              = nau8825_acpi_name,
+	.acpi_fill_ssdt		= nau8825_fill_ssdt,
 #endif
 };
 

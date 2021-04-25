@@ -1,32 +1,16 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Google Inc.
- * Copyright 2013, NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* Function unit addresses. */
 enum {
-	UP_TAG_BASE = 0X60000000,
-	TIMER_BASE = 0X60005000,
-	CLK_RST_BASE = 0X60006000,
-	FLOW_CTLR_BASE = 0X60007000,
+	UP_TAG_BASE = 0x60000000,
+	TIMER_BASE = 0x60005000,
+	CLK_RST_BASE = 0x60006000,
+	FLOW_CTLR_BASE = 0x60007000,
 	TEGRA_EVP_BASE = 0x6000f000,
-	PMC_CTLR_BASE = 0X7000e400,
-	MC_CTLR_BASE = 0X70019000,
-	SYSCTR_CTLR_BASE = 0X700f0000
+	PMC_CTLR_BASE = 0x7000e400,
+	MC_CTLR_BASE = 0x70019000,
+	SYSCTR_CTLR_BASE = 0x700f0000
 };
-
-
 
 /* UP tag registers. */
 static uint32_t *up_tag_ptr = (void *)(UP_TAG_BASE + 0x0);
@@ -34,12 +18,8 @@ enum {
 	UP_TAG_AVP = 0xaaaaaaaa
 };
 
-
-
 /* Timer registers. */
 static uint32_t *timer_us_ptr = (void *)(TIMER_BASE + 0x10);
-
-
 
 /* Clock and reset controller registers. */
 static uint32_t *clk_rst_rst_devices_l_ptr = (void *)(CLK_RST_BASE + 0x4);
@@ -166,13 +146,8 @@ enum {
 	CLR_NONCPURESET = 0x1 << 29
 };
 
-
-
 /* Reset vector. */
-
 static uint32_t *evp_cpu_reset_ptr = (void *)(TEGRA_EVP_BASE + 0x100);
-
-
 
 /* Flow controller registers. */
 static uint32_t *flow_ctlr_halt_cop_events_ptr =
@@ -198,7 +173,6 @@ enum {
 	RAM_REPAIR_REQ = 0x1 << 0,
 	RAM_REPAIR_STS = 0x1 << 1,
 };
-
 
 /* Power management controller registers. */
 enum {
@@ -234,8 +208,6 @@ enum {
 	PMC_XOFS_MASK = 0x3f << PMC_XOFS_SHIFT
 };
 
-
-
 /* Memory controller registers. */
 static uint32_t *mc_video_protect_size_mb_ptr = (void *)(MC_CTLR_BASE + 0x64c);
 
@@ -246,8 +218,6 @@ enum {
 	VIDEO_PROTECT_ALLOW_TZ_WRITE_ACCESS = 0x1 << 1
 };
 
-
-
 /* System counter registers. */
 static uint32_t *sysctr_cntcr_ptr = (void *)(SYSCTR_CTLR_BASE + 0x0);
 enum {
@@ -257,10 +227,7 @@ enum {
 
 static uint32_t *sysctr_cntfid0_ptr = (void *)(SYSCTR_CTLR_BASE + 0x20);
 
-
-
 /* Utility functions. */
-
 static __always_inline void __noreturn halt(void)
 {
 	for (;;);
@@ -292,17 +259,14 @@ static void __noreturn reset(void)
 	halt();
 }
 
-static void udelay(unsigned usecs)
+static void udelay(unsigned int usecs)
 {
 	uint32_t start = read32(timer_us_ptr);
 	while (read32(timer_us_ptr) - start < usecs)
 		;
 }
 
-
-
 /* Accessors. */
-
 static int wakeup_on_lp(void)
 {
 	return !!(read32(pmc_ctlr_scratch4_ptr) & PMC_SCRATCH4_LP);
@@ -313,15 +277,12 @@ static uint32_t get_wakeup_vector(void)
 	return read32(pmc_ctlr_scratch41_ptr);
 }
 
-static unsigned get_osc_freq(void)
+static unsigned int get_osc_freq(void)
 {
 	return (read32(clk_rst_osc_ctrl_ptr) & OSC_FREQ_MASK) >> OSC_FREQ_SHIFT;
 }
 
-
-
 /* Clock configuration. */
-
 static void config_oscillator(void)
 {
 	// Read oscillator drive strength from OSC_EDPD_OVER.XOFS and copy
@@ -430,10 +391,7 @@ static void enable_cpu_clocks(void)
 	write32(clk_rst_clk_enb_v_set_ptr, CLK_ENB_CPUG | CLK_ENB_CPULP);
 }
 
-
-
 /* Function unit configuration. */
-
 static void config_core_sight(void)
 {
 	// Enable the CoreSight clock.
@@ -463,10 +421,7 @@ static void config_mselect(void)
 	write32(clk_rst_rst_dev_v_clr_ptr, SWR_MSELECT_RST);
 }
 
-
-
 /* Resets. */
-
 static void clear_cpu_resets(void)
 {
 	// Take the non-cpu of the G and LP clusters out of reset.
@@ -485,10 +440,7 @@ static void clear_cpu_resets(void)
 		CLR_CPURESET3 | CLR_DBGRESET3 | CLR_CORERESET3 | CLR_CXRESET3);
 }
 
-
-
 /* RAM repair */
-
 void ram_repair(void)
 {
 	// Request Cluster0 RAM repair.
@@ -504,10 +456,8 @@ void ram_repair(void)
 		;
 }
 
-
 /* Power. */
-
-static void power_on_partition(unsigned id)
+static void power_on_partition(unsigned int id)
 {
 	uint32_t bit = 0x1 << id;
 	if (!(read32(pmc_ctlr_pwrgate_status_ptr) & bit)) {
@@ -558,10 +508,7 @@ static void power_on_main_cpu(void)
 	write32(pmc_ctlr_cpupwrgood_timer_ptr, orig_timer);
 }
 
-
-
 /* Entry point. */
-
 void lp0_resume(void)
 {
 	// If not on the AVP, reset.
@@ -622,10 +569,7 @@ void lp0_resume(void)
 		        FLOW_MODE_STOP | EVENT_JTAG);
 }
 
-
-
 /* Header. */
-
 extern uint8_t blob_data;
 extern uint8_t blob_data_size;
 extern uint8_t blob_total_size;

@@ -1,17 +1,5 @@
-/*
- * elf header parsing.
- *
- * Copyright (C) 2013 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* elf header parsing */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -262,7 +250,8 @@ phdr_read(const struct buffer *in, struct parsed_elf *pelf,
 	 * per the ELF spec, You'd be surprised how many ELF
 	 * readers miss this little detail.
 	 */
-	buffer_splice(&b, in, ehdr->e_phoff, ehdr->e_phentsize * ehdr->e_phnum);
+	buffer_splice(&b, in, ehdr->e_phoff,
+		      (uint32_t)ehdr->e_phentsize * ehdr->e_phnum);
 	if (check_size(in, ehdr->e_phoff, buffer_size(&b), "program headers"))
 		return -1;
 
@@ -304,7 +293,8 @@ shdr_read(const struct buffer *in, struct parsed_elf *pelf,
 	 * per the ELF spec, You'd be surprised how many ELF
 	 * readers miss this little detail.
 	 */
-	buffer_splice(&b, in, ehdr->e_shoff, ehdr->e_shentsize * ehdr->e_shnum);
+	buffer_splice(&b, in, ehdr->e_shoff,
+		      (uint32_t)ehdr->e_shentsize * ehdr->e_shnum);
 	if (check_size(in, ehdr->e_shoff, buffer_size(&b), "section headers"))
 		return -1;
 
@@ -656,7 +646,7 @@ void elf_init_eheader(Elf64_Ehdr *ehdr, int machine, int nbits, int endian)
 	}
 }
 
-/* Arbitray maximum number of sections. */
+/* Arbitrary maximum number of sections. */
 #define MAX_SECTIONS 16
 struct elf_writer_section {
 	Elf64_Shdr shdr;
@@ -1180,8 +1170,8 @@ int elf_writer_serialize(struct elf_writer *ew, struct buffer *out)
 	ew->ehdr.e_shnum = ew->num_secs;
 	metadata_size = 0;
 	metadata_size += ew->ehdr.e_ehsize;
-	metadata_size += ew->ehdr.e_shnum * ew->ehdr.e_shentsize;
-	metadata_size += ew->ehdr.e_phnum * ew->ehdr.e_phentsize;
+	metadata_size += (Elf64_Xword)ew->ehdr.e_shnum * ew->ehdr.e_shentsize;
+	metadata_size += (Elf64_Xword)ew->ehdr.e_phnum * ew->ehdr.e_phentsize;
 	shstroffset = metadata_size;
 	/* Align up section header string size and metadata size to 4KiB */
 	metadata_size = ALIGN(metadata_size + shstrlen, 4096);
@@ -1200,11 +1190,11 @@ int elf_writer_serialize(struct elf_writer *ew, struct buffer *out)
 	 */
 	ew->ehdr.e_shoff = ew->ehdr.e_ehsize;
 	ew->ehdr.e_phoff = ew->ehdr.e_shoff +
-	                   ew->ehdr.e_shnum * ew->ehdr.e_shentsize;
+			   (Elf64_Off)ew->ehdr.e_shnum * ew->ehdr.e_shentsize;
 
 	buffer_splice(&metadata, out, 0, metadata_size);
 	buffer_splice(&phdrs, out, ew->ehdr.e_phoff,
-	              ew->ehdr.e_phnum * ew->ehdr.e_phentsize);
+		      (uint32_t)ew->ehdr.e_phnum * ew->ehdr.e_phentsize);
 	buffer_splice(&data, out, metadata_size, program_size);
 	/* Set up the section header string table contents. */
 	strtab = &ew->shstrtab_sec->content;

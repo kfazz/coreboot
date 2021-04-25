@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <device/pci_ops.h>
@@ -36,17 +23,12 @@ static inline void sir_write(struct device *dev, int idx, u32 value)
 
 static void sata_init(struct device *dev)
 {
-	config_t *config = dev->chip_info;
+	config_t *config = config_of(dev);
 	u32 reg32;
 	u16 reg16;
 	u8  reg8;
 
 	printk(BIOS_DEBUG, "SATA: Initializing...\n");
-
-	if (config == NULL) {
-		printk(BIOS_ERR, "SATA: ERROR: Device not in devicetree.cb!\n");
-		return;
-	}
 
 	if (!config->sata_ahci) {
 		/* Set legacy or native decoding mode */
@@ -146,26 +128,22 @@ static void sata_init(struct device *dev)
 
 	/* Enable clock for ports */
 	reg32 = pci_read_config32(dev, 0x94);
-	reg32 |= 0x3f << 24;
-	pci_write_config32(dev, 0x94, reg32);
-	reg32 &= (config->sata_port_map ^ 0x3) << 24;
+	reg32 &= ~(config->sata_port_map << 24);
 	pci_write_config32(dev, 0x94, reg32);
 
 	/* Lock SataGc register */
 	reg32 = (0x1 << 31) | (0x7 << 12);
-	pci_write_config32(dev, 0x98, reg32);
+	pci_write_config32(dev, 0x9c, reg32);
 }
 
 static void sata_enable(struct device *dev)
 {
-	config_t *config = dev->chip_info;
+	config_t *config = config_of(dev);
 	u8  reg8;
 	u16 reg16;
 	u32 reg32;
 
 	southcluster_enable_dev(dev);
-	if (!config)
-		return;
 
 	/* Port mapping -- mask off SPD + SMS + SC bits, then re-set */
 	reg16 = pci_read_config16(dev, 0x90);
@@ -220,7 +198,6 @@ static struct device_operations sata_ops = {
 	.enable_resources	= pci_dev_enable_resources,
 	.init			= sata_init,
 	.enable			= sata_enable,
-	.scan_bus		= NULL,
 	.ops_pci		= &soc_pci_ops,
 };
 

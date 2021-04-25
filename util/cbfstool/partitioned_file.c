@@ -1,17 +1,7 @@
-/*
- * partitioned_file.c, read and write binary file "partitions" described by FMAP
- *
- * Copyright (C) 2015 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* read and write binary file "partitions" described by FMAP */
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#define __BSD_VISIBLE 1
 
 #include "partitioned_file.h"
 
@@ -20,6 +10,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/file.h>
 
 struct partitioned_file {
 	struct fmap *fmap;
@@ -69,7 +60,7 @@ static partitioned_file_t *reopen_flat_file(const char *filename,
 	access_mode = write_access ?  "rb+" : "rb";
 	file->stream = fopen(filename, access_mode);
 
-	if (!file->stream) {
+	if (!file->stream || flock(fileno(file->stream), LOCK_EX)) {
 		perror(filename);
 		partitioned_file_close(file);
 		return NULL;
@@ -90,7 +81,7 @@ partitioned_file_t *partitioned_file_create_flat(const char *filename,
 	}
 
 	file->stream = fopen(filename, "wb");
-	if (!file->stream) {
+	if (!file->stream || flock(fileno(file->stream), LOCK_EX)) {
 		perror(filename);
 		free(file);
 		return NULL;
@@ -197,8 +188,10 @@ partitioned_file_t *partitioned_file_reopen(const char *filename,
 	const struct fmap_area *fmap_fmap_entry =
 				fmap_find_area(file->fmap, SECTION_NAME_FMAP);
 
-	if (!fmap_fmap_entry)
+	if (!fmap_fmap_entry) {
+		partitioned_file_close(file);
 		return NULL;
+	}
 
 	if ((long)fmap_fmap_entry->offset != fmap_region_offset) {
 		ERROR("FMAP's '%s' section doesn't point back to FMAP start (did something corrupt this file?)\n",
@@ -278,6 +271,7 @@ void partitioned_file_close(partitioned_file_t *file)
 	file->fmap = NULL;
 	buffer_delete(&file->buffer);
 	if (file->stream) {
+		flock(fileno(file->stream), LOCK_UN);
 		fclose(file->stream);
 		file->stream = NULL;
 	}

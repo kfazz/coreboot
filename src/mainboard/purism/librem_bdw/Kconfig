@@ -2,12 +2,13 @@ config BOARD_PURISM_BASEBOARD_LIBREM_BDW
 	def_bool n
 	select SYSTEM_TYPE_LAPTOP
 	select BOARD_ROMSIZE_KB_8192
-	select EC_PURISM_LIBREM
 	select HAVE_ACPI_RESUME
 	select HAVE_ACPI_TABLES
+	select INTEL_GMA_HAVE_VBT
 	select INTEL_INT15
+	select MAINBOARD_HAS_LIBGFXINIT
+	select MAINBOARD_HAS_TPM1
 	select SOC_INTEL_BROADWELL
-	select NO_POST # This platform does not have any way to see POST codes
 
 if BOARD_PURISM_BASEBOARD_LIBREM_BDW
 
@@ -16,14 +17,9 @@ config VARIANT_DIR
 	default "librem13v1" if BOARD_PURISM_LIBREM13_V1
 	default "librem15v2" if BOARD_PURISM_LIBREM15_V2
 
-config DEVICETREE
+config OVERRIDE_DEVICETREE
 	string
-	default "variants/$(CONFIG_VARIANT_DIR)/devicetree.cb"
-
-config DRIVERS_PS2_KEYBOARD
-	def_bool y
-	help
-	  Default PS/2 Keyboard to enabled on this board.
+	default "variants/\$(CONFIG_VARIANT_DIR)/overridetree.cb"
 
 config DRIVERS_UART_8250IO
 	def_bool n
@@ -39,11 +35,7 @@ config PCIEXP_AER
 
 config MAINBOARD_DIR
 	string
-	default purism/librem_bdw
-
-config MAINBOARD_VENDOR
-	string
-	default "Purism"
+	default "purism/librem_bdw"
 
 config MAINBOARD_PART_NUMBER
 	string
@@ -60,11 +52,7 @@ config MAINBOARD_VERSION
 	default "1.0" if BOARD_PURISM_LIBREM13_V1
 	default "2.0" if BOARD_PURISM_LIBREM15_V2
 
-config MAX_CPUS
-	int
-	default 8
-
-config PRE_GRAPHICS_DELAY
+config PRE_GRAPHICS_DELAY_MS
 	int
 	default 50
 
@@ -73,5 +61,13 @@ config VGA_BIOS_ID
 	default "8086,1616" if BOARD_PURISM_LIBREM13_V1
 	default "8086,162b" if BOARD_PURISM_LIBREM15_V2
 
+# Override the default variant behavior, since the data.vbt is the same
+# for both variants.
+config INTEL_GMA_VBT_FILE
+	default "src/mainboard/\$(MAINBOARDDIR)/data.vbt"
+
+# This platform has limited means to display POST codes
+config NO_POST
+	default y
 
 endif

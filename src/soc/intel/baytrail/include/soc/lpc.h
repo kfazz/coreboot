@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _BAYTRAIL_LPC_H_
 #define _BAYTRAIL_LPC_H_
@@ -28,7 +15,6 @@
 #define PUBASE		0x5c
 #define UART_CONT	0x80
 #define RCBA		0xf0
-
 
 #define RID_A_STEPPING_START 1
 #define RID_B_STEPPING_START 5

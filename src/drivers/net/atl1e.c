@@ -1,20 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007 Atheros Corporation. All rights reserved.
- * Copyright (C) 2012 Google Inc.
- * Copyright (C) 2016 Damien Zammit <damien@zamaudio.com>
- * Copyright (C) 2018 Arthur Heymans <arthur@aheymans.xyz>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /*
  * This driver sets the macaddress of a Atheros AR8121/AR8113/AR8114
@@ -26,6 +10,7 @@
 #include <console/console.h>
 #include <device/pci.h>
 #include <device/pci_ops.h>
+#include <types.h>
 
 #define REG_SPI_FLASH_CTRL		0x200
 #define SPI_FLASH_CTRL_EN_VPD		0x2000
@@ -56,18 +41,11 @@ static u8 get_hex_digit(const u8 c)
 
 static enum cb_err fetch_mac_string_cbfs(u8 *macstrbuf)
 {
-	struct cbfsf fh;
-	uint32_t matchraw = CBFS_TYPE_RAW;
-
-	if (!cbfs_boot_locate(&fh, "atl1e-macaddress", &matchraw)) {
-		/* check the cbfs for the mac address */
-		if (rdev_readat(&fh.data, macstrbuf, 0, MACLEN) != MACLEN) {
-			printk(BIOS_ERR, "atl1e: Error reading MAC from CBFS\n");
-			return CB_ERR;
-		}
-		return CB_SUCCESS;
+	if (!cbfs_load("atl1e-macaddress", macstrbuf, MACLEN)) {
+		printk(BIOS_ERR, "atl1e: Error reading MAC from CBFS\n");
+		return CB_ERR;
 	}
-	return CB_ERR;
+	return CB_SUCCESS;
 }
 
 static void get_mac_address(u8 *macaddr, const u8 *strbuf)
@@ -166,7 +144,6 @@ static struct device_operations atl1e_ops  = {
 	.set_resources    = pci_dev_set_resources,
 	.enable_resources = pci_dev_enable_resources,
 	.init             = atl1e_init,
-	.scan_bus         = 0,
 };
 
 static const struct pci_driver atl1e_driver __pci_driver = {

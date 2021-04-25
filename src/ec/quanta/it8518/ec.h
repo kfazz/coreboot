@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /*
  * EC communication interface for QUANTA IT8518 Embedded Controller.
@@ -70,7 +57,6 @@ void ec_kbc_write_ib(u8 data);
 #define EC_STATUS_REG               0xEC
 #define EC_IF_MAJ_VER               0xEF
 #define EC_MBAT_STATUS              0x0138
-
 
 // EC 0.83b added status bits:
 //  BIT0=EC in RO mode

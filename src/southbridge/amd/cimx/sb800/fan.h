@@ -1,25 +1,12 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Sage Electronic Engineering, LLC
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _SB800_FAN_H_
 #define _SB800_FAN_H_
 
-#ifndef __PRE_RAM__
+#include <device/device.h>
+
 void init_sb800_IMC_fans(struct device *dev);
 void init_sb800_MANUAL_fans(struct device *dev);
-#endif
 
 /* Fan Register Definitions */
 #define FAN_0_OFFSET				0x00
@@ -82,7 +69,6 @@ void init_sb800_MANUAL_fans(struct device *dev);
 #define FREQ_22HZ			0xFD
 #define FREQ_14HZ			0xFE
 #define FREQ_11HZ			0xFF
-
 
 /* IMC Fan Control Definitions */
 #define IMC_MODE1_FAN_ENABLED					( 1 << 0 )

@@ -1,42 +1,29 @@
-#
-# This file is part of the coreboot project.
-#
-# Copyright (C) 2012 Advanced Micro Devices, Inc.
-# Copyright (C) 2015 Kyösti Mälkki <kyosti.malkki@gmail.com>
-# Copyright (C) 2016 Eltan B.V.
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
+# SPDX-License-Identifier: GPL-2.0-only
 
 if BOARD_PCENGINES_APU2 || BOARD_PCENGINES_APU3 || BOARD_PCENGINES_APU4 || \
 	BOARD_PCENGINES_APU5
 
 config BOARD_SPECIFIC_OPTIONS
 	def_bool y
-	select BINARYPI_LEGACY_WRAPPER
 	select CPU_AMD_PI_00730F01
 	select NORTHBRIDGE_AMD_PI_00730F01
 	select SOUTHBRIDGE_AMD_PI_AVALON
+	select DEFAULT_POST_ON_LPC
 	select SUPERIO_NUVOTON_NCT5104D
 	select HAVE_PIRQ_TABLE
-	select HAVE_MP_TABLE
 	select HAVE_ACPI_TABLES
 	select BOARD_ROMSIZE_KB_8192
-	select USE_BLOBS
-	select GENERIC_SPD_BIN
+	select HAVE_SPD_IN_CBFS
 	select MAINBOARD_HAS_LPC_TPM
 	select SEABIOS_ADD_SERCON_PORT_FILE if PAYLOAD_SEABIOS
+	select PCIEXP_ASPM
+	select PCIEXP_CLK_PM
+	select PCIEXP_COMMON_CLOCK
+	select PCIEXP_L1_SUB_STATE
 
 config MAINBOARD_DIR
 	string
-	default pcengines/apu2
+	default "pcengines/apu2"
 
 config VARIANT_DIR
 	string
@@ -47,7 +34,7 @@ config VARIANT_DIR
 
 config DEVICETREE
 	string
-	default "variants/$(CONFIG_VARIANT_DIR)/devicetree.cb"
+	default "variants/\$(CONFIG_VARIANT_DIR)/devicetree.cb"
 
 config MAINBOARD_PART_NUMBER
 	string
@@ -113,5 +100,15 @@ endchoice
 config DIMM_SPD_SIZE
 	int
 	default 128
+
+config AGESA_USE_1_0_0_4_HEADER
+	bool
+	default y
+	help
+	  Due to a bug in AGESA 1.0.0.A affecting boards without UMA, it is
+	  impossible to use the newest blob. Using an older 1.0.0.4 blob
+	  workarounds the problem, however some headers changes between blob
+	  revisions. This option removes the changes in headers introduced
+	  with AGESA 1.0.0.A to fit the 1.0.0.4 revision.
 
 endif # BOARD_PCENGINES_APU2

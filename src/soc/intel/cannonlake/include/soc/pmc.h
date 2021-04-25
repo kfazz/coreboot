@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2017-2018 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _SOC_CANNONLAKE_PMC_H_
 #define _SOC_CANNONLAKE_PMC_H_
@@ -112,23 +98,31 @@
 #define   PCH2CPU_TT_EN			(1 << 26)
 
 #define PCH_PWRM_ACPI_TMR_CTL		0x18FC
+#define  ACPI_TIM_DIS			(1 << 1)
 #define GPIO_GPE_CFG			0x1920
 #define  GPE0_DWX_MASK			0xf
 #define  GPE0_DW_SHIFT(x)		(4*(x))
 
+#define SLP_S0_RES			0x193c
+
 #if CONFIG(SOC_INTEL_CANNONLAKE_PCH_H)
+/*
+ * The values for GPIO_CFG in Intel Document #572235 are incorrect.
+ * These values now match what is used by the Intel CoffeeLake FSP,
+ * please do not modify them.
+ */
 #define PMC_GPP_A			0x0
 #define PMC_GPP_B			0x1
 #define PMC_GPP_C			0x2
 #define PMC_GPP_D			0x3
-#define PMC_GPP_E			0x7
-#define PMC_GPP_F			0x8
+#define PMC_GPP_E			0xA
+#define PMC_GPP_F			0xB
 #define PMC_GPP_G			0x4
-#define PMC_GPP_H			0x6
-#define PMC_GPP_I			0x9
-#define PMC_GPP_J			0xA
-#define PMC_GPP_K			0x5
-#define PMC_GPD				0xC
+#define PMC_GPP_H			0x9
+#define PMC_GPP_I			0xC
+#define PMC_GPP_J			0xD
+#define PMC_GPP_K			0x8
+#define PMC_GPD				0x7
 #else
 #define  PMC_GPP_A			0x0
 #define  PMC_GPP_B			0x1
@@ -151,6 +145,9 @@
 #define CPPMVRIC			0x1B1C
 #define   XTALSDQDIS			(1 << 22)
 
+#define CPPMVRIC2			0x1B4C
+#define   ADSPOSCDIS			(1 << 22)
+
 #define IRQ_REG				ACTL
 #define SCI_IRQ_ADJUST			0
 #define ACTL				0x1BD8
@@ -166,7 +163,6 @@
 #define  SCIS_IRQ22			6
 #define  SCIS_IRQ23			7
 
-struct device;
-void pmc_set_afterg3(struct device *dev, int s5pwr);
+void pmc_set_afterg3(int s5pwr);
 
 #endif

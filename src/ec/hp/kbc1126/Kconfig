@@ -1,24 +1,21 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2017 Iru Cai
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+## SPDX-License-Identifier: GPL-2.0-only
 
 config EC_HP_KBC1126
 	bool
 	help
 	  Interface to SMSC KBC1126 embedded controller in HP laptops.
 
-if EC_HP_KBC1126
+config EC_HP_KBC1126_GPE
+	hex
+	depends on EC_HP_KBC1126
+	default 0x16
+
+config EC_HP_KBC1126_ECFW_IN_CBFS
+	bool
+	depends on EC_HP_KBC1126
+	default y
+
+if EC_HP_KBC1126_ECFW_IN_CBFS
 
 comment "Please select the following otherwise your laptop cannot be powered on."
 
@@ -40,9 +37,9 @@ config KBC1126_FW1
 	  vendor firmware.
 
 config KBC1126_FW1_OFFSET
-	string
+	string "Offset of KBC1126 firmware #1"
 	depends on KBC1126_FIRMWARE
-	default "0xffff8000"
+	default "0xfffe8000"
 
 config KBC1126_FW2
 	string "KBC1126 filename #2 path and filename"
@@ -54,8 +51,8 @@ config KBC1126_FW2
 	  vendor firmware.
 
 config KBC1126_FW2_OFFSET
-	string
+	string "Offset of KBC1126 firmware #2"
 	depends on KBC1126_FIRMWARE
-	default "0xfffe0000"
+	default "0xfffd0000"
 
 endif

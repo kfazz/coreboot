@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 // Intel LPC Bus Device  - 0:1f.0
 
@@ -57,14 +43,9 @@ Device (LPCB)
 		GR13,	 2,
 		GR14,	 2,
 		GR15,	 2,
-
-		Offset (0xf0),	// RCBA
-		RCEN,	1,
-		,	13,
-		RCBA,	18,
 	}
 
-	#include "irqlinks.asl"
+	#include <southbridge/intel/common/acpi/irqlinks.asl>
 
 	#include "acpi/ec.asl"
 
@@ -97,22 +78,12 @@ Device (LPCB)
 
 		Name(BUF0, ResourceTemplate()
 		{
-			Memory32Fixed(ReadOnly, 0xfed00000, 0x400, FED0)
+			Memory32Fixed(ReadOnly, CONFIG_HPET_ADDRESS, 0x400, FED0)
 		})
 
 		Method (_STA, 0)	// Device Status
 		{
-			If (HPTE) {
-				// Note: Ancient versions of Windows don't want
-				// to see the HPET in order to work right
-				If (LGreaterEqual(OSYS, 2001)) {
-					Return (0xf)	// Enable and show device
-				} Else {
-					Return (0xb)	// Enable and don't show device
-				}
-			}
-
-			Return (0x0)	// Not enabled, don't show.
+			Return (\HPTS(HPTE))
 		}
 
 		Method (_CRS, 0, Serialized) // Current resources
@@ -120,15 +91,15 @@ Device (LPCB)
 			If (HPTE) {
 				CreateDWordField(BUF0, \_SB.PCI0.LPCB.HPET.FED0._BAS, HPT0)
 				If (Lequal(HPAS, 1)) {
-					Store(0xfed01000, HPT0)
+					Add(CONFIG_HPET_ADDRESS, 0x1000, HPT0)
 				}
 
 				If (Lequal(HPAS, 2)) {
-					Store(0xfed02000, HPT0)
+					Add(CONFIG_HPET_ADDRESS, 0x2000, HPT0)
 				}
 
 				If (Lequal(HPAS, 3)) {
-					Store(0xfed03000, HPT0)
+					Add(CONFIG_HPET_ADDRESS, 0x3000, HPT0)
 				}
 			}
 
@@ -187,7 +158,6 @@ Device (LPCB)
 			IO (Decode16, 0x80, 0x80, 0x1, 0x01)		// Port 80 Post
 			IO (Decode16, 0x92, 0x92, 0x1, 0x01)		// CPU Reserved
 			IO (Decode16, 0xb2, 0xb2, 0x1, 0x02)		// SWSMI
-			//IO (Decode16, 0x800, 0x800, 0x1, 0x10)		// ACPI I/O trap
 			IO (Decode16, DEFAULT_PMBASE, DEFAULT_PMBASE, 0x1, 0x80)	// ICH7-M ACPI
 			IO (Decode16, DEFAULT_GPIOBASE, DEFAULT_GPIOBASE, 0x1, 0x40)	// ICH7-M GPIO
 		})
@@ -199,8 +169,6 @@ Device (LPCB)
 		Name (_CRS, ResourceTemplate()
 		{
 			IO (Decode16, 0x70, 0x70, 1, 8)
-// Disable as Windows doesn't like it, and systems don't seem to use it.
-//			IRQNoFlags() { 8 }
 		})
 	}
 

@@ -1,21 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <amdblocks/acpimmio.h>
 #include <device/pci_def.h>
 #include <device/device.h>
 #include <console/console.h>
+#include <stddef.h>
 /* warning: Porting.h includes an open #pragma pack(1) */
 #include <Porting.h>
 #include <AGESA.h>
@@ -126,16 +115,9 @@ static int readspd (int iobase, int SmbusSlaveAddress, char *buffer, int count)
 	return 0;
 }
 
-static void writePmReg (int reg, int data)
-{
-	__outbyte (0xCD6, reg);
-	__outbyte (0xCD7, data);
-}
-
 static void setupFch (int ioBase)
 {
-	writePmReg (0x2D, ioBase >> 8);
-	writePmReg (0x2C, ioBase | 1);
+	pm_write16(0x2c, ioBase | 1);
 	__outbyte (ioBase + 0x0E, 66000000 / 400000 / 4); // set SMBus clock to 400 KHz
 }
 

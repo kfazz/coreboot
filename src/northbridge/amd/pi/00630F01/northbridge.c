@@ -1,44 +1,24 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <device/pci_ops.h>
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <stdint.h>
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
-#include <device/hypertransport.h>
-#include <stdlib.h>
 #include <string.h>
 #include <lib.h>
 #include <cpu/cpu.h>
 #include <Porting.h>
 #include <AGESA.h>
-#include <FieldAccessors.h>
 #include <Topology.h>
 #include <cpu/x86/lapic.h>
 #include <cpu/amd/msr.h>
 #include <cpu/amd/mtrr.h>
-#include <arch/acpigen.h>
-#include <northbridge/amd/pi/nb_common.h>
+#include <acpi/acpigen.h>
+#include <northbridge/amd/nb_common.h>
 #include <northbridge/amd/agesa/agesa_helper.h>
-#if CONFIG(BINARYPI_LEGACY_WRAPPER)
-#include <northbridge/amd/pi/agesawrapper.h>
-#include <northbridge/amd/pi/agesawrapper_call.h>
-#endif
 
 #define MAX_NODE_NUMS MAX_NODES
 
@@ -314,7 +294,7 @@ static void read_resources(struct device *dev)
 static void set_resource(struct device *dev, struct resource *resource, u32 nodeid)
 {
 	resource_t rbase, rend;
-	unsigned reg, link_num;
+	unsigned int reg, link_num;
 	char buf[50];
 
 	/* Make certain the resource has actually been set */
@@ -433,7 +413,7 @@ static unsigned long acpi_fill_hest(acpi_hest_t *hest)
 	return (unsigned long)current;
 }
 
-static void northbridge_fill_ssdt_generator(struct device *device)
+static void northbridge_fill_ssdt_generator(const struct device *device)
 {
 	msr_t msr;
 	char pscope[] = "\\_SB.PCI0";
@@ -454,7 +434,22 @@ static void northbridge_fill_ssdt_generator(struct device *device)
 	acpigen_pop_len();
 }
 
-static unsigned long agesa_write_acpi_tables(struct device *device,
+static void patch_ssdt_processor_scope(acpi_header_t *ssdt)
+{
+	unsigned int len = ssdt->length - sizeof(acpi_header_t);
+	unsigned int i;
+
+	for (i = sizeof(acpi_header_t); i < len; i++) {
+		/* Search for _PR_ scope and replace it with _SB_ */
+		if (*(uint32_t *)((unsigned long)ssdt + i) == 0x5f52505f)
+			*(uint32_t *)((unsigned long)ssdt + i) = 0x5f42535f;
+	}
+	/* Recalculate checksum */
+	ssdt->checksum = 0;
+	ssdt->checksum = acpi_checksum((void *)ssdt, ssdt->length);
+}
+
+static unsigned long agesa_write_acpi_tables(const struct device *device,
 					     unsigned long current,
 					     acpi_rsdp_t *rsdp)
 {
@@ -463,11 +458,9 @@ static unsigned long agesa_write_acpi_tables(struct device *device,
 	acpi_header_t *ssdt;
 	acpi_header_t *alib;
 	acpi_header_t *ivrs;
-	acpi_hest_t *hest;
 
 	/* HEST */
 	current = ALIGN(current, 8);
-	hest = (acpi_hest_t *)current;
 	acpi_write_hest((void *)current, acpi_fill_hest);
 	acpi_add_table(rsdp, (void *)current);
 	current += ((acpi_header_t *)current)->length;
@@ -530,6 +523,7 @@ static unsigned long agesa_write_acpi_tables(struct device *device,
 	printk(BIOS_DEBUG, "ACPI:    * SSDT at %lx\n", current);
 	ssdt = (acpi_header_t *)agesawrapper_getlateinitptr (PICK_PSTATE);
 	if (ssdt != NULL) {
+		patch_ssdt_processor_scope(ssdt);
 		memcpy((void *)current, ssdt, ssdt->length);
 		ssdt = (acpi_header_t *) current;
 		current += ssdt->length;
@@ -547,11 +541,8 @@ static struct device_operations northbridge_operations = {
 	.read_resources	  = read_resources,
 	.set_resources	  = set_resources,
 	.enable_resources = pci_dev_enable_resources,
-	.init		  = DEVICE_NOOP,
-	.acpi_fill_ssdt_generator = northbridge_fill_ssdt_generator,
+	.acpi_fill_ssdt   = northbridge_fill_ssdt_generator,
 	.write_acpi_tables = agesa_write_acpi_tables,
-	.enable		  = 0,
-	.ops_pci	  = 0,
 };
 
 static const struct pci_driver family15_northbridge __pci_driver = {
@@ -611,16 +602,6 @@ static void domain_read_resources(struct device *dev)
 
 static void domain_enable_resources(struct device *dev)
 {
-#if CONFIG(BINARYPI_LEGACY_WRAPPER)
-	/* Must be called after PCI enumeration and resource allocation */
-	if (!acpi_is_wakeup_s3()) {
-		/* Enable MMIO on AMD CPU Address Map Controller */
-		amd_initcpuio();
-
-		agesawrapper_amdinitmid();
-	}
-	printk(BIOS_DEBUG, "  ader - leaving %s.\n", __func__);
-#endif
 }
 
 #if CONFIG_HW_MEM_HOLE_SIZEK != 0
@@ -660,7 +641,7 @@ static struct hw_mem_hole_info get_hw_mem_hole_info(void)
 			base_k = ((resource_t)(d.base & 0x1fffff00)) <<9;
 			if (base_k > 4 *1024 * 1024) break; // don't need to go to check
 			if (limitk_pri != base_k) { // we find the hole
-				mem_hole.hole_startk = (unsigned)limitk_pri; // must be below 4G
+				mem_hole.hole_startk = (unsigned int)limitk_pri; // must be below 4G
 				mem_hole.node_id = i;
 				break; //only one hole
 			}
@@ -680,7 +661,6 @@ static void domain_set_resources(struct device *dev)
 	struct bus *link;
 #if CONFIG_HW_MEM_HOLE_SIZEK != 0
 	struct hw_mem_hole_info mem_hole;
-	u32 reset_memhole = 1;
 #endif
 
 	pci_tolm = 0xffffffffUL;
@@ -711,7 +691,6 @@ static void domain_set_resources(struct device *dev)
 	// Use hole_basek as mmio_basek, and we don't need to reset hole anymore
 	if ((mem_hole.node_id !=  -1) && (mmio_basek > mem_hole.hole_startk)) {
 		mmio_basek = mem_hole.hole_startk;
-		reset_memhole = 0;
 	}
 #endif
 
@@ -780,7 +759,6 @@ static struct device_operations pci_domain_ops = {
 	.read_resources	  = domain_read_resources,
 	.set_resources	  = domain_set_resources,
 	.enable_resources = domain_enable_resources,
-	.init		  = NULL,
 	.scan_bus	  = pci_domain_scan_bus,
 };
 
@@ -788,42 +766,6 @@ static void sysconf_init(struct device *dev) // first node
 {
 	sblink = (pci_read_config32(dev, 0x64)>>8) & 7; // don't forget sublink1
 	node_nums = ((pci_read_config32(dev, 0x60)>>4) & 7) + 1; //NodeCnt[2:0]
-}
-
-static void add_more_links(struct device *dev, unsigned total_links)
-{
-	struct bus *link, *last = NULL;
-	int link_num;
-
-	for (link = dev->link_list; link; link = link->next)
-		last = link;
-
-	if (last) {
-		int links = total_links - last->link_num;
-		link_num = last->link_num;
-		if (links > 0) {
-			link = malloc(links*sizeof(*link));
-			if (!link)
-				die("Couldn't allocate more links!\n");
-			memset(link, 0, links*sizeof(*link));
-			last->next = link;
-		}
-	}
-	else {
-		link_num = -1;
-		link = malloc(total_links*sizeof(*link));
-		memset(link, 0, total_links*sizeof(*link));
-		dev->link_list = link;
-	}
-
-	for (link_num = link_num + 1; link_num < total_links; link_num++) {
-		link->link_num = link_num;
-		link->dev = dev;
-		link->next = link + 1;
-		last = link;
-		link = link->next;
-	}
-	last->next = NULL;
 }
 
 static void cpu_bus_scan(struct device *dev)
@@ -838,21 +780,12 @@ static void cpu_bus_scan(struct device *dev)
 	int siblings = 0;
 	unsigned int family;
 	u32 modules = 0;
-	VOID* modules_ptr = &modules;
-	BUILD_OPT_CFG* options = NULL;
 	int ioapic_count = 0;
 
-	// TODO Remove the printk's.
-	printk(BIOS_SPEW, "KaveriPI Debug: Grabbing the AMD Topology Information.\n");
-	AmdGetValue(AMD_GLOBAL_USER_OPTIONS, (VOID**)&options, sizeof(options));
-	AmdGetValue(AMD_GLOBAL_NUM_MODULES, &modules_ptr, sizeof(modules));
-	modules = *(u32*)modules_ptr;
-	ASSERT(modules > 0);
-	ASSERT(options);
-	ioapic_count = (int)options->CfgPlatNumIoApics;
-	ASSERT(ioapic_count > 0);
-	printk(BIOS_SPEW, "KaveriPI Debug: AMD Topology Number of Modules (@0x%p) is %d\n", modules_ptr, modules);
-	printk(BIOS_SPEW, "KaveriPI Debug: AMD Topology Number of IOAPICs (@0x%p) is %d\n", options, (int)(options->CfgPlatNumIoApics));
+	/* For binaryPI there is no multiprocessor configuration, the number of
+	 * modules will always be 1. */
+	modules = 1;
+	ioapic_count = CONFIG_NUM_OF_IOAPICS;
 
 	dev_mc = pcidev_on_root(DEV_CDB, 0);
 	if (!dev_mc) {
@@ -925,12 +858,12 @@ static void cpu_bus_scan(struct device *dev)
 			u32 lapicid_start = 0;
 
 			/*
-			 * APIC ID calucation is tightly coupled with AGESA v5 code.
+			 * APIC ID calculation is tightly coupled with AGESA v5 code.
 			 * This calculation MUST match the assignment calculation done
 			 * in LocalApicInitializationAtEarly() function.
 			 * And reference GetLocalApicIdForCore()
 			 *
-			 * Apply apic enumeration rules
+			 * Apply APIC enumeration rules
 			 * For systems with >= 16 APICs, put the IO-APICs at 0..n and
 			 * put the local-APICs at m..z
 			 *
@@ -959,9 +892,8 @@ static void cpu_bus_init(struct device *dev)
 }
 
 static struct device_operations cpu_bus_ops = {
-	.read_resources	  = DEVICE_NOOP,
-	.set_resources	  = DEVICE_NOOP,
-	.enable_resources = DEVICE_NOOP,
+	.read_resources	  = noop_read_resources,
+	.set_resources	  = noop_set_resources,
 	.init		  = cpu_bus_init,
 	.scan_bus	  = cpu_bus_scan,
 };

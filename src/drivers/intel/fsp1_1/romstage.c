@@ -1,30 +1,12 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2015-2016 Intel Corporation.
- * Copyright (C) 2018 Eltan B.V.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <stddef.h>
-#include <arch/acpi.h>
-#include <arch/cbfs.h>
-#include <arch/early_variables.h>
+#include <acpi/acpi.h>
 #include <assert.h>
 #include <console/console.h>
 #include <cbmem.h>
 #include <cf9_reset.h>
 #include <cpu/intel/microcode.h>
-#include <cpu/x86/mtrr.h>
 #include <ec/google/chromeec/ec.h>
 #include <ec/google/chromeec/ec_commands.h>
 #include <elog.h>
@@ -38,12 +20,84 @@
 #include <timestamp.h>
 #include <vendorcode/google/chromeos/chromeos.h>
 
-asmlinkage void *romstage_main(FSP_INFO_HEADER *fih)
+static void raminit_common(struct romstage_params *params)
 {
-	void *top_of_stack;
-	struct pei_data pei_data;
+	bool s3wake;
+	size_t mrc_size;
+
+	post_code(0x32);
+
+	timestamp_add_now(TS_BEFORE_INITRAM);
+
+	s3wake = params->power_state->prev_sleep_state == ACPI_S3;
+
+	elog_boot_notify(s3wake);
+
+	/* Perform remaining SOC initialization */
+	soc_pre_ram_init(params);
+	post_code(0x33);
+
+	/* Check recovery and MRC cache */
+	params->saved_data_size = 0;
+	params->saved_data = NULL;
+	if (!params->disable_saved_data) {
+		/* Assume boot device is memory mapped. */
+		assert(CONFIG(BOOT_DEVICE_MEMORY_MAPPED));
+
+		params->saved_data = NULL;
+		if (CONFIG(CACHE_MRC_SETTINGS))
+			params->saved_data =
+				mrc_cache_current_mmap_leak(MRC_TRAINING_DATA,
+							    params->fsp_version,
+							    &mrc_size);
+		if (params->saved_data) {
+			/* MRC cache found */
+			params->saved_data_size = mrc_size;
+
+		} else if (s3wake) {
+			/* Waking from S3 and no cache. */
+			printk(BIOS_DEBUG,
+			       "No MRC cache "
+			       "found in S3 resume path.\n");
+			post_code(POST_RESUME_FAILURE);
+			/* FIXME: A "system" reset is likely enough: */
+			full_reset();
+		} else {
+			printk(BIOS_DEBUG, "No MRC cache found.\n");
+		}
+	}
+
+	/* Initialize RAM */
+	raminit(params);
+	timestamp_add_now(TS_AFTER_INITRAM);
+
+	/* Save MRC output */
+	if (CONFIG(CACHE_MRC_SETTINGS)) {
+		printk(BIOS_DEBUG, "MRC data at %p %zu bytes\n",
+			params->data_to_save, params->data_to_save_size);
+		if (!s3wake
+			&& (params->data_to_save_size != 0)
+			&& (params->data_to_save != NULL))
+			mrc_cache_stash_data(MRC_TRAINING_DATA,
+				params->fsp_version,
+				params->data_to_save,
+				params->data_to_save_size);
+	}
+
+	/* Save DIMM information */
+	if (!s3wake)
+		mainboard_save_dimm_info(params);
+
+	/* Create romstage handof information */
+	if (romstage_handoff_init(
+			params->power_state->prev_sleep_state == ACPI_S3) < 0)
+		/* FIXME: A "system" reset is likely enough: */
+		full_reset();
+}
+
+void cache_as_ram_stage_main(FSP_INFO_HEADER *fih)
+{
 	struct romstage_params params = {
-		.pei_data = &pei_data,
 		.chipset_context = fih,
 	};
 
@@ -54,8 +108,6 @@ asmlinkage void *romstage_main(FSP_INFO_HEADER *fih)
 	/* Load microcode before RAM init */
 	if (CONFIG(SUPPORT_CPU_UCODE_IN_CBFS))
 		intel_update_microcode_from_cbfs();
-
-	memset(&pei_data, 0, sizeof(pei_data));
 
 	/* Display parameters */
 	if (!CONFIG(NO_MMCONF_SUPPORT))
@@ -72,108 +124,16 @@ asmlinkage void *romstage_main(FSP_INFO_HEADER *fih)
 	/* Get power state */
 	params.power_state = fill_power_state();
 
-	/* Call into mainboard. */
-	mainboard_romstage_entry(&params);
+	/* Board initialization before and after RAM is enabled */
+	mainboard_pre_raminit(&params);
+
+	post_code(0x31);
+
+	/* Initialize memory */
+	raminit_common(&params);
+
 	soc_after_ram_init(&params);
 	post_code(0x38);
-
-	top_of_stack = setup_stack_and_mtrrs();
-
-	printk(BIOS_DEBUG, "Calling FspTempRamExit API\n");
-	timestamp_add_now(TS_FSP_TEMP_RAM_EXIT_START);
-	return top_of_stack;
-}
-
-void *cache_as_ram_stage_main(FSP_INFO_HEADER *fih)
-{
-	return romstage_main(fih);
-}
-
-/* Entry from the mainboard. */
-void romstage_common(struct romstage_params *params)
-{
-	bool s3wake;
-	struct region_device rdev;
-	struct pei_data *pei_data;
-
-	post_code(0x32);
-
-	timestamp_add_now(TS_BEFORE_INITRAM);
-
-	pei_data = params->pei_data;
-	pei_data->boot_mode = params->power_state->prev_sleep_state;
-	s3wake = params->power_state->prev_sleep_state == ACPI_S3;
-
-	if (CONFIG(ELOG_BOOT_COUNT) && !s3wake)
-		boot_count_increment();
-
-	/* Perform remaining SOC initialization */
-	soc_pre_ram_init(params);
-	post_code(0x33);
-
-	/* Check recovery and MRC cache */
-	params->pei_data->saved_data_size = 0;
-	params->pei_data->saved_data = NULL;
-	if (!params->pei_data->disable_saved_data) {
-		if (vboot_recovery_mode_enabled()) {
-			/* Recovery mode does not use MRC cache */
-			printk(BIOS_DEBUG,
-			       "Recovery mode: not using MRC cache.\n");
-		} else if (CONFIG(CACHE_MRC_SETTINGS)
-			&& (!mrc_cache_get_current(MRC_TRAINING_DATA,
-							params->fsp_version,
-							&rdev))) {
-			/* MRC cache found */
-			params->pei_data->saved_data_size =
-				region_device_sz(&rdev);
-			params->pei_data->saved_data = rdev_mmap_full(&rdev);
-			/* Assume boot device is memory mapped. */
-			assert(CONFIG(BOOT_DEVICE_MEMORY_MAPPED));
-		} else if (params->pei_data->boot_mode == ACPI_S3) {
-			/* Waking from S3 and no cache. */
-			printk(BIOS_DEBUG,
-			       "No MRC cache found in S3 resume path.\n");
-			post_code(POST_RESUME_FAILURE);
-			/* FIXME: A "system" reset is likely enough: */
-			full_reset();
-		} else {
-			printk(BIOS_DEBUG, "No MRC cache found.\n");
-		}
-	}
-
-	/* Initialize RAM */
-	raminit(params);
-	timestamp_add_now(TS_AFTER_INITRAM);
-
-	/* Save MRC output */
-	if (CONFIG(CACHE_MRC_SETTINGS)) {
-		printk(BIOS_DEBUG, "MRC data at %p %d bytes\n",
-			pei_data->data_to_save, pei_data->data_to_save_size);
-		if ((params->pei_data->boot_mode != ACPI_S3)
-			&& (params->pei_data->data_to_save_size != 0)
-			&& (params->pei_data->data_to_save != NULL))
-			mrc_cache_stash_data(MRC_TRAINING_DATA,
-				params->fsp_version,
-				params->pei_data->data_to_save,
-				params->pei_data->data_to_save_size);
-	}
-
-	/* Save DIMM information */
-	if (!s3wake)
-		mainboard_save_dimm_info(params);
-
-	/* Create romstage handof information */
-	if (romstage_handoff_init(
-			params->power_state->prev_sleep_state == ACPI_S3) < 0)
-		/* FIXME: A "system" reset is likely enough: */
-		full_reset();
-}
-
-void after_cache_as_ram_stage(void)
-{
-	/* Load the ramstage. */
-	run_ramstage();
-	die("ERROR - Failed to load ramstage!");
 }
 
 /* Initialize the power state */
@@ -183,13 +143,8 @@ __weak struct chipset_power_state *fill_power_state(void)
 }
 
 /* Board initialization before and after RAM is enabled */
-__weak void mainboard_romstage_entry(
-	struct romstage_params *params)
+__weak void mainboard_pre_raminit(struct romstage_params *params)
 {
-	post_code(0x31);
-
-	/* Initialize memory */
-	romstage_common(params);
 }
 
 /* Save the DIMM information for SMBIOS table 17 */
@@ -253,7 +208,7 @@ __weak void mainboard_save_dimm_info(
 	 * table 17
 	 */
 	mem_info = cbmem_add(CBMEM_ID_MEMINFO, sizeof(*mem_info));
-	printk(BIOS_DEBUG, "CBMEM entry for DIMM info: 0x%p\n", mem_info);
+	printk(BIOS_DEBUG, "CBMEM entry for DIMM info: %p\n", mem_info);
 	if (mem_info == NULL)
 		return;
 	memset(mem_info, 0, sizeof(*mem_info));
@@ -329,37 +284,11 @@ __weak void mainboard_add_dimm_info(
 {
 }
 
-/* Get the memory configuration data */
-__weak int mrc_cache_get_current(int type, uint32_t version,
-				struct region_device *rdev)
-{
-	return -1;
-}
-
 /* Save the memory configuration data */
 __weak int mrc_cache_stash_data(int type, uint32_t version,
 					const void *data, size_t size)
 {
 	return -1;
-}
-
-/* Transition RAM from off or self-refresh to active */
-__weak void raminit(struct romstage_params *params)
-{
-	post_code(POST_MEM_PREINIT_PREP_START);
-	die("ERROR - No RAM initialization specified!\n");
-}
-
-/* Display the memory configuration */
-__weak void report_memory_config(void)
-{
-}
-
-/* Choose top of stack and setup MTRRs */
-__weak void *setup_stack_and_mtrrs(void)
-{
-	die("ERROR - Must specify top of stack!\n");
-	return NULL;
 }
 
 /* SOC initialization after RAM is enabled */

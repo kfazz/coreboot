@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2012 secunet Security Networks AG
  * Copyright (C) 2013 Edward O'Callaghan <eocallaghan@alterapraxis.com>
@@ -37,7 +36,6 @@
 #include <storage/ahci.h>
 
 #include "ahci_private.h"
-
 
 ssize_t ahci_ata_read_sectors(ata_dev_t *const ata_dev,
 				     const lba_t start, size_t count,

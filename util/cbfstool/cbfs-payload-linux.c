@@ -1,17 +1,4 @@
-/*
- * cbfs-payload-linux
- *
- * Copyright (C) 2013 Patrick Georgi <patrick@georgi-clan.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,14 +34,14 @@ struct bzpayload {
 	struct buffer cmdline;
 	struct buffer initrd;
 	/* Output variables. */
-	enum comp_algo algo;
+	enum cbfs_compression algo;
 	comp_func_ptr compress;
 	struct buffer output;
 	size_t offset;
 	struct cbfs_payload_segment *out_seg;
 };
 
-static int bzp_init(struct bzpayload *bzp, enum comp_algo algo)
+static int bzp_init(struct bzpayload *bzp, enum cbfs_compression algo)
 {
 	memset(bzp, 0, sizeof(*bzp));
 
@@ -199,7 +186,7 @@ static void bzp_output_segment(struct bzpayload *bzp, struct buffer *b,
  */
 int parse_bzImage_to_payload(const struct buffer *input,
 			     struct buffer *output, const char *initrd_name,
-			     char *cmdline, enum comp_algo algo)
+			     char *cmdline, enum cbfs_compression algo)
 {
 	struct bzpayload bzp;
 	unsigned int initrd_base = 64*1024*1024;

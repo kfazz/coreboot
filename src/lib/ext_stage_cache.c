@@ -1,32 +1,12 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/early_variables.h>
-#include <bootstate.h>
 #include <cbmem.h>
 #include <console/console.h>
 #include <imd.h>
 #include <stage_cache.h>
 #include <string.h>
 
-static struct imd imd_stage_cache CAR_GLOBAL = { };
-
-static inline struct imd *imd_get(void)
-{
-	return car_get_var_ptr(&imd_stage_cache);
-}
+static struct imd imd_stage_cache;
 
 static void stage_cache_create_empty(void)
 {
@@ -34,7 +14,7 @@ static void stage_cache_create_empty(void)
 	void *base;
 	size_t size;
 
-	imd = imd_get();
+	imd = &imd_stage_cache;
 	stage_cache_external_region(&base, &size);
 	imd_handle_init(imd, (void *)(size + (uintptr_t)base));
 
@@ -50,7 +30,7 @@ static void stage_cache_recover(void)
 	void *base;
 	size_t size;
 
-	imd = imd_get();
+	imd = &imd_stage_cache;
 	stage_cache_external_region(&base, &size);
 	imd_handle_init(imd, (void *)(size + (uintptr_t)base));
 	if (imd_recover(imd))
@@ -64,7 +44,7 @@ void stage_cache_add(int stage_id, const struct prog *stage)
 	struct stage_cache *meta;
 	void *c;
 
-	imd = imd_get();
+	imd = &imd_stage_cache;
 	e = imd_entry_add(imd, CBMEM_ID_STAGEx_META + stage_id, sizeof(*meta));
 
 	if (e == NULL) {
@@ -99,7 +79,7 @@ void stage_cache_add_raw(int stage_id, const void *base, const size_t size)
 	const struct imd_entry *e;
 	void *c;
 
-	imd = imd_get();
+	imd = &imd_stage_cache;
 	e = imd_entry_add(imd, CBMEM_ID_STAGEx_RAW + stage_id, size);
 	if (e == NULL) {
 		printk(BIOS_DEBUG, "Error: Can't add %x raw data to imd\n",
@@ -122,7 +102,7 @@ void stage_cache_get_raw(int stage_id, void **base, size_t *size)
 	struct imd *imd;
 	const struct imd_entry *e;
 
-	imd = imd_get();
+	imd = &imd_stage_cache;
 	e = imd_entry_find(imd, CBMEM_ID_STAGEx_RAW + stage_id);
 	if (e == NULL) {
 		printk(BIOS_DEBUG, "Error: Can't find %x raw data to imd\n",
@@ -131,7 +111,7 @@ void stage_cache_get_raw(int stage_id, void **base, size_t *size)
 	}
 
 	*base = imd_entry_at(imd, e);
-	*size = imd_entry_size(imd, e);
+	*size = imd_entry_size(e);
 }
 
 void stage_cache_load_stage(int stage_id, struct prog *stage)
@@ -142,7 +122,7 @@ void stage_cache_load_stage(int stage_id, struct prog *stage)
 	void *c;
 	size_t size;
 
-	imd = imd_get();
+	imd = &imd_stage_cache;
 	e = imd_entry_find(imd, CBMEM_ID_STAGEx_META + stage_id);
 	if (e == NULL) {
 		printk(BIOS_DEBUG, "Error: Can't find %x metadata in imd\n",
@@ -161,7 +141,7 @@ void stage_cache_load_stage(int stage_id, struct prog *stage)
 	}
 
 	c = imd_entry_at(imd, e);
-	size = imd_entry_size(imd, e);
+	size = imd_entry_size(e);
 
 	memcpy((void *)(uintptr_t)meta->load_addr, c, size);
 

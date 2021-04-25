@@ -1,17 +1,4 @@
-/*
- * This file is part of the ectool project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <stdio.h>
 #include <stdint.h>
@@ -22,7 +9,6 @@
 #include <sys/io.h>
 #endif
 #include <ec.h>
-#include <stdlib.h>
 
 #if defined __NetBSD__ || defined __OpenBSD__
 
@@ -141,7 +127,7 @@ int main(int argc, char *argv[])
 
 	if (get_ports && get_ec_ports() != 0)
 		fprintf(stderr, "Cannot get EC ports from /proc/ioports, "
-				"fallback to default.");
+				"fallback to default.\n");
 
 	if (iopl(3)) {
 		printf("You need to be root.\n");

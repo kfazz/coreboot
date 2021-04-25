@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google, Inc.
- * Copyright (C) 2015 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <stdint.h>
 #include <device/pci_ops.h>
@@ -108,7 +94,7 @@ uint32_t iosf_scc_read(int reg)
 
 void iosf_scc_write(int reg, uint32_t val)
 {
-	return iosf_write_port(IOSF_WRITE(SCC), reg, val);
+	iosf_write_port(IOSF_WRITE(SCC), reg, val);
 }
 
 uint32_t iosf_usbphy_read(int reg)
@@ -118,7 +104,7 @@ uint32_t iosf_usbphy_read(int reg)
 
 void iosf_usbphy_write(int reg, uint32_t val)
 {
-	return iosf_write_port(IOSF_WRITE(USBPHY), reg, val);
+	iosf_write_port(IOSF_WRITE(USBPHY), reg, val);
 }
 
 #if ENV_RAMSTAGE

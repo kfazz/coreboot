@@ -1,29 +1,14 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- *               2012 secunet Security Networks AG
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
-
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/device.h>
 #include <device/pci.h>
 #include <console/console.h>
 #include <arch/io.h>
 #include <device/pci_ops.h>
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <cpu/x86/cache.h>
 #include <cpu/x86/smm.h>
+#include <cpu/x86/smi_deprecated.h>
 #include <string.h>
 #include <southbridge/intel/common/pmutil.h>
 #include "i82801ix.h"
@@ -44,7 +29,7 @@ static u16 pmbase = DEFAULT_PMBASE;
 extern uint8_t smm_relocation_start, smm_relocation_end;
 static void *default_smm_area = NULL;
 
-static void smm_relocate(void)
+static void aseg_smm_relocate(void)
 {
 	u32 smi_en;
 	u16 pm1_en;
@@ -84,15 +69,10 @@ static void smm_relocate(void)
 	 */
 
 	smi_en = 0; /* reset SMI enables */
-
 	smi_en |= TCO_EN;
 	smi_en |= APMC_EN;
-#if DEBUG_PERIODIC_SMIS
-	/* Set DEBUG_PERIODIC_SMIS in i82801ix.h to debug using
-	 * periodic SMIs.
-	 */
-	smi_en |= PERIODIC_EN;
-#endif
+	if (CONFIG(DEBUG_PERIODIC_SMI))
+		smi_en |= PERIODIC_EN;
 	smi_en |= BIOS_EN;
 
 	/* The following need to be on for SMIs to happen */
@@ -111,7 +91,7 @@ static void smm_relocate(void)
 	 *  - Writes to io 0xb2 (APMC)
 	 *  - Writes to the Local Apic ICR with Delivery mode SMI.
 	 *
-	 * Using the local apic is a bit more tricky. According to
+	 * Using the local APIC is a bit more tricky. According to
 	 * AMD Family 11 Processor BKDG no destination shorthand must be
 	 * used.
 	 * The whole SMM initialization is quite a bit hardware specific, so
@@ -120,12 +100,12 @@ static void smm_relocate(void)
 
 	/* raise an SMI interrupt */
 	printk(BIOS_SPEW, "  ... raise SMI#\n");
-	outb(0x00, 0xb2);
+	apm_control(APM_CNT_NOOP_SMI);
 }
 
 static int smm_handler_copied = 0;
 
-static void smm_install(void)
+static void aseg_smm_install(void)
 {
 	/* The first CPU running this gets to copy the SMM handler. But not all
 	 * of them.
@@ -133,7 +113,6 @@ static void smm_install(void)
 	if (smm_handler_copied)
 		return;
 	smm_handler_copied = 1;
-
 
 	/* if we're resuming from S3, the SMM code is already in place,
 	 * so don't copy it again to keep the current SMM state */
@@ -157,10 +136,10 @@ static void smm_install(void)
 void smm_init(void)
 {
 	/* Put SMM code to 0xa0000 */
-	smm_install();
+	aseg_smm_install();
 
 	/* Put relocation code to 0x38000 and relocate SMBASE */
-	smm_relocate();
+	aseg_smm_relocate();
 
 	/* We're done. Make sure SMIs can happen! */
 	smi_set_eos();
@@ -171,7 +150,7 @@ void smm_init_completion(void)
 	restore_default_smm_area(default_smm_area);
 }
 
-void smm_lock(void)
+void aseg_smm_lock(void)
 {
 	/* LOCK the SMM memory window and enable normal SMM.
 	 * After running this function, only a full reset can

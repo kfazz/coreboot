@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __BOOTBLOCK_COMMON_H
 #define __BOOTBLOCK_COMMON_H
@@ -38,20 +25,17 @@ void bootblock_soc_init(void);
 asmlinkage void bootblock_c_entry(uint64_t base_timestamp);
 asmlinkage void bootblock_c_entry_bist(uint64_t base_timestamp, uint32_t bist);
 
-/*
- * This is a the same as the bootblock main(), with the difference that it does
- * not collect a timestamp. Instead it accepts the initial timestamp and
- * possibly additional timestamp entries as arguments. This can be used in cases
- * where earlier stamps are available. Note that this function is designed to be
- * entered from C code. This function assumes that the timer has already been
- * initialized, so it does not call init_timer().
- */
-asmlinkage void bootblock_main_with_timestamp(uint64_t base_timestamp,
+/* To be used when APs execute through bootblock too. */
+asmlinkage void ap_bootblock_c_entry(void);
+
+void bootblock_main_with_basetime(uint64_t base_timestamp);
+void bootblock_main_with_timestamp(uint64_t base_timestamp,
 	struct timestamp_entry *timestamps, size_t num_timestamps);
 
 /* This is the argument structure passed from decompressor to bootblock. */
 struct bootblock_arg {
 	uint64_t base_timestamp;
+	void *metadata_hash_anchor;
 	uint32_t num_timestamps;
 	struct timestamp_entry timestamps[];
 };

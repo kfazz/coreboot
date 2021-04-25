@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __BASEBOARD_VARIANTS_H__
 #define __BASEBOARD_VARIANTS_H__
@@ -35,5 +22,7 @@ struct nhlt;
 void variant_nhlt_init(struct nhlt *nhlt);
 void variant_nhlt_oem_overrides(const char **oem_id, const char **oem_table_id,
 				uint32_t *oem_revision);
+
+void variant_chip_display_init(void);
 
 #endif /* __BASEBOARD_VARIANTS_H__ */

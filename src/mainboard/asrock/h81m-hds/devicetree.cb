@@ -1,31 +1,10 @@
-##
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2018 Tristan Corrick <tristan@corrick.kiwi>
-##
-## This program is free software: you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation, either version 2 of the License, or
-## (at your option) any later version.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+## SPDX-License-Identifier: GPL-2.0-or-later
 
 chip northbridge/intel/haswell
 	register "gpu_ddi_e_connected" = "1"
 
 	device cpu_cluster 0 on
 		chip cpu/intel/haswell
-			register "c1_acpower" = "1"
-			register "c1_battery" = "1"
-			register "c2_acpower" = "3"
-			register "c2_battery" = "3"
-			register "c3_acpower" = "5"
-			register "c3_battery" = "5"
-
 			device lapic 0 on end
 			device lapic 0xacac off end
 		end
@@ -49,16 +28,6 @@ chip northbridge/intel/haswell
 		end
 
 		chip southbridge/intel/lynxpoint
-			register "pirqa_routing" = "0x8b"
-			register "pirqb_routing" = "0x80"
-			register "pirqc_routing" = "0x8b"
-			register "pirqd_routing" = "0x8a"
-			register "pirqe_routing" = "0x80"
-			register "pirqf_routing" = "0x80"
-			register "pirqg_routing" = "0x80"
-			register "pirqh_routing" = "0x8a"
-
-			register "sata_ahci" = "1"
 			register "sata_port_map" = "0x33"
 
 			register "gen1_dec" = "0x00000295" # Super I/O HWM

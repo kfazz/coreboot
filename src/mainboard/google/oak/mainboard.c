@@ -1,29 +1,12 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/cache.h>
 #include <boardid.h>
-#include <boot/coreboot_tables.h>
 #include <bootmode.h>
 #include <console/console.h>
 #include <delay.h>
 #include <device/device.h>
 #include <drivers/parade/ps8640/ps8640.h>
 #include <edid.h>
-
-#include <elog.h>
 #include <gpio.h>
 #include <soc/da9212.h>
 #include <soc/ddp.h>
@@ -35,6 +18,7 @@
 #include <soc/pll.h>
 #include <soc/usb.h>
 #include <vendorcode/google/chromeos/chromeos.h>
+#include <framebuffer_info.h>
 
 enum {
 	CODEC_I2C_BUS = 0,
@@ -148,7 +132,7 @@ static void configure_usb(void)
 
 static void configure_usb_hub(void)
 {
-	/* set usb hub reset pin (low active) to high */
+	/* set USB hub reset pin (low active) to high */
 	if (board_id() + CONFIG_BOARD_ID_ADJUSTMENT > 4)
 		gpio_output(GPIO(UTXD3), 1);
 }
@@ -226,26 +210,22 @@ static void display_startup(void)
 	struct edid edid;
 	int ret;
 	u32 mipi_dsi_flags;
-	bool dual_dsi_mode;
 
 	if (read_edid_from_ps8640(&edid) < 0)
 		return;
 
-	dual_dsi_mode = false;
 	mipi_dsi_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
 	edid_set_framebuffer_bits_per_pixel(&edid, 32, 0);
 
-	mtk_ddp_init(dual_dsi_mode);
-	ret = mtk_dsi_init(mipi_dsi_flags, MIPI_DSI_FMT_RGB888, 4,
-			   dual_dsi_mode, &edid);
+	mtk_ddp_init();
+	ret = mtk_dsi_init(mipi_dsi_flags, MIPI_DSI_FMT_RGB888, 4, &edid, NULL);
 	if (ret < 0) {
 		printk(BIOS_ERR, "dsi init fail\n");
 		return;
 	}
 
-	mtk_ddp_mode_set(&edid, dual_dsi_mode);
-
-	set_vbe_mode_info_valid(&edid, (uintptr_t)0);
+	mtk_ddp_mode_set(&edid);
+	fb_new_framebuffer_info_from_edid(&edid, (uintptr_t)0);
 }
 
 static void mainboard_init(struct device *dev)
@@ -284,6 +264,5 @@ static void mainboard_enable(struct device *dev)
 }
 
 struct chip_operations mainboard_ops = {
-	.name = "oak",
 	.enable_dev = mainboard_enable,
 };

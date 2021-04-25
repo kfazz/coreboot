@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <stdint.h>
 #include <cpu/x86/msr.h>
@@ -21,7 +8,7 @@
 #include <string.h>
 #include <northbridge/amd/agesa/agesa_helper.h>
 
-static void write_mtrr(u8 **p_nvram_pos, unsigned idx)
+static void write_mtrr(u8 **p_nvram_pos, unsigned int idx)
 {
 	msr_t  msr_data;
 	msr_data = rdmsr(idx);

@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (c) 2015, The Linux Foundation. All rights reserved.
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boardid.h>
 #include <boot/coreboot_tables.h>
@@ -90,10 +76,9 @@ static void mainboard_init(struct device *dev)
 	 /* Functionally a 0-cost no-op if NAND is not present */
 	 board_nand_init();
 
-#if CONFIG(CHROMEOS)
 	/* Copy WIFI calibration data into CBMEM. */
-	cbmem_add_vpd_calibration_data();
-#endif
+	if (CONFIG(CHROMEOS))
+		cbmem_add_vpd_calibration_data();
 
 	/*
 	 * Make sure bootloader can issue sounds The frequency is calculated
@@ -110,7 +95,6 @@ static void mainboard_enable(struct device *dev)
 }
 
 struct chip_operations mainboard_ops = {
-	.name	= "storm",
 	.enable_dev = mainboard_enable,
 };
 
@@ -119,13 +103,12 @@ void lb_board(struct lb_header *header)
 	struct lb_range *dma;
 
 	dma = (struct lb_range *)lb_new_record(header);
-	dma->tag = LB_TAB_DMA;
+	dma->tag = LB_TAG_DMA;
 	dma->size = sizeof(*dma);
 	dma->range_start = (uintptr_t)_dma_coherent;
 	dma->range_size = REGION_SIZE(dma_coherent);
 
-#if CONFIG(CHROMEOS)
 	/* Retrieve the switch interface MAC addresses. */
-	lb_table_add_macs_from_vpd(header);
-#endif
+	if (CONFIG(CHROMEOS))
+		lb_table_add_macs_from_vpd(header);
 }

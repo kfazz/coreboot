@@ -30,7 +30,7 @@
 
 subdirs-y += 00670F00
 
-ifeq ($(CONFIG_CPU_AMD_PI_00630F01)$(CONFIG_CPU_AMD_PI_00730F01)$(CONFIG_CPU_AMD_PI_00660F01),y)
+ifeq ($(CONFIG_CPU_AMD_PI_00630F01)$(CONFIG_CPU_AMD_PI_00730F01),y)
 # AGESA V5 Files
 
 AGESA_ROOT = $(call strip_quotes,$(CONFIG_AGESA_BINARY_PI_VENDORCODE_PATH))
@@ -52,10 +52,6 @@ AGESA_INC += -I$(AGESA_ROOT)/Proc/CPU/Feature
 AGESA_INC += -I$(AGESA_ROOT)/Proc/Fch
 AGESA_INC += -I$(AGESA_ROOT)/Proc/Fch/Common
 
-ifeq ($(CONFIG_CPU_AMD_PI_00660F01),y)
-AGESA_INC += -I$(AGESA_ROOT)/Proc/Fch/Kern
-AGESA_INC += -I$(AGESA_ROOT)/Proc/Psp/PspBaseLib
-endif
 ifeq ($(CONFIG_CPU_AMD_PI_00630F01),y)
 AGESA_INC += -I$(AGESA_ROOT)/Proc/IDS
 endif
@@ -66,9 +62,10 @@ AGESA_INC += -I$(src)/southbridge/amd/pi/hudson
 AGESA_INC += -I$(src)/arch/x86/include
 AGESA_INC += -I$(src)/include
 AGESA_INC += -I$(src)/commonlib/include
+AGESA_INC += -I$(src)/commonlib/bsd/include
 AGESA_INC += -I$(VBOOT_SOURCE)/firmware/include
 
-AGESA_CFLAGS += -march=amdfam10 -mno-3dnow -fno-zero-initialized-in-bss
+AGESA_CFLAGS += -march=amdfam10 -mno-3dnow
 AGESA_CFLAGS += -fno-strict-aliasing -D__LIBAGESA__
 CFLAGS_x86_32 += $(AGESA_CFLAGS)
 CFLAGS_x86_64 += $(AGESA_CFLAGS)
@@ -79,7 +76,7 @@ export AGESA_CFLAGS  := $(AGESA_CFLAGS)
 
 CC_bootblock := $(CC_bootblock) $(AGESA_INC) $(AGESA_CFLAGS)
 CC_romstage := $(CC_romstage) $(AGESA_INC) $(AGESA_CFLAGS)
-CC_postcar:= $(CC_postcar) -I$(AGESA_ROOT)/binaryPI
+CC_postcar:= $(CC_postcar) -I$(src)/southbridge/amd/pi/hudson -I$(AGESA_ROOT)/binaryPI
 CC_ramstage := $(CC_ramstage) $(AGESA_INC) $(AGESA_CFLAGS)
 
 CC_x86_32 := $(CC_x86_32) $(AGESA_INC) $(AGESA_CFLAGS)
@@ -98,27 +95,18 @@ $(agesa_src_path)/$(notdir $1): $1
 
 $(call src-to-obj,libagesa,$1): $(agesa_src_path)/$(notdir $1) $(obj)/config.h $(src)/include/kconfig.h
 	@printf "    CC         $$(subst $(obj)/,,$$(@))\n"
-	$(CC_libagesa) -c -MMD $(CFLAGS_libagesa) $(AGESA_CFLAGS)                 \
-	               $(AGESA_INC)                                               \
-	               -include $(src)/include/rules.h                            \
-	               -include $(src)/include/kconfig.h                          \
-	               -include $(src)/commonlib/include/commonlib/compiler.h     \
-	               -o $$@                                                     \
+	$(CC_libagesa) -c -MMD $(CFLAGS_libagesa) $(AGESA_CFLAGS)                     \
+	               $(AGESA_INC)                                                   \
+	               -include $(src)/include/kconfig.h                              \
+	               -include $(src)/include/rules.h                                \
+	               -include $(src)/commonlib/bsd/include/commonlib/bsd/compiler.h \
+	               -o $$@                                                         \
 	               $(agesa_src_path)/$(notdir $1)
 
 endef
 
 agesa_raw_files += $(wildcard $(src)/vendorcode/amd/pi/Lib/*.[cS])
 
-ifeq ($(CONFIG_BINARYPI_LEGACY_WRAPPER),y)
-agesa_raw_files += $(wildcard $(AGESA_ROOT)/binaryPI/*.[cS])
-endif
-
-ifeq ($(CONFIG_CPU_AMD_PI_00660F01),y)
-agesa_raw_files += $(wildcard $(AGESA_ROOT)/Proc/Fch/Kern/KernImc/*.[cS])
-agesa_raw_files += $(wildcard $(AGESA_ROOT)/Proc/Fch/Common/*.[cS])
-agesa_raw_files += $(wildcard $(AGESA_ROOT)/Proc/Psp/PspBaseLib/*.[cS])
-endif
 ifeq ($(CONFIG_HUDSON_IMC_FWM),y)
 agesa_raw_files += $(wildcard $(src)/vendorcode/amd/pi/Lib/imc/*.c)
 endif

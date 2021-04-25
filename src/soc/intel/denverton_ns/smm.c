@@ -1,39 +1,18 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- * Copyright (C) 2014 - 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/device.h>
 #include <device/pci.h>
 #include <console/console.h>
 #include <arch/io.h>
 #include <cpu/x86/smm.h>
+#include <cpu/intel/smm_reloc.h>
 
 #include <soc/iomap.h>
 #include <soc/soc_util.h>
 #include <soc/pm.h>
 #include <soc/smm.h>
 
-/* Save the gpio route register. The settings are committed from
- * southcluster_smm_enable_smi(). */
-static uint32_t gpio_route;
-
-void southcluster_smm_save_gpio_route(uint32_t route) { gpio_route = route; }
-
-void southcluster_smm_clear_state(void)
+void smm_southbridge_clear_state(void)
 {
 	uint32_t smi_en;
 
@@ -54,12 +33,12 @@ void southcluster_smm_clear_state(void)
 	clear_pmc_status();
 }
 
-void southcluster_smm_enable_smi(void)
+static void smm_southbridge_enable(uint16_t pm1_events)
 {
 
 	printk(BIOS_DEBUG, "Enabling SMIs.\n");
-	/* Configure events Disable pcie wake. */
-	enable_pm1(PWRBTN_EN | GBL_EN | PCIEXPWAK_DIS);
+	/* Configure events Disable PCIe wake. */
+	enable_pm1(pm1_events | PCIEXPWAK_DIS);
 	disable_gpe(PME_B0_EN);
 
 	/* Enable SMI generation:
@@ -73,18 +52,7 @@ void southcluster_smm_enable_smi(void)
 	enable_smi(APMC_EN | SLP_SMI_EN | GBL_SMI_EN | EOS);
 }
 
-void smm_setup_structures(void *gnvs, void *tcg, void *smi1)
+void global_smi_enable(void)
 {
-	/*
-	 * Issue SMI to set the gnvs pointer in SMM.
-	 * tcg and smi1 are unused.
-	 *
-	 * EAX = APM_CNT_GNVS_UPDATE
-	 * EBX = gnvs pointer
-	 * EDX = APM_CNT
-	 */
-	asm volatile("outb %%al, %%dx\n\t"
-		     : /* ignore result */
-		     : "a"(APM_CNT_GNVS_UPDATE), "b"((uint32_t)gnvs),
-		       "d"(APM_CNT));
+	smm_southbridge_enable(PWRBTN_EN | GBL_EN);
 }

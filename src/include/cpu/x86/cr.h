@@ -1,18 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
 #ifndef CPU_X86_CR_H
 #define CPU_X86_CR_H
 
@@ -20,12 +7,7 @@
 
 #include <stdint.h>
 
-/* ROMCC apparently chokes certain clobber registers. */
-#if defined(__ROMCC__)
-#define COMPILER_BARRIER
-#else
 #define COMPILER_BARRIER "memory"
-#endif
 
 #ifdef __x86_64__
 #define CRx_TYPE uint64_t

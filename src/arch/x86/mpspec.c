@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Sage Electronic Engineering, LLC.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <device/path.h>
@@ -253,12 +240,6 @@ void smp_write_intsrc(struct mp_config_table *mc,
 	mpc->mpc_dstapic = dstapic;
 	mpc->mpc_dstirq = dstirq;
 	smp_add_mpc_entry(mc, sizeof(*mpc));
-#ifdef DEBUG_MPTABLE
-	printk(BIOS_DEBUG,
-		"add intsrc srcbus 0x%x srcbusirq 0x%x, dstapic 0x%x, dstirq 0x%x\n",
-				srcbus, srcbusirq, dstapic, dstirq);
-	hexdump(__func__, mpc, sizeof(*mpc));
-#endif
 }
 
 /*

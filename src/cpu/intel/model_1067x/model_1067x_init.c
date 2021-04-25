@@ -1,31 +1,15 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- *               2012 secunet Security Networks AG
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <device/device.h>
 #include <cpu/cpu.h>
 #include <cpu/x86/msr.h>
-#include <cpu/x86/mp.h>
 #include <cpu/x86/lapic.h>
 #include <cpu/intel/speedstep.h>
 #include <cpu/x86/cache.h>
 #include <cpu/x86/name.h>
-#include <cpu/intel/smm/gen1/smi.h>
-#include <cpu/intel/common/common.h>
+#include <cpu/intel/smm_reloc.h>
+
 #include "chip.h"
 
 static void init_timer(void)
@@ -182,6 +166,8 @@ static void configure_emttm_tables(void)
 	wrmsr(MSR_EMTTM_CR_TABLE(5), msr);
 }
 
+#define IA32_PECI_CTL		0x5a0
+
 static void configure_misc(const int eist, const int tm2, const int emttm)
 {
 	msr_t msr;
@@ -224,6 +210,13 @@ static void configure_misc(const int eist, const int tm2, const int emttm)
 		msr.lo |= (1 << 20);	/* Lock Enhanced SpeedStep Enable */
 		wrmsr(IA32_MISC_ENABLE, msr);
 	}
+
+	/* Enable PECI
+	   WARNING: due to Erratum AW67 described in Intel document #318733
+	   the microcode must be updated before this MSR is written to. */
+	msr = rdmsr(IA32_PECI_CTL);
+	msr.lo |= 1;
+	wrmsr(IA32_PECI_CTL, msr);
 }
 
 #define PIC_SENS_CFG	0x1aa
@@ -249,7 +242,6 @@ static void model_1067x_init(struct device *cpu)
 {
 	char processor_name[49];
 
-
 	/* Gather some information: */
 
 	const struct cpuid_result cpuid1 = cpuid(1);
@@ -271,10 +263,6 @@ static void model_1067x_init(struct device *cpu)
 			  !(rdmsr(IA32_PLATFORM_ID).lo & (1 << 17));
 	/* Test for TM2 only if EIST is available. */
 	const char tm2 = eist && (cpuid1.ecx & (1 << 8));
-
-
-	/* Turn on caching if we haven't already */
-	x86_enable_cache();
 
 	/* Print processor name */
 	fill_processor_name(processor_name);
@@ -308,7 +296,7 @@ static struct device_operations cpu_dev_ops = {
 };
 
 static const struct cpu_device_id cpu_table[] = {
-	{ X86_VENDOR_INTEL, 0x10676 }, /* Intel Core 2 Solo/Core Duo */
+	{ X86_VENDOR_INTEL, 0x10676 },
 	{ X86_VENDOR_INTEL, 0x10677 },
 	{ X86_VENDOR_INTEL, 0x1067A },
 	{ 0, 0 },

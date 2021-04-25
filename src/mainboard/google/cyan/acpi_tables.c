@@ -1,28 +1,12 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Google Inc.
- * Copyright (C) 2015 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
-#include <arch/ioapic.h>
-#include <soc/acpi.h>
+#include <acpi/acpi_gnvs.h>
+#include <boardid.h>
 #include <soc/nvs.h>
+#include <soc/device_nvs.h>
 
-void acpi_create_gnvs(global_nvs_t *gnvs)
+void mainboard_fill_gnvs(struct global_nvs *gnvs)
 {
-	acpi_init_gnvs(gnvs);
-
 	/* Enable USB ports in S3 */
 	gnvs->s3u0 = 1;
 	gnvs->s3u1 = 1;
@@ -35,20 +19,9 @@ void acpi_create_gnvs(global_nvs_t *gnvs)
 	gnvs->dpte = 1;
 
 	/* Disable PMIC I2C port for ACPI for all boards except cyan */
+	struct device_nvs *dev_nvs = acpi_get_device_nvs();
 	if (!CONFIG(BOARD_GOOGLE_CYAN))
-		gnvs->dev.lpss_en[LPSS_NVS_I2C2] = 0;
-}
+		dev_nvs->lpss_en[LPSS_NVS_I2C2] = 0;
 
-unsigned long acpi_fill_madt(unsigned long current)
-{
-	/* Local APICs */
-	current = acpi_create_madt_lapics(current);
-
-	/* IOAPIC */
-	current += acpi_create_madt_ioapic((acpi_madt_ioapic_t *) current,
-				2, IO_APIC_ADDR, 0);
-
-	current = acpi_madt_irq_overrides(current);
-
-	return current;
+	gnvs->bdid = board_id();
 }

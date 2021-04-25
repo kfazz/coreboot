@@ -1,17 +1,5 @@
-/*
- * inteltool - dump all registers on an Intel CPU + chipset based system.
- *
- * Copyright (C) 2017 secunet Security Networks AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* inteltool - dump all registers on an Intel CPU + chipset based system */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -79,9 +67,13 @@ void pcr_init(struct pci_dev *const sb)
 
 	switch (sb->device_id) {
 	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_PRE:
-	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_BASE:
-	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_PREM:
-	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_Y_PREM:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_PRE:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_BASE_SKL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_Y_PREM_SKL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_PREM_SKL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_BASE_KBL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_PREM_KBL:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_Y_PREM_KBL:
 	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_IHDCP_BASE:
 	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_U_IHDCP_PREM:
 	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_Y_IHDCP_PREM:
@@ -99,6 +91,20 @@ void pcr_init(struct pci_dev *const sb)
 	case PCI_DEVICE_ID_INTEL_HM175:
 	case PCI_DEVICE_ID_INTEL_QM175:
 	case PCI_DEVICE_ID_INTEL_CM238:
+	case PCI_DEVICE_ID_INTEL_C621:
+	case PCI_DEVICE_ID_INTEL_C621A:
+	case PCI_DEVICE_ID_INTEL_C622:
+	case PCI_DEVICE_ID_INTEL_C624:
+	case PCI_DEVICE_ID_INTEL_C625:
+	case PCI_DEVICE_ID_INTEL_C626:
+	case PCI_DEVICE_ID_INTEL_C627:
+	case PCI_DEVICE_ID_INTEL_C628:
+	case PCI_DEVICE_ID_INTEL_C629:
+	case PCI_DEVICE_ID_INTEL_C624_SUPER:
+	case PCI_DEVICE_ID_INTEL_C627_SUPER_1:
+	case PCI_DEVICE_ID_INTEL_C621_SUPER:
+	case PCI_DEVICE_ID_INTEL_C627_SUPER_2:
+	case PCI_DEVICE_ID_INTEL_C628_SUPER:
 	case PCI_DEVICE_ID_INTEL_DNV_LPC:
 		p2sb = pci_get_dev(sb->access, 0, 0, 0x1f, 1);
 		break;
@@ -115,6 +121,10 @@ void pcr_init(struct pci_dev *const sb)
 	case PCI_DEVICE_ID_INTEL_QM370:
 	case PCI_DEVICE_ID_INTEL_HM370:
 	case PCI_DEVICE_ID_INTEL_CM246:
+	case PCI_DEVICE_ID_INTEL_CANNONPOINT_LP_U_PREM:
+	case PCI_DEVICE_ID_INTEL_COMETPOINT_LP_U_PREM:
+	case PCI_DEVICE_ID_INTEL_COMETPOINT_LP_U_BASE:
+	case PCI_DEVICE_ID_INTEL_ICELAKE_LP_U:
 		sbbar_phys = 0xfd000000;
 		use_p2sb = false;
 		break;

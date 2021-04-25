@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2009 University of Heidelberg
- * Written by Mondrian Nuessle <nuessle@uni-heidelberg.de> for Univ. Heidelberg
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /* PILOT Super I/O is only based on LPC observation done on factory system. */
 
@@ -22,7 +7,7 @@
 #include <device/pnp.h>
 #include "pilot.h"
 
-/* Pilot uses 0x5A/0xA5 pattern to actiavte deactivate config access. */
+/* Pilot uses 0x5A/0xA5 pattern to activate deactivate config access. */
 void pnp_enter_ext_func_mode(pnp_devfn_t dev)
 {
 	u16 port = dev >> 8;

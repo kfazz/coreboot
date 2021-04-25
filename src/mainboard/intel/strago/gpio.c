@@ -1,23 +1,7 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright(C) 2013 Google Inc.
- * Copyright (C) 2015 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include "irqroute.h"
 #include <soc/gpio.h>
-#include <stdlib.h>
-#include <boardid.h>
 #include "onboard.h"
 #include "gpio.h"
 
@@ -82,7 +66,6 @@ static const struct soc_gpio_map gpse_gpio_map[] = {
 	Native_M1, /* 85 SDMMC3_1P8_EN */
 	GPIO_END
 };
-
 
 /* South West Community */
 static const struct soc_gpio_map  gpsw_gpio_map[] = {
@@ -149,7 +132,6 @@ static const struct soc_gpio_map  gpsw_gpio_map[] = {
 	NATIVE_FUNC(1, 0, inv_tx_enable), /* 97 GP_SSP_2f_TXD */
 	GPIO_END
 };
-
 
 /* North Community */
 static const struct soc_gpio_map  gpn_gpio_map[] = {
@@ -220,7 +202,6 @@ static const struct soc_gpio_map  gpn_gpio_map[] = {
 	GPIO_END
 };
 
-
 /* East Community */
 static const struct soc_gpio_map  gpe_gpio_map[] = {
 	Native_M1, /* 00 PMU_SLP_S3_B */
@@ -249,7 +230,6 @@ static const struct soc_gpio_map  gpe_gpio_map[] = {
 	GPIO_NC, /* 26 MF_I2C1_SDA */
 	GPIO_END
 };
-
 
 static struct soc_gpio_config gpio_config = {
 	/* BSW */

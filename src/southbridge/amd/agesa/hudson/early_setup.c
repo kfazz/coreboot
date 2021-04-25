@@ -1,25 +1,11 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2010 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _HUDSON_EARLY_SETUP_C_
 #define _HUDSON_EARLY_SETUP_C_
 
 #include <stdint.h>
-#include <arch/io.h>
+#include <amdblocks/acpimmio.h>
 #include <device/pci_ops.h>
-#include <console/console.h>
 
 #include "hudson.h"
 
@@ -71,50 +57,32 @@ void hudson_pci_port80(void)
 void hudson_lpc_port80(void)
 {
 	u8 byte;
-	pci_devfn_t dev;
-
-	/* Enable LPC controller */
-	outb(0xEC, 0xCD6);
-	byte = inb(0xCD7);
-	byte |= 1;
-	outb(0xEC, 0xCD6);
-	outb(byte, 0xCD7);
 
 	/* Enable port 80 LPC decode in pci function 3 configuration space. */
-	dev = PCI_DEV(0, 0x14, 3);
+	const pci_devfn_t dev = PCI_DEV(0, 0x14, 3);
 	byte = pci_read_config8(dev, 0x4a);
 	byte |= 1 << 5; /* enable port 80 */
 	pci_write_config8(dev, 0x4a, byte);
 }
 
-int s3_save_nvram_early(u32 dword, int size, int  nvram_pos)
+void hudson_lpc_decode(void)
 {
-	int i;
-	printk(BIOS_DEBUG, "Writing %x of size %d to nvram pos: %d\n", dword, size, nvram_pos);
+	u32 tmp;
 
-	for (i = 0; i < size; i++) {
-		outb(nvram_pos, BIOSRAM_INDEX);
-		outb((dword >> (8 * i)) & 0xff, BIOSRAM_DATA);
-		nvram_pos++;
-	}
+	/* Enable LPC controller */
+	pm_write8(0xec, pm_read8(0xec) | 0x01);
 
-	return nvram_pos;
-}
+	const pci_devfn_t dev = PCI_DEV(0, 0x14, 3);
+	/* Serial port enumeration on Hudson:
+	 * PORT0 - 0x3f8
+	 * PORT1 - 0x2f8
+	 * PORT5 - 0x2e8
+	 * PORT7 - 0x3e8
+	 */
+	tmp =  DECODE_ENABLE_SERIAL_PORT0 | DECODE_ENABLE_SERIAL_PORT1
+	     | DECODE_ENABLE_SERIAL_PORT5 | DECODE_ENABLE_SERIAL_PORT7;
 
-int s3_load_nvram_early(int size, u32 *old_dword, int nvram_pos)
-{
-	u32 data = *old_dword;
-	int i;
-	for (i = 0; i < size; i++) {
-		outb(nvram_pos, BIOSRAM_INDEX);
-		data &= ~(0xff << (i * 8));
-		data |= inb(BIOSRAM_DATA) << (i *8);
-		nvram_pos++;
-	}
-	*old_dword = data;
-	printk(BIOS_DEBUG, "Loading %x of size %d to nvram pos:%d\n", *old_dword, size,
-		nvram_pos-size);
-	return nvram_pos;
+	pci_write_config32(dev, LPC_IO_PORT_DECODE_ENABLE, tmp);
 }
 
 #endif /* _HUDSON_EARLY_SETUP_C_ */

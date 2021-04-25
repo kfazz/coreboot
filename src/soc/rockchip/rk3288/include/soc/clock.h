@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Rockchip Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __SOC_ROCKCHIP_RK3288_CLOCK_H__
 #define __SOC_ROCKCHIP_RK3288_CLOCK_H__
@@ -56,6 +43,6 @@ int rkclk_configure_vop_dclk(u32 vop_id, u32 dclk_hz);
 void rkclk_configure_edp(void);
 void rkclk_configure_hdmi(void);
 int rkclk_was_watchdog_reset(void);
-unsigned rkclk_i2c_clock_for_bus(unsigned bus);
+unsigned int rkclk_i2c_clock_for_bus(unsigned int bus);
 
 #endif	/* __SOC_ROCKCHIP_RK3288_CLOCK_H__ */

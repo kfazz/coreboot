@@ -1,22 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 - 2017 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#ifndef __AGESAWRAPPER_H__
-#define __AGESAWRAPPER_H__
+#ifndef AMD_BLOCK_AGESAWRAPPER_H
+#define AMD_BLOCK_AGESAWRAPPER_H
 
-#include <stdint.h>
 #include <agesa_headers.h>
 
 enum {
@@ -39,7 +25,6 @@ AGESA_STATUS amd_late_run_ap_task(AP_EXE_PARAMS *ApExeParams);
 
 void *agesawrapper_getlateinitptr(int pick);
 
-
 void OemCustomizeInitEarly(AMD_EARLY_PARAMS *InitEarly);
 void amd_initcpuio(void);
 const void *agesawrapper_locate_module(const char name[8]);
@@ -54,4 +39,4 @@ void SetNbMidParams(GNB_MID_CONFIGURATION *params);
 void set_board_env_params(GNB_ENV_CONFIGURATION *params);
 void soc_customize_init_early(AMD_EARLY_PARAMS *InitEarly);
 
-#endif /* __AGESAWRAPPER_H__ */
+#endif /* AMD_BLOCK_AGESAWRAPPER_H */

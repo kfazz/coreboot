@@ -1,28 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2000,2007 Ronald G. Minnich <rminnich@gmail.com>
- * Copyright (C) 2005 Tyan (written by Yinghai Lu for Tyan)
- * Copyright (C) 2007-2008 coresystems GmbH
- * Copyright (C) 2012 Kyösti Mälkki <kyosti.malkki@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <cpu/x86/mtrr.h>
 #include <cpu/x86/cache.h>
 #include <cpu/x86/post_code.h>
 
-#define CACHE_AS_RAM_SIZE CONFIG_DCACHE_RAM_SIZE
-#define CACHE_AS_RAM_BASE CONFIG_DCACHE_RAM_BASE
-
+.section .init
 .global bootblock_pre_c_entry
 
 .code32
@@ -89,14 +71,16 @@ addrsize_set_high:
 
 	/* Set Cache-as-RAM base address. */
 	movl	$(MTRR_PHYS_BASE(0)), %ecx
-	movl	$(CACHE_AS_RAM_BASE | MTRR_TYPE_WRBACK), %eax
+	movl	$_car_mtrr_start, %eax
+	orl	$MTRR_TYPE_WRBACK, %eax
 	xorl	%edx, %edx
 	wrmsr
 
 	/* Set Cache-as-RAM mask. */
 	movl	$(MTRR_PHYS_MASK(0)), %ecx
 	rdmsr
-	movl	$(~(CACHE_AS_RAM_SIZE - 1) | MTRR_PHYS_MASK_VALID), %eax
+	movl	$_car_mtrr_mask, %eax
+	orl	$MTRR_PHYS_MASK_VALID, %eax
 	wrmsr
 
 	post_code(0x2b)
@@ -118,12 +102,14 @@ addrsize_set_high:
 	/* Read then clear the CAR region. This will also fill up the cache.
 	 * IMPORTANT: The read is mandatory.
 	 */
-	movl	$CACHE_AS_RAM_BASE, %esi
-	movl	%esi, %edi
 	cld
-	movl	$(CACHE_AS_RAM_SIZE >> 2), %ecx
+	movl	$_car_mtrr_start, %edi
+	movl	$_car_mtrr_size, %ecx
+	shr	$2, %ecx
+	movl	%ecx, %ebx
+	movl	%edi, %esi
 	rep	lodsl
-	movl	$(CACHE_AS_RAM_SIZE >> 2), %ecx
+	movl	%ebx, %ecx
 	xorl	%eax, %eax
 	rep	stosl
 
@@ -136,18 +122,14 @@ addrsize_set_high:
 	/* Enable cache for our code in Flash because we do XIP here */
 	movl	$MTRR_PHYS_BASE(1), %ecx
 	xorl	%edx, %edx
-	/*
-	 * IMPORTANT: The following calculation _must_ be done at runtime. See
-	 * https://mail.coreboot.org/pipermail/coreboot/2010-October/060922.html
-	 */
 	movl	$_program, %eax
-	andl	$(~(CONFIG_XIP_ROM_SIZE - 1)), %eax
+	andl	$_xip_mtrr_mask, %eax
 	orl	$MTRR_TYPE_WRPROT, %eax
 	wrmsr
-
 	movl	$MTRR_PHYS_MASK(1), %ecx
 	rdmsr
-	movl	$(~(CONFIG_XIP_ROM_SIZE - 1) | MTRR_PHYS_MASK_VALID), %eax
+	movl	$_xip_mtrr_mask, %eax
+	orl	$MTRR_PHYS_MASK_VALID, %eax
 	wrmsr
 
 	post_code(0x2e)
@@ -157,7 +139,7 @@ addrsize_set_high:
 	movl	%eax, %cr0
 
 	/* Setup the stack. */
-	mov	$_car_stack_end, %esp
+	mov	$_ecar_stack, %esp
 
 	/* Need to align stack to 16 bytes at call instruction. Account for
 	the pushes below. */

@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 Google Inc.
- * Copyright (C) 2015-2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _DENVERTON_NS_GPIO_DEFS_H_
 #define _DENVERTON_NS_GPIO_DEFS_H_
@@ -182,7 +167,7 @@
 #define V_PCH_GPIO_RX_APIC_ROUTE_EN 0x01
 
 // GPIO Input Route SCI
-#define B_PCH_GPIO_RX_SCI_ROUTE (1 << 10)
+#define B_PCH_GPIO_RX_SCI_ROUTE (1 << 19)
 #define N_PCH_GPIO_RX_SCI_ROUTE 19
 #define V_PCH_GPIO_RX_SCI_ROUTE_DIS 0x00
 #define V_PCH_GPIO_RX_SCI_ROUTE_EN 0x01

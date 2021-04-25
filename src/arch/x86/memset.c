@@ -1,23 +1,11 @@
-/*
- * Copyright (C) 1991,1992,1993,1997,1998,2003, 2005 Free Software Foundation,
- * Inc.
- * This file is part of the GNU C Library.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /* From glibc-2.14, sysdeps/i386/memset.c */
 
 #include <string.h>
 #include <stdint.h>
+#include <stdbool.h>
+#include <asan.h>
 
 typedef uint32_t op_t;
 
@@ -25,6 +13,11 @@ void *memset(void *dstpp, int c, size_t len)
 {
 	int d0;
 	unsigned long int dstp = (unsigned long int) dstpp;
+
+#if (ENV_ROMSTAGE && CONFIG(ASAN_IN_ROMSTAGE)) || \
+		(ENV_RAMSTAGE && CONFIG(ASAN_IN_RAMSTAGE))
+	check_memory_region((unsigned long)dstpp, len, true, _RET_IP_);
+#endif
 
 	/* This explicit register allocation improves code very much indeed. */
 	register op_t x asm("ax");

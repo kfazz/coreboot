@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <console/console.h>
@@ -133,7 +120,7 @@ static s32 pwrap_init_reg_clock(enum pmic_regck regck_sel)
 	pwrap_write_nochk(PMIC_TOP_CKCON2, wdata);
 	pwrap_read_nochk(PMIC_TOP_CKCON2, &rdata);
 	if (rdata != wdata) {
-		pwrap_err("pwrap_init_reg_clock,rdata=%#x\n", rdata);
+		pwrap_err("%s,rdata=%#x\n", __func__, rdata);
 		return E_PWR_INIT_REG_CLOCK;
 	}
 	/* Config SPI Waveform according to reg clk */
@@ -170,11 +157,11 @@ s32 pwrap_init(void)
 	s32 sub_return1 = 0;
 	u16 rdata = 0x0;
 
-	setbits_le32(&mt8173_infracfg->infra_rst0, INFRA_PMIC_WRAP_RST);
+	setbits32(&mt8173_infracfg->infra_rst0, INFRA_PMIC_WRAP_RST);
 	/* add 1us delay for toggling SW reset */
 	udelay(1);
 	/* clear reset bit */
-	clrbits_le32(&mt8173_infracfg->infra_rst0, INFRA_PMIC_WRAP_RST);
+	clrbits32(&mt8173_infracfg->infra_rst0, INFRA_PMIC_WRAP_RST);
 
 	/* Enable DCM */
 	write32(&mtk_pwrap->dcm_en, 3);

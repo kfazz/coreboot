@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 Google LLC
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef BASEBOARD_GPIO_H
 #define BASEBOARD_GPIO_H
@@ -22,14 +9,7 @@
 
 #define GPIO_PCH_WP	        GPP_C20
 
-/* Memory configuration board straps */
-#define GPIO_MEM_CONFIG_0	GPP_F20
-#define GPIO_MEM_CONFIG_1	GPP_F21
-#define GPIO_MEM_CONFIG_2	GPP_F11
-#define GPIO_MEM_CONFIG_3	GPP_F22
-
-
-/* EC wake pin is LAN_WAKE# */
+/* EC wake pin is routed to GPD2/LAN_WAKE# on PCH */
 #define GPE_EC_WAKE		GPE0_LAN_WAK
 
 /* eSPI virtual wire reporting */

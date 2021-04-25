@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /******************************************************************************
  * $Workfile:: cache_as_ram.S
@@ -21,14 +8,20 @@
  ******************************************************************************
  */
 
-#include "gcccar.inc"
-#include <cpu/x86/cache.h>
 #include <cpu/x86/post_code.h>
+
+.section .init
+
+.code32
+
+_cache_as_ram_setup:
+
+#include "gcccar.inc"
 
 /*
  * on entry:
  *   mm0: BIST (ignored)
- *   mm2_mm1: timestamp at bootblock_protected_mode_entry
+ *   mm2_mm1: timestamp
  */
 
 .global bootblock_pre_c_entry
@@ -57,3 +50,5 @@ before_carstage:
 	post_code(POST_DEAD_CODE)
 	hlt
 	jmp	.halt_forever
+
+_cache_as_ram_setup_end:

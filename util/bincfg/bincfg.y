@@ -1,17 +1,5 @@
-/*
- * bincfg - Compiler/Decompiler for data blobs with specs
- * Copyright (C) 2017 Damien Zammit <damien@zamaudio.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* bincfg - Compiler/Decompiler for data blobs with specs */
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 
 %{
 #include <stdio.h>
@@ -235,7 +223,7 @@ static void generate_setter_bitfields(FILE* fp, unsigned char *bin)
 
 static void generate_binary_with_gbe_checksum(FILE* fp)
 {
-	int i;
+	unsigned int i;
 	unsigned short checksum;
 
 	/* traverse spec, push to blob and add up for checksum */
@@ -419,6 +407,7 @@ setpair:
 /* Called by yyparse on error.  */
 static void yyerror (FILE* fp, char const *s)
 {
+	(void)fp;
 	fprintf (stderr, "yyerror: %s\n", s);
 }
 
@@ -460,8 +449,6 @@ int main (int argc, char *argv[])
 {
 	unsigned int lenspec;
 	unsigned char *parsestring;
-	unsigned char c;
-	unsigned int pos = 0;
 	int ret = 0;
 	FILE* fp;
 

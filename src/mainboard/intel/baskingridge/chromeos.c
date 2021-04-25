@@ -1,39 +1,17 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 The Chromium OS Authors. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <string.h>
 #include <bootmode.h>
-#include <arch/io.h>
-#include <device/pci_ops.h>
+#include <boot/coreboot_tables.h>
 #include <device/device.h>
-#include <device/pci.h>
 #include <southbridge/intel/lynxpoint/pch.h>
 #include <southbridge/intel/common/gpio.h>
 #include <vendorcode/google/chromeos/chromeos.h>
 
-#if ENV_RAMSTAGE
-#include <boot/coreboot_tables.h>
-
 void fill_lb_gpios(struct lb_gpios *gpios)
 {
 	struct lb_gpio chromeos_gpios[] = {
-		/* Write Protect: GPIO22 */
-		{0, ACTIVE_LOW, !get_write_protect_state(), "write protect"},
-
 		/* Recovery: GPIO69 - SV_DETECT - J8E3 (silkscreen: J8E2) */
-		{69, ACTIVE_HIGH, get_recovery_mode_switch(), "recovery"},
+		{69, ACTIVE_HIGH, get_recovery_mode_switch(), "presence"},
 
 		/* Hard code the lid switch GPIO to open. */
 		{-1, ACTIVE_HIGH, 1, "lid"},
@@ -46,7 +24,6 @@ void fill_lb_gpios(struct lb_gpios *gpios)
 	};
 	lb_add_gpios(gpios, chromeos_gpios, ARRAY_SIZE(chromeos_gpios));
 }
-#endif
 
 int get_recovery_mode_switch(void)
 {

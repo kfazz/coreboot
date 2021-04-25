@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 Google LLC
- * Copyright 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #define DPTF_CPU_PASSIVE		80
 #define DPTF_CPU_CRITICAL		105
@@ -29,12 +15,12 @@
 
 #define DPTF_TSR2_SENSOR_ID		3
 #define DPTF_TSR2_SENSOR_NAME		"DRAM"
-#define DPTF_TSR2_PASSIVE		55
+#define DPTF_TSR2_PASSIVE		53
 #define DPTF_TSR2_CRITICAL		75
 
 #define DPTF_TSR3_SENSOR_ID		4
 #define DPTF_TSR3_SENSOR_NAME		"eMMC"
-#define DPTF_TSR3_PASSIVE		52
+#define DPTF_TSR3_PASSIVE		50
 #define DPTF_TSR3_CRITICAL		75
 
 #undef DPTF_ENABLE_FAN_CONTROL
@@ -49,9 +35,6 @@ Name (CHPS, Package () {
 })
 
 Name (DTRT, Package () {
-	/* CPU Throttle Effect on CPU */
-	Package () { \_SB.PCI0.B0D4, \_SB.PCI0.B0D4, 100, 50, 0, 0, 0, 0 },
-
 	/* CPU Throttle Effect on Ambient */
 	Package () { \_SB.PCI0.B0D4, \_SB.DPTF.TSR0, 100, 200, 0, 0, 0, 0 },
 

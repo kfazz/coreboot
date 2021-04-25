@@ -1,33 +1,19 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/device.h>
 #include <device/pci.h>
 #include <fsp/api.h>
 #include <fsp/util.h>
 #include <intelblocks/acpi.h>
-#include <intelblocks/chip.h>
+#include <intelblocks/cfg.h>
+#include <intelblocks/gpio.h>
 #include <intelblocks/itss.h>
 #include <intelblocks/xdci.h>
-#include <romstage_handoff.h>
 #include <soc/intel/common/vbt.h>
 #include <soc/itss.h>
 #include <soc/pci_devs.h>
 #include <soc/ramstage.h>
-
-#include "chip.h"
+#include <soc/soc_chip.h>
 
 #if CONFIG(HAVE_ACPI_TABLES)
 const char *soc_acpi_name(const struct device *dev)
@@ -89,7 +75,6 @@ const char *soc_acpi_name(const struct device *dev)
 	case PCH_DEVFN_GSPI2:	return "SPI2";
 	case PCH_DEVFN_EMMC:	return "EMMC";
 	case PCH_DEVFN_SDCARD:	return "SDXC";
-	case PCH_DEVFN_LPC:	return "LPCB";
 	case PCH_DEVFN_P2SB:	return "P2SB";
 	case PCH_DEVFN_PMC:	return "PMC_";
 	case PCH_DEVFN_HDA:	return "HDAS";
@@ -103,6 +88,20 @@ const char *soc_acpi_name(const struct device *dev)
 }
 #endif
 
+/* SoC routine to fill GPIO PM mask and value for GPIO_MISCCFG register */
+static void soc_fill_gpio_pm_configuration(void)
+{
+	uint8_t value[TOTAL_GPIO_COMM];
+	const config_t *config = config_of_soc();
+
+	if (config->gpio_override_pm)
+		memcpy(value, config->gpio_pm, sizeof(value));
+	else
+		memset(value, MISCCFG_GPIO_PM_CONFIG_BITS, sizeof(value));
+
+	gpio_pm_configure(value, TOTAL_GPIO_COMM);
+}
+
 void soc_init_pre_device(void *chip_info)
 {
 	/* Snapshot the current GPIO IRQ polarities. FSP is setting a
@@ -110,18 +109,15 @@ void soc_init_pre_device(void *chip_info)
 	itss_snapshot_irq_polarities(GPIO_IRQ_START, GPIO_IRQ_END);
 
 	/* Perform silicon specific init. */
-	fsp_silicon_init(romstage_handoff_is_resume());
+	fsp_silicon_init();
 
 	 /* Display FIRMWARE_VERSION_INFO_HOB */
 	fsp_display_fvi_version_hob();
 
 	/* Restore GPIO IRQ polarities back to previous settings. */
 	itss_restore_irq_polarities(GPIO_IRQ_START, GPIO_IRQ_END);
-}
 
-static void pci_domain_set_resources(struct device *dev)
-{
-	assign_resources(dev->link_list);
+	soc_fill_gpio_pm_configuration();
 }
 
 static struct device_operations pci_domain_ops = {
@@ -134,11 +130,9 @@ static struct device_operations pci_domain_ops = {
 };
 
 static struct device_operations cpu_bus_ops = {
-	.read_resources   = DEVICE_NOOP,
-	.set_resources    = DEVICE_NOOP,
-	.enable_resources = DEVICE_NOOP,
-	.init             = DEVICE_NOOP,
-	.acpi_fill_ssdt_generator = generate_cpu_entries,
+	.read_resources   = noop_read_resources,
+	.set_resources    = noop_set_resources,
+	.acpi_fill_ssdt   = generate_cpu_entries,
 };
 
 static void soc_enable(struct device *dev)
@@ -148,6 +142,8 @@ static void soc_enable(struct device *dev)
 		dev->ops = &pci_domain_ops;
 	else if (dev->path.type == DEVICE_PATH_CPU_CLUSTER)
 		dev->ops = &cpu_bus_ops;
+	else if (dev->path.type == DEVICE_PATH_GPIO)
+		block_gpio_enable(dev);
 }
 
 struct chip_operations soc_intel_icelake_ops = {

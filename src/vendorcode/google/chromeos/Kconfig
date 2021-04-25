@@ -1,16 +1,4 @@
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2011 The ChromiumOS Authors.  All rights reserved.
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+## SPDX-License-Identifier: GPL-2.0-only
 
 config MAINBOARD_HAS_CHROMEOS
 	def_bool n
@@ -24,6 +12,7 @@ config CHROMEOS
 	select ELOG if BOOT_DEVICE_SUPPORTS_WRITES
 	select COLLECT_TIMESTAMPS
 	select VBOOT
+	select CHROMEOS_NVS if ACPI_SOC_NVS
 	select VPD
 	select VBOOT_SLOTS_RW_AB
 	help
@@ -41,33 +30,10 @@ config CHROMEOS_RAMOOPS
 	bool "Reserve space for Chrome OS ramoops"
 	default y
 
-config CHROMEOS_RAMOOPS_DYNAMIC
-	bool "Allocate RAM oops buffer in cbmem"
-	default n
-	depends on CHROMEOS_RAMOOPS && HAVE_ACPI_TABLES
-
-config CHROMEOS_RAMOOPS_NON_ACPI
-	bool "Allocate RAM oops buffer in cbmem passed through cb tables to payload"
-	default y if !HAVE_ACPI_TABLES
-	depends on CHROMEOS_RAMOOPS && !HAVE_ACPI_TABLES
-
-config CHROMEOS_RAMOOPS_RAM_START
-	hex "Physical address of preserved RAM"
-	default 0x00f00000
-	depends on CHROMEOS_RAMOOPS && !CHROMEOS_RAMOOPS_DYNAMIC
-
 config CHROMEOS_RAMOOPS_RAM_SIZE
 	hex "Size of preserved RAM"
 	default 0x00100000
 	depends on CHROMEOS_RAMOOPS
-
-config NO_TPM_RESUME
-	bool
-	default n
-	help
-	  On some boards the TPM stays powered up in S3. On those
-	  boards, booting Windows will break if the TPM resume command
-	  is sent during an S3 resume.
 
 config HAVE_REGULATORY_DOMAIN
 	bool "Add regulatory domain methods"
@@ -88,6 +54,43 @@ config CHROMEOS_DISABLE_PLATFORM_HIERARCHY_ON_RESUME
 	  the boot loader. However, those operations need to be symmetric
 	  on normal boot as well as resume and coreboot is only involved
 	  in the resume piece w.r.t. the platform hierarchy.
+
+config CHROMEOS_USE_EC_WATCHDOG_FLAG
+	bool
+	default n
+	help
+	  Use the AP watchdog flag stored in EC.
+
+config CHROMEOS_DSM_CALIB
+	bool
+	default n
+	help
+	  On some boards, there are calibrated parameters for Dynamic Speaker Management(DSM)
+	  stored in VPD. Enable this config to read and parse these VPD values and write them
+	  to ACPI DSD table in device driver. These parameters will be applied by kernel driver
+	  through device property at boot.
+
+config CHROMEOS_CSE_BOARD_RESET_OVERRIDE
+	bool
+	default n
+	depends on SOC_INTEL_CSE_LITE_SKU
+	help
+	  On some boards that run old firmware version in cr50, Embedded Controller (EC) needs
+	  to trigger the cold reset of Application Processor (AP) when CSE jumps from RO to RW
+	  so that cr50 resets the TPM state. This is required on boards where the cr50 firmware
+	  does not understand the new cr50 strap config (applicable only to boards using strap
+	  config 0xe). Enabling this config will help to override the default global reset.
+
+config CHROMEOS_DRAM_PART_NUMBER_IN_CBI
+	def_bool n
+	depends on EC_GOOGLE_CHROMEEC
+	help
+	  Some boards declare the DRAM part number in the CBI instead of the SPD.  This option
+	  allows those boards to declare that their DRAM part number is stored in the CBI.
+
+config CHROMEOS_NVS
+	bool
+	depends on ACPI_SOC_NVS
 
 endif # CHROMEOS
 endmenu

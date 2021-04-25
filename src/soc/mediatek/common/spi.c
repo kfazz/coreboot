@@ -1,26 +1,14 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <assert.h>
 #include <console/console.h>
 #include <endian.h>
-#include <stdlib.h>
+#include <gpio.h>
 #include <soc/pll.h>
 #include <soc/spi.h>
 #include <timer.h>
+#include <types.h>
 
 #define MTK_SPI_DEBUG 0
 
@@ -48,12 +36,12 @@ static inline struct mtk_spi_bus *to_mtk_spi(const struct spi_slave *slave)
 
 static void spi_sw_reset(struct mtk_spi_regs *regs)
 {
-	setbits_le32(&regs->spi_cmd_reg, SPI_CMD_RST_EN);
-	clrbits_le32(&regs->spi_cmd_reg, SPI_CMD_RST_EN);
+	setbits32(&regs->spi_cmd_reg, SPI_CMD_RST_EN);
+	clrbits32(&regs->spi_cmd_reg, SPI_CMD_RST_EN);
 }
 
 void mtk_spi_init(unsigned int bus, enum spi_pad_mask pad_select,
-		  unsigned int speed_hz)
+		  unsigned int speed_hz, unsigned int tick_dly)
 {
 	u32 div, sck_ticks, cs_ticks;
 
@@ -73,20 +61,22 @@ void mtk_spi_init(unsigned int bus, enum spi_pad_mask pad_select,
 	printk(BIOS_DEBUG, "SPI%u(PAD%u) initialized at %u Hz\n",
 	       bus, pad_select, SPI_HZ / (sck_ticks * 2));
 
-	mtk_spi_set_timing(regs, sck_ticks, cs_ticks);
+	mtk_spi_set_timing(regs, sck_ticks, cs_ticks, tick_dly);
 
-	clrsetbits_le32(&regs->spi_cmd_reg,
-			(SPI_CMD_CPHA_EN | SPI_CMD_CPOL_EN |
-			 SPI_CMD_TX_ENDIAN_EN | SPI_CMD_RX_ENDIAN_EN |
-			 SPI_CMD_TX_DMA_EN | SPI_CMD_RX_DMA_EN |
-			 SPI_CMD_PAUSE_EN | SPI_CMD_DEASSERT_EN),
-			(SPI_CMD_TXMSBF_EN | SPI_CMD_RXMSBF_EN |
-			 SPI_CMD_FINISH_IE_EN | SPI_CMD_PAUSE_IE_EN));
+	clrsetbits32(&regs->spi_cmd_reg,
+		     (SPI_CMD_CPHA_EN | SPI_CMD_CPOL_EN |
+		      SPI_CMD_TX_ENDIAN_EN | SPI_CMD_RX_ENDIAN_EN |
+		      SPI_CMD_TX_DMA_EN | SPI_CMD_RX_DMA_EN |
+		      SPI_CMD_PAUSE_EN | SPI_CMD_DEASSERT_EN),
+		     (SPI_CMD_TXMSBF_EN | SPI_CMD_RXMSBF_EN |
+		      SPI_CMD_FINISH_IE_EN | SPI_CMD_PAUSE_IE_EN));
 
 	mtk_spi_set_gpio_pinmux(bus, pad_select);
 
-	clrsetbits_le32(&regs->spi_pad_macro_sel_reg, SPI_PAD_SEL_MASK,
+	clrsetbits32(&regs->spi_pad_macro_sel_reg, SPI_PAD_SEL_MASK,
 			pad_select);
+
+	gpio_output(slave->cs_gpio, 1);
 }
 
 static void mtk_spi_dump_data(const char *name, const uint8_t *data, int size)
@@ -106,8 +96,10 @@ static int spi_ctrlr_claim_bus(const struct spi_slave *slave)
 	struct mtk_spi_bus *mtk_slave = to_mtk_spi(slave);
 	struct mtk_spi_regs *regs = mtk_slave->regs;
 
-	setbits_le32(&regs->spi_cmd_reg, 1 << SPI_CMD_PAUSE_EN_SHIFT);
+	setbits32(&regs->spi_cmd_reg, 1 << SPI_CMD_PAUSE_EN_SHIFT);
 	mtk_slave->state = MTK_SPI_IDLE;
+
+	gpio_output(mtk_slave->cs_gpio, 0);
 
 	return 0;
 }
@@ -129,10 +121,10 @@ static int do_transfer(const struct spi_slave *slave, void *in, const void *out,
 	else
 		size = MIN(*bytes_in, *bytes_out);
 
-	clrsetbits_le32(&regs->spi_cfg1_reg,
-			SPI_CFG1_PACKET_LENGTH_MASK | SPI_CFG1_PACKET_LOOP_MASK,
-			((size - 1) << SPI_CFG1_PACKET_LENGTH_SHIFT) |
-			(0 << SPI_CFG1_PACKET_LOOP_SHIFT));
+	clrsetbits32(&regs->spi_cfg1_reg,
+		     SPI_CFG1_PACKET_LENGTH_MASK | SPI_CFG1_PACKET_LOOP_MASK,
+		     ((size - 1) << SPI_CFG1_PACKET_LENGTH_SHIFT) |
+		     (0 << SPI_CFG1_PACKET_LOOP_SHIFT));
 
 	if (*bytes_out) {
 		const uint8_t *outb = (const uint8_t *)out;
@@ -160,10 +152,10 @@ static int do_transfer(const struct spi_slave *slave, void *in, const void *out,
 	}
 
 	if (mtk_slave->state == MTK_SPI_IDLE) {
-		setbits_le32(&regs->spi_cmd_reg, SPI_CMD_ACT_EN);
+		setbits32(&regs->spi_cmd_reg, SPI_CMD_ACT_EN);
 		mtk_slave->state = MTK_SPI_PAUSE_IDLE;
 	} else if (mtk_slave->state == MTK_SPI_PAUSE_IDLE) {
-		setbits_le32(&regs->spi_cmd_reg, SPI_CMD_RESUME_EN);
+		setbits32(&regs->spi_cmd_reg, SPI_CMD_RESUME_EN);
 	}
 
 	stopwatch_init_usecs_expire(&sw, MTK_TXRX_TIMEOUT_US);
@@ -240,9 +232,11 @@ static void spi_ctrlr_release_bus(const struct spi_slave *slave)
 	struct mtk_spi_bus *mtk_slave = to_mtk_spi(slave);
 	struct mtk_spi_regs *regs = mtk_slave->regs;
 
-	clrbits_le32(&regs->spi_cmd_reg, SPI_CMD_PAUSE_EN);
+	clrbits32(&regs->spi_cmd_reg, SPI_CMD_PAUSE_EN);
 	spi_sw_reset(regs);
 	mtk_slave->state = MTK_SPI_IDLE;
+
+	gpio_output(mtk_slave->cs_gpio, 1);
 }
 
 static int spi_ctrlr_setup(const struct spi_slave *slave)

@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <memlayout.h>
 
@@ -41,13 +28,17 @@ SECTIONS
 {
 	/* TODO: does this thing emulate SRAM? */
 
-	BOOTBLOCK(0x00000, 64K)
+	REGION(flash, 0, CONFIG_ROM_SIZE, 4K)
 
 	DRAM_START(0x60000000)
 	STACK(0x60000000, 64K)
-	ROMSTAGE(0x60010000, 128K)
-	RAMSTAGE(0x60030000, 16M)
-
+	BOOTBLOCK(0x60010000, 128K)
+	FMAP_CACHE(0x60030000, 4K)
+	TIMESTAMP(0x60031000, 1K)
+	CBFS_MCACHE(0x60031400, 7K)
 	/* TODO: Implement MMU support and move TTB to a better location. */
-	TTB(0x61030000, 16K)
+	TTB(0x60034000, 16K)
+	ROMSTAGE(0x60038000, 128K)
+	RAMSTAGE(0x60060000, 16M)
+	POSTRAM_CBFS_CACHE(0x61060000, 8M)
 }

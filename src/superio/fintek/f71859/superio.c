@@ -1,24 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2010 Marc Jones <marcj303@gmail.com>
- * Copyright (C) 2008 Corey Osgood <corey.osgood@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <device/device.h>
 #include <device/pnp.h>
 #include <superio/conf_mode.h>
-#include <stdlib.h>
 #include "f71859.h"
 
 static void f71859_init(struct device *dev)

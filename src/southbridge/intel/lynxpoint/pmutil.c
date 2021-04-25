@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /*
  * Helper functions for dealing with power management registers
@@ -47,8 +33,8 @@ static void print_status_bits(u32 status, const char *bit_names[])
 	if (!status)
 		return;
 
-	for (i=31; i>=0; i--) {
-		if (status & (1UL << i)) {
+	for (i = 31; i >= 0; i--) {
+		if (status & (1 << i)) {
 			if (bit_names[i])
 				printk(BIOS_DEBUG, "%s ", bit_names[i]);
 			else
@@ -65,12 +51,11 @@ static void print_gpio_status(u32 status, int start)
 	if (!status)
 		return;
 
-	for (i=31; i>=0; i--) {
+	for (i = 31; i >= 0; i--) {
 		if (status & (1 << i))
 			printk(BIOS_DEBUG, "GPIO%d ", start + i);
 	}
 }
-
 
 /*
  * PM1_CNT
@@ -91,7 +76,6 @@ void disable_pm1_control(u32 mask)
 	pm1_cnt &= ~mask;
 	outl(pm1_cnt, get_pmbase() + PM1_CNT);
 }
-
 
 /*
  * PM1
@@ -140,7 +124,6 @@ void enable_pm1(u16 events)
 {
 	outw(events, get_pmbase() + PM1_EN);
 }
-
 
 /*
  * SMI
@@ -211,7 +194,6 @@ void disable_smi(u32 mask)
 	smi_en &= ~mask;
 	outl(smi_en, get_pmbase() + SMI_EN);
 }
-
 
 /*
  * ALT_GP_SMI
@@ -312,17 +294,15 @@ void enable_alt_smi(u32 mask)
 	}
 }
 
-
 /*
  * TCO
  */
 
-/* Clear TCO status and return events that are enabled and active */
+/* Clear TCO status and return events that are active */
 static u32 reset_tco_status(void)
 {
 	u32 tcobase = get_pmbase() + 0x60;
 	u32 tco_sts = inl(tcobase + 0x04);
-	u32 tco_en = inl(get_pmbase() + 0x68);
 
 	/* Don't clear BOOT_STS before SECOND_TO_STS */
 	outl(tco_sts & ~(1 << 18), tcobase + 0x04);
@@ -331,7 +311,7 @@ static u32 reset_tco_status(void)
 	if (tco_sts & (1 << 18))
 		outl(tco_sts & (1 << 18), tcobase + 0x04);
 
-	return tco_sts & tco_en;
+	return tco_sts;
 }
 
 /* Print TCO status bits */
@@ -381,7 +361,6 @@ void enable_tco_sci(void)
 	/* Enable TCO SCI events */
 	enable_gpe(TCOSCI_EN);
 }
-
 
 /*
  * GPE0

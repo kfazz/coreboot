@@ -1,318 +1,25 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
+#include "../haswell.h"
 
-Name(_HID,EISAID("PNP0A08"))	// PCIe
-Name(_CID,EISAID("PNP0A03"))	// PCI
+Name (_HID, EISAID ("PNP0A08"))	// PCIe
+Name (_CID, EISAID ("PNP0A03"))	// PCI
 
-Name(_ADR, 0)
-Name(_BBN, 0)
+Name (_BBN, 0)
 
 Device (MCHC)
 {
-	Name(_ADR, 0x00000000)	// 0:0.0
+	Name (_ADR, 0x00000000)	// 0:0.0
 
-	OperationRegion(MCHP, PCI_Config, 0x00, 0x100)
+	OperationRegion (MCHP, PCI_Config, 0x00, 0x100)
 	Field (MCHP, DWordAcc, NoLock, Preserve)
 	{
-		Offset (0x40),	// EPBAR
-		EPEN,	 1,	// Enable
-		,	11,	//
-		EPBR,	24,	// EPBAR
-
-		Offset (0x48),	// MCHBAR
-		MHEN,	 1,	// Enable
-		,	13,	//
-		MHBR,	22,	// MCHBAR
-
-		Offset (0x60),	// PCIe BAR
-		PXEN,	 1,	// Enable
-		PXSZ,	 2,	// BAR size
-		,	23,	//
-		PXBR,	10,	// PCIe BAR
-
-		Offset (0x68),	// DMIBAR
-		DMEN,	 1,	// Enable
-		,	11,	//
-		DMBR,	24,	// DMIBAR
-
 		Offset (0x70),	// ME Base Address
 		MEBA,	 64,
-
-		// ...
-
-		Offset (0x80),	// PAM0
-		,	 4,
-		PM0H,	 2,
-		,	 2,
-		Offset (0x81),	// PAM1
-		PM1L,	 2,
-		,	 2,
-		PM1H,	 2,
-		,	 2,
-		Offset (0x82),	// PAM2
-		PM2L,	 2,
-		,	 2,
-		PM2H,	 2,
-		,	 2,
-		Offset (0x83),	// PAM3
-		PM3L,	 2,
-		,	 2,
-		PM3H,	 2,
-		,	 2,
-		Offset (0x84),	// PAM4
-		PM4L,	 2,
-		,	 2,
-		PM4H,	 2,
-		,	 2,
-		Offset (0x85),	// PAM5
-		PM5L,	 2,
-		,	 2,
-		PM5H,	 2,
-		,	 2,
-		Offset (0x86),	// PAM6
-		PM6L,	 2,
-		,	 2,
-		PM6H,	 2,
-		,	 2,
-
 		Offset (0xa0),	// Top of Used Memory
 		TOM,	 64,
-
 		Offset (0xbc),	// Top of Low Used Memory
 		TLUD,	 32,
-	}
-
-	Mutex (CTCM, 1)		/* CTDP Switch Mutex (sync level 1) */
-	Name (CTCC, 0)		/* CTDP Current Selection */
-	Name (CTCN, 0)		/* CTDP Nominal Select */
-	Name (CTCD, 1)		/* CTDP Down Select */
-	Name (CTCU, 2)		/* CTDP Up Select */
-	Name (SPL1, 0)		/* Saved PL1 value */
-
-	OperationRegion (MCHB, SystemMemory, Add(DEFAULT_MCHBAR,0x5000), 0x1000)
-	Field (MCHB, DWordAcc, Lock, Preserve)
-	{
-		Offset (0x930), /* PACKAGE_POWER_SKU */
-		CTDN, 15,	/* CTDP Nominal PL1 */
-		Offset (0x938), /* PACKAGE_POWER_SKU_UNIT */
-		PUNI, 4,	/* Power Units */
-		,     4,
-		EUNI, 5,	/* Energy Units */
-		,     3,
-		TUNI, 4,	/* Time Units */
-		Offset (0x958), /* PLATFORM_INFO */
-		,     40,
-		LFM_, 8,	/* Maximum Efficiency Ratio (LFM) */
-		Offset (0x9a0), /* TURBO_POWER_LIMIT1 */
-		PL1V, 15,	/* Power Limit 1 Value */
-		PL1E, 1,	/* Power Limit 1 Enable */
-		PL1C, 1,	/* Power Limit 1 Clamp */
-		PL1T, 7,	/* Power Limit 1 Time */
-		Offset (0x9a4), /* TURBO_POWER_LIMIT2 */
-		PL2V, 15,	/* Power Limit 2 Value */
-		PL2E, 1,	/* Power Limit 2 Enable */
-		PL2C, 1,	/* Power Limit 2 Clamp */
-		PL2T, 7,	/* Power Limit 2 Time */
-		Offset (0xf3c), /* CONFIG_TDP_NOMINAL */
-		TARN, 8,	/* CTDP Nominal Turbo Activation Ratio */
-		Offset (0xf40), /* CONFIG_TDP_LEVEL1 */
-		CTDD, 15,	/* CTDP Down PL1 */
-		,     1,
-		TARD, 8,	/* CTDP Down Turbo Activation Ratio */
-		Offset (0xf48), /* MSR_CONFIG_TDP_LEVEL2 */
-		CTDU, 15,	/* CTDP Up PL1 */
-		,     1,
-		TARU, 8,	/* CTDP Up Turbo Activation Ratio */
-		Offset (0xf50), /* CONFIG_TDP_CONTROL */
-		CTCS, 2,	/* CTDP Select */
-		Offset (0xf54), /* TURBO_ACTIVATION_RATIO */
-		TARS, 8,	/* Turbo Activation Ratio Select */
-	}
-
-	/*
-	 * Search CPU0 _PSS looking for control = arg0 and then
-	 * return previous P-state entry number for new _PPC
-	 *
-	 * Format of _PSS:
-	 *   Name (_PSS, Package () {
-	 *     Package (6) { freq, power, tlat, blat, control, status }
-	 *   }
-	 */
-	External (\_PR.CP00._PSS)
-	Method (PSSS, 1, NotSerialized)
-	{
-		Store (One, Local0) /* Start at P1 */
-		Store (SizeOf (\_PR.CP00._PSS), Local1)
-
-		While (LLess (Local0, Local1)) {
-			/* Store _PSS entry Control value to Local2 */
-			ShiftRight (DeRefOf (Index (DeRefOf (Index
-			      (\_PR.CP00._PSS, Local0)), 4)), 8, Local2)
-			If (LEqual (Local2, Arg0)) {
-				Return (Subtract (Local0, 1))
-			}
-			Increment (Local0)
-		}
-
-		Return (0)
-	}
-
-	/* Calculate PL2 based on chip type */
-	Method (CPL2, 1, NotSerialized)
-	{
-		If (\ISLP ()) {
-			/* Haswell ULT PL2 = 25W */
-			Return (Multiply (25, 8))
-		} Else {
-			/* Haswell Mobile PL2 = 1.25 * PL1 */
-			Return (Divide (Multiply (Arg0, 125), 100))
-		}
-	}
-
-	/* Set Config TDP Down */
-	Method (STND, 0, Serialized)
-	{
-		If (Acquire (CTCM, 100)) {
-			Return (0)
-		}
-		If (LEqual (CTCD, CTCC)) {
-			Release (CTCM)
-			Return (0)
-		}
-
-		Store ("Set TDP Down", Debug)
-
-		/* Set CTC */
-		Store (CTCD, CTCS)
-
-		/* Set TAR */
-		Store (TARD, TARS)
-
-		/* Set PPC limit and notify OS */
-		Store (PSSS (TARD), PPCM)
-		PPCN ()
-
-		/* Set PL2 */
-		Store (CPL2 (CTDD), PL2V)
-
-		/* Set PL1 */
-		Store (CTDD, PL1V)
-
-		/* Store the new TDP Down setting */
-		Store (CTCD, CTCC)
-
-		Release (CTCM)
-		Return (1)
-	}
-
-	/* Set Config TDP Nominal from Down */
-	Method (STDN, 0, Serialized)
-	{
-		If (Acquire (CTCM, 100)) {
-			Return (0)
-		}
-		If (LEqual (CTCN, CTCC)) {
-			Release (CTCM)
-			Return (0)
-		}
-
-		Store ("Set TDP Nominal", Debug)
-
-		/* Set PL1 */
-		Store (CTDN, PL1V)
-
-		/* Set PL2 */
-		Store (CPL2 (CTDN), PL2V)
-
-		/* Set PPC limit and notify OS */
-		Store (PSSS (TARN), PPCM)
-		PPCN ()
-
-		/* Set TAR */
-		Store (TARN, TARS)
-
-		/* Set CTC */
-		Store (CTCN, CTCS)
-
-		/* Store the new TDP Nominal setting */
-		Store (CTCN, CTCC)
-
-		Release (CTCM)
-		Return (1)
-	}
-
-	/* Calculate PL1 value based on requested TDP */
-	Method (TDPP, 1, NotSerialized)
-	{
-		Return (Multiply (ShiftLeft (Subtract (PUNI, 1), 2), Arg0))
-	}
-
-	/* Enable Controllable TDP to limit PL1 to requested value */
-	Method (CTLE, 1, Serialized)
-	{
-		If (Acquire (CTCM, 100)) {
-			Return (0)
-		}
-
-		Store ("Enable PL1 Limit", Debug)
-
-		/* Set _PPC to LFM */
-		Store (PSSS (LFM_), Local0)
-		Add (Local0, 1, PPCM)
-		\PPCN ()
-
-		/* Set TAR to LFM-1 */
-		Subtract (LFM_, 1, TARS)
-
-		/* Set PL1 to desired value */
-		Store (PL1V, SPL1)
-		Store (TDPP (Arg0), PL1V)
-
-		/* Set PL1 CLAMP bit */
-		Store (One, PL1C)
-
-		Release (CTCM)
-		Return (1)
-	}
-
-	/* Disable Controllable TDP */
-	Method (CTLD, 0, Serialized)
-	{
-		If (Acquire (CTCM, 100)) {
-			Return (0)
-		}
-
-		Store ("Disable PL1 Limit", Debug)
-
-		/* Clear PL1 CLAMP bit */
-		Store (Zero, PL1C)
-
-		/* Set PL1 to normal value */
-		Store (SPL1, PL1V)
-
-		/* Set TAR to 0 */
-		Store (Zero, TARS)
-
-		/* Set _PPC to 0 */
-		Store (Zero, PPCM)
-		\PPCN ()
-
-		Release (CTCM)
-		Return (1)
 	}
 }
 
@@ -434,24 +141,63 @@ Name (MCRS, ResourceTemplate()
 Method (_CRS, 0, Serialized)
 {
 	// Find PCI resource area in MCRS
-	CreateDwordField(MCRS, ^PM01._MIN, PMIN)
-	CreateDwordField(MCRS, ^PM01._MAX, PMAX)
-	CreateDwordField(MCRS, ^PM01._LEN, PLEN)
+	CreateDwordField (MCRS, ^PM01._MIN, PMIN)
+	CreateDwordField (MCRS, ^PM01._MAX, PMAX)
+	CreateDwordField (MCRS, ^PM01._LEN, PLEN)
 
 	// Fix up PCI memory region
 	// Start with Top of Lower Usable DRAM
-	Store (^MCHC.TLUD, Local0)
-	Store (^MCHC.MEBA, Local1)
+	// Lower 20 bits of TOLUD register need to be masked since they contain lock and
+	// reserved bits.
+	Local0 = ^MCHC.TLUD & (0xfff << 20)
+	Local1 = ^MCHC.MEBA
 
 	// Check if ME base is equal
-	If (LEqual (Local0, Local1)) {
+	If (Local0 == Local1) {
 		// Use Top Of Memory instead
-		Store (^MCHC.TOM, Local0)
+		// Lower 20 bits of TOM register need to be masked since they contain lock and
+		// reserved bits.
+		Local0 = ^MCHC.TOM & (0x7ffff << 20)
 	}
 
-	Store (Local0, PMIN)
-	Store (Subtract(CONFIG_MMCONF_BASE_ADDRESS, 1), PMAX)
-	Add(Subtract(PMAX, PMIN), 1, PLEN)
+	PMIN = Local0
+	PMAX = CONFIG_MMCONF_BASE_ADDRESS - 1
+	PLEN = (PMAX - PMIN) + 1
 
 	Return (MCRS)
 }
+
+/* PCI Device Resource Consumption */
+Device (PDRC)
+{
+	Name (_HID, EISAID ("PNP0C02"))
+	Name (_UID, 1)
+
+	Name (PDRS, ResourceTemplate () {
+		Memory32Fixed (ReadWrite, CONFIG_FIXED_RCBA_MMIO_BASE, CONFIG_RCBA_LENGTH)
+		Memory32Fixed (ReadWrite, CONFIG_FIXED_MCHBAR_MMIO_BASE, 0x00008000)
+		Memory32Fixed (ReadWrite, CONFIG_FIXED_DMIBAR_MMIO_BASE, 0x00001000)
+		Memory32Fixed (ReadWrite, CONFIG_FIXED_EPBAR_MMIO_BASE,  0x00001000)
+		Memory32Fixed (ReadWrite, CONFIG_MMCONF_BASE_ADDRESS, CONFIG_MMCONF_LENGTH)
+		Memory32Fixed (ReadWrite, 0xfed20000, 0x00020000) // Misc ICH
+		Memory32Fixed (ReadWrite, 0xfed40000, 0x00005000) // Misc ICH
+		Memory32Fixed (ReadWrite, 0xfed45000, 0x0004b000) // Misc ICH
+	})
+
+	// Current Resource Settings
+	Method (_CRS, 0, Serialized)
+	{
+		Return (PDRS)
+	}
+}
+
+/* Configurable TDP */
+#include "ctdp.asl"
+
+#if !CONFIG(INTEL_LYNXPOINT_LP)
+/* PCI Express Graphics */
+#include "peg.asl"
+#endif
+
+/* Integrated graphics 0:2.0 */
+#include <drivers/intel/gma/acpi/gfx.asl>

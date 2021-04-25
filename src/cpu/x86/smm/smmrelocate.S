@@ -1,21 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2010 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
-
-// Make sure no stage 2 code is included:
-#define __PRE_RAM__
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 // FIXME: Is this piece of code southbridge specific, or
 // can it be cleaned up so this include is not required?
@@ -32,10 +15,9 @@
 // ADDR32() macro
 #include <arch/registers.h>
 
-#if CONFIG(SMM_TSEG)
-#error "Don't use this file with TSEG."
-
-#endif /* CONFIG_SMM_TSEG */
+#if !CONFIG(SMM_ASEG)
+#error "Only use this file with ASEG."
+#endif /* CONFIG_SMM_ASEG */
 
 #define LAPIC_ID 0xfee00020
 

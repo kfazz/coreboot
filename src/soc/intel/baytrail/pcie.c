@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <device/device.h>
@@ -108,11 +95,11 @@ static void byt_pcie_init(struct device *dev)
 	reg_script_run_on_dev(dev, init_script);
 
 	if (is_first_port(dev)) {
-		struct soc_intel_baytrail_config *config = dev->chip_info;
+		struct soc_intel_baytrail_config *config = config_of(dev);
 		uint32_t reg = pci_read_config32(dev, RPPGEN);
 		reg |= SRDLCGEN | SRDBCGEN;
 
-		if (config && config->clkreq_enable)
+		if (config->clkreq_enable)
 			reg |= LCLKREQEN | BBCLKREQEN;
 
 		pci_write_config32(dev, RPPGEN, reg);
@@ -163,7 +150,7 @@ static u8 all_ports_no_dev_present(struct device *dev)
 		dev->path.pci.devfn &= ~0x7;
 		dev->path.pci.devfn |= func;
 
-		/* is pcie device there */
+		/* is PCIe device there */
 		if (pci_read_config32(dev, 0) == 0xFFFFFFFF)
 			continue;
 
@@ -208,14 +195,14 @@ static void check_device_present(struct device *dev)
 static void byt_pcie_enable(struct device *dev)
 {
 	if (is_first_port(dev)) {
-		struct soc_intel_baytrail_config *config = dev->chip_info;
+		struct soc_intel_baytrail_config *config = config_of(dev);
 		uint32_t reg = pci_read_config32(dev, PHYCTL2_IOSFBCTL);
 		pll_en_off = !!(reg & PLL_OFF_EN);
 
 		strpfusecfg = pci_read_config32(dev, STRPFUSECFG);
 
-		if (config && config->pcie_wake_enable)
-			southcluster_smm_save_param(
+		if (config->pcie_wake_enable)
+			smm_southcluster_save_param(
 				SMM_SAVE_PARAM_PCIE_WAKE_ENABLE, 1);
 	}
 
@@ -240,10 +227,6 @@ static void byt_pciexp_scan_bridge(struct device *dev)
 	do_pci_scan_bridge(dev, pciexp_scan_bus);
 }
 
-static struct pci_operations pcie_root_ops = {
-	.set_subsystem = pci_dev_set_subsystem,
-};
-
 static struct device_operations device_ops = {
 	.read_resources		= pci_bus_read_resources,
 	.set_resources		= pci_dev_set_resources,
@@ -251,7 +234,7 @@ static struct device_operations device_ops = {
 	.init			= byt_pcie_init,
 	.scan_bus		= byt_pciexp_scan_bridge,
 	.enable			= byt_pcie_enable,
-	.ops_pci		= &pcie_root_ops,
+	.ops_pci		= &pci_dev_ops_pci,
 };
 
 static const unsigned short pci_device_ids[] = {

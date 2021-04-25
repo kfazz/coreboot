@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef SOUTHBRIDGE_INTEL_I82801GX_I82801GX_H
 #define SOUTHBRIDGE_INTEL_I82801GX_I82801GX_H
@@ -20,11 +7,10 @@
  * It does not matter where we put the SMBus I/O base, as long as we
  * keep it consistent and don't interfere with other devices.  Stage2
  * will relocate this anyways.
- * Our solution is to have SMB initialization move the I/O to SMBUS_IO_BASE
+ * Our solution is to have SMB initialization move the I/O to CONFIG_FIXED_SMBUS_IO_BASE
  * again. But handling static BARs is a generic problem that should be
  * solved in the device allocator.
  */
-#define SMBUS_IO_BASE		0x0400
 /* TODO Make sure these don't get changed by stage2 */
 #define DEFAULT_GPIOBASE	0x0480
 #define DEFAULT_PMBASE		0x0500
@@ -34,22 +20,14 @@
 #ifndef __ACPI__
 #define DEBUG_PERIODIC_SMIS 0
 
-#if !defined(__ASSEMBLER__)
-#if !defined(__PRE_RAM__)
-#include "chip.h"
-#if !defined(__SIMPLE_DEVICE__)
+#include <device/device.h>
 void i82801gx_enable(struct device *dev);
-#endif
-#else
-void enable_smbus(void);
-int smbus_read_byte(unsigned int device, unsigned int address);
-int i2c_eeprom_read(unsigned int device, unsigned int cmd, unsigned int bytes,
-		u8 *buf);
-int smbus_block_read(unsigned int device, unsigned int cmd, u8 bytes, u8 *buf);
-int smbus_block_write(unsigned int device, unsigned int cmd, u8 bytes,
-		const u8 *buf);
-#endif
-#endif
+
+void i82801gx_lpc_setup(void);
+void i82801gx_setup_bars(void);
+void i82801gx_early_init(void);
+
+void ich7_setup_cir(void);
 
 #define MAINBOARD_POWER_OFF	0
 #define MAINBOARD_POWER_ON	1
@@ -60,10 +38,6 @@ int smbus_block_write(unsigned int device, unsigned int cmd, u8 bytes,
 #define SMLT	0x1b
 #define SECSTS	0x1e
 #define INTR	0x3c
-#define BCTRL	0x3e
-#define   SBR	(1 << 6)
-#define   SEE	(1 << 1)
-#define   PERE	(1 << 0)
 
 #define ICH_PCIE_DEV_SLOT	28
 
@@ -83,18 +57,19 @@ int smbus_block_write(unsigned int device, unsigned int cmd, u8 bytes,
 
 #define FDVCT			0xe4
 #define   PCIE_4_PORTS_MAX	(1 << 7)
+#define   AHCI_UNSUPPORTED	(1 << 3)
 
 /* GEN_PMCON_3 bits */
 #define RTC_BATTERY_DEAD	(1 << 2)
 #define RTC_POWER_FAILED	(1 << 1)
 #define SLEEP_AFTER_POWER_FAIL	(1 << 0)
 
-#define PMBASE			0x40
 #define ACPI_CNTL		0x44
 #define   ACPI_EN		(1 << 7)
 #define BIOS_CNTL		0xDC
 #define GPIO_BASE		0x48 /* LPC GPIO Base Address Register */
 #define GPIO_CNTL		0x4C /* LPC GPIO Control Register */
+#define   GPIO_EN		(1 << 4)
 
 #define PIRQA_ROUT		0x60
 #define PIRQB_ROUT		0x61
@@ -354,52 +329,6 @@ int smbus_block_write(unsigned int device, unsigned int cmd, u8 bytes,
 #define SS_CNT		0x50
 #define C3_RES		0x54
 #define TCO1_CNT	0x68
-
-/* SPIBAR
- *
- * SPI Opcode Menu setup for SPIBAR lockdown
- * should support most common flash chips.
- */
-
-#define PREOP		0x54
-#define OPTYPE		0x56
-#define OPMENU		0x58
-
-#define SPI_OPMENU_0 0x01 /* WRSR: Write Status Register */
-#define SPI_OPTYPE_0 0x01 /* Write, no address */
-
-#define SPI_OPMENU_1 0x02 /* BYPR: Byte Program */
-#define SPI_OPTYPE_1 0x03 /* Write, address required */
-
-#define SPI_OPMENU_2 0x03 /* READ: Read Data */
-#define SPI_OPTYPE_2 0x02 /* Read, address required */
-
-#define SPI_OPMENU_3 0x05 /* RDSR: Read Status Register */
-#define SPI_OPTYPE_3 0x00 /* Read, no address */
-
-#define SPI_OPMENU_4 0x20 /* SE20: Sector Erase 0x20 */
-#define SPI_OPTYPE_4 0x03 /* Write, address required */
-
-#define SPI_OPMENU_5 0x9f /* RDID: Read ID */
-#define SPI_OPTYPE_5 0x00 /* Read, no address */
-
-#define SPI_OPMENU_6 0xd8 /* BED8: Block Erase 0xd8 */
-#define SPI_OPTYPE_6 0x03 /* Write, address required */
-
-#define SPI_OPMENU_7 0x0b /* FAST: Fast Read */
-#define SPI_OPTYPE_7 0x02 /* Read, address required */
-
-#define SPI_OPMENU_UPPER ((SPI_OPMENU_7 << 24) | (SPI_OPMENU_6 << 16) | \
-			  (SPI_OPMENU_5 << 8) | SPI_OPMENU_4)
-#define SPI_OPMENU_LOWER ((SPI_OPMENU_3 << 24) | (SPI_OPMENU_2 << 16) | \
-			  (SPI_OPMENU_1 << 8) | SPI_OPMENU_0)
-
-#define SPI_OPTYPE ((SPI_OPTYPE_7 << 14) | (SPI_OPTYPE_6 << 12) | \
-		    (SPI_OPTYPE_5 << 10) | (SPI_OPTYPE_4 << 8) |  \
-		    (SPI_OPTYPE_3 << 6) | (SPI_OPTYPE_2 << 4) |	  \
-		    (SPI_OPTYPE_1 << 2) | (SPI_OPTYPE_0))
-
-#define SPI_OPPREFIX ((0x50 << 8) | 0x06) /* EWSR and WREN */
 
 #endif /* __ACPI__ */
 #endif				/* SOUTHBRIDGE_INTEL_I82801GX_I82801GX_H */

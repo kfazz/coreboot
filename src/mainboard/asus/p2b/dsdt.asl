@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2010 Tobias Diedrich <ranma+coreboot@tdiedrich.de>
- * Copyright (C) 2017 Keith Hui <buurin@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <southbridge/intel/i82371eb/i82371eb.h>
 
@@ -22,23 +8,25 @@
 #define SUPERIO_SHOW_FDC
 #define SUPERIO_SHOW_LPT
 
-#include <arch/acpi.h>
-DefinitionBlock ("DSDT.aml", "DSDT", 2, OEM_ID, ACPI_TABLE_CREATOR, 1)
+#include <acpi/acpi.h>
+
+DefinitionBlock (
+	"dsdt.aml",
+	"DSDT",
+	ACPI_DSDT_REV_2,
+	OEM_ID,
+	ACPI_TABLE_CREATOR,
+	1
+	)
 {
-	/* \_PR scope defining the main processor is generated in SSDT. */
+	#include <acpi/dsdt_top.asl>
+	/* \_SB scope defining the main processor is generated in SSDT. */
 
 	OperationRegion(X80, SystemIO, 0x80, 1)
 	Field(X80, ByteAcc, NoLock, Preserve)
 	{
 		P80, 8
 	}
-
-	/*
-	 * For now only define 2 power states:
-	 *  - S0 which is fully on
-	 *  - S5 which is soft off
-	 * Any others would involve declaring the wake up methods.
-	 */
 
 	/*
 	 * Intel 82371EB (PIIX4E) datasheet, section 7.2.3, page 142
@@ -80,23 +68,23 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, OEM_ID, ACPI_TABLE_CREATOR, 1)
 	Method (\_PTS, 1, NotSerialized)
 	{
 		/* Disable fan, blink power LED, if not turning off */
-		If (LNotEqual (Arg0, 0x05))
+		If (Arg0 != 0x05)
 		{
-		    Store (Zero, FANM)
-		    Store (Zero, PLED)
+		    FANM = 0
+		    PLED = 0
 		}
 
 		/* Arms SMI for device 12 */
-		Store (One, TO12)
+		TO12 = 1
 		/* Put out a POST code */
-		Or (Arg0, 0xF0, P80)
+		P80 = Arg0 | 0xF0
 	}
 
 	Method (\_WAK, 1, NotSerialized)
 	{
 		/* Re-enable fan, stop power led blinking */
-		Store (One, FANM)
-		Store (One, PLED)
+		FANM = 1
+		PLED = 1
 		/* wake OK */
 		Return(Package(0x02){0x00, 0x00})
 	}
@@ -104,15 +92,6 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, OEM_ID, ACPI_TABLE_CREATOR, 1)
 	/* Root of the bus hierarchy */
 	Scope (\_SB)
 	{
-		Device (PWRB)
-		{
-			/* Power Button Device */
-			Name (_HID, EisaId ("PNP0C0C"))
-			Method (_STA, 0, NotSerialized)
-			{
-				Return (0x0B)
-			}
-		}
 		#include <southbridge/intel/i82371eb/acpi/intx.asl>
 
 		PCI_INTX_DEV(LNKA, \_SB.PCI0.PX40.PIRA, 1)
@@ -124,7 +103,6 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, OEM_ID, ACPI_TABLE_CREATOR, 1)
 		Device (PCI0)
 		{
 			Name (_HID, EisaId ("PNP0A03"))
-			Name (_ADR, 0x00)
 			Name (_UID, 0x00)
 			Name (_BBN, 0x00)
 
@@ -140,6 +118,12 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, OEM_ID, ACPI_TABLE_CREATOR, 1)
 				Package (0x04) { 0x0004FFFF, 2, LNKC, 0 },
 				Package (0x04) { 0x0004FFFF, 3, LNKD, 0 },
 
+#if CONFIG(BOARD_ASUS_P2B_LS)
+				Package (0x04) { 0x0006FFFF, 0, LNKD, 0 },
+				Package (0x04) { 0x0006FFFF, 1, LNKA, 0 },
+				Package (0x04) { 0x0006FFFF, 2, LNKB, 0 },
+				Package (0x04) { 0x0006FFFF, 3, LNKC, 0 },
+#endif
 				Package (0x04) { 0x0009FFFF, 0, LNKD, 0 },
 				Package (0x04) { 0x0009FFFF, 1, LNKA, 0 },
 				Package (0x04) { 0x0009FFFF, 2, LNKB, 0 },
@@ -150,6 +134,12 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, OEM_ID, ACPI_TABLE_CREATOR, 1)
 				Package (0x04) { 0x000AFFFF, 2, LNKA, 0 },
 				Package (0x04) { 0x000AFFFF, 3, LNKB, 0 },
 
+#if CONFIG(BOARD_ASUS_P2B_LS)
+				Package (0x04) { 0x0007FFFF, 0, LNKC, 0 },
+				Package (0x04) { 0x0007FFFF, 1, LNKD, 0 },
+				Package (0x04) { 0x0007FFFF, 2, LNKA, 0 },
+				Package (0x04) { 0x0007FFFF, 3, LNKB, 0 },
+#endif
 				Package (0x04) { 0x000BFFFF, 0, LNKB, 0 },
 				Package (0x04) { 0x000BFFFF, 1, LNKC, 0 },
 				Package (0x04) { 0x000BFFFF, 2, LNKD, 0 },
@@ -160,81 +150,22 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, OEM_ID, ACPI_TABLE_CREATOR, 1)
 				Package (0x04) { 0x000CFFFF, 2, LNKC, 0 },
 				Package (0x04) { 0x000CFFFF, 3, LNKD, 0 },
 
+#if CONFIG(BOARD_ASUS_P3B_F)
+				Package (0x04) { 0x000DFFFF, 0, LNKD, 0 },
+				Package (0x04) { 0x000DFFFF, 1, LNKA, 0 },
+				Package (0x04) { 0x000DFFFF, 2, LNKB, 0 },
+				Package (0x04) { 0x000DFFFF, 3, LNKC, 0 },
+
+				Package (0x04) { 0x000EFFFF, 0, LNKC, 0 },
+				Package (0x04) { 0x000EFFFF, 1, LNKD, 0 },
+				Package (0x04) { 0x000EFFFF, 2, LNKA, 0 },
+				Package (0x04) { 0x000EFFFF, 3, LNKB, 0 },
+#endif
 			})
 			#include <northbridge/intel/i440bx/acpi/sb_pci0_crs.asl>
+			#include <southbridge/intel/i82371eb/acpi/isabridge.asl>
 
-			/* Begin southbridge block */
-			Device (PX40)
-			{
-				Name(_ADR, 0x00040000)
-				OperationRegion (PIRQ, PCI_Config, 0x60, 0x04)
-				Field (PIRQ, ByteAcc, NoLock, Preserve)
-				{
-					PIRA,   8,
-					PIRB,   8,
-					PIRC,   8,
-					PIRD,   8
-				}
-
-				/* PNP Motherboard Resources */
-				Device (SYSR)
-				{
-					Name (_HID, EisaId ("PNP0C02"))
-					Method (_CRS, 0, NotSerialized)
-					{
-					Name (BUF1, ResourceTemplate ()
-					{
-						/* PM register ports */
-						IO (Decode16, 0x0000, 0x0000, 0x01, 0x40, _Y06)
-						/* SMBus register ports */
-						IO (Decode16, 0x0000, 0x0000, 0x01, 0x10, _Y07)
-						/* PIIX4E ports */
-						/* Aliased DMA ports */
-						IO (Decode16, 0x0010, 0x0010, 0x01, 0x10, )
-						/* Aliased PIC ports */
-						IO (Decode16, 0x0022, 0x0022, 0x01, 0x1E, )
-						/* Aliased timer ports */
-						IO (Decode16, 0x0050, 0x0050, 0x01, 0x04, )
-						IO (Decode16, 0x0062, 0x0062, 0x01, 0x02, )
-						IO (Decode16, 0x0065, 0x0065, 0x01, 0x0B, )
-						IO (Decode16, 0x0074, 0x0074, 0x01, 0x0C, )
-						IO (Decode16, 0x0091, 0x0091, 0x01, 0x03, )
-						IO (Decode16, 0x00A2, 0x00A2, 0x01, 0x1E, )
-						IO (Decode16, 0x00E0, 0x00E0, 0x01, 0x10, )
-						IO (Decode16, 0x0294, 0x0294, 0x01, 0x04, )
-						IO (Decode16, 0x03F0, 0x03F0, 0x01, 0x02, )
-						IO (Decode16, 0x04D0, 0x04D0, 0x01, 0x02, )
-					})
-					CreateWordField (BUF1, _Y06._MIN, PMLO)
-					CreateWordField (BUF1, _Y06._MAX, PMRL)
-					CreateWordField (BUF1, _Y07._MIN, SBLO)
-					CreateWordField (BUF1, _Y07._MAX, SBRL)
-
-					And (\_SB.PCI0.PX43.PM00, 0xFFFE, PMLO)
-					And (\_SB.PCI0.PX43.SB00, 0xFFFE, SBLO)
-					Store (PMLO, PMRL)
-					Store (SBLO, SBRL)
-					Return (BUF1)
-					}
-				}
-				#include <southbridge/intel/i82371eb/acpi/i82371eb.asl>
-			}
-			Device (PX43)
-			{
-				Name (_ADR, 0x00040003)  // _ADR: Address
-				OperationRegion (IPMU, PCI_Config, PMBA, 0x02)
-				Field (IPMU, ByteAcc, NoLock, Preserve)
-				{
-				    PM00,   16
-				}
-
-				OperationRegion (ISMB, PCI_Config, SMBBA, 0x02)
-				Field (ISMB, ByteAcc, NoLock, Preserve)
-				{
-				    SB00,   16
-				}
-			}
-
+			#include <southbridge/intel/i82371eb/acpi/i82371eb.asl>
 			#include <superio/winbond/w83977tf/acpi/superio.asl>
 		}
 	}
@@ -244,13 +175,13 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, OEM_ID, ACPI_TABLE_CREATOR, 1)
 	{
 		Method (_MSG, 1, NotSerialized)
 		{
-			If (LEqual (Arg0, Zero))
+			If (Arg0 == 0)
 			{
-				Store (One, MSG0)
+				MSG0 = 1
 			}
 			Else
 			{
-				Store (Zero, MSG0)
+				MSG0 = 0
 			}
 		}
 	}

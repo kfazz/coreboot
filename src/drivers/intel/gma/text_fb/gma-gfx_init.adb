@@ -1,3 +1,5 @@
+-- SPDX-License-Identifier: GPL-2.0-only
+
 with HW.GFX;
 with HW.GFX.GMA;
 with HW.GFX.GMA.Display_Probing;
@@ -10,17 +12,6 @@ with GMA.Mainboard;
 
 package body GMA.GFX_Init
 is
-
-   function fill_lb_framebuffer
-     (framebuffer : in out lb_framebuffer)
-      return Interfaces.C.int
-   is
-      use type Interfaces.C.int;
-   begin
-      return -1;
-   end fill_lb_framebuffer;
-
-   ----------------------------------------------------------------------------
 
    procedure gfxinit (lightup_ok : out Interfaces.C.int)
    is

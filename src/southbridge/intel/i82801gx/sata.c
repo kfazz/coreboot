@@ -1,29 +1,13 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- * Copyright (C) 2016 Damien Zammit <damien@zamaudio.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ops.h>
 #include <device/pci_ids.h>
+#include "chip.h"
 #include "i82801gx.h"
 #include "sata.h"
-
-typedef struct southbridge_intel_i82801gx_config config_t;
 
 static u8 get_ich7_sata_ports(void)
 {
@@ -41,8 +25,7 @@ static u8 get_ich7_sata_ports(void)
 	case 0x27bc:
 		return 0x3;
 	default:
-		printk(BIOS_ERR,
-			"i82801gx_sata: error: cannot determine port config\n");
+		printk(BIOS_ERR, "i82801gx_sata: error: cannot determine port config\n");
 		return 0;
 	}
 }
@@ -50,30 +33,47 @@ static u8 get_ich7_sata_ports(void)
 void sata_enable(struct device *dev)
 {
 	/* Get the chip configuration */
-	config_t *config = dev->chip_info;
+	struct southbridge_intel_i82801gx_config *config = dev->chip_info;
 
-	if (config->sata_ahci) {
-		/* Set map to ahci */
-		pci_write_config8(dev, SATA_MAP,
-			(pci_read_config8(dev, SATA_MAP) & ~0xc3) | 0x40);
-	} else {
-		/* Set map to ide */
-		pci_write_config8(dev, SATA_MAP,
-			pci_read_config8(dev, SATA_MAP) & ~0xc3);
+	if (config->sata_mode == SATA_MODE_AHCI) {
+		/* Check if the southbridge supports AHCI */
+		struct device *lpc_dev = pcidev_on_root(31, 0);
+		if (!lpc_dev) {
+			/* According to the PCI spec function 0 on a bus:device
+			   needs to be active for other functions to be enabled.
+			   Since SATA is on the same bus:device as the LPC
+			   bridge, it makes little sense to continue. */
+			die("Couldn't find the LPC device!\n");
+		}
+
+		const bool ahci_supported = !(pci_read_config32(lpc_dev, FDVCT)
+					      & AHCI_UNSUPPORTED);
+
+		if (!ahci_supported) {
+			/* Fallback to IDE PLAIN for sata for the rest of the initialization */
+			config->sata_mode = SATA_MODE_IDE_PLAIN;
+			printk(BIOS_DEBUG, "AHCI not supported, falling back to plain mode.\n");
+		}
+
 	}
 
+	if (config->sata_mode == SATA_MODE_AHCI) {
+		/* Set map to ahci */
+		pci_update_config8(dev, SATA_MAP, (u8)~0xc3, 0x40);
+	} else {
+		/* Set map to ide */
+		pci_and_config8(dev, SATA_MAP, (u8)~0xc3);
+	}
 	/* At this point, the new pci id will appear on the bus */
 }
 
 static void sata_init(struct device *dev)
 {
 	u32 reg32;
-	u16 reg16;
-	u32 *ahci_bar;
 	u8 ports;
 
 	/* Get the chip configuration */
-	config_t *config = dev->chip_info;
+	const struct southbridge_intel_i82801gx_config *config = dev->chip_info;
 
 	printk(BIOS_DEBUG, "i82801gx_sata: initializing...\n");
 
@@ -86,16 +86,17 @@ static void sata_init(struct device *dev)
 	ports = get_ich7_sata_ports();
 
 	/* Enable BARs */
-	pci_write_config16(dev, PCI_COMMAND, 0x0007);
+	pci_write_config16(dev, PCI_COMMAND,
+			   PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY | PCI_COMMAND_IO);
 
-	if (config->ide_legacy_combined) {
+	switch (config->sata_mode) {
+	case SATA_MODE_IDE_LEGACY_COMBINED:
 		printk(BIOS_DEBUG, "SATA controller in combined mode.\n");
 		/* No AHCI: clear AHCI base */
-		pci_write_config32(dev, 0x24, 0x00000000);
+		pci_write_config32(dev, PCI_BASE_ADDRESS_5, 0);
+
 		/* And without AHCI BAR no memory decoding */
-		reg16 = pci_read_config16(dev, PCI_COMMAND);
-		reg16 &= ~PCI_COMMAND_MEMORY;
-		pci_write_config16(dev, PCI_COMMAND, reg16);
+		pci_and_config16(dev, PCI_COMMAND, ~PCI_COMMAND_MEMORY);
 
 		pci_write_config8(dev, 0x09, 0x80);
 
@@ -119,7 +120,8 @@ static void sata_init(struct device *dev)
 
 		/* Restrict ports - 0 and 2 only available */
 		ports &= 0x5;
-	} else if (config->sata_ahci) {
+		break;
+	case SATA_MODE_AHCI:
 		printk(BIOS_DEBUG, "SATA controller in AHCI mode.\n");
 		/* Allow both Legacy and Native mode */
 		pci_write_config8(dev, 0x09, 0x8f);
@@ -128,20 +130,22 @@ static void sata_init(struct device *dev)
 		/* Interrupt Pin is set by D31IP.PIP */
 		pci_write_config8(dev, INTR_LN, 0x0a);
 
-		ahci_bar = (u32 *)(pci_read_config32(dev, 0x27) & ~0x3ff);
-		ahci_bar[3] = config->sata_ports_implemented;
-	} else {
+		struct resource *ahci_res = find_resource(dev, PCI_BASE_ADDRESS_5);
+		if (ahci_res != NULL)
+			/* write AHCI GHC_PI register */
+			write32(res2mmio(ahci_res, 0xc, 0), config->sata_ports_implemented);
+		break;
+	default:
+	case SATA_MODE_IDE_PLAIN:
 		printk(BIOS_DEBUG, "SATA controller in plain mode.\n");
 		/* Set Sata Controller Mode. No Mapping(?) */
 		pci_write_config8(dev, SATA_MAP, 0x00);
 
 		/* No AHCI: clear AHCI base */
-		pci_write_config32(dev, 0x24, 0x00000000);
+		pci_write_config32(dev, PCI_BASE_ADDRESS_5, 0x00000000);
 
 		/* And without AHCI BAR no memory decoding */
-		reg16 = pci_read_config16(dev, PCI_COMMAND);
-		reg16 &= ~PCI_COMMAND_MEMORY;
-		pci_write_config16(dev, PCI_COMMAND, reg16);
+		pci_and_config16(dev, PCI_COMMAND, ~PCI_COMMAND_MEMORY);
 
 		/* Native mode capable on both primary and secondary (0xa)
 		 * or'ed with enabled (0x50) = 0xf
@@ -167,6 +171,7 @@ static void sata_init(struct device *dev)
 		/* Set IDE I/O Configuration */
 		reg32 = SIG_MODE_PRI_NORMAL | FAST_PCB1 | FAST_PCB0 | PCB1 | PCB0;
 		pci_write_config32(dev, IDE_CONFIG, reg32);
+		break;
 	}
 
 	/* Set port control */
@@ -181,37 +186,24 @@ static void sata_init(struct device *dev)
 	pci_write_config8(dev, 0xa0, 0x78);
 	pci_write_config8(dev, 0xa6, 0x22);
 	pci_write_config8(dev, 0xa0, 0x88);
-	reg32 = pci_read_config32(dev, 0xa4);
-	reg32 &= 0xc0c0c0c0;
-	reg32 |= 0x1b1b1212;
-	pci_write_config32(dev, 0xa4, reg32);
+	pci_update_config32(dev, 0xa4, 0xc0c0c0c0, 0x1b1b1212);
 	pci_write_config8(dev, 0xa0, 0x8c);
-	reg32 = pci_read_config32(dev, 0xa4);
-	reg32 &= 0xc0c0ff00;
-	reg32 |= 0x121200aa;
-	pci_write_config32(dev, 0xa4, reg32);
+	pci_update_config32(dev, 0xa4, 0xc0c0ff00, 0x121200aa);
 	pci_write_config8(dev, 0xa0, 0x00);
 
 	pci_write_config8(dev, PCI_INTERRUPT_LINE, 0);
 
 	/* Sata Initialization Register */
-	reg32 = pci_read_config32(dev, SATA_IR);
-	reg32 |= SCRD; // due to some bug
-	pci_write_config32(dev, SATA_IR, reg32);
+	pci_or_config32(dev, SATA_IR, SCRD); // due to some bug
 }
-
-static struct pci_operations sata_pci_ops = {
-	.set_subsystem    = pci_dev_set_subsystem,
-};
 
 static struct device_operations sata_ops = {
 	.read_resources		= pci_dev_read_resources,
 	.set_resources		= pci_dev_set_resources,
 	.enable_resources	= pci_dev_enable_resources,
 	.init			= sata_init,
-	.scan_bus		= 0,
 	.enable			= i82801gx_enable,
-	.ops_pci		= &sata_pci_ops,
+	.ops_pci		= &pci_dev_ops_pci,
 };
 
 static const unsigned short sata_ids[] = {

@@ -1,25 +1,18 @@
-/*
- * This file is part of the coreboot project.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef VARIANT_H
 #define VARIANT_H
 
 #include <device/device.h>
 #include <soc/romstage.h>
+#include <stdint.h>
 
 int variant_smbios_data(struct device *dev, int *handle,
 			unsigned long *current);
-void variant_romstage_entry(struct romstage_params *rp);
 void lan_init(void);
+
+void fill_spd_for_index(uint8_t spd[], unsigned int index);
+
+#define SPD_LEN			256
 
 #endif

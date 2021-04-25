@@ -1,20 +1,7 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 #include <rmodule.h>
@@ -38,6 +25,8 @@
 #include <symbols.h>
 #include <timer.h>
 #include <thread.h>
+
+#include <security/intel/stm/SmmStm.h>
 
 #define MAX_APIC_IDS 256
 
@@ -117,14 +106,13 @@ struct saved_msr {
 	uint32_t hi;
 } __packed;
 
-
 /* The sipi vector rmodule is included in the ramstage using 'objdump -B'. */
 extern char _binary_sipi_vector_start[];
 
 /* The SIPI vector is loaded at the SMM_DEFAULT_BASE. The reason is at the
  * memory range is already reserved so the OS cannot use it. That region is
  * free to use for AP bringup before SMM is initialized. */
-static const uint32_t sipi_vector_location = SMM_DEFAULT_BASE;
+static const uintptr_t sipi_vector_location = SMM_DEFAULT_BASE;
 static const int sipi_vector_location_size = SMM_DEFAULT_SIZE;
 
 struct mp_flight_plan {
@@ -135,20 +123,8 @@ struct mp_flight_plan {
 static int global_num_aps;
 static struct mp_flight_plan mp_info;
 
-struct cpu_map {
-	struct device *dev;
-	/* Keep track of default apic ids for SMM. */
-	int default_apic_id;
-};
-
-/* Keep track of APIC and device structure for each CPU. */
-static struct cpu_map cpus[CONFIG_MAX_CPUS];
-
-static inline void add_cpu_map_entry(const struct cpu_info *info)
-{
-	cpus[info->index].dev = info->cpu;
-	cpus[info->index].default_apic_id = cpuid_ebx(1) >> 24;
-}
+/* Keep track of device structure for each CPU. */
+static struct device *cpus_dev[CONFIG_MAX_CPUS];
 
 static inline void barrier_wait(atomic_t *b)
 {
@@ -212,16 +188,20 @@ static void asmlinkage ap_init(unsigned int cpu)
 
 	info = cpu_info();
 	info->index = cpu;
-	info->cpu = cpus[cpu].dev;
+	info->cpu = cpus_dev[cpu];
 
-	add_cpu_map_entry(info);
+	cpu_add_map_entry(info->index);
 	thread_init_cpu_info_non_bsp(info);
 
 	/* Fix up APIC id with reality. */
 	info->cpu->path.apic.apic_id = lapicid();
 
-	printk(BIOS_INFO, "AP: slot %d apic_id %x.\n", cpu,
-		info->cpu->path.apic.apic_id);
+	if (cpu_is_intel())
+		printk(BIOS_INFO, "AP: slot %d apic_id %x, MCU rev: 0x%08x\n", cpu,
+		       info->cpu->path.apic.apic_id, get_current_microcode_rev());
+	else
+		printk(BIOS_INFO, "AP: slot %d apic_id %x\n", cpu,
+		       info->cpu->path.apic.apic_id);
 
 	/* Walk the flight plan */
 	ap_do_flight_plan();
@@ -333,7 +313,7 @@ static atomic_t *load_sipi_vector(struct mp_params *mp_params)
 	module_size = rmodule_memory_size(&sipi_mod);
 
 	/* Align to 4 bytes. */
-	module_size = ALIGN(module_size, 4);
+	module_size = ALIGN_UP(module_size, 4);
 
 	if (module_size > loc_size) {
 		printk(BIOS_CRIT, "SIPI module size (%d) > region size (%d).\n",
@@ -362,16 +342,16 @@ static atomic_t *load_sipi_vector(struct mp_params *mp_params)
 
 	setup_default_sipi_vector_params(sp);
 	/* Setup MSR table. */
-	sp->msr_table_ptr = (uint32_t)&mod_loc[module_size];
+	sp->msr_table_ptr = (uintptr_t)&mod_loc[module_size];
 	sp->msr_count = num_msrs;
 	/* Provide pointer to microcode patch. */
-	sp->microcode_ptr = (uint32_t)mp_params->microcode_pointer;
-	/* Pass on abiility to load microcode in parallel. */
+	sp->microcode_ptr = (uintptr_t)mp_params->microcode_pointer;
+	/* Pass on ability to load microcode in parallel. */
 	if (mp_params->parallel_microcode_load)
-		sp->microcode_lock = 0;
-	else
 		sp->microcode_lock = ~0;
-	sp->c_handler = (uint32_t)&ap_init;
+	else
+		sp->microcode_lock = 0;
+	sp->c_handler = (uintptr_t)&ap_init;
 	ap_count = &sp->ap_count;
 	atomic_set(ap_count, 0);
 
@@ -411,7 +391,7 @@ static int allocate_cpu_devices(struct bus *cpu_bus, struct mp_params *p)
 			continue;
 		}
 		new->name = processor_name;
-		cpus[i].dev = new;
+		cpus_dev[i] = new;
 	}
 
 	return max_cpus;
@@ -455,10 +435,32 @@ static int start_aps(struct bus *cpu_bus, int ap_count, atomic_t *num_aps)
 
 	printk(BIOS_DEBUG, "Attempting to start %d APs\n", ap_count);
 
+	if (is_x2apic_mode()) {
+		x2apic_send_ipi(LAPIC_DM_INIT | LAPIC_INT_LEVELTRIG |
+			LAPIC_INT_ASSERT | LAPIC_DEST_ALLBUT, 0);
+		mdelay(10);
+		x2apic_send_ipi(LAPIC_DM_STARTUP | LAPIC_INT_LEVELTRIG |
+			LAPIC_DEST_ALLBUT | sipi_vector, 0);
+
+		/* Wait for CPUs to check in up to 200 us. */
+		wait_for_aps(num_aps, ap_count, 200 /* us */, 15 /* us */);
+
+		x2apic_send_ipi(LAPIC_DM_STARTUP | LAPIC_INT_LEVELTRIG |
+			LAPIC_DEST_ALLBUT | sipi_vector, 0);
+
+		/* Wait for CPUs to check in. */
+		if (wait_for_aps(num_aps, ap_count, 100000 /* 100 ms */, 50 /* us */)) {
+			printk(BIOS_ERR, "Not all APs checked in: %d/%d.\n",
+			       atomic_read(num_aps), ap_count);
+			return -1;
+		}
+		return 0;
+	}
+
 	if ((lapic_read(LAPIC_ICR) & LAPIC_ICR_BUSY)) {
 		printk(BIOS_DEBUG, "Waiting for ICR not to be busy...");
 		if (apic_wait_timeout(1000 /* 1 ms */, 50)) {
-			printk(BIOS_DEBUG, "timed out. Aborting.\n");
+			printk(BIOS_ERR, "timed out. Aborting.\n");
 			return -1;
 		}
 		printk(BIOS_DEBUG, "done.\n");
@@ -475,7 +477,7 @@ static int start_aps(struct bus *cpu_bus, int ap_count, atomic_t *num_aps)
 	if ((lapic_read(LAPIC_ICR) & LAPIC_ICR_BUSY)) {
 		printk(BIOS_DEBUG, "Waiting for ICR not to be busy...");
 		if (apic_wait_timeout(1000 /* 1 ms */, 50)) {
-			printk(BIOS_DEBUG, "timed out. Aborting.\n");
+			printk(BIOS_ERR, "timed out. Aborting.\n");
 			return -1;
 		}
 		printk(BIOS_DEBUG, "done.\n");
@@ -486,7 +488,7 @@ static int start_aps(struct bus *cpu_bus, int ap_count, atomic_t *num_aps)
 			   LAPIC_DM_STARTUP | sipi_vector);
 	printk(BIOS_DEBUG, "Waiting for 1st SIPI to complete...");
 	if (apic_wait_timeout(10000 /* 10 ms */, 50 /* us */)) {
-		printk(BIOS_DEBUG, "timed out.\n");
+		printk(BIOS_ERR, "timed out.\n");
 		return -1;
 	}
 	printk(BIOS_DEBUG, "done.\n");
@@ -494,11 +496,14 @@ static int start_aps(struct bus *cpu_bus, int ap_count, atomic_t *num_aps)
 	/* Wait for CPUs to check in up to 200 us. */
 	wait_for_aps(num_aps, ap_count, 200 /* us */, 15 /* us */);
 
+	if (CONFIG(X86_AMD_INIT_SIPI))
+		return 0;
+
 	/* Send 2nd SIPI */
 	if ((lapic_read(LAPIC_ICR) & LAPIC_ICR_BUSY)) {
 		printk(BIOS_DEBUG, "Waiting for ICR not to be busy...");
 		if (apic_wait_timeout(1000 /* 1 ms */, 50)) {
-			printk(BIOS_DEBUG, "timed out. Aborting.\n");
+			printk(BIOS_ERR, "timed out. Aborting.\n");
 			return -1;
 		}
 		printk(BIOS_DEBUG, "done.\n");
@@ -509,14 +514,14 @@ static int start_aps(struct bus *cpu_bus, int ap_count, atomic_t *num_aps)
 			   LAPIC_DM_STARTUP | sipi_vector);
 	printk(BIOS_DEBUG, "Waiting for 2nd SIPI to complete...");
 	if (apic_wait_timeout(10000 /* 10 ms */, 50 /* us */)) {
-		printk(BIOS_DEBUG, "timed out.\n");
+		printk(BIOS_ERR, "timed out.\n");
 		return -1;
 	}
 	printk(BIOS_DEBUG, "done.\n");
 
 	/* Wait for CPUs to check in. */
-	if (wait_for_aps(num_aps, ap_count, 10000 /* 10 ms */, 50 /* us */)) {
-		printk(BIOS_DEBUG, "Not all APs checked in: %d/%d.\n",
+	if (wait_for_aps(num_aps, ap_count, 100000 /* 100 ms */, 50 /* us */)) {
+		printk(BIOS_ERR, "Not all APs checked in: %d/%d.\n",
 		       atomic_read(num_aps), ap_count);
 		return -1;
 	}
@@ -529,11 +534,12 @@ static int bsp_do_flight_plan(struct mp_params *mp_params)
 	int i;
 	int ret = 0;
 	/*
-	 * Set time-out to wait for APs to a huge value (=1 second) since it
-	 * could take a longer time for APs to check-in as the number of APs
-	 * increases (contention for resources like UART also increases).
+	 * Set time out for flight plan to a huge minimum value (>=1 second).
+	 * CPUs with many APs may take longer if there is contention for
+	 * resources such as UART, so scale the time out up by increments of
+	 * 100ms if needed.
 	 */
-	const int timeout_us = 1000000;
+	const int timeout_us = MAX(1000000, 100000 * mp_params->num_cpus);
 	const int step_us = 100;
 	int num_aps = mp_params->num_cpus - 1;
 	struct stopwatch sw;
@@ -589,7 +595,7 @@ static void init_bsp(struct bus *cpu_bus)
 		printk(BIOS_CRIT, "BSP index(%d) != 0!\n", info->index);
 
 	/* Track BSP in cpu_map structures. */
-	add_cpu_map_entry(info);
+	cpu_add_map_entry(info->index);
 }
 
 /*
@@ -667,17 +673,13 @@ static void mp_initialize_cpu(void)
 	cpu_initialize(info->index);
 }
 
-/* Returns APIC id for coreboot CPU number or < 0 on failure. */
-int mp_get_apic_id(int logical_cpu)
-{
-	if (logical_cpu >= CONFIG_MAX_CPUS || logical_cpu < 0)
-		return -1;
-
-	return cpus[logical_cpu].default_apic_id;
-}
-
 void smm_initiate_relocation_parallel(void)
 {
+	if (is_x2apic_mode()) {
+		x2apic_send_ipi(LAPIC_DM_SMI | LAPIC_INT_LEVELTRIG, lapicid());
+		return;
+	}
+
 	if ((lapic_read(LAPIC_ICR) & LAPIC_ICR_BUSY)) {
 		printk(BIOS_DEBUG, "Waiting for ICR not to be busy...");
 		if (apic_wait_timeout(1000 /* 1 ms */, 50)) {
@@ -710,7 +712,11 @@ struct mp_state {
 	int cpu_count;
 	uintptr_t perm_smbase;
 	size_t perm_smsize;
+	/* Size of the real CPU save state */
+	size_t smm_real_save_state_size;
+	/* Size of allocated CPU save state, MAX(real save state size, stub size) */
 	size_t smm_save_state_size;
+	uintptr_t reloc_start32_offset;
 	int do_smm;
 } mp_state;
 
@@ -733,15 +739,12 @@ static void smm_enable(void)
 static void asmlinkage smm_do_relocation(void *arg)
 {
 	const struct smm_module_params *p;
-	const struct smm_runtime *runtime;
 	int cpu;
-	uintptr_t curr_smbase;
+	const uintptr_t curr_smbase = SMM_DEFAULT_BASE;
 	uintptr_t perm_smbase;
 
 	p = arg;
-	runtime = p->runtime;
 	cpu = p->cpu;
-	curr_smbase = runtime->smbase;
 
 	if (cpu >= CONFIG_MAX_CPUS) {
 		printk(BIOS_CRIT,
@@ -754,29 +757,46 @@ static void asmlinkage smm_do_relocation(void *arg)
 	 * the location of the new SMBASE. If using SMM modules then this
 	 * calculation needs to match that of the module loader.
 	 */
-	perm_smbase = mp_state.perm_smbase;
-	perm_smbase -= cpu * runtime->save_state_size;
-
-	printk(BIOS_DEBUG, "New SMBASE 0x%08lx\n", perm_smbase);
+	perm_smbase = smm_get_cpu_smbase(cpu);
+	if (!perm_smbase) {
+		printk(BIOS_ERR, "%s: bad SMBASE for CPU %d\n", __func__, cpu);
+		return;
+	}
 
 	/* Setup code checks this callback for validity. */
+	printk(BIOS_INFO, "%s : curr_smbase 0x%x perm_smbase 0x%x, cpu = %d\n",
+		__func__, (int)curr_smbase, (int)perm_smbase, cpu);
 	mp_state.ops.relocation_handler(cpu, curr_smbase, perm_smbase);
+
+	if (CONFIG(STM)) {
+		uintptr_t mseg;
+
+		mseg = mp_state.perm_smbase +
+			(mp_state.perm_smsize - CONFIG_MSEG_SIZE);
+
+		stm_setup(mseg, p->cpu,
+				perm_smbase,
+				mp_state.perm_smbase,
+				mp_state.reloc_start32_offset);
+	}
 }
 
 static void adjust_smm_apic_id_map(struct smm_loader_params *smm_params)
 {
 	int i;
-	struct smm_runtime *runtime = smm_params->runtime;
+	struct smm_stub_params *stub_params = smm_params->stub_params;
 
 	for (i = 0; i < CONFIG_MAX_CPUS; i++)
-		runtime->apic_id_to_cpu[i] = mp_get_apic_id(i);
+		stub_params->apic_id_to_cpu[i] = cpu_get_apic_id(i);
 }
 
-static int install_relocation_handler(int num_cpus, size_t save_state_size)
+static int install_relocation_handler(int num_cpus, size_t real_save_state_size,
+				      size_t save_state_size, uintptr_t perm_smbase)
 {
 	struct smm_loader_params smm_params = {
 		.per_cpu_stack_size = CONFIG_SMM_STUB_STACK_SIZE,
 		.num_concurrent_stacks = num_cpus,
+		.real_cpu_save_state_size = real_save_state_size,
 		.per_cpu_save_state_size = save_state_size,
 		.num_concurrent_save_states = 1,
 		.handler = smm_do_relocation,
@@ -786,22 +806,32 @@ static int install_relocation_handler(int num_cpus, size_t save_state_size)
 	if (mp_state.ops.adjust_smm_params != NULL)
 		mp_state.ops.adjust_smm_params(&smm_params, 0);
 
-	if (smm_setup_relocation_handler(&smm_params))
+	if (smm_setup_relocation_handler((void *)perm_smbase, &smm_params)) {
+		printk(BIOS_ERR, "%s: smm setup failed\n", __func__);
 		return -1;
-
+	}
 	adjust_smm_apic_id_map(&smm_params);
+
+	mp_state.reloc_start32_offset = smm_params.stub_params->start32_offset;
 
 	return 0;
 }
 
 static int install_permanent_handler(int num_cpus, uintptr_t smbase,
-					size_t smsize, size_t save_state_size)
+				     size_t smsize, size_t real_save_state_size,
+				     size_t save_state_size)
 {
-	/* There are num_cpus concurrent stacks and num_cpus concurrent save
-	 * state areas. Lastly, set the stack size to 1KiB. */
+	/*
+	 * All the CPUs will relocate to permanaent handler now. Set parameters
+	 * needed for all CPUs. The placement of each CPUs entry point is
+	 * determined by the loader. This code simply provides the beginning of
+	 * SMRAM region, the number of CPUs who will use the handler, the stack
+	 * size and save state size for each CPU.
+	 */
 	struct smm_loader_params smm_params = {
 		.per_cpu_stack_size = CONFIG_SMM_MODULE_STACK_SIZE,
 		.num_concurrent_stacks = num_cpus,
+		.real_cpu_save_state_size = real_save_state_size,
 		.per_cpu_save_state_size = save_state_size,
 		.num_concurrent_save_states = num_cpus,
 	};
@@ -810,7 +840,7 @@ static int install_permanent_handler(int num_cpus, uintptr_t smbase,
 	if (mp_state.ops.adjust_smm_params != NULL)
 		mp_state.ops.adjust_smm_params(&smm_params, 1);
 
-	printk(BIOS_DEBUG, "Installing SMM handler to 0x%08lx\n", smbase);
+	printk(BIOS_DEBUG, "Installing permanent SMM handler to 0x%08lx\n", smbase);
 
 	if (smm_load_module((void *)smbase, smsize, &smm_params))
 		return -1;
@@ -823,6 +853,7 @@ static int install_permanent_handler(int num_cpus, uintptr_t smbase,
 /* Load SMM handlers as part of MP flight record. */
 static void load_smm_handlers(void)
 {
+	size_t real_save_state_size = mp_state.smm_real_save_state_size;
 	size_t smm_save_state_size = mp_state.smm_save_state_size;
 
 	/* Do nothing if SMM is disabled.*/
@@ -830,14 +861,15 @@ static void load_smm_handlers(void)
 		return;
 
 	/* Install handlers. */
-	if (install_relocation_handler(mp_state.cpu_count,
-		smm_save_state_size) < 0) {
+	if (install_relocation_handler(mp_state.cpu_count, real_save_state_size,
+				       smm_save_state_size, mp_state.perm_smbase) < 0) {
 		printk(BIOS_ERR, "Unable to install SMM relocation handler.\n");
 		smm_disable();
 	}
 
 	if (install_permanent_handler(mp_state.cpu_count, mp_state.perm_smbase,
-		mp_state.perm_smsize, smm_save_state_size) < 0) {
+				      mp_state.perm_smsize, real_save_state_size,
+				      smm_save_state_size) < 0) {
 		printk(BIOS_ERR, "Unable to install SMM permanent handler.\n");
 		smm_disable();
 	}
@@ -891,10 +923,17 @@ static int run_ap_work(struct mp_callback *val, long expire_us)
 	int i;
 	int cpus_accepted;
 	struct stopwatch sw;
-	int cur_cpu = cpu_index();
+	int cur_cpu;
 
 	if (!CONFIG(PARALLEL_MP_AP_WORK)) {
 		printk(BIOS_ERR, "APs already parked. PARALLEL_MP_AP_WORK not selected.\n");
+		return -1;
+	}
+
+	cur_cpu = cpu_index();
+
+	if (cur_cpu < 0) {
+		printk(BIOS_ERR, "Invalid CPU index.\n");
 		return -1;
 	}
 
@@ -924,7 +963,7 @@ static int run_ap_work(struct mp_callback *val, long expire_us)
 			return 0;
 	} while (expire_us <= 0 || !stopwatch_expired(&sw));
 
-	printk(BIOS_ERR, "AP call expired. %d/%d CPUs accepted.\n",
+	printk(BIOS_CRIT, "CRITICAL ERROR: AP call expired. %d/%d CPUs accepted.\n",
 		cpus_accepted, global_num_aps);
 	return -1;
 }
@@ -939,6 +978,12 @@ static void ap_wait_for_instruction(void)
 		return;
 
 	cur_cpu = cpu_index();
+
+	if (cur_cpu < 0) {
+		printk(BIOS_ERR, "Invalid CPU index.\n");
+		return;
+	}
+
 	per_cpu_slot = &ap_callbacks[cur_cpu];
 
 	while (1) {
@@ -969,12 +1014,35 @@ int mp_run_on_aps(void (*func)(void *), void *arg, int logical_cpu_num,
 	return run_ap_work(&lcb, expire_us);
 }
 
-int mp_run_on_all_cpus(void (*func)(void *), void *arg, long expire_us)
+int mp_run_on_all_aps(void (*func)(void *), void *arg, long expire_us, bool run_parallel)
+{
+	int ap_index, bsp_index;
+
+	if (run_parallel)
+		return mp_run_on_aps(func, arg, 0, expire_us);
+
+	bsp_index = cpu_index();
+
+	const int total_threads = global_num_aps + 1; /* +1 for BSP */
+
+	for (ap_index = 0; ap_index < total_threads; ap_index++) {
+		/* skip if BSP */
+		if (ap_index == bsp_index)
+			continue;
+		if (mp_run_on_aps(func, arg, ap_index, expire_us))
+			return CB_ERR;
+	}
+
+	return CB_SUCCESS;
+}
+
+int mp_run_on_all_cpus(void (*func)(void *), void *arg)
 {
 	/* Run on BSP first. */
 	func(arg);
 
-	return mp_run_on_aps(func, arg, MP_RUN_ON_ALL_CPUS, expire_us);
+	/* For up to 1 second for AP to finish previous work. */
+	return mp_run_on_aps(func, arg, MP_RUN_ON_ALL_CPUS, 1000 * USECS_PER_MSEC);
 }
 
 int mp_park_aps(void)
@@ -986,7 +1054,7 @@ int mp_park_aps(void)
 	stopwatch_init(&sw);
 
 	ret = mp_run_on_aps(park_this_cpu, NULL, MP_RUN_ON_ALL_CPUS,
-				250 * USECS_PER_MSEC);
+				1000 * USECS_PER_MSEC);
 
 	duration_msecs = stopwatch_duration_msecs(&sw);
 
@@ -1011,6 +1079,19 @@ static struct mp_flight_record mp_steps[] = {
 	MP_FR_BLOCK_APS(ap_wait_for_instruction, NULL),
 };
 
+static size_t smm_stub_size(void)
+{
+	extern unsigned char _binary_smmstub_start[];
+	struct rmodule smm_stub;
+
+	if (rmodule_parse(&_binary_smmstub_start, &smm_stub)) {
+		printk(BIOS_ERR, "%s: unable to get SMM module size\n", __func__);
+		return 0;
+	}
+
+	return rmodule_memory_size(&smm_stub);
+}
+
 static void fill_mp_state(struct mp_state *state, const struct mp_ops *ops)
 {
 	/*
@@ -1024,7 +1105,17 @@ static void fill_mp_state(struct mp_state *state, const struct mp_ops *ops)
 
 	if (ops->get_smm_info != NULL)
 		ops->get_smm_info(&state->perm_smbase, &state->perm_smsize,
-					&state->smm_save_state_size);
+					&state->smm_real_save_state_size);
+
+	state->smm_save_state_size = MAX(state->smm_real_save_state_size, smm_stub_size());
+
+	/*
+	 * Make sure there is enough room for the SMM descriptor
+	 */
+	if (CONFIG(STM)) {
+		state->smm_save_state_size +=
+			ALIGN_UP(sizeof(TXT_PROCESSOR_SMM_DESCRIPTOR), 0x100);
+	}
 
 	/*
 	 * Default to smm_initiate_relocation() if trigger callback isn't

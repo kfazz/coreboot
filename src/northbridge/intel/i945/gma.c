@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <bootmode.h>
@@ -22,7 +9,7 @@
 #include <device/pci.h>
 #include <device/pci_ops.h>
 #include <device/pci_ids.h>
-#include <pc80/mc146818rtc.h>
+#include <option.h>
 #include <edid.h>
 #include <drivers/intel/gma/edid.h>
 #include <drivers/intel/gma/i915.h>
@@ -31,8 +18,8 @@
 #include <pc80/vga.h>
 #include <pc80/vga_io.h>
 #include <commonlib/helpers.h>
-#include <cbmem.h>
-#include <southbridge/intel/i82801gx/nvs.h>
+#include <types.h>
+#include <framebuffer_info.h>
 
 #include "i945.h"
 #include "chip.h"
@@ -55,19 +42,6 @@
 
 #define DEFAULT_BLC_PWM 180
 
-uintptr_t gma_get_gnvs_aslb(const void *gnvs)
-{
-	const global_nvs_t *gnvs_ptr = gnvs;
-	return (uintptr_t)(gnvs_ptr ? gnvs_ptr->aslb : 0);
-}
-
-void gma_set_gnvs_aslb(void *gnvs, uintptr_t aslb)
-{
-	global_nvs_t *gnvs_ptr = gnvs;
-	if (gnvs_ptr)
-		gnvs_ptr->aslb = aslb;
-}
-
 static int gtt_setup(u8 *mmiobase)
 {
 	unsigned long PGETBL_save;
@@ -87,9 +61,9 @@ static int gtt_setup(u8 *mmiobase)
 
 	/* verify */
 	if (read32(mmiobase + PGETBL_CTL) & PGETBL_ENABLED) {
-		printk(BIOS_DEBUG, "gtt_setup is enabled.\n");
+		printk(BIOS_DEBUG, "%s is enabled.\n", __func__);
 	} else {
-		printk(BIOS_DEBUG, "gtt_setup failed!!!\n");
+		printk(BIOS_DEBUG, "%s failed!!!\n", __func__);
 		return 1;
 	}
 	write32(mmiobase + GFX_FLSH_CNTL, 0);
@@ -385,15 +359,14 @@ static int intel_gma_init_lvds(struct northbridge_intel_i945_config *conf,
 			(void *)pgfx, hactive * vactive * 4);
 		memset((void *)pgfx, 0x00, hactive * vactive * 4);
 
-		set_vbe_mode_info_valid(&edid, pgfx);
+		fb_new_framebuffer_info_from_edid(&edid, pgfx);
 	} else {
-			vga_misc_write(0x67);
+		vga_misc_write(0x67);
 
-			write32(mmiobase + DSPCNTR(0), DISPPLANE_SEL_PIPE_B);
-			write32(mmiobase + VGACNTRL, 0x02c4008e
-				| VGA_PIPE_B_SELECT);
+		write32(mmiobase + DSPCNTR(0), DISPPLANE_SEL_PIPE_B);
+		write32(mmiobase + VGACNTRL, 0x02c4008e | VGA_PIPE_B_SELECT);
 
-			vga_textmode_init();
+		vga_textmode_init();
 	}
 	return 0;
 }
@@ -612,7 +585,6 @@ static u32 freq_to_blc_pwm_ctl(struct device *const dev, u16 pwm_freq)
 	return BLM_LEGACY_MODE | ((blc_mod / 2) << 17) | ((blc_mod / 2) << 1);
 }
 
-
 static void panel_setup(u8 *mmiobase, struct device *const dev)
 {
 	const struct northbridge_intel_i945_config *const conf = dev->chip_info;
@@ -687,7 +659,7 @@ static void gma_ngi(struct device *const dev)
 
 static void gma_func0_init(struct device *dev)
 {
-	u32 reg32;
+	intel_gma_init_igd_opregion();
 
 	/* Unconditionally reset graphics */
 	pci_write_config8(dev, GDRST, 1);
@@ -697,14 +669,11 @@ static void gma_func0_init(struct device *dev)
 	while (pci_read_config8(dev, GDRST) & 1)
 		;
 
-	/* IGD needs to be Bus Master */
-	reg32 = pci_read_config32(dev, PCI_COMMAND);
-	pci_write_config32(dev, PCI_COMMAND, reg32 | PCI_COMMAND_MASTER
-		 | PCI_COMMAND_IO | PCI_COMMAND_MEMORY);
-
-	int vga_disable = (pci_read_config16(dev, GGC) & 2) >> 1;
+	if (!CONFIG(NO_GFX_INIT))
+		pci_or_config16(dev, PCI_COMMAND, PCI_COMMAND_MASTER);
 
 	if (CONFIG(MAINBOARD_DO_NATIVE_VGA_INIT)) {
+		int vga_disable = (pci_read_config16(dev, GGC) & 2) >> 1;
 		if (acpi_is_wakeup_s3()) {
 			printk(BIOS_INFO,
 				"Skipping native VGA initialization when resuming from ACPI S3.\n");
@@ -720,8 +689,6 @@ static void gma_func0_init(struct device *dev)
 		/* PCI Init, will run VBIOS */
 		pci_dev_init(dev);
 	}
-
-	intel_gma_restore_opregion();
 }
 
 /* This doesn't reclaim stolen UMA memory, but IGD could still
@@ -733,87 +700,32 @@ static void gma_func0_disable(struct device *dev)
 	pci_write_config16(dev, GCFC, 0xa00);
 	pci_write_config16(dev_host, GGC, (1 << 1));
 
-	unsigned int reg32 = pci_read_config32(dev_host, DEVEN);
-	reg32 &= ~(DEVEN_D2F0 | DEVEN_D2F1);
-	pci_write_config32(dev_host, DEVEN, reg32);
+	pci_and_config32(dev_host, DEVEN, ~(DEVEN_D2F0 | DEVEN_D2F1));
 
 	dev->enabled = 0;
 }
 
 static void gma_func1_init(struct device *dev)
 {
-	u32 reg32;
-	u8 val;
+	if (!CONFIG(NO_GFX_INIT))
+		pci_or_config16(dev, PCI_COMMAND, PCI_COMMAND_MASTER);
 
-	/* IGD needs to be Bus Master, also enable IO access */
-	reg32 = pci_read_config32(dev, PCI_COMMAND);
-	pci_write_config32(dev, PCI_COMMAND, reg32 |
-			PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY | PCI_COMMAND_IO);
-
-	if (get_option(&val, "tft_brightness") == CB_SUCCESS)
-		pci_write_config8(dev, 0xf4, val);
-	else
-		pci_write_config8(dev, 0xf4, 0xff);
+	pci_write_config8(dev, 0xf4, get_int_option("tft_brightness", 0xff));
 }
 
-const struct i915_gpu_controller_info *
-intel_gma_get_controller_info(void)
+static void gma_generate_ssdt(const struct device *device)
 {
-	struct device *dev = pcidev_on_root(0x2, 0);
-	if (!dev)
-		return NULL;
-	struct northbridge_intel_i945_config *chip = dev->chip_info;
-	if (!chip)
-		return NULL;
-	return &chip->gfx;
-}
+	const struct northbridge_intel_i945_config *chip = device->chip_info;
 
-static void gma_ssdt(struct device *device)
-{
-	const struct i915_gpu_controller_info *gfx = intel_gma_get_controller_info();
-	if (!gfx)
-		return;
-
-	drivers_intel_gma_displays_ssdt_generate(gfx);
+	drivers_intel_gma_displays_ssdt_generate(&chip->gfx);
 }
 
 static void gma_func0_read_resources(struct device *dev)
 {
-	u8 reg8;
-
-	/* Set Untrusted Aperture Size to 256mb */
-	reg8 = pci_read_config8(dev, MSAC);
-	reg8 &= ~0x3;
-	reg8 |= 0x2;
-	pci_write_config8(dev, MSAC, reg8);
+	/* Set Untrusted Aperture Size to 256MB */
+	pci_update_config8(dev, MSAC, ~0x3, 0x2);
 
 	pci_dev_read_resources(dev);
-}
-
-static unsigned long
-gma_write_acpi_tables(struct device *const dev,
-		      unsigned long current,
-		      struct acpi_rsdp *const rsdp)
-{
-	igd_opregion_t *opregion = (igd_opregion_t *)current;
-	global_nvs_t *gnvs;
-
-	if (intel_gma_init_igd_opregion(opregion) != CB_SUCCESS)
-		return current;
-
-	current += sizeof(igd_opregion_t);
-
-	/* GNVS has been already set up */
-	gnvs = cbmem_find(CBMEM_ID_ACPI_GNVS);
-	if (gnvs) {
-		/* IGD OpRegion Base Address */
-		gma_set_gnvs_aslb(gnvs, (uintptr_t)opregion);
-	} else {
-		printk(BIOS_ERR, "Error: GNVS table not found.\n");
-	}
-
-	current = acpi_align_current(current);
-	return current;
 }
 
 static const char *gma_acpi_name(const struct device *dev)
@@ -821,33 +733,23 @@ static const char *gma_acpi_name(const struct device *dev)
 	return "GFX0";
 }
 
-static struct pci_operations gma_pci_ops = {
-	.set_subsystem    = pci_dev_set_subsystem,
-};
-
 static struct device_operations gma_func0_ops = {
 	.read_resources		= gma_func0_read_resources,
 	.set_resources		= pci_dev_set_resources,
 	.enable_resources	= pci_dev_enable_resources,
 	.init			= gma_func0_init,
-	.acpi_fill_ssdt_generator = gma_ssdt,
-	.scan_bus		= 0,
-	.enable			= 0,
-	.disable		= gma_func0_disable,
-	.ops_pci		= &gma_pci_ops,
+	.acpi_fill_ssdt		= gma_generate_ssdt,
+	.vga_disable		= gma_func0_disable,
+	.ops_pci		= &pci_dev_ops_pci,
 	.acpi_name		= gma_acpi_name,
-	.write_acpi_tables	= gma_write_acpi_tables,
 };
-
 
 static struct device_operations gma_func1_ops = {
 	.read_resources		= pci_dev_read_resources,
 	.set_resources		= pci_dev_set_resources,
 	.enable_resources	= pci_dev_enable_resources,
 	.init			= gma_func1_init,
-	.scan_bus		= 0,
-	.enable			= 0,
-	.ops_pci		= &gma_pci_ops,
+	.ops_pci		= &pci_dev_ops_pci,
 };
 
 static const unsigned short i945_gma_func0_ids[] = {
@@ -858,6 +760,7 @@ static const unsigned short i945_gma_func0_ids[] = {
 };
 
 static const unsigned short i945_gma_func1_ids[] = {
+	0x2776, /* Desktop 82945G/GZ/GC */
 	0x27a6, /* Mobile 945GM/GMS/GME Express Integrated Graphics Controller */
 	0
 };

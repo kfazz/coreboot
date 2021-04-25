@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* The devicetree parser expects chip.h to reside directly in the path
  * specified by the devicetree. */
@@ -19,6 +6,7 @@
 #ifndef _BAYTRAIL_CHIP_H_
 #define _BAYTRAIL_CHIP_H_
 
+#include <drivers/intel/gma/i915.h>
 #include <stdint.h>
 
 struct soc_intel_baytrail_config {
@@ -69,7 +57,7 @@ struct soc_intel_baytrail_config {
 	/* Allow PCIe devices to wake system from suspend. */
 	int pcie_wake_enable;
 
-	int gpu_pipea_port_select;	/* Port select: 1=DP_B 2=DP_C */
+	uint8_t gpu_pipea_port_select;	/* Port select: 1=DP_B 2=DP_C */
 	uint16_t gpu_pipea_power_on_delay;
 	uint16_t gpu_pipea_light_on_delay;
 	uint16_t gpu_pipea_power_off_delay;
@@ -77,7 +65,7 @@ struct soc_intel_baytrail_config {
 	uint16_t gpu_pipea_power_cycle_delay;
 	int gpu_pipea_pwm_freq_hz;
 
-	int gpu_pipeb_port_select;	/* Port select: 1=DP_B 2=DP_C */
+	uint8_t gpu_pipeb_port_select;	/* Port select: 1=DP_B 2=DP_C */
 	uint16_t gpu_pipeb_power_on_delay;
 	uint16_t gpu_pipeb_light_on_delay;
 	uint16_t gpu_pipeb_power_off_delay;
@@ -85,7 +73,8 @@ struct soc_intel_baytrail_config {
 	uint16_t gpu_pipeb_power_cycle_delay;
 	int gpu_pipeb_pwm_freq_hz;
 	int disable_ddr_2x_refresh_rate;
+
+	struct i915_gpu_controller_info gfx;
 };
 
-extern struct chip_operations soc_intel_baytrail_ops;
 #endif /* _BAYTRAIL_CHIP_H_ */

@@ -148,7 +148,6 @@ mv build/coreboot.rom.new build/coreboot.rom
   <li>Edit the src/soc/&lt;Vendor&gt;/&lt;Chip Family&gt;/memmap.c file
     <ol type="A">
       <li>Add the fsp/memmap.h include file</li>
-      <li>Add the mmap_region_granularity routine</li>
     </ol>
   </li>
   <li>Add the necessary .h files to define the necessary values and structures</li>
@@ -658,7 +657,7 @@ Use the following steps to debug the call to TempRamInit:
   The EDK2 data structure is defined in
   MdeModulePkg/Include/IndustryStandard/<a target="_blank" href="https://github.com/tianocore/edk2/blob/master/MdePkg/Include/IndustryStandard/Acpi61.h#l111">Acpi61.h</a>
   The coreboot data structure is defined in
-  src/arch/x86/include/arch/<a target="_blank" href="https://review.coreboot.org/gitweb?p=coreboot.git;a=blob;f=src/arch/x86/include/arch/acpi.h;hb=HEAD#l237">acpi.h</a>
+  src/arch/x86/include/arch/<a target="_blank" href="https://review.coreboot.org/gitweb?p=coreboot.git;a=blob;f=src/arch/x86/include/acpi/acpi.h;hb=HEAD#l237">acpi.h</a>
 </p>
 
 <ol>
@@ -668,7 +667,7 @@ Use the following steps to debug the call to TempRamInit:
   </li>
   <li>Create a acpi.c module:
     <ol type="A">
-      <li>Add the acpi_fill_in_fadt routine and initialize the values above</li>
+      <li>Add the acpi_fill_fadt routine and initialize the values above</li>
     </ol>
   </li>
 </ol>

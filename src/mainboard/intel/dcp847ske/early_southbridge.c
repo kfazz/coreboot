@@ -1,72 +1,13 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- * Copyright (C) 2014 Vladimir Serbinenko
- * Copyright (C) 2017 Tobias Diedrich <ranma+coreboot@tdiedrich.de>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <bootblock_common.h>
 #include <stdint.h>
-#include <halt.h>
-#include <arch/io.h>
 #include <cf9_reset.h>
-#include <device/pci_ops.h>
-#include <device/pci_def.h>
-#include <console/console.h>
 #include <northbridge/intel/sandybridge/raminit_native.h>
 #include <southbridge/intel/bd82x6x/pch.h>
 
 #include "superio.h"
 #include "thermal.h"
-
-#if CONFIG(DISABLE_UART_ON_TESTPADS)
-#define DEBUG_UART_EN 0
-#else
-#define DEBUG_UART_EN COMA_LPC_EN
-#endif
-
-void pch_enable_lpc(void)
-{
-	pci_write_config16(PCI_DEV(0, 0x1f, 0), LPC_EN,
-			CNF2_LPC_EN | DEBUG_UART_EN);
-	/* Decode SuperIO 0x0a00 */
-	pci_write_config32(PCI_DEV(0, 0x1f, 0), LPC_GEN1_DEC, 0x00fc0a01);
-}
-
-void mainboard_rcba_config(void)
-{
-	/* Disable devices */
-	RCBA32(FD) |= PCH_DISABLE_P2P | PCH_DISABLE_XHCI;
-
-#if CONFIG(USE_NATIVE_RAMINIT)
-	/* Enable Gigabit Ethernet */
-	if (RCBA32(BUC) & PCH_DISABLE_GBE) {
-		RCBA32(BUC) &= ~PCH_DISABLE_GBE;
-		/* Datasheet says clearing the bit requires a reset after */
-		printk(BIOS_DEBUG, "Enabled gigabit ethernet, reset once.\n");
-		full_reset();
-	}
-#endif
-
-	/* Set "mobile" bit in MCH (which makes sense layout-wise). */
-	/* Note sure if this has any effect at all though. */
-	MCHBAR32(0x0004) |= 0x00001000;
-	MCHBAR32(0x0104) |= 0x00001000;
-}
-
-void mainboard_early_init(int s3resume)
-{
-}
 
 static const u16 hwm_initvals[] = {
 	HWM_BANK(0),
@@ -180,7 +121,7 @@ static void superio_init(void)
 	SUPERIO_LOCK;
 }
 
-void mainboard_config_superio(void)
+void bootblock_mainboard_early_init(void)
 {
 	superio_init();
 	hwm_init();

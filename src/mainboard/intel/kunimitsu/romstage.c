@@ -1,59 +1,25 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2010 coresystems GmbH
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <string.h>
+#include <fsp/api.h>
 #include <gpio.h>
-#include <soc/pei_data.h>
-#include <soc/pei_wrapper.h>
-#include <soc/romstage.h>
 #include "gpio.h"
+#include <soc/romstage.h>
+#include <soc/gpio.h>
 #include "spd/spd.h"
 
-void mainboard_romstage_entry(struct romstage_params *params)
+void mainboard_memory_init_params(FSPM_UPD *mupd)
 {
-	params->pei_data->mem_cfg_id = get_spd_index();
-	/* Fill out PEI DATA */
-	mainboard_fill_pei_data(params->pei_data);
-	mainboard_fill_spd_data(params->pei_data);
-	/* Initialize memory */
-	romstage_common(params);
-}
+	FSP_M_CONFIG *mem_cfg;
+	mem_cfg = &mupd->FspmConfig;
 
-void mainboard_memory_init_params(struct romstage_params *params,
-				  MEMORY_INIT_UPD *memory_params)
-{
-	if (params->pei_data->spd_data[0][0][0] != 0) {
-		memory_params->MemorySpdPtr00 =
-				(UINT32)(params->pei_data->spd_data[0][0]);
-		memory_params->MemorySpdPtr10 =
-				(UINT32)(params->pei_data->spd_data[1][0]);
-	}
-	memcpy(memory_params->DqByteMapCh0, params->pei_data->dq_map[0],
-			sizeof(params->pei_data->dq_map[0]));
-	memcpy(memory_params->DqByteMapCh1, params->pei_data->dq_map[1],
-			sizeof(params->pei_data->dq_map[1]));
-	memcpy(memory_params->DqsMapCpu2DramCh0, params->pei_data->dqs_map[0],
-			sizeof(params->pei_data->dqs_map[0]));
-	memcpy(memory_params->DqsMapCpu2DramCh1, params->pei_data->dqs_map[1],
-			sizeof(params->pei_data->dqs_map[1]));
-	memcpy(memory_params->RcompResistor, params->pei_data->RcompResistor,
-			sizeof(params->pei_data->RcompResistor));
-	memcpy(memory_params->RcompTarget, params->pei_data->RcompTarget,
-			sizeof(params->pei_data->RcompTarget));
-	memory_params->MemorySpdDataLen = SPD_LEN;
-	memory_params->DqPinsInterleaved = FALSE;
+	mainboard_fill_dq_map_data(&mem_cfg->DqByteMapCh0, &mem_cfg->DqByteMapCh1);
+	mainboard_fill_dqs_map_data(&mem_cfg->DqsMapCpu2DramCh0, &mem_cfg->DqsMapCpu2DramCh1);
+	mainboard_fill_rcomp_res_data(&mem_cfg->RcompResistor);
+	mainboard_fill_rcomp_strength_data(&mem_cfg->RcompTarget);
+
+	mem_cfg->DqPinsInterleaved = 0;
+	mem_cfg->MemorySpdPtr00 = mainboard_get_spd_data();
+	if (mainboard_has_dual_channel_mem())
+		mem_cfg->MemorySpdPtr10 = mem_cfg->MemorySpdPtr00;
+	mem_cfg->MemorySpdDataLen = SPD_LEN;
 }

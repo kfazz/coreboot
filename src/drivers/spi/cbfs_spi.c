@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /*
  * This file provides a common CBFS wrapper for SPI storage. SPI driver
@@ -20,6 +7,7 @@
  */
 
 #include <boot_device.h>
+#include <cbfs.h>
 #include <console/console.h>
 #include <spi_flash.h>
 #include <symbols.h>
@@ -31,21 +19,18 @@ static struct spi_flash spi_flash_info;
 static bool spi_flash_init_done;
 
 /*
- * Set this to 1 to debug SPI speed, 0 to disable it
- * The format is:
+ * SPI speed logging for big transfers available with BIOS_DEBUG. The format is:
  *
- * read SPI 62854 7db7: 10416 us, 3089 KB/s, 24.712 Mbps
+ * read SPI 0x62854 0x7db7: 10416 us, 3089 KB/s, 24.712 Mbps
  *
  * The important number is the last one. It should roughly match your SPI
  * clock. If it doesn't, your driver might need a little tuning.
  */
-#define SPI_SPEED_DEBUG		0
-
 static ssize_t spi_readat(const struct region_device *rd, void *b,
 				size_t offset, size_t size)
 {
 	struct stopwatch sw;
-	bool show = SPI_SPEED_DEBUG && size >= 4 * KiB;
+	bool show = size >= 4 * KiB && console_log_level(BIOS_DEBUG);
 
 	if (show)
 		stopwatch_init(&sw);
@@ -58,7 +43,7 @@ static ssize_t spi_readat(const struct region_device *rd, void *b,
 		u64 speed;	/* KiB/s */
 		int bps;	/* Bits per second */
 
-		speed = (u64)size * 1000 / usecs;
+		speed = size * (u64)1000 / usecs;
 		bps = speed * 8;
 
 		printk(BIOS_DEBUG, "read SPI %#zx %#zx: %ld us, %lld KB/s, %d.%03d Mbps\n",
@@ -93,21 +78,7 @@ static const struct region_device_ops spi_ops = {
 };
 
 static struct mmap_helper_region_device mdev =
-	MMAP_HELPER_REGION_INIT(&spi_ops, 0, CONFIG_ROM_SIZE);
-
-static void switch_to_postram_cache(int unused)
-{
-	/*
-	 * Call boot_device_init() to ensure spi_flash is initialized before
-	 * backing mdev with postram cache. This prevents the mdev backing from
-	 * being overwritten if spi_flash was not accessed before dram was up.
-	 */
-	boot_device_init();
-	if (_preram_cbfs_cache != _postram_cbfs_cache)
-		mmap_helper_device_init(&mdev, _postram_cbfs_cache,
-					REGION_SIZE(postram_cbfs_cache));
-}
-ROMSTAGE_CBMEM_INIT_HOOK(switch_to_postram_cache);
+	MMAP_HELPER_DEV_INIT(&spi_ops, 0, CONFIG_ROM_SIZE, &cbfs_cache);
 
 void boot_device_init(void)
 {
@@ -121,8 +92,6 @@ void boot_device_init(void)
 		return;
 
 	spi_flash_init_done = true;
-
-	mmap_helper_device_init(&mdev, _cbfs_cache, REGION_SIZE(cbfs_cache));
 }
 
 /* Return the CBFS boot device. */

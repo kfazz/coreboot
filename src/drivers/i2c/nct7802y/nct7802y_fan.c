@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2017 secunet Security Networks AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <types.h>
 #include <device/device.h>
@@ -81,7 +68,7 @@ void nct7802y_init_fan(struct device *const dev)
 {
 	const struct drivers_i2c_nct7802y_config *const config = dev->chip_info;
 	unsigned int i;
-	u8 set;
+	u8 value;
 
 	if (nct7802y_select_bank(dev, 0) != CB_SUCCESS)
 		return;
@@ -93,19 +80,18 @@ void nct7802y_init_fan(struct device *const dev)
 
 	switch (config->on_pecierror) {
 	case PECI_ERROR_KEEP:
-		set = CLOSE_LOOP_FAN_PECI_ERR_CURR;
+		value = CLOSE_LOOP_FAN_PECI_ERR_CURR;
 		break;
 	case PECI_ERROR_VALUE:
-		set = CLOSE_LOOP_FAN_PECI_ERR_VALUE;
+		value = CLOSE_LOOP_FAN_PECI_ERR_VALUE;
 		break;
 	case PECI_ERROR_FULLSPEED:
-		set = CLOSE_LOOP_FAN_PECI_ERR_MAX;
+		value = CLOSE_LOOP_FAN_PECI_ERR_MAX;
 		break;
 	default:
-		set = 0;
+		value = 0;
 		break;
 	}
-	nct7802y_update(dev, CLOSE_LOOP_FAN_RPM_CTRL,
-			CLOSE_LOOP_FAN_PECI_ERR_MASK, set);
+	nct7802y_update(dev, CLOSE_LOOP_FAN_RPM_CTRL, CLOSE_LOOP_FAN_PECI_ERR_MASK, value);
 	nct7802y_write(dev, FAN_DUTY_ON_PECI_ERROR, config->pecierror_minduty);
 }

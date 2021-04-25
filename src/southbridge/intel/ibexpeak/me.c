@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 The Chromium OS Authors. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /*
  * This is a ramstage driver for the Intel Management Engine found in the
@@ -22,31 +8,23 @@
  * not used unless the console loglevel is high enough.
  */
 
-#include <arch/acpi.h>
-#include <device/mmio.h>
-#include <device/pci_ops.h>
+#include <acpi/acpi.h>
 #include <console/console.h>
-#include <device/pci_ids.h>
+#include <device/device.h>
+#include <device/mmio.h>
+#include <device/pci.h>
 #include <device/pci_def.h>
+#include <device/pci_ids.h>
+#include <device/pci_ops.h>
 #include <string.h>
 #include <delay.h>
 #include <elog.h>
 
-#ifndef __SMM__
-#include <device/device.h>
-#include <device/pci.h>
-#endif
-
 #include "me.h"
 #include "pch.h"
 
-#if CONFIG(CHROMEOS)
-#include <vendorcode/google/chromeos/gnvs.h>
-#endif
-
-#ifndef __SMM__
 /* Path that the BIOS should take based on ME state */
-static const char *me_bios_path_values[] = {
+static const char *me_bios_path_values[] __unused = {
 	[ME_NORMAL_BIOS_PATH]		= "Normal",
 	[ME_S3WAKE_BIOS_PATH]		= "S3 Wake",
 	[ME_ERROR_BIOS_PATH]		= "Error",
@@ -54,15 +32,16 @@ static const char *me_bios_path_values[] = {
 	[ME_DISABLE_BIOS_PATH]		= "Disable",
 	[ME_FIRMWARE_UPDATE_BIOS_PATH]	= "Firmware Update",
 };
-#endif
 
 /* MMIO base address for MEI interface */
 static u32 *mei_base_address;
 
-#if CONFIG(DEBUG_INTEL_ME)
 static void mei_dump(void *ptr, int dword, int offset, const char *type)
 {
 	struct mei_csr *csr;
+
+	if (!CONFIG(DEBUG_INTEL_ME))
+		return;
 
 	printk(BIOS_SPEW, "%-9s[%02x] : ", type, offset);
 
@@ -89,9 +68,6 @@ static void mei_dump(void *ptr, int dword, int offset, const char *type)
 		break;
 	}
 }
-#else
-# define mei_dump(ptr,dword,offset,type) do {} while (0)
-#endif
 
 /*
  * ME/MEI access helpers using memcpy to avoid aliasing.
@@ -112,7 +88,7 @@ static inline void mei_write_dword_ptr(void *ptr, int offset)
 	mei_dump(ptr, dword, offset, "WRITE");
 }
 
-#ifndef __SMM__
+#ifndef __SIMPLE_DEVICE__
 static inline void pci_read_dword_ptr(struct device *dev,void *ptr,
 				      int offset)
 {
@@ -132,7 +108,6 @@ static inline void write_host_csr(struct mei_csr *csr)
 	mei_write_dword_ptr(csr, MEI_H_CSR);
 }
 
-#ifdef __SMM__
 static inline void read_me_csr(struct mei_csr *csr)
 {
 	mei_read_dword_ptr(csr, MEI_ME_CSR_HA);
@@ -140,13 +115,13 @@ static inline void read_me_csr(struct mei_csr *csr)
 
 static inline void write_cb(u32 dword)
 {
-	write32(mei_base_address + (MEI_H_CB_WW/sizeof(u32)), dword);
+	write32(mei_base_address + (MEI_H_CB_WW / sizeof(u32)), dword);
 	mei_dump(NULL, dword, MEI_H_CB_WW, "WRITE");
 }
 
 static inline u32 read_cb(void)
 {
-	u32 dword = read32(mei_base_address + (MEI_ME_CB_RW/sizeof(u32)));
+	u32 dword = read32(mei_base_address + (MEI_ME_CB_RW / sizeof(u32)));
 	mei_dump(NULL, dword, MEI_ME_CB_RW, "READ");
 	return dword;
 }
@@ -155,7 +130,7 @@ static inline u32 read_cb(void)
 static int mei_wait_for_me_ready(void)
 {
 	struct mei_csr me;
-	unsigned try = ME_RETRY;
+	unsigned int try = ME_RETRY;
 
 	while (try--) {
 		read_me_csr(&me);
@@ -196,7 +171,7 @@ static int mei_send_msg(struct mei_header *mei, struct mkhi_header *mkhi,
 			void *req_data)
 {
 	struct mei_csr host;
-	unsigned ndata, n;
+	unsigned int ndata, n;
 	u32 *data;
 
 	/* Number of dwords to write, ignoring MKHI */
@@ -261,8 +236,8 @@ static int mei_recv_msg(struct mei_header *mei, struct mkhi_header *mkhi,
 	struct mei_header mei_rsp;
 	struct mkhi_header mkhi_rsp;
 	struct mei_csr me, host;
-	unsigned ndata, n;
-	unsigned expected;
+	unsigned int ndata, n;
+	unsigned int expected;
 	u32 *data;
 
 	/* Total number of dwords to read from circular buffer */
@@ -282,9 +257,8 @@ static int mei_recv_msg(struct mei_header *mei, struct mkhi_header *mkhi,
 		udelay(ME_DELAY);
 	}
 	if (!n) {
-		printk(BIOS_ERR, "ME: timeout waiting for data: expected "
-		       "%u, available %u\n", expected,
-		       me.buffer_write_ptr - me.buffer_read_ptr);
+		printk(BIOS_ERR, "ME: timeout waiting for data: expected %u, available %u\n",
+		       expected, me.buffer_write_ptr - me.buffer_read_ptr);
 		return -1;
 	}
 
@@ -319,8 +293,8 @@ static int mei_recv_msg(struct mei_header *mei, struct mkhi_header *mkhi,
 
 	/* Make sure caller passed a buffer with enough space */
 	if (ndata != (rsp_bytes >> 2)) {
-		printk(BIOS_ERR, "ME: not enough room in response buffer: "
-		       "%u != %u\n", ndata, rsp_bytes >> 2);
+		printk(BIOS_ERR, "ME: not enough room in response buffer: %u != %u\n",
+		       ndata, rsp_bytes >> 2);
 		return -1;
 	}
 
@@ -347,81 +321,6 @@ static inline int mei_sendrecv(struct mei_header *mei, struct mkhi_header *mkhi,
 		return -1;
 	return 0;
 }
-
-/* Send END OF POST message to the ME */
-static int mkhi_end_of_post(void)
-{
-	struct mkhi_header mkhi = {
-		.group_id	= MKHI_GROUP_ID_GEN,
-		.command	= MKHI_END_OF_POST,
-	};
-	struct mei_header mei = {
-		.is_complete	= 1,
-		.host_address	= MEI_HOST_ADDRESS,
-		.client_address	= MEI_ADDRESS_MKHI,
-		.length		= sizeof(mkhi),
-	};
-
-	/* Send request and wait for response */
-	if (mei_sendrecv(&mei, &mkhi, NULL, NULL, 0) < 0) {
-		printk(BIOS_ERR, "ME: END OF POST message failed\n");
-		return -1;
-	}
-
-	printk(BIOS_INFO, "ME: END OF POST message successful\n");
-	return 0;
-}
-
-static void intel_me7_finalize_smm(void)
-{
-	struct me_hfs hfs;
-	u32 reg32;
-
-	mei_base_address = (u32 *)
-		(pci_read_config32(PCH_ME_DEV, PCI_BASE_ADDRESS_0) & ~0xf);
-
-	/* S3 path will have hidden this device already */
-	if (!mei_base_address || mei_base_address == (u32 *)0xfffffff0)
-		return;
-
-	/* Make sure ME is in a mode that expects EOP */
-	reg32 = pci_read_config32(PCH_ME_DEV, PCI_ME_HFS);
-	memcpy(&hfs, &reg32, sizeof(u32));
-
-	/* Abort and leave device alone if not normal mode */
-	if (hfs.fpt_bad ||
-	    hfs.working_state != ME_HFS_CWS_NORMAL ||
-	    hfs.operation_mode != ME_HFS_MODE_NORMAL)
-		return;
-
-	/* Try to send EOP command so ME stops accepting other commands */
-	mkhi_end_of_post();
-
-	/* Make sure IO is disabled */
-	reg32 = pci_read_config32(PCH_ME_DEV, PCI_COMMAND);
-	reg32 &= ~(PCI_COMMAND_MASTER |
-		   PCI_COMMAND_MEMORY | PCI_COMMAND_IO);
-	pci_write_config32(PCH_ME_DEV, PCI_COMMAND, reg32);
-
-	/* Hide the PCI device */
-	RCBA32_OR(FD2, PCH_DISABLE_MEI1);
-}
-
-void intel_me_finalize_smm(void)
-{
-	u32 did = pci_read_config32(PCH_ME_DEV, PCI_VENDOR_ID);
-	switch (did) {
-	case 0x1c3a8086:
-		intel_me7_finalize_smm();
-		break;
-	case 0x1e3a8086:
-		intel_me8_finalize_smm();
-		break;
-	default:
-		printk(BIOS_ERR, "No finalize handler for ME %08x.\n", did);
-	}
-}
-#else /* !__SMM__ */
 
 /* Determine the path that we should take based on ME status */
 static me_bios_path intel_me_path(struct device *dev)
@@ -470,8 +369,7 @@ static me_bios_path intel_me_path(struct device *dev)
 	if (hfs.error_code || hfs.fpt_bad)
 		path = ME_ERROR_BIOS_PATH;
 
-#if CONFIG(ELOG)
-	if (path != ME_NORMAL_BIOS_PATH) {
+	if (CONFIG(ELOG) && path != ME_NORMAL_BIOS_PATH) {
 		struct elog_event_data_me_extended data = {
 			.current_working_state = hfs.working_state,
 			.operation_state       = hfs.operation_state,
@@ -485,7 +383,6 @@ static me_bios_path intel_me_path(struct device *dev)
 		elog_add_event_raw(ELOG_TYPE_MANAGEMENT_ENGINE_EXT,
 				   &data, sizeof(data));
 	}
-#endif
 
 	return path;
 }
@@ -495,7 +392,7 @@ static int intel_mei_setup(struct device *dev)
 {
 	struct resource *res;
 	struct mei_csr host;
-	u32 reg32;
+	u16 reg16;
 
 	/* Find the MMIO base for the ME interface */
 	res = find_resource(dev, PCI_BASE_ADDRESS_0);
@@ -506,9 +403,9 @@ static int intel_mei_setup(struct device *dev)
 	mei_base_address = (u32 *)(uintptr_t)res->base;
 
 	/* Ensure Memory and Bus Master bits are set */
-	reg32 = pci_read_config32(dev, PCI_COMMAND);
-	reg32 |= PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY;
-	pci_write_config32(dev, PCI_COMMAND, reg32);
+	reg16 = pci_read_config16(dev, PCI_COMMAND);
+	reg16 |= PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY;
+	pci_write_config16(dev, PCI_COMMAND, reg16);
 
 	/* Clean up status for next message */
 	read_host_csr(&host);
@@ -559,11 +456,6 @@ static int intel_me_extend_valid(struct device *dev)
 	}
 	printk(BIOS_DEBUG, "\n");
 
-#if CONFIG(CHROMEOS)
-	/* Save hash in NVS for the OS to verify */
-	chromeos_set_me_hash(extend, count);
-#endif
-
 	return 0;
 }
 
@@ -584,6 +476,10 @@ static void intel_me_init(struct device *dev)
 
 	switch (path) {
 	case ME_S3WAKE_BIOS_PATH:
+	case ME_DISABLE_BIOS_PATH:
+#if CONFIG(HIDE_MEI_ON_ERROR)
+	case ME_ERROR_BIOS_PATH:
+#endif
 		intel_me_hide(dev);
 		break;
 
@@ -602,34 +498,31 @@ static void intel_me_init(struct device *dev)
 		 */
 		break;
 
+#if !CONFIG(HIDE_MEI_ON_ERROR)
 	case ME_ERROR_BIOS_PATH:
+#endif
 	case ME_RECOVERY_BIOS_PATH:
-	case ME_DISABLE_BIOS_PATH:
 	case ME_FIRMWARE_UPDATE_BIOS_PATH:
 		break;
 	}
 }
-
-static struct pci_operations pci_ops = {
-	.set_subsystem = pci_dev_set_subsystem,
-};
 
 static struct device_operations device_ops = {
 	.read_resources		= pci_dev_read_resources,
 	.set_resources		= pci_dev_set_resources,
 	.enable_resources	= pci_dev_enable_resources,
 	.init			= intel_me_init,
-	.ops_pci		= &pci_ops,
+	.ops_pci		= &pci_dev_ops_pci,
 };
 
-static const unsigned short pci_device_ids[] = { 0x1c3a, 0x3b64,
-						 0 };
-
+static const unsigned short pci_device_ids[] = {
+	0x1c3a,
+	PCI_DID_INTEL_IBEXPEAK_HECI1,
+	0
+};
 
 static const struct pci_driver intel_me __pci_driver = {
 	.ops	= &device_ops,
 	.vendor	= PCI_VENDOR_ID_INTEL,
 	.devices	= pci_device_ids
 };
-
-#endif /* !__SMM__ */

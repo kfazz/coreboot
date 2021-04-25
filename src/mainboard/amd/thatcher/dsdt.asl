@@ -1,31 +1,17 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Advanced Micro Devices, Inc.
- * Copyright (C) 2013 Sage Electronic Engineering, LLC
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* DefinitionBlock Statement */
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 DefinitionBlock (
-	"DSDT.AML",		/* Output filename */
-	"DSDT",			/* Signature */
-	0x02,			/* DSDT Revision, needs to be 2 for 64bit */
+	"dsdt.aml",
+	"DSDT",
+	ACPI_DSDT_REV_2,
 	OEM_ID,
 	ACPI_TABLE_CREATOR,
 	0x00010001		/* OEM Revision */
 	)
 {	/* Start of ASL file */
-	/* #include <arch/x86/acpi/debug.asl> */	/* Include global debug methods if needed */
+	#include <acpi/dsdt_top.asl>
 
 	/* Globals for the platform */
 	#include "acpi/mainboard.asl"
@@ -36,7 +22,7 @@ DefinitionBlock (
 	/* PCI IRQ mapping for the Southbridge */
 	#include <southbridge/amd/agesa/hudson/acpi/pcie.asl>
 
-	/* Describe the processor tree (\_PR) */
+	/* Describe the processor tree (\_SB) */
 	#include <cpu/amd/agesa/family15tn/acpi/cpu.asl>
 
 	/* Describe the supported Sleep States for this Southbridge */
@@ -51,13 +37,6 @@ DefinitionBlock (
 
 		/* Describe IRQ Routing mapping for this platform (within the \_SB scope) */
 		#include "acpi/routing.asl"
-
-		Device(PWRB) {
-			Name(_HID, EISAID("PNP0C0C"))
-			Name(_UID, 0xAA)
-			Name(_PRW, Package () {3, 0x04})
-			Name(_STA, 0x0B)
-		}
 
 		Device(PCI0) {
 			/* Describe the AMD Northbridge */
@@ -81,9 +60,5 @@ DefinitionBlock (
 
 	/* Define the Thermal zones and methods for the platform */
 	#include "acpi/thermal.asl"
-
-	/* Define the System Indicators for the platform */
-	#include "acpi/si.asl"
-
 }
 /* End of ASL file */

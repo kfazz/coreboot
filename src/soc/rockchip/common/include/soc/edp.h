@@ -1,23 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Rockchip Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __RK_DP_H
 #define __RK_DP_H
 
 #include <edid.h>
-#include <stdlib.h>
 
 struct rk_edp_regs {
 	u8	res0[0x10];
@@ -536,7 +522,6 @@ check_member(rk_edp_regs, pll_reg_5, 0xa00);
 #define EDID_LENGTH				0x80
 #define EDID_HEADER				0x00
 #define EDID_EXTENSION_FLAG			0x7e
-
 
 enum dpcd_request {
 	DPCD_READ,

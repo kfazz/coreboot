@@ -1,25 +1,15 @@
-/*
- * This file is part of the coreboot project.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <cpu/cpu.h>
 #include <cpu/x86/lapic_def.h>
+#include <cpu/x86/mp.h>
 #include <arch/io.h>
+#include <device/pci_def.h>
 #include <device/pci_ops.h>
 #include <arch/ioapic.h>
 #include <stdint.h>
 #include <device/device.h>
-#include <device/pci.h>
 #include <stdlib.h>
 #include <string.h>
 #include <smbios.h>
@@ -72,7 +62,7 @@ static void cpu_pci_domain_read_resources(struct device *dev)
 		for (i = 0; i < f.size / sizeof(*list); i++) {
 			switch (list[i].type) {
 			case 1: /* RAM */
-				printk(BIOS_DEBUG, "QEMU: e820/ram: 0x%08llx +0x%08llx\n",
+				printk(BIOS_DEBUG, "QEMU: e820/ram: 0x%08llx + 0x%08llx\n",
 				       list[i].address, list[i].length);
 				if (list[i].address == 0) {
 					tomk = list[i].length / 1024;
@@ -128,6 +118,12 @@ static void cpu_pci_domain_read_resources(struct device *dev)
 		qemu_reserve_ports(dev, idx++, CONFIG_CONSOLE_QEMU_DEBUGCON_PORT, 1,
 				   "debugcon");
 	}
+
+	/* A segment is legacy VGA region */
+	mmio_resource(dev, idx++, 0xa0000 / KiB, (0xc0000 - 0xa0000) / KiB);
+
+	/* C segment to 1MB is reserved RAM (low tables) */
+	reserved_ram_resource(dev, idx++, 0xc0000 / KiB, (1 * MiB - 0xc0000) / KiB);
 
 	if (q35 && ((tomk * 1024) < 0xb0000000)) {
 		/*
@@ -197,10 +193,10 @@ static int qemu_get_smbios_data17(int handle, int parent_handle, unsigned long *
 	t->size = qemu_get_memory_size() / 1024;
 	t->data_width = 64;
 	t->total_width = 64;
-	t->form_factor = 9; /* DIMM */
+	t->form_factor = MEMORY_FORMFACTOR_DIMM;
 	t->device_locator = smbios_add_string(t->eos, "Virtual");
-	t->memory_type = 0x12; /* DDR */
-	t->type_detail = 0x80; /* Synchronous */
+	t->memory_type = MEMORY_TYPE_DDR;
+	t->type_detail = MEMORY_TYPE_DETAIL_SYNCHRONOUS;
 	t->speed = 200;
 	t->clock_speed = 200;
 	t->manufacturer = smbios_add_string(t->eos, CONFIG_MAINBOARD_VENDOR);
@@ -223,20 +219,52 @@ static int qemu_get_smbios_data(struct device *dev, int *handle, unsigned long *
 	return len;
 }
 #endif
+
+#if CONFIG(HAVE_ACPI_TABLES)
+static const char *qemu_acpi_name(const struct device *dev)
+{
+	if (dev->path.type == DEVICE_PATH_DOMAIN)
+		return "PCI0";
+
+	if (dev->path.type != DEVICE_PATH_PCI || dev->bus->secondary != 0)
+		return NULL;
+
+	return NULL;
+}
+#endif
+
 static struct device_operations pci_domain_ops = {
 	.read_resources		= cpu_pci_domain_read_resources,
 	.set_resources		= cpu_pci_domain_set_resources,
-	.enable_resources	= NULL,
-	.init			= NULL,
 	.scan_bus		= pci_domain_scan_bus,
 #if CONFIG(GENERATE_SMBIOS_TABLES)
 	.get_smbios_data	= qemu_get_smbios_data,
 #endif
+#if CONFIG(HAVE_ACPI_TABLES)
+	.acpi_name		= qemu_acpi_name,
+#endif
 };
+
+static const struct mp_ops mp_ops_no_smm = {
+	.get_cpu_count = fw_cfg_max_cpus,
+};
+
+extern const struct mp_ops mp_ops_with_smm;
+
+void mp_init_cpus(struct bus *cpu_bus)
+{
+	const struct mp_ops *ops = CONFIG(SMM_TSEG) ? &mp_ops_with_smm : &mp_ops_no_smm;
+
+	if (mp_init_with_smm(cpu_bus, ops))
+		printk(BIOS_ERR, "MP initialization failure.\n");
+}
 
 static void cpu_bus_init(struct device *dev)
 {
-	initialize_cpus(dev->link_list);
+	if (CONFIG(PARALLEL_MP))
+		mp_cpu_bus_init(dev);
+	else
+		initialize_cpus(dev->link_list);
 }
 
 static void cpu_bus_scan(struct device *bus)
@@ -247,6 +275,12 @@ static void cpu_bus_scan(struct device *bus)
 
 	if (max_cpus < 0)
 		return;
+	/*
+	 * Do not install more CPUs than supported by coreboot.
+	 * This will cause a buffer overflow where fixed arrays of CONFIG_MAX_CPUS
+	 * are used and might result in a boot failure.
+	 */
+	max_cpus = MIN(max_cpus, CONFIG_MAX_CPUS);
 
 	/*
 	 * TODO: This only handles the simple "qemu -smp $nr" case
@@ -262,9 +296,8 @@ static void cpu_bus_scan(struct device *bus)
 }
 
 static struct device_operations cpu_bus_ops = {
-	.read_resources   = DEVICE_NOOP,
-	.set_resources    = DEVICE_NOOP,
-	.enable_resources = DEVICE_NOOP,
+	.read_resources   = noop_read_resources,
+	.set_resources    = noop_set_resources,
 	.init             = cpu_bus_init,
 	.scan_bus         = cpu_bus_scan,
 };

@@ -1,23 +1,14 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/io.h>
 #include <console/console.h>
-#include <cpu/x86/cache.h>
+#include <commonlib/region.h>
 #include <cpu/x86/smm.h>
+#include <cpu/x86/smi_deprecated.h>
+#include <cpu/amd/amd64_save_state.h>
+#include <cpu/intel/em64t100_save_state.h>
+#include <cpu/intel/em64t101_save_state.h>
+#include <cpu/x86/legacy_save_state.h>
 
 #if CONFIG(SPI_FLASH_SMM)
 #include <spi-generic.h>
@@ -47,7 +38,7 @@ static int smi_obtain_lock(void)
 	return (ret == SMI_UNLOCKED);
 }
 
-void smi_release_lock(void)
+static void smi_release_lock(void)
 {
 	asm volatile (
 		"movb %1, %%al\n"
@@ -112,17 +103,48 @@ static inline void *smm_save_state(uintptr_t base, int arch_offset, int node)
 	return (void *)base;
 }
 
+/* This returns the SMM revision from the savestate of CPU0,
+   which is assumed to be the same for all CPU's. See the memory
+   map in smmhandler.S */
+uint32_t smm_revision(void)
+{
+	return *(uint32_t *)(SMM_BASE + SMM_ENTRY_OFFSET * 2 - SMM_REVISION_OFFSET_FROM_TOP);
+}
+
+void *smm_get_save_state(int cpu)
+{
+	switch (smm_revision()) {
+	case 0x00030002:
+	case 0x00030007:
+		return smm_save_state(SMM_BASE, SMM_LEGACY_ARCH_OFFSET, cpu);
+	case 0x00030100:
+		return smm_save_state(SMM_BASE, SMM_EM64T100_ARCH_OFFSET, cpu);
+	case 0x00030101: /* SandyBridge, IvyBridge, and Haswell */
+		return smm_save_state(SMM_BASE, SMM_EM64T101_ARCH_OFFSET, cpu);
+	case 0x00020064:
+	case 0x00030064:
+		return smm_save_state(SMM_BASE, SMM_AMD64_ARCH_OFFSET, cpu);
+	}
+
+	return NULL;
+}
+
+bool smm_region_overlaps_handler(const struct region *r)
+{
+	const struct region r_smm = {SMM_BASE, SMM_DEFAULT_SIZE};
+
+	return region_overlap(&r_smm, r);
+}
+
 /**
  * @brief Interrupt handler for SMI#
  *
  * @param smm_revision revision of the smm state save map
  */
 
-void smi_handler(u32 smm_revision)
+void smi_handler(void)
 {
 	unsigned int node;
-	smm_state_save_area_t state_save;
-	u32 smm_base = 0xa0000; /* ASEG */
 
 	/* Are we ok to execute the handler? */
 	if (!smi_obtain_lock()) {
@@ -148,36 +170,10 @@ void smi_handler(u32 smm_revision)
 
 	printk(BIOS_SPEW, "\nSMI# #%d\n", node);
 
-	switch (smm_revision) {
-	case 0x00030002:
-	case 0x00030007:
-		state_save.type = LEGACY;
-		state_save.legacy_state_save =
-			smm_save_state(smm_base,
-				       SMM_LEGACY_ARCH_OFFSET, node);
-		break;
-	case 0x00030100:
-		state_save.type = EM64T;
-		state_save.em64t_state_save =
-			smm_save_state(smm_base,
-				       SMM_EM64T_ARCH_OFFSET, node);
-		break;
-	case 0x00030101: /* SandyBridge, IvyBridge, and Haswell */
-		state_save.type = EM64T101;
-		state_save.em64t101_state_save =
-			smm_save_state(smm_base,
-				       SMM_EM64T101_ARCH_OFFSET, node);
-		break;
-	case 0x00020064:
-	case 0x00030064:
-		state_save.type = AMD64;
-		state_save.amd64_state_save =
-			smm_save_state(smm_base,
-				       SMM_AMD64_ARCH_OFFSET, node);
-		break;
-	default:
-		printk(BIOS_DEBUG, "smm_revision: 0x%08x\n", smm_revision);
-		printk(BIOS_DEBUG, "SMI# not supported on your CPU\n");
+	/* Use smm_get_save_state() to see if the smm revision is supported */
+	if (smm_get_save_state(node) == NULL) {
+		printk(BIOS_WARNING, "smm_revision: 0x%08x\n", smm_revision());
+		printk(BIOS_WARNING, "SMI# not supported on your CPU\n");
 		/* Don't release lock, so no further SMI will happen,
 		 * if we don't handle it anyways.
 		 */
@@ -193,9 +189,7 @@ void smi_handler(u32 smm_revision)
 	}
 
 	/* Call chipset specific SMI handlers. */
-	cpu_smi_handler(node, &state_save);
-	northbridge_smi_handler(node, &state_save);
-	southbridge_smi_handler(node, &state_save);
+	southbridge_smi_handler();
 
 	smi_restore_pci_address();
 
@@ -210,12 +204,7 @@ void smi_handler(u32 smm_revision)
  * weak relocations w/o a symbol have a 0 address which is where the modules
  * are linked at. */
 int __weak mainboard_io_trap_handler(int smif) { return 0; }
-void __weak cpu_smi_handler(unsigned int node,
-	smm_state_save_area_t *state_save) {}
-void __weak northbridge_smi_handler(unsigned int node,
-	smm_state_save_area_t *state_save) {}
-void __weak southbridge_smi_handler(unsigned int node,
-	smm_state_save_area_t *state_save) {}
+void __weak southbridge_smi_handler(void) {}
 void __weak mainboard_smi_gpi(u32 gpi_sts) {}
 int __weak mainboard_smi_apmc(u8 data) { return 0; }
 void __weak mainboard_smi_sleep(u8 slp_typ) {}

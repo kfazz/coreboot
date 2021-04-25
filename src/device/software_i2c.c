@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <assert.h>
 #include <timer.h>
@@ -40,7 +27,7 @@ struct software_i2c_ops *software_i2c[SOFTWARE_I2C_MAX_BUS];
  * Waits until either timeout_us have passed or (iff for_scl is set) until SCL
  * goes high. Will report random line changes during the wait and return SCL.
  */
-static int __wait(unsigned bus, int timeout_us, int for_scl)
+static int __wait(unsigned int bus, int timeout_us, int for_scl)
 {
 	int us;
 	int sda = software_i2c[bus]->get_sda(bus);
@@ -65,13 +52,13 @@ static int __wait(unsigned bus, int timeout_us, int for_scl)
 }
 
 /* Waits the default DELAY_US to allow line state to stabilize. */
-static void wait(unsigned bus)
+static void wait(unsigned int bus)
 {
 	__wait(bus, DELAY_US, 0);
 }
 
 /* Waits until SCL goes high. Prints a contextual error message on timeout. */
-static int wait_for_scl(unsigned bus, const char *error_context)
+static int wait_for_scl(unsigned int bus, const char *error_context)
 {
 	if (!__wait(bus, TIMEOUT_US, 1)) {
 		printk(BIOS_ERR, "software_i2c(%d): ERROR: Clock stretching "
@@ -82,7 +69,7 @@ static int wait_for_scl(unsigned bus, const char *error_context)
 	return 0;
 }
 
-static int start_cond(unsigned bus)
+static int start_cond(unsigned int bus)
 {
 	spew("software_i2c(%d): Sending start condition... ", bus);
 
@@ -114,7 +101,7 @@ static int start_cond(unsigned bus)
 	return 0;
 }
 
-static int stop_cond(unsigned bus)
+static int stop_cond(unsigned int bus)
 {
 	spew("software_i2c(%d): Sending stop condition... ", bus);
 
@@ -143,7 +130,7 @@ static int stop_cond(unsigned bus)
 	return 0;
 }
 
-static int out_bit(unsigned bus, int bit)
+static int out_bit(unsigned int bus, int bit)
 {
 	spew("software_i2c(%d): Sending a %d bit... ", bus, bit);
 
@@ -176,7 +163,7 @@ static int out_bit(unsigned bus, int bit)
 	return 0;
 }
 
-static int in_bit(unsigned bus)
+static int in_bit(unsigned int bus)
 {
 	int bit;
 
@@ -204,9 +191,9 @@ static int in_bit(unsigned bus)
 }
 
 /* Write a byte to I2C bus. Return 0 if ack by the slave. */
-static int out_byte(unsigned bus, u8 byte)
+static int out_byte(unsigned int bus, u8 byte)
 {
-	unsigned bit;
+	unsigned int bit;
 	int nack, ret;
 
 	for (bit = 0; bit < 8; bit++)
@@ -222,7 +209,7 @@ static int out_byte(unsigned bus, u8 byte)
 	return nack > 0 ? ERR_NACK : nack;
 }
 
-static int in_byte(unsigned bus, int ack)
+static int in_byte(unsigned int bus, int ack)
 {
 	u8 byte = 0;
 	int i, ret;
@@ -243,7 +230,7 @@ static int in_byte(unsigned bus, int ack)
 	return byte;
 }
 
-int software_i2c_transfer(unsigned bus, struct i2c_msg *segments, int count)
+int software_i2c_transfer(unsigned int bus, struct i2c_msg *segments, int count)
 {
 	int i, ret;
 	struct i2c_msg *seg;
@@ -271,7 +258,7 @@ int software_i2c_transfer(unsigned bus, struct i2c_msg *segments, int count)
 	return 0;
 }
 
-void software_i2c_wedge_ack(unsigned bus, u8 chip)
+void software_i2c_wedge_ack(unsigned int bus, u8 chip)
 {
 	int i;
 
@@ -294,7 +281,7 @@ void software_i2c_wedge_ack(unsigned bus, u8 chip)
 		software_i2c[bus]->get_scl(bus));
 }
 
-void software_i2c_wedge_read(unsigned bus, u8 chip, u8 reg, int bits)
+void software_i2c_wedge_read(unsigned int bus, u8 chip, u8 reg, int bits)
 {
 	int i;
 
@@ -323,7 +310,7 @@ void software_i2c_wedge_read(unsigned bus, u8 chip, u8 reg, int bits)
 		software_i2c[bus]->get_scl(bus));
 }
 
-void software_i2c_wedge_write(unsigned bus, u8 chip, u8 reg, int bits)
+void software_i2c_wedge_write(unsigned int bus, u8 chip, u8 reg, int bits)
 {
 	int i;
 

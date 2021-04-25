@@ -1,36 +1,20 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- * Copyright (C) 2015 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <bootblock_common.h>
 #include <device/mmio.h>
 #include <device/pci_ops.h>
 #include <soc/gpio.h>
 #include <soc/lpc.h>
 #include <soc/pci_devs.h>
-#include <soc/romstage.h>
 
 /*
  * return family number and internal pad number in that community
  * by pad number and which community it is in.
  */
 
-
-
 	/* family number in high byte and inner pad number in lowest byte */
 
-void car_mainboard_pre_console_init(void)
+void bootblock_mainboard_early_init(void)
 {
 	uint32_t reg;
 	uint32_t *pad_config_reg;

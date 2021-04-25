@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2016 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <assert.h>
 #include <baseboard/variants.h>
@@ -125,8 +112,7 @@ static uintptr_t mainboard_get_spd_data(enum memory_type type, bool use_sec_spd)
 	printk(BIOS_INFO, "SPD index %d\n", spd_index);
 
 	/* Load SPD data from CBFS */
-	spd_file = cbfs_boot_map_with_leak(spd_bin, CBFS_TYPE_SPD,
-					   &spd_file_len);
+	spd_file = cbfs_map(spd_bin, &spd_file_len);
 	if (!spd_file)
 		die("SPD data not found.");
 

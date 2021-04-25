@@ -1,21 +1,7 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef SOC_INTEL_COMMON_BLOCK_SA_DEF_H
 #define SOC_INTEL_COMMON_BLOCK_SA_DEF_H
-
 
 /* Device 0:0.0 PCI configuration space */
 
@@ -30,6 +16,11 @@
 #define  DPR_EPM	(1 << 2)
 #define  DPR_PRS	(1 << 1)
 #define  DPR_SIZE_MASK	0xff0
+/* CAPID0_A */
+#define  CAPID_ECCDIS	(1 << 25)
+#define  CAPID_DDPCD	(1 << 14)
+#define  CAPID_PDCD	(1 << 12)
+#define  CAPID_DDRSZ(x)	(((x) >> 19) & 0x3)
 
 #define  PCIEXBAR_LENGTH_64MB	2
 #define  PCIEXBAR_LENGTH_128MB	1
@@ -48,7 +39,7 @@
 #define MCH_PAIR	0x5418
 
 /*
- * IMR register in case CONFIG_SA_ENABLE_IMR is selected by SoC.
+ * IMR register in case CONFIG(SA_ENABLE_IMR) is selected by SoC.
  *
  * IMR registers are found under MCHBAR.
  */

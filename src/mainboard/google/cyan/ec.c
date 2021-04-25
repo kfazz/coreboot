@@ -1,25 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Google Inc.
- * Copyright (C) 2015 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <console/console.h>
 #include <ec/google/chromeec/ec.h>
 #include "ec.h"
 #include <vendorcode/google/chromeos/chromeos.h>
-#include <types.h>
 
 void mainboard_ec_init(void)
 {
@@ -33,8 +18,7 @@ void mainboard_ec_init(void)
 	printk(BIOS_DEBUG, "mainboard_ec_init\n");
 	post_code(0xf0);
 
-	if (CONFIG(EC_GOOGLE_CHROMEEC))
-		google_chromeec_events_init(&info, acpi_is_wakeup_s3());
+	google_chromeec_events_init(&info, acpi_is_wakeup_s3());
 
 	post_code(0xf1);
 }

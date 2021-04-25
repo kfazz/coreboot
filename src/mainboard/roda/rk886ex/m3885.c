@@ -1,21 +1,6 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <types.h>
-#include <stdlib.h>
 #include <console/console.h>
 #include <arch/io.h>
 #include <delay.h>
@@ -98,7 +83,6 @@ static u8 function_ram[] = {
 	0xb4,0x7b,0xb5,0x7c,0x00,0x00,0x55,0x79,  /* (0xfc-0xff) */
 };
 
-
 #define KBD_DATA	0x60
 #define KBD_SC		0x64
 
@@ -144,7 +128,6 @@ static int send_kbd_data(u8 data)
 	return 0;
 }
 
-
 static u8 recv_kbd_data(void)
 {
 	int timeout;
@@ -167,7 +150,6 @@ static u8 recv_kbd_data(void)
 
 	return data;
 }
-
 
 static u8 m3885_get_variable(u8 index)
 {
@@ -266,7 +248,7 @@ void m3885_configure_multikey(void)
 	maxvars = m3885_get_variable(0x00);
 	printk(BIOS_DEBUG, "M388x has %d variables in original bank.\n", maxvars);
 	for (i = 0; i < ARRAY_SIZE(variables); i+=3) {
-		if(variables[i + 0] > maxvars)
+		if (variables[i + 0] > maxvars)
 			continue;
 		reg8 = m3885_get_variable(variables[i + 0]);
 		reg8 &= ~(variables[i + 1]);

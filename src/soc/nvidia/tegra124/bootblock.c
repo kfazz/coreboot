@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <assert.h>
 #include <arch/exception.h>
@@ -25,6 +12,9 @@
 #include <soc/power.h>
 #include <timestamp.h>
 #include <vendorcode/google/chromeos/chromeos.h>
+
+/* called from assembly in bootblock_asm.S */
+void tegra124_main(void);
 
 static void run_next_stage(void *entry)
 {
@@ -41,7 +31,7 @@ static void run_next_stage(void *entry)
 	clock_halt_avp();
 }
 
-void main(void)
+void tegra124_main(void)
 {
 	// enable pinmux clamp inputs
 	clamp_tristate_inputs();

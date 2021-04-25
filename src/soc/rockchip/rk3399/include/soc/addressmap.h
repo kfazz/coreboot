@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2016 Rockchip Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __SOC_ROCKCHIP_RK3399_ADDRESSMAP_H__
 #define __SOC_ROCKCHIP_RK3399_ADDRESSMAP_H__
@@ -64,7 +51,6 @@
 
 #define VOP_BIG_BASE		0xff900000 /* corresponds to vop_id 0 */
 #define VOP_LIT_BASE		0xff8f0000 /* corresponds to vop_id 1 */
-
 
 #define DDRC0_BASE_ADDR		0xffa80000
 #define SERVER_MSCH0_BASE_ADDR	0xffa84000

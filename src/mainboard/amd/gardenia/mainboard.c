@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <device/device.h>
@@ -32,7 +19,7 @@
  * These values are used by the PCI configuration space,
  * MP Tables.  TODO: Make ACPI use these values too.
  */
-const u8 mainboard_picr_data[] = {
+static const u8 mainboard_picr_data[] = {
 	[0x00] = 0x03, 0x04, 0x05, 0x07, 0x0B, 0x0A, 0x1F, 0x1F,
 	[0x08] = 0xFA, 0xF1, 0x00, 0x00, 0x1F, 0x1F, 0x1F, 0x1F,
 	[0x10] = 0x1F, 0x1F, 0x1F, 0x03, 0x1F, 0x1F, 0x1F, 0x1F,
@@ -51,7 +38,7 @@ const u8 mainboard_picr_data[] = {
 	[0x78] = 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F,
 };
 
-const u8 mainboard_intr_data[] = {
+static const u8 mainboard_intr_data[] = {
 	[0x00] = 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
 	[0x08] = 0x00, 0x00, 0x00, 0x00, 0x1F, 0x1F, 0x1F, 0x1F,
 	[0x10] = 0x09, 0x1F, 0x1F, 0x10, 0x1F, 0x1F, 0x1F, 0x10,
@@ -82,22 +69,19 @@ static void mainboard_init(void *chip_info)
 	size_t num_gpios;
 	const struct soc_amd_gpio *gpios;
 	gpios = gpio_table(&num_gpios);
-	sb_program_gpios(gpios, num_gpios);
+	program_gpios(gpios, num_gpios);
 }
 
 /*************************************************
  * enable the dedicated function in gardenia board.
  *************************************************/
-static void gardenia_enable(struct device *dev)
+static void mainboard_enable(struct device *dev)
 {
-	printk(BIOS_INFO, "Mainboard "
-				CONFIG_MAINBOARD_PART_NUMBER " Enable.\n");
-
 	/* Initialize the PIRQ data structures for consumption */
 	pirq_setup();
 }
 
 struct chip_operations mainboard_ops = {
 	.init = mainboard_init,
-	.enable_dev = gardenia_enable,
+	.enable_dev = mainboard_enable,
 };

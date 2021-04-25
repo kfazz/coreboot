@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2016 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef SOC_INTEL_COMMON_BLOCK_SMI_HANDLER_H
 #define SOC_INTEL_COMMON_BLOCK_SMI_HANDLER_H
@@ -20,7 +7,7 @@
 #include <stdint.h>
 
 struct gpi_status;
-struct global_nvs_t;
+struct global_nvs;
 
 /*
  * The register value is used with get_reg and set_reg
@@ -58,8 +45,6 @@ const struct smm_save_state_ops *get_smm_save_state_ops(void);
  * for some SMI events are provided in soc/intel/common/block/smm/smihandler.c
  */
 extern const smi_handler_t southbridge_smi[32];
-
-#define SMI_HANDLER_SCI_EN(__bit)	(1 << (__bit))
 
 /*
  * This function should be implemented in SOC specific code to handle
@@ -140,11 +125,6 @@ void smihandler_southbridge_gpi(
 void smihandler_southbridge_espi(
 	const struct smm_save_state_ops *save_state_ops);
 
-/*
- * Returns gnvs pointer within SMM context
- */
-struct global_nvs_t *smm_get_gnvs(void);
-
 /* SoC overrides. */
 
 /* Specific SOC SMI handler during ramstage finalize phase */
@@ -155,15 +135,6 @@ void smihandler_soc_at_finalize(void);
  * needs to be done for the specified device on S5 entry
  */
 int smihandler_soc_disable_busmaster(pci_devfn_t dev);
-
-/* SMI handlers that should be serviced in SCI mode too. */
-uint32_t smihandler_soc_get_sci_mask(void);
-
-/*
- * SoC needs to implement the mechanism to know if an illegal attempt
- * has been made to write to the BIOS area.
- */
-void smihandler_soc_check_illegal_access(uint32_t tco_sts);
 
 /* Mainboard overrides. */
 

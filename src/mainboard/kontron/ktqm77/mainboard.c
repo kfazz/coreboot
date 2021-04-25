@@ -1,31 +1,14 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- * Copyright (C) 2011 The ChromiumOS Authors.  All rights reserved.
- * Copyright (C) 2013 secunet Security Networks AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <types.h>
 #include <device/device.h>
 #include <device/pci_def.h>
-#include <device/pci_ops.h>
 #include <console/console.h>
 #if CONFIG(VGA_ROM_RUN)
 #include <x86emu/x86emu.h>
 #endif
-#include <pc80/mc146818rtc.h>
+#include <option.h>
 #include <arch/interrupt.h>
-#include <boot/coreboot_tables.h>
 #include <southbridge/intel/bd82x6x/pch.h>
 
 #if CONFIG(VGA_ROM_RUN)
@@ -43,12 +26,12 @@ static int int15_handler(void)
 		 *  bit 2 = Graphics Stretching
 		 *  bit 1 = Text Stretching
 		 *  bit 0 = Centering (do not set with bit1 or bit2)
-		 *  0     = video bios default
+		 *  0     = video BIOS default
 		 */
 		X86_EAX &= 0xffff0000;
 		X86_EAX |= 0x005f;
 		X86_ECX &= 0xffffff00;
-		X86_ECX |= 0x00;	/* Use video bios default */
+		X86_ECX |= 0x00;	/* Use video BIOS default */
 		res = 1;
 		break;
 	case 0x5f35:
@@ -66,7 +49,7 @@ static int int15_handler(void)
 		X86_EAX &= 0xffff0000;
 		X86_EAX |= 0x005f;
 		X86_ECX &= 0xffff0000;
-		X86_ECX |= 0x0000;	/* Use video bios default */
+		X86_ECX |= 0x0000;	/* Use video BIOS default */
 		res = 1;
 		break;
 	case 0x5f51:
@@ -166,17 +149,16 @@ static void mainboard_enable(struct device *dev)
 	/* Install custom int15 handler for VGA OPROM */
 	mainboard_interrupt_handlers(0x15, &int15_handler);
 #endif
-
-	unsigned disable = 0;
-	if ((get_option(&disable, "ethernet1") == CB_SUCCESS) && disable) {
+	unsigned int disable = get_int_option("ethernet1", 0);
+	if (disable) {
 		struct device *nic = pcidev_on_root(0x1c, 2);
 		if (nic) {
 			printk(BIOS_DEBUG, "DISABLE FIRST NIC!\n");
 			nic->enabled = 0;
 		}
 	}
-	disable = 0;
-	if ((get_option(&disable, "ethernet2") == CB_SUCCESS) && disable) {
+	disable = get_int_option("ethernet2", 0);
+	if (disable) {
 		struct device *nic = pcidev_on_root(0x1c, 3);
 		if (nic) {
 			printk(BIOS_DEBUG, "DISABLE SECOND NIC!\n");

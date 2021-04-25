@@ -1,23 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <baseboard/variants.h>
 #include <soc/gpio.h>
 #include <soc/southbridge.h>
-#include <stdlib.h>
-#include <boardid.h>
 #include <variant/gpio.h>
 
 /*
@@ -29,25 +14,20 @@ static const struct soc_amd_gpio gpio_set_stage_reset[] = {
 	/* GPIO_4 - EN_PP3300_WLAN */
 	PAD_GPO(GPIO_4, HIGH),
 
-	/* GPIO_6 - APU_RST_L / EC_SMI_ODL, SMI */
-	PAD_SMI(GPIO_6, PULL_UP, LEVEL_LOW),
+	/* GPIO_6 - APU_RST_L / EC_SMI_ODL, SMI gets configured in ramstage */
+	PAD_GPI(GPIO_6, PULL_UP),
 
-	/* GPIO_9 - H1_PCH_INT_ODL, SCI */
+	/* GPIO_9 - H1_PCH_INT_ODL */
 	PAD_INT(GPIO_9, PULL_UP, EDGE_LOW, STATUS),
-	PAD_SCI(GPIO_9, PULL_UP, EDGE_LOW),
 
 	/* GPIO_15 - EC_IN_RW_OD */
 	PAD_GPI(GPIO_15, PULL_UP),
 
-	/* GPIO_12 - EN_PP3300_TRACKPAD */
-	/* Init low to reset the chip */
-	PAD_GPO(GPIO_12, LOW),
+	/* GPIO_22 - EC_SCI_ODL, SCI gets configured in ramstage */
+	PAD_GPI(GPIO_22, PULL_UP),
 
-	/* GPIO_22 - EC_SCI_ODL, SCI */
-	PAD_SCI(GPIO_22, PULL_UP, EDGE_LOW),
-
-	/* GPIO_24 - EC_PCH_WAKE_L */
-	PAD_SCI(GPIO_24, PULL_UP, EDGE_LOW),
+	/* GPIO_24 - EC_PCH_WAKE_L, SCI gets configured in ramstage */
+	PAD_GPI(GPIO_24, PULL_UP),
 
 	/* GPIO_26 - APU_PCIE_RST_L */
 	PAD_NF(GPIO_26, PCIE_RST_L, PULL_NONE),
@@ -55,15 +35,8 @@ static const struct soc_amd_gpio gpio_set_stage_reset[] = {
 	/* GPIO_40 - EMMC_BRIDGE_RST */
 	PAD_GPO(GPIO_40, LOW),
 
-	/* GPIO_70 - WLAN_PE_RST_L */
-	PAD_GPO(GPIO_70, HIGH),
-
 	/* GPIO_74 - LPC_CLK0_EC_R */
 	PAD_NF(GPIO_74, LPCCLK0, PULL_DOWN),
-
-	/* GPIO_76 - EN_PP3300_TOUCHSCREEN */
-	/* Init low to reset the chip */
-	PAD_GPO(GPIO_76, LOW),
 
 	/* GPIO_92 - WLAN_PCIE_CLKREQ_3V3_ODL */
 	PAD_NF(GPIO_92, CLK_REQ0_L, PULL_UP),
@@ -90,6 +63,11 @@ static const struct soc_amd_gpio gpio_set_stage_reset[] = {
 	PAD_GPI(GPIO_142, PULL_NONE),
 };
 
+static const struct soc_amd_gpio gpio_wlan_rst_early_reset[] = {
+	/* GPIO_70 - WLAN_PE_RST_L */
+	PAD_GPO(GPIO_70, HIGH),
+};
+
 static const struct soc_amd_gpio gpio_set_stage_rom[] = {
 	/* GPIO_133 - APU_EDP_BKLTEN_L (backlight - Active LOW) */
 	PAD_GPO(GPIO_133, HIGH),
@@ -103,13 +81,16 @@ static const struct soc_amd_gpio gpio_set_stage_ram[] = {
 	PAD_NF(GPIO_1, SYS_RESET_L, PULL_UP),
 
 	/* GPIO_2 - WLAN_PCIE_WAKE_3V3_ODL */
-	PAD_NF(GPIO_2, WAKE_L, PULL_UP),
+	PAD_NF_SCI(GPIO_2, WAKE_L, PULL_UP, EDGE_LOW),
 
 	/* GPIO_3 - MEM_VOLT_SEL */
 	PAD_GPI(GPIO_3, PULL_UP),
 
 	/* GPIO_5 - PCH_TRACKPAD_INT_3V3_ODL, SCI */
 	PAD_SCI(GPIO_5, PULL_UP, EDGE_LOW),
+
+	/* GPIO_6 - APU_RST_L / EC_SMI_ODL, SMI */
+	PAD_SMI(GPIO_6, PULL_UP, LEVEL_LOW),
 
 	/* GPIO_7 - APU_PWROK_OD (currently not used) */
 	PAD_GPI(GPIO_7, PULL_UP),
@@ -149,6 +130,12 @@ static const struct soc_amd_gpio gpio_set_stage_ram[] = {
 
 	/* GPIO_21 - APU_PEN_INT_ODL, SCI */
 	PAD_SCI(GPIO_21, PULL_UP, EDGE_LOW),
+
+	/* GPIO_22 - EC_SCI_ODL, SCI */
+	PAD_SCI(GPIO_22, PULL_UP, EDGE_LOW),
+
+	/* GPIO_24 - EC_PCH_WAKE_L, SCI */
+	PAD_SCI(GPIO_24, PULL_UP, EDGE_LOW),
 
 	/* GPIO_25 - SD_CD */
 	PAD_NF(GPIO_25, SD0_CD, PULL_UP),
@@ -261,6 +248,13 @@ struct soc_amd_gpio *variant_early_gpio_table(size_t *size)
 }
 
 const __weak
+struct soc_amd_gpio *variant_wlan_rst_early_gpio_table(size_t *size)
+{
+	*size = ARRAY_SIZE(gpio_wlan_rst_early_reset);
+	return gpio_wlan_rst_early_reset;
+}
+
+const __weak
 struct soc_amd_gpio *variant_romstage_gpio_table(size_t *size)
 {
 	*size = ARRAY_SIZE(gpio_set_stage_rom);
@@ -272,18 +266,6 @@ struct soc_amd_gpio *variant_gpio_table(size_t *size)
 {
 	*size = ARRAY_SIZE(gpio_set_stage_ram);
 	return gpio_set_stage_ram;
-}
-
-/*
- * This function is still needed for boards that sets gevents above 23
- * that will generate SCI or SMI, such as kahlee. Normally this function
- * points to a table of gevents and what needs to be set. The code that
- * calls it was modified so that when this function returns NULL then the
- * caller does nothing.
- */
-const __weak struct sci_source *get_gpe_table(size_t *num)
-{
-	return NULL;
 }
 
 int __weak variant_get_xhci_oc_map(uint16_t *map)

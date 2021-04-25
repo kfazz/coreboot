@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2005 Digital Design Corporation
- * Copyright (C) 2008-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* Pre-RAM driver for SMSC LPC47N227 Super I/O chip. */
 
@@ -73,7 +59,7 @@ static void lpc47n227_pnp_set_iobase(pnp_devfn_t dev, u16 iobase)
  * true base port is programmed (see lpc47n227_enable_serial() below).
  *
  * @param dev High 8 bits = Super I/O port, low 8 bits = logical device number.
- * @param enable 0 to disable, anythig else to enable.
+ * @param enable 0 to disable, anything else to enable.
  */
 static void lpc47n227_pnp_set_enable(pnp_devfn_t dev, int enable)
 {

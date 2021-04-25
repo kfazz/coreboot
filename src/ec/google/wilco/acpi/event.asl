@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 Google LLC
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* ACPI_POWER_RECORD */
 Name (ECPR, 0)
@@ -39,7 +25,11 @@ Method (ECQP, 0, Serialized)
 		}
 	}
 
-	If (EBIT (BTSC, Local1)) {
+	/*
+	 * Battery status is cleared when read so always use the value from
+	 * PWSR directly regardless of the previous value stored in ECPR.
+	 */
+	If (EBIT (BTSC, Local0)) {
 		Printf ("BAT0 Status Change")
 		Notify (BAT0, 0x80)
 	}
@@ -57,7 +47,7 @@ Method (ECQ1, 1, Serialized)
 	/* LID state changed */
 	If (EBIT (E1LD, Arg0)) {
 		Printf ("Lid State Changed")
-		Notify (^LID, 0x80)
+		Notify (^LID0, 0x80)
 	}
 
 	/* Power Event */
@@ -143,5 +133,18 @@ Method (_Q66, 0, Serialized)
 	Local0 = R (EVT4)
 	If (Local0) {
 		ECQ4 (Local0)
+	}
+}
+
+/* UCSI SCI uses a unique event code */
+Method (_Q79, 0, Serialized)
+{
+	If (ISSX == Zero) {
+		Printf ("EC _Q79 UCSI Event")
+		Notify (^UCSI, 0x80)
+		^UCEP = Zero
+	} Else {
+		Printf ("EC _Q79 UCSI Event Masked in S0ix")
+		^UCEP = One
 	}
 }

@@ -1,22 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 Google LLC
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef EC_GOOGLE_WILCO_COMMANDS_H
 #define EC_GOOGLE_WILCO_COMMANDS_H
 
-#include <stdint.h>
 #include <types.h>
 
 enum {
@@ -50,6 +36,10 @@ enum {
 	KB_SLP_EN = 0x64,
 	/* Inform the EC about BIOS boot progress */
 	KB_BIOS_PROGRESS = 0xc2,
+	/* Inform the EC that a fatal error occurred */
+	KB_ERR_CODE = 0x7b,
+	/* Set CPU ID */
+	KB_CPU_ID = 0xbf,
 };
 
 enum ec_ram_addr {
@@ -78,12 +68,26 @@ enum ec_audio_mute {
 };
 
 enum ec_radio {
-	RADIO_WIFI = 0x02,
+	RADIO_WIFI = 0,
+	RADIO_WWAN,
+	RADIO_BT,
+};
+
+enum ec_radio_action {
+	RADIO_READ = 1,
+	RADIO_WRITE,
+	RADIO_TOGGLE,
 };
 
 enum ec_camera {
 	CAMERA_ON = 0,
 	CAMERA_OFF
+};
+
+enum ec_err_code {
+	DLED_MEMORY = 0x03,
+	DLED_PANEL = 0x10,
+	DLED_ROM = 0x19,
 };
 
 /**
@@ -309,5 +313,30 @@ enum ec_acpi_wake_events {
  * Returns 1 if EC uses signed firmware, otherwise returns 0
  */
 int wilco_ec_signed_fw(void);
+
+/**
+ * wilco_ec_save_post_code
+ *
+ * Save this post code as the most recent progress step.  If the boot fails
+ * and calls die_notify() this post code will be used to send an error code
+ * to the EC indicating the failure.
+ *
+ * @post_code: Post code to save
+ */
+void wilco_ec_save_post_code(uint8_t post_code);
+
+/**
+ * wilco_ec_set_cpuid
+ *
+ * Set CPU ID to EC.
+ *
+ * @cpuid:	read CPU ID from cpu_eax(1)
+ * @cpu_cores:	cores of CPU
+ * @gpu_cores:	cores of GPU
+ *
+ * Returns 0 if EC command was successful
+ * Returns -1 if EC command failed
+ */
+int wilco_ec_set_cpuid(uint32_t cpuid, uint8_t cpu_cores, uint8_t gpu_cores);
 
 #endif /* EC_GOOGLE_WILCO_COMMANDS_H */

@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef SOC_ICELAKE_PCR_H
 #define SOC_ICELAKE_PCR_H
@@ -38,7 +25,7 @@
 #define PID_SCS		0xc0
 #define PID_RTC		0xc3
 #define PID_ITSS	0xc4
-#define PID_LPC		0xc7
+#define PID_ESPI	0xc7
 #define PID_SERIALIO	0xcb
 
 #endif

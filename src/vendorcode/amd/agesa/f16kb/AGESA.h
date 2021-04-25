@@ -44,6 +44,20 @@
 #ifndef _AGESA_H_
 #define _AGESA_H_
 
+/*
+ * This is the delivery package title.
+ * This string MUST be exactly 16 characters long.
+ *
+ * FIXME: AMD_CODE_HEADER for this platform expects 16 characters, but there's only 8 here.
+ */
+#define AGESA_PACKAGE_STRING {'c', 'b', '_', 'A', 'g', 'e', 's', 'a'}
+
+/*
+ * This is the release version number of the AGESA component.
+ * This string MUST be exactly 12 characters long.
+ */
+#define AGESA_VERSION_STRING {'V', '0', '.', '0', '.', '0', '.', '1', ' ', ' ', ' ', ' '}
+
 #include  "Porting.h"
 #include  "AMD.h"
 
@@ -371,7 +385,7 @@ typedef struct {
   IN       UINT8 Socket;                 ///< The Socket on which this Link is located
   IN       UINT8 Link;                   ///< The Link about to be initialized
   // Customization fields
-  IN       FINAL_LINK_STATE LinkState;   ///< The link may be left unitialized, or powered off.
+  IN       FINAL_LINK_STATE LinkState;   ///< The link may be left uninitialized, or powered off.
 } IGNORE_LINK;
 
 
@@ -1607,9 +1621,10 @@ typedef enum {
 ///
 /// SPD Data for each DIMM.
 ///
+#define DDR3_SPD_SIZE 256
 typedef struct _SPD_DEF_STRUCT {
   IN BOOLEAN DimmPresent;       ///< Indicates that the DIMM is present and Data is valid
-  IN UINT8 Data[256];           ///< Buffer for 256 Bytes of SPD data from DIMM
+  IN UINT8 Data[DDR3_SPD_SIZE]; ///< Buffer for 256 Bytes of SPD data from DIMM
 } SPD_DEF_STRUCT;
 
 ///

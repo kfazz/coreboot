@@ -1,48 +1,33 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Advanced Micro Devices, Inc.
- * Copyright (C) 2016 Raptor Engineering, LLC
- * Copyright (C) 2018 3mdeb Embedded Systems Consulting
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <commonlib/helpers.h>
 #include <console/console.h>
 #include <device/pci_ops.h>
-#include <arch/acpi.h>
-#include <stdint.h>
+#include <acpi/acpi.h>
+#include <acpi/acpi_ivrs.h>
+#include <arch/ioapic.h>
+#include <types.h>
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
-#include <device/hypertransport.h>
-#include <stdlib.h>
 #include <string.h>
+#include <stdlib.h>
 #include <lib.h>
 #include <cpu/cpu.h>
 #include <Porting.h>
 #include <AGESA.h>
-#include <FieldAccessors.h>
 #include <Topology.h>
 #include <cpu/x86/lapic.h>
 #include <cpu/amd/msr.h>
 #include <cpu/amd/mtrr.h>
-#include <arch/acpigen.h>
-#include <northbridge/amd/pi/nb_common.h>
+#include <acpi/acpigen.h>
+#include <northbridge/amd/nb_common.h>
 #include <northbridge/amd/agesa/agesa_helper.h>
-#if CONFIG(BINARYPI_LEGACY_WRAPPER)
-#include <northbridge/amd/pi/agesawrapper.h>
-#include <northbridge/amd/pi/agesawrapper_call.h>
-#endif
+#include <southbridge/amd/pi/hudson/pci_devs.h>
 
 #define MAX_NODE_NUMS MAX_NODES
+#define PCIE_CAP_AER		BIT(5)
+#define PCIE_CAP_ACS		BIT(6)
 
 typedef struct dram_base_mask {
 	u32 base; //[47:27] at [28:8]
@@ -165,7 +150,7 @@ static void set_vga_enable_reg(u32 nodeid, u32 linkn)
 
 /**
  * @return
- *  @retval 2  resoure does not exist, usable
+ *  @retval 2  resource does not exist, usable
  *  @retval 0  resource exists, not usable
  *  @retval 1  resource exist, resource has been allocated before
  */
@@ -297,6 +282,7 @@ static void read_resources(struct device *dev)
 {
 	u32 nodeid;
 	struct bus *link;
+	struct resource *res;
 
 	nodeid = amdfam16_nodeid(dev);
 	for (link = dev->link_list; link; link = link->next) {
@@ -311,6 +297,12 @@ static void read_resources(struct device *dev)
 	 * the CPU_CLUSTER.
 	 */
 	mmconf_resource(dev, MMIO_CONF_BASE);
+
+	/* NB IOAPIC2 resource */
+	res = new_resource(dev, IO_APIC2_ADDR); /* IOAPIC2 */
+	res->base = IO_APIC2_ADDR;
+	res->size = 0x00001000;
+	res->flags = IORESOURCE_MEM | IORESOURCE_ASSIGNED | IORESOURCE_FIXED;
 }
 
 static void set_resource(struct device *dev, struct resource *resource, u32 nodeid)
@@ -417,6 +409,7 @@ static void set_resources(struct device *dev)
 
 static void northbridge_init(struct device *dev)
 {
+	setup_ioapic((u8 *)IO_APIC2_ADDR, CONFIG_MAX_CPUS+1);
 }
 
 static unsigned long acpi_fill_hest(acpi_hest_t *hest)
@@ -437,59 +430,134 @@ static unsigned long acpi_fill_hest(acpi_hest_t *hest)
 	return (unsigned long)current;
 }
 
-static void add_ivhd_dev_entry(struct device *parent, struct device *dev,
-			       unsigned long *current, uint16_t *length,
-			       uint8_t type, uint8_t data)
+unsigned long acpi_fill_ivrs_ioapic(acpi_ivrs_t *ivrs, unsigned long current)
 {
-	uint8_t *p;
-	p = (uint8_t *) *current;
+	/* 8-byte IVHD structures must be aligned to the 8-byte boundary. */
+	current = ALIGN_UP(current, 8);
+	ivrs_ivhd_special_t *ivhd_ioapic = (ivrs_ivhd_special_t *)current;
 
-	if (type == 0x2) {
-		/* Entry type */
-		p[0] = type;
-		/* Device */
-		p[1] = dev->path.pci.devfn;
-		/* Bus */
-		p[2] = dev->bus->secondary;
-		/* Data */
-		p[3] = data;
-		/* [4:7] Padding */
-		p[4] = 0x0;
-		p[5] = 0x0;
-		p[6] = 0x0;
-		p[7] = 0x0;
-		*length += 8;
-		*current += 8;
-	} else if (type == 0x42) {
-		/* Entry type */
-		p[0] = type;
-		/* Device */
-		p[1] = dev->path.pci.devfn;
-		/* Bus */
-		p[2] = dev->bus->secondary;
-		/* Data */
-		p[3] = 0x0;
-		/* Reserved */
-		p[4] = 0x0;
-		/* Device */
-		p[5] = parent->path.pci.devfn;
-		/* Bus */
-		p[6] = parent->bus->secondary;
-		/* Reserved */
-		p[7] = 0x0;
-		*length += 8;
-		*current += 8;
+	ivhd_ioapic->type = IVHD_DEV_8_BYTE_EXT_SPECIAL_DEV;
+	ivhd_ioapic->reserved = 0x0000;
+	ivhd_ioapic->dte_setting = IVHD_DTE_LINT_1_PASS | IVHD_DTE_LINT_0_PASS |
+				   IVHD_DTE_SYS_MGT_NO_TRANS | IVHD_DTE_NMI_PASS |
+				   IVHD_DTE_EXT_INT_PASS | IVHD_DTE_INIT_PASS;
+	ivhd_ioapic->handle = CONFIG_MAX_CPUS; /* FCH IOAPIC ID */
+	ivhd_ioapic->source_dev_id = PCI_DEVFN(SMBUS_DEV, SMBUS_FUNC);
+	ivhd_ioapic->variety = IVHD_SPECIAL_DEV_IOAPIC;
+	current += sizeof(ivrs_ivhd_special_t);
+
+	ivhd_ioapic = (ivrs_ivhd_special_t *)current;
+
+	ivhd_ioapic->type = IVHD_DEV_8_BYTE_EXT_SPECIAL_DEV;
+	ivhd_ioapic->reserved = 0x0000;
+	ivhd_ioapic->dte_setting = 0x00;
+	ivhd_ioapic->handle = CONFIG_MAX_CPUS + 1; /* GNB IOAPIC ID */
+	ivhd_ioapic->source_dev_id = PCI_DEVFN(0, 1);
+	ivhd_ioapic->variety = IVHD_SPECIAL_DEV_IOAPIC;
+	current += sizeof(ivrs_ivhd_special_t);
+
+	return current;
+}
+
+static unsigned long ivhd_describe_hpet(unsigned long current)
+{
+	/* 8-byte IVHD structures must be aligned to the 8-byte boundary. */
+	current = ALIGN_UP(current, 8);
+	ivrs_ivhd_special_t *ivhd_hpet = (ivrs_ivhd_special_t *)current;
+
+	ivhd_hpet->type = IVHD_DEV_8_BYTE_EXT_SPECIAL_DEV;
+	ivhd_hpet->reserved = 0x0000;
+	ivhd_hpet->dte_setting = 0x00;
+	ivhd_hpet->handle = 0x00;
+	ivhd_hpet->source_dev_id = PCI_DEVFN(SMBUS_DEV, SMBUS_FUNC);
+	ivhd_hpet->variety = IVHD_SPECIAL_DEV_HPET;
+	current += sizeof(ivrs_ivhd_special_t);
+
+	return current;
+}
+
+static unsigned long ivhd_dev_range(unsigned long current, uint16_t start_devid,
+				    uint16_t end_devid, uint8_t setting)
+{
+	/* 4-byte IVHD structures must be aligned to the 4-byte boundary. */
+	current = ALIGN_UP(current, 4);
+	ivrs_ivhd_generic_t *ivhd_range = (ivrs_ivhd_generic_t *)current;
+
+	/* Create the start range IVHD entry */
+	ivhd_range->type = IVHD_DEV_4_BYTE_START_RANGE;
+	ivhd_range->dev_id = start_devid;
+	ivhd_range->dte_setting = setting;
+	current += sizeof(ivrs_ivhd_generic_t);
+
+	/* Create the end range IVHD entry */
+	ivhd_range = (ivrs_ivhd_generic_t *)current;
+	ivhd_range->type = IVHD_DEV_4_BYTE_END_RANGE;
+	ivhd_range->dev_id = end_devid;
+	ivhd_range->dte_setting = setting;
+	current += sizeof(ivrs_ivhd_generic_t);
+
+	return current;
+}
+
+static unsigned long add_ivhd_dev_entry(struct device *parent, struct device *dev,
+					unsigned long *current, uint8_t type, uint8_t data)
+{
+	if (type == IVHD_DEV_4_BYTE_SELECT) {
+		/* 4-byte IVHD structures must be aligned to the 4-byte boundary. */
+		*current = ALIGN_UP(*current, 4);
+		ivrs_ivhd_generic_t *ivhd_entry = (ivrs_ivhd_generic_t *)*current;
+
+		ivhd_entry->type = type;
+		ivhd_entry->dev_id = dev->path.pci.devfn | (dev->bus->secondary << 8);
+		ivhd_entry->dte_setting = data;
+		*current += sizeof(ivrs_ivhd_generic_t);
+	} else if (type == IVHD_DEV_8_BYTE_ALIAS_SELECT) {
+		/* 8-byte IVHD structures must be aligned to the 8-byte boundary. */
+		*current = ALIGN_UP(*current, 8);
+		ivrs_ivhd_alias_t *ivhd_entry = (ivrs_ivhd_alias_t *)*current;
+
+		ivhd_entry->type = type;
+		ivhd_entry->dev_id = dev->path.pci.devfn | (dev->bus->secondary << 8);
+		ivhd_entry->dte_setting = data;
+		ivhd_entry->reserved1 = 0;
+		ivhd_entry->reserved2 = 0;
+		ivhd_entry->source_dev_id = parent->path.pci.devfn |
+					    (parent->bus->secondary << 8);
+		*current += sizeof(ivrs_ivhd_alias_t);
+	}
+
+	return *current;
+}
+
+static void ivrs_add_device_or_bridge(struct device *parent, struct device *dev,
+				      unsigned long *current, uint16_t *ivhd_length)
+{
+	unsigned int header_type, is_pcie;
+	unsigned long current_backup;
+
+	header_type = dev->hdr_type & 0x7f;
+	is_pcie = pci_find_capability(dev, PCI_CAP_ID_PCIE);
+
+	if (((header_type == PCI_HEADER_TYPE_NORMAL) ||
+	     (header_type == PCI_HEADER_TYPE_BRIDGE)) && is_pcie) {
+		/* Device or Bridge is PCIe */
+		current_backup = *current;
+		add_ivhd_dev_entry(parent, dev, current, IVHD_DEV_4_BYTE_SELECT, 0x0);
+		*ivhd_length += (*current - current_backup);
+	} else if ((header_type == PCI_HEADER_TYPE_NORMAL) && !is_pcie) {
+		/* Device is legacy PCI or PCI-X */
+		current_backup = *current;
+		add_ivhd_dev_entry(parent, dev, current, IVHD_DEV_8_BYTE_ALIAS_SELECT, 0x0);
+		*ivhd_length += (*current - current_backup);
 	}
 }
 
-static void add_ivrs_device_entries(struct device *parent, struct device *dev,
+static void add_ivhd_device_entries(struct device *parent, struct device *dev,
 				    unsigned int depth, int linknum, int8_t *root_level,
-				    unsigned long *current, uint16_t *length)
+				    unsigned long *current, uint16_t *ivhd_length)
 {
 	struct device *sibling;
 	struct bus *link;
-	unsigned int header_type;
-	unsigned int is_pcie;
 
 	if (!root_level) {
 		root_level = malloc(sizeof(int8_t));
@@ -503,158 +571,161 @@ static void add_ivrs_device_entries(struct device *parent, struct device *dev,
 			*root_level = depth;
 
 		if ((*root_level != -1) && (dev->enabled)) {
-			if (depth == *root_level) {
-				if (dev->path.pci.devfn == (0x14 << 3)) {
-					/* SMBUS controller */
-					add_ivhd_dev_entry(parent, dev, current, length, 0x2, 0x97);
-				} else if (dev->path.pci.devfn != 0x2 &&
-					   dev->path.pci.devfn < (0x2 << 3)) {
-					/* FCH control device */
-				} else {
-					/* Other devices */
-					add_ivhd_dev_entry(parent, dev, current, length, 0x2, 0x0);
-				}
-			} else {
-				header_type = dev->hdr_type & 0x7f;
-				is_pcie = pci_find_capability(dev, PCI_CAP_ID_PCIE);
-				if (((header_type == PCI_HEADER_TYPE_NORMAL) ||
-				     (header_type == PCI_HEADER_TYPE_BRIDGE))
-				    && is_pcie) {
-					/* Device or Bridge is PCIe */
-					add_ivhd_dev_entry(parent, dev, current, length, 0x2, 0x0);
-				} else if ((header_type == PCI_HEADER_TYPE_NORMAL) &&
-					   !is_pcie) {
-					add_ivhd_dev_entry(parent, dev, current, length, 0x42, 0x0);
-					/* Device is legacy PCI or PCI-X */
-				}
-			}
+			if (depth != *root_level)
+				ivrs_add_device_or_bridge(parent, dev, current, ivhd_length);
 		}
 	}
 
 	for (link = dev->link_list; link; link = link->next)
 		for (sibling = link->children; sibling; sibling =
 		     sibling->sibling)
-			add_ivrs_device_entries(dev, sibling, depth + 1, depth,
-						root_level, current, length);
+			add_ivhd_device_entries(dev, sibling, depth + 1, depth, root_level,
+						current, ivhd_length);
 
 	free(root_level);
 }
 
-unsigned long acpi_fill_ivrs_ioapic(acpi_ivrs_t *ivrs, unsigned long current)
+#define IOMMU_MMIO32(x)			(*((volatile uint32_t *)(x)))
+#define EFR_SUPPORT			BIT(27)
+
+static unsigned long acpi_fill_ivrs11(unsigned long current, acpi_ivrs_t *ivrs_agesa)
 {
-	uint8_t *p;
+	acpi_ivrs_ivhd11_t *ivhd_11;
+	unsigned long current_backup;
 
-	uint32_t apicid_sb800;
-	uint32_t apicid_northbridge;
+	/*
+	 * These devices should be already found by previous function.
+	 * Do not perform NULL checks.
+	 */
+	struct device *nb_dev = pcidev_on_root(0, 0);
+	struct device *iommu_dev = pcidev_on_root(0, 2);
 
-	apicid_sb800 = CONFIG_MAX_CPUS;
-	apicid_northbridge = CONFIG_MAX_CPUS + 1;
+	/*
+	 * In order to utilize all features, firmware should expose type 11h
+	 * IVHD which supersedes the type 10h.
+	 */
+	memset((void *)current, 0, sizeof(acpi_ivrs_ivhd11_t));
+	ivhd_11 = (acpi_ivrs_ivhd11_t *)current;
 
-	/* Describe NB IOAPIC */
-	p = (uint8_t *)current;
-	p[0] = 0x48;                    /* Entry type */
-	p[1] = 0;                       /* Device */
-	p[2] = 0;                       /* Bus */
-	p[3] = 0x0;                     /* Data */
-	p[4] = apicid_northbridge;      /* IOAPIC ID */
-	p[5] = 0x0;                     /* Device 0 Function 0 */
-	p[6] = 0x0;                     /* Northbridge bus */
-	p[7] = 0x1;                     /* Variety */
-	current += 8;
+	/* Enable EFR */
+	ivhd_11->type = IVHD_BLOCK_TYPE_FULL__FIXED;
+	/* For type 11h bits 6 and 7 are reserved */
+	ivhd_11->flags = ivrs_agesa->ivhd.flags & 0x3f;
+	ivhd_11->length = sizeof(struct acpi_ivrs_ivhd_11);
+	/* BDF <bus>:00.2 */
+	ivhd_11->device_id = 0x02 | (nb_dev->bus->secondary << 8);
+	/* PCI Capability block 0x40 (type 0xf, "Secure device") */
+	ivhd_11->capability_offset = 0x40;
+	ivhd_11->iommu_base_low = ivrs_agesa->ivhd.iommu_base_low;
+	ivhd_11->iommu_base_high = ivrs_agesa->ivhd.iommu_base_high;
+	ivhd_11->pci_segment_group = 0x0000;
+	ivhd_11->iommu_info = ivrs_agesa->ivhd.iommu_info;
+	ivhd_11->iommu_attributes.perf_counters =
+		(IOMMU_MMIO32(ivhd_11->iommu_base_low + 0x4000) >> 7) & 0xf;
+	ivhd_11->iommu_attributes.perf_counter_banks =
+		(IOMMU_MMIO32(ivhd_11->iommu_base_low + 0x4000) >> 12) & 0x3f;
+	ivhd_11->iommu_attributes.msi_num_ppr =
+		(pci_read_config32(iommu_dev, ivhd_11->capability_offset + 0x10) >> 27) & 0x1f;
 
-	/* Describe SB IOAPIC */
-	p = (uint8_t *)current;
-	p[0] = 0x48;                    /* Entry type */
-	p[1] = 0;                       /* Device */
-	p[2] = 0;                       /* Bus */
-	p[3] = 0xd7;                    /* Data */
-	p[4] = apicid_sb800;            /* IOAPIC ID */
-	p[5] = 0x14 << 3;               /* Device 0x14 Function 0 */
-	p[6] = 0x0;                     /* Southbridge bus */
-	p[7] = 0x1;                     /* Variety */
-	current += 8;
+	if (pci_read_config32(iommu_dev, ivhd_11->capability_offset) & EFR_SUPPORT) {
+		ivhd_11->efr_reg_image_low  = IOMMU_MMIO32(ivhd_11->iommu_base_low + 0x30);
+		ivhd_11->efr_reg_image_high = IOMMU_MMIO32(ivhd_11->iommu_base_low + 0x34);
+	}
+
+	current += sizeof(acpi_ivrs_ivhd11_t);
+
+	/* Now repeat all the device entries from type 10h */
+	current_backup = current;
+	current = ivhd_dev_range(current, PCI_DEVFN(1, 0), PCI_DEVFN(0x1f, 6), 0);
+	ivhd_11->length += (current - current_backup);
+	add_ivhd_device_entries(NULL, all_devices, 0, -1, NULL, &current, &ivhd_11->length);
+
+	/* Describe HPET */
+	current_backup = current;
+	current = ivhd_describe_hpet(current);
+	ivhd_11->length += (current - current_backup);
+
+	/* Describe IOAPICs */
+	current_backup = current;
+	current = acpi_fill_ivrs_ioapic(ivrs_agesa, current);
+	ivhd_11->length += (current - current_backup);
 
 	return current;
 }
 
 static unsigned long acpi_fill_ivrs(acpi_ivrs_t *ivrs, unsigned long current)
 {
-	uint8_t *p;
 	acpi_ivrs_t *ivrs_agesa;
+	unsigned long current_backup;
 
-	struct device *nb_dev = pcidev_on_root(0x0, 0);
+	struct device *nb_dev = pcidev_on_root(0, 0);
 	if (!nb_dev) {
-
 		printk(BIOS_WARNING, "%s: G-series northbridge device not present!\n", __func__);
 		printk(BIOS_WARNING, "%s: IVRS table not generated...\n", __func__);
 
 		return (unsigned long)ivrs;
 	}
 
+	struct device *iommu_dev = pcidev_on_root(0, 2);
 
-	/* obtain IOMMU base address */
+	if (!iommu_dev) {
+		printk(BIOS_WARNING, "%s: IOMMU device not found\n", __func__);
+
+		return (unsigned long)ivrs;
+	}
+
 	ivrs_agesa = agesawrapper_getlateinitptr(PICK_IVRS);
 	if (ivrs_agesa != NULL) {
-		ivrs->iv_info = 0x0;
-		/* Maximum supported virtual address size */
-		ivrs->iv_info |= (0x40 << 15);
-		/* Maximum supported physical address size */
-		ivrs->iv_info |= (0x30 << 8);
-		/* Guest virtual address width */
-		ivrs->iv_info |= (0x2 << 5);
-
-		ivrs->ivhd.type = 0x10;
-		ivrs->ivhd.flags = 0x0e;
-		/* Enable ATS support */
-		ivrs->ivhd.flags |= 0x10;
+		ivrs->iv_info = ivrs_agesa->iv_info;
+		ivrs->ivhd.type = IVHD_BLOCK_TYPE_LEGACY__FIXED;
+		ivrs->ivhd.flags = ivrs_agesa->ivhd.flags;
 		ivrs->ivhd.length = sizeof(struct acpi_ivrs_ivhd);
 		/* BDF <bus>:00.2 */
-		ivrs->ivhd.device_id = 0x2 | (nb_dev->bus->secondary << 8);
-		/* Capability block 0x40 (type 0xf, "Secure device") */
+		ivrs->ivhd.device_id = 0x02 | (nb_dev->bus->secondary << 8);
+		/* PCI Capability block 0x40 (type 0xf, "Secure device") */
 		ivrs->ivhd.capability_offset = 0x40;
 		ivrs->ivhd.iommu_base_low = ivrs_agesa->ivhd.iommu_base_low;
 		ivrs->ivhd.iommu_base_high = ivrs_agesa->ivhd.iommu_base_high;
-		ivrs->ivhd.pci_segment_group = 0x0;
-		ivrs->ivhd.iommu_info = 0x0;
-		ivrs->ivhd.iommu_info |= (0x13 << 8);
-		/* use only performance counters related bits:
-		 * PNCounters[16:13] and
-		 * PNBanks[22:17],
-		 * otherwise 0 */
-		ivrs->ivhd.iommu_feature_info =
-			ivrs_agesa->ivhd.iommu_feature_info & 0x7fe000;
+		ivrs->ivhd.pci_segment_group = 0x0000;
+		ivrs->ivhd.iommu_info = ivrs_agesa->ivhd.iommu_info;
+		ivrs->ivhd.iommu_feature_info = ivrs_agesa->ivhd.iommu_feature_info;
+		/* Enable EFR if supported */
+		if (pci_read_config32(iommu_dev, ivrs->ivhd.capability_offset) & EFR_SUPPORT)
+			ivrs->iv_info |= IVINFO_EFR_SUPPORTED;
 	} else {
 		printk(BIOS_WARNING, "%s: AGESA returned NULL IVRS\n", __func__);
 
 		return (unsigned long)ivrs;
 	}
 
-	/* Describe HPET */
-	p = (uint8_t *)current;
-	p[0] = 0x48;			/* Entry type */
-	p[1] = 0;			/* Device */
-	p[2] = 0;			/* Bus */
-	p[3] = 0xd7;			/* Data */
-	p[4] = 0x0;			/* HPET number */
-	p[5] = 0x14 << 3;		/* HPET device */
-	p[6] = nb_dev->bus->secondary;	/* HPET bus */
-	p[7] = 0x2;			/* Variety */
-	ivrs->ivhd.length += 8;
-	current += 8;
+	/*
+	 * Add all possible PCI devices on bus 0 that can generate transactions
+	 * processed by IOMMU. Start with device 00:01.0 since IOMMU does not
+	 * translate transactions generated by itself.
+	 */
+	current_backup = current;
+	current = ivhd_dev_range(current, PCI_DEVFN(1, 0), PCI_DEVFN(0x1f, 6), 0);
+	ivrs->ivhd.length += (current - current_backup);
+	add_ivhd_device_entries(NULL, all_devices, 0, -1, NULL, &current, &ivrs->ivhd.length);
 
-	/* Describe PCI devices */
-	add_ivrs_device_entries(NULL, all_devices, 0, -1, NULL, &current,
-				&ivrs->ivhd.length);
+	/* Describe HPET */
+	current_backup = current;
+	current = ivhd_describe_hpet(current);
+	ivrs->ivhd.length += (current - current_backup);
 
 	/* Describe IOAPICs */
-	unsigned long prev_current = current;
-	current = acpi_fill_ivrs_ioapic(ivrs, current);
-	ivrs->ivhd.length += (current - prev_current);
+	current_backup = current;
+	current = acpi_fill_ivrs_ioapic(ivrs_agesa, current);
+	ivrs->ivhd.length += (current - current_backup);
 
-	return current;
+	/* If EFR is not supported, IVHD type 11h is reserved */
+	if (!(ivrs->iv_info & IVINFO_EFR_SUPPORTED))
+		return current;
+
+	return acpi_fill_ivrs11(current, ivrs_agesa);
 }
 
-static void northbridge_fill_ssdt_generator(struct device *device)
+static void northbridge_fill_ssdt_generator(const struct device *device)
 {
 	msr_t msr;
 	char pscope[] = "\\_SB.PCI0";
@@ -675,7 +746,22 @@ static void northbridge_fill_ssdt_generator(struct device *device)
 	acpigen_pop_len();
 }
 
-static unsigned long agesa_write_acpi_tables(struct device *device,
+static void patch_ssdt_processor_scope(acpi_header_t *ssdt)
+{
+	unsigned int len = ssdt->length - sizeof(acpi_header_t);
+	unsigned int i;
+
+	for (i = sizeof(acpi_header_t); i < len; i++) {
+		/* Search for _PR_ scope and replace it with _SB_ */
+		if (*(uint32_t *)((unsigned long)ssdt + i) == 0x5f52505f)
+			*(uint32_t *)((unsigned long)ssdt + i) = 0x5f42535f;
+	}
+	/* Recalculate checksum */
+	ssdt->checksum = 0;
+	ssdt->checksum = acpi_checksum((void *)ssdt, ssdt->length);
+}
+
+static unsigned long agesa_write_acpi_tables(const struct device *device,
 					     unsigned long current,
 					     acpi_rsdp_t *rsdp)
 {
@@ -745,6 +831,7 @@ static unsigned long agesa_write_acpi_tables(struct device *device,
 	printk(BIOS_DEBUG, "ACPI:    * SSDT at %lx\n", current);
 	ssdt = (acpi_header_t *)agesawrapper_getlateinitptr (PICK_PSTATE);
 	if (ssdt != NULL) {
+		patch_ssdt_processor_scope(ssdt);
 		memcpy((void *)current, ssdt, ssdt->length);
 		ssdt = (acpi_header_t *) current;
 		current += ssdt->length;
@@ -763,10 +850,8 @@ static struct device_operations northbridge_operations = {
 	.set_resources	  = set_resources,
 	.enable_resources = pci_dev_enable_resources,
 	.init		  = northbridge_init,
-	.acpi_fill_ssdt_generator = northbridge_fill_ssdt_generator,
+	.acpi_fill_ssdt   = northbridge_fill_ssdt_generator,
 	.write_acpi_tables = agesa_write_acpi_tables,
-	.enable		  = 0,
-	.ops_pci	  = 0,
 };
 
 static const struct pci_driver family16_northbridge __pci_driver = {
@@ -788,6 +873,35 @@ static void fam16_finalize(void *chip_info)
 	dev = pcidev_on_root(0, 0); /* clear IoapicSbFeatureEn */
 	pci_write_config32(dev, 0xF8, 0);
 	pci_write_config32(dev, 0xFC, 5); /* TODO: move it to dsdt.asl */
+
+	/*
+	 * Currently it is impossible to enable ACS with AGESA by setting the
+	 * correct bit for AmdInitMid phase. AGESA code path does not call the
+	 * right function that enables these functionalities. Disabled ACS
+	 * result in multiple PCIe devices to be assigned to the same IOMMU
+	 * group. Without IOMMU group separation the devices cannot be passed
+	 * through independently.
+	 */
+
+	/* Select GPP link core IO Link Strap Control register 0xB0 */
+	pci_write_config32(dev, 0xE0, 0x014000B0);
+	value = pci_read_config32(dev, 0xE4);
+
+	/* Enable AER (bit 5) and ACS (bit 6 undocumented) */
+	value |= PCIE_CAP_AER | PCIE_CAP_ACS;
+	pci_write_config32(dev, 0xE4, value);
+
+	/* Select GPP link core Wrapper register 0x00 (undocumented) */
+	pci_write_config32(dev, 0xE0, 0x01300000);
+	value = pci_read_config32(dev, 0xE4);
+
+	/*
+	 * Enable ACS capabilities straps including sub-items. From lspci it
+	 * looks like these bits enable: Source Validation and Translation
+	 * Blocking
+	 */
+	value |= (BIT(24) | BIT(25) | BIT(26));
+	pci_write_config32(dev, 0xE4, value);
 
 	/* disable No Snoop */
 	dev = pcidev_on_root(1, 1);
@@ -842,13 +956,6 @@ static void domain_read_resources(struct device *dev)
 
 static void domain_enable_resources(struct device *dev)
 {
-#if CONFIG(BINARYPI_LEGACY_WRAPPER)
-	/* Must be called after PCI enumeration and resource allocation */
-	if (!acpi_is_wakeup_s3())
-		AGESAWRAPPER(amdinitmid);
-
-	printk(BIOS_DEBUG, "  ader - leaving domain_enable_resources.\n");
-#endif
 }
 
 #if CONFIG_HW_MEM_HOLE_SIZEK != 0
@@ -888,7 +995,7 @@ static struct hw_mem_hole_info get_hw_mem_hole_info(void)
 			base_k = ((resource_t)(d.base & 0x1fffff00)) <<9;
 			if (base_k > 4 *1024 * 1024) break; // don't need to go to check
 			if (limitk_pri != base_k) { // we find the hole
-				mem_hole.hole_startk = (unsigned)limitk_pri; // must beblow 4G
+				mem_hole.hole_startk = (unsigned int)limitk_pri; // must be below 4G
 				mem_hole.node_id = i;
 				break; //only one hole
 			}
@@ -1014,7 +1121,6 @@ static struct device_operations pci_domain_ops = {
 	.read_resources	  = domain_read_resources,
 	.set_resources	  = domain_set_resources,
 	.enable_resources = domain_enable_resources,
-	.init		  = NULL,
 	.scan_bus	  = pci_domain_scan_bus,
 	.acpi_name        = domain_acpi_name,
 };
@@ -1023,42 +1129,6 @@ static void sysconf_init(struct device *dev) // first node
 {
 	sblink = (pci_read_config32(dev, 0x64)>>8) & 7; // don't forget sublink1
 	node_nums = ((pci_read_config32(dev, 0x60)>>4) & 7) + 1; //NodeCnt[2:0]
-}
-
-static void add_more_links(struct device *dev, unsigned int total_links)
-{
-	struct bus *link, *last = NULL;
-	int link_num;
-
-	for (link = dev->link_list; link; link = link->next)
-		last = link;
-
-	if (last) {
-		int links = total_links - last->link_num;
-		link_num = last->link_num;
-		if (links > 0) {
-			link = malloc(links*sizeof(*link));
-			if (!link)
-				die("Couldn't allocate more links!\n");
-			memset(link, 0, links*sizeof(*link));
-			last->next = link;
-		}
-	}
-	else {
-		link_num = -1;
-		link = malloc(total_links*sizeof(*link));
-		memset(link, 0, total_links*sizeof(*link));
-		dev->link_list = link;
-	}
-
-	for (link_num = link_num + 1; link_num < total_links; link_num++) {
-		link->link_num = link_num;
-		link->dev = dev;
-		link->next = link + 1;
-		last = link;
-		link = link->next;
-	}
-	last->next = NULL;
 }
 
 static void cpu_bus_scan(struct device *dev)
@@ -1073,21 +1143,12 @@ static void cpu_bus_scan(struct device *dev)
 	int siblings = 0;
 	unsigned int family;
 	u32 modules = 0;
-	VOID* modules_ptr = &modules;
-	BUILD_OPT_CFG* options = NULL;
 	int ioapic_count = 0;
 
-	// TODO Remove the printk's.
-	printk(BIOS_SPEW, "MullinsPI Debug: Grabbing the AMD Topology Information.\n");
-	AmdGetValue(AMD_GLOBAL_USER_OPTIONS, (VOID**)&options, sizeof(options));
-	AmdGetValue(AMD_GLOBAL_NUM_MODULES, &modules_ptr, sizeof(modules));
-	modules = *(u32*)modules_ptr;
-	ASSERT(modules > 0);
-	ASSERT(options);
-	ioapic_count = (int)options->CfgPlatNumIoApics;
-	ASSERT(ioapic_count > 0);
-	printk(BIOS_SPEW, "MullinsPI Debug: AMD Topology Number of Modules (@0x%p) is %d\n", modules_ptr, modules);
-	printk(BIOS_SPEW, "MullinsPI Debug: AMD Topology Number of IOAPICs (@0x%p) is %d\n", options, (int)options->CfgPlatNumIoApics);
+	/* For binaryPI there is no multiprocessor configuration, the number of
+	 * modules will always be 1. */
+	modules = 1;
+	ioapic_count = CONFIG_NUM_OF_IOAPICS;
 
 	dev_mc = pcidev_on_root(DEV_CDB, 0);
 	if (!dev_mc) {
@@ -1161,12 +1222,12 @@ static void cpu_bus_scan(struct device *dev)
 			u32 lapicid_start = 0;
 
 			/*
-			 * APIC ID calucation is tightly coupled with AGESA v5 code.
+			 * APIC ID calculation is tightly coupled with AGESA v5 code.
 			 * This calculation MUST match the assignment calculation done
 			 * in LocalApicInitializationAtEarly() function.
 			 * And reference GetLocalApicIdForCore()
 			 *
-			 * Apply apic enumeration rules
+			 * Apply APIC enumeration rules
 			 * For systems with >= 16 APICs, put the IO-APICs at 0..n and
 			 * put the local-APICs at m..z
 			 *
@@ -1195,9 +1256,8 @@ static void cpu_bus_init(struct device *dev)
 }
 
 static struct device_operations cpu_bus_ops = {
-	.read_resources	  = DEVICE_NOOP,
-	.set_resources	  = DEVICE_NOOP,
-	.enable_resources = DEVICE_NOOP,
+	.read_resources	  = noop_read_resources,
+	.set_resources	  = noop_set_resources,
 	.init		  = cpu_bus_init,
 	.scan_bus	  = cpu_bus_scan,
 };

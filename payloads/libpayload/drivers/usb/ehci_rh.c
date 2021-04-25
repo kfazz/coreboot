@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2010 coresystems GmbH
  *
@@ -171,7 +170,6 @@ ehci_rh_poll (usbdev_t *dev)
 	while ((port = ehci_rh_report_port_changes (dev)) != -1)
 		ehci_rh_scanport (dev, port);
 }
-
 
 void
 ehci_rh_init (usbdev_t *dev)

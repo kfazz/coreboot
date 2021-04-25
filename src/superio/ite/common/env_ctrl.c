@@ -1,40 +1,12 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 The ChromiumOS Authors.  All rights reserved.
- * Copyright (C) 2016 secunet Security Networks AG
- * Copyright (C) 2019 Protectli
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <stdlib.h>
-#include <arch/io.h>
 #include <console/console.h>
 #include <delay.h>
+#include <stddef.h>
+#include <superio/hwm5_conf.h>
 
 #include "env_ctrl.h"
 #include "env_ctrl_chip.h"
-
-static inline u8 ite_ec_read(const u16 base, const u8 addr)
-{
-	outb(addr, base + 5);
-	return inb(base + 6);
-}
-
-static inline void ite_ec_write(const u16 base, const u8 addr, const u8 value)
-{
-	outb(addr, base + 5);
-	outb(value, base + 6);
-}
 
 static void extemp_force_idle_status(const u16 base)
 {
@@ -43,7 +15,7 @@ static void extemp_force_idle_status(const u16 base)
 
 	/* Wait up to 10ms for non-busy state. */
 	while (retries > 0) {
-		reg = ite_ec_read(base, ITE_EC_EXTEMP_STATUS);
+		reg = pnp_read_hwm5_index(base, ITE_EC_EXTEMP_STATUS);
 
 		if ((reg & ITE_EC_EXTEMP_STATUS_HOST_BUSY) == 0x0)
 			break;
@@ -58,9 +30,8 @@ static void extemp_force_idle_status(const u16 base)
 		 * SIO is busy due to unfinished peci transaction.
 		 * Re-configure Register 0x8E to terminate processes.
 		 */
-		ite_ec_write(base, ITE_EC_EXTEMP_CONTROL,
-			ITE_EC_EXTEMP_CTRL_AUTO_4HZ |
-			ITE_EC_EXTEMP_CTRL_AUTO_START);
+		pnp_write_hwm5_index(base, ITE_EC_EXTEMP_CONTROL,
+			ITE_EC_EXTEMP_CTRL_AUTO_4HZ | ITE_EC_EXTEMP_CTRL_AUTO_START);
 	}
 }
 
@@ -70,22 +41,16 @@ static void extemp_force_idle_status(const u16 base)
 static void enable_peci(const u16 base)
 {
 	/* Enable PECI interface */
-	ite_ec_write(base, ITE_EC_INTERFACE_SELECT,
-			   ITE_EC_INTERFACE_SEL_PECI |
-			   ITE_EC_INTERFACE_SPEED_TOLERANCE);
+	pnp_write_hwm5_index(base, ITE_EC_INTERFACE_SELECT,
+			   ITE_EC_INTERFACE_SEL_PECI | ITE_EC_INTERFACE_SPEED_TOLERANCE);
 
 	/* Setup External Temperature using PECI GetTemp */
-	ite_ec_write(base, ITE_EC_EXTEMP_ADDRESS,
-			   PECI_CLIENT_ADDRESS);
-	ite_ec_write(base, ITE_EC_EXTEMP_COMMAND,
-			   PECI_GETTEMP_COMMAND);
-	ite_ec_write(base, ITE_EC_EXTEMP_WRITE_LENGTH,
-			   PECI_GETTEMP_WRITE_LENGTH);
-	ite_ec_write(base, ITE_EC_EXTEMP_READ_LENGTH,
-			   PECI_GETTEMP_READ_LENGTH);
-	ite_ec_write(base, ITE_EC_EXTEMP_CONTROL,
-			   ITE_EC_EXTEMP_CTRL_AUTO_4HZ |
-			   ITE_EC_EXTEMP_CTRL_AUTO_START);
+	pnp_write_hwm5_index(base, ITE_EC_EXTEMP_ADDRESS, PECI_CLIENT_ADDRESS);
+	pnp_write_hwm5_index(base, ITE_EC_EXTEMP_COMMAND, PECI_GETTEMP_COMMAND);
+	pnp_write_hwm5_index(base, ITE_EC_EXTEMP_WRITE_LENGTH, PECI_GETTEMP_WRITE_LENGTH);
+	pnp_write_hwm5_index(base, ITE_EC_EXTEMP_READ_LENGTH, PECI_GETTEMP_READ_LENGTH);
+	pnp_write_hwm5_index(base, ITE_EC_EXTEMP_CONTROL,
+		ITE_EC_EXTEMP_CTRL_AUTO_4HZ | ITE_EC_EXTEMP_CTRL_AUTO_START);
 }
 
 /*
@@ -96,17 +61,40 @@ static void enable_tmpin(const u16 base, const u8 tmpin,
 			 const struct ite_ec_thermal_config *const conf)
 {
 	u8 reg;
+	u8 reg_extra;
 
-	reg = ite_ec_read(base, ITE_EC_ADC_TEMP_CHANNEL_ENABLE);
+	reg = pnp_read_hwm5_index(base, ITE_EC_ADC_TEMP_CHANNEL_ENABLE);
+	reg_extra = pnp_read_hwm5_index(base, ITE_EC_ADC_TEMP_EXTRA_CHANNEL_ENABLE);
 
 	switch (conf->mode) {
 	case THERMAL_PECI:
-		if (reg & ITE_EC_ADC_TEMP_EXT_REPORTS_TO_MASK) {
-			printk(BIOS_WARNING, "PECI specified for multiple TMPIN\n");
+		/* Some chips can set any TMPIN as the target for PECI readings
+		   while others can only read to TMPIN3. In the latter case a
+		   different register is used for enabling it. */
+		if (CONFIG(SUPERIO_ITE_ENV_CTRL_EXT_ANY_TMPIN)) {
+			/* IT8721F is an exception, it cannot use TMPIN2 for PECI. */
+			if (CONFIG(SUPERIO_ITE_IT8721F) && tmpin == 2) {
+				printk(BIOS_WARNING,
+				       "PECI to TMPIN2 not supported on IT8721F\n");
+				return;
+			}
+			if (reg & ITE_EC_ADC_TEMP_EXT_REPORTS_TO_MASK) {
+				printk(BIOS_WARNING,
+				       "PECI specified for multiple TMPIN\n");
+				return;
+			}
+			reg |= ITE_EC_ADC_TEMP_EXT_REPORTS_TO(tmpin);
+		} else if (tmpin == 3) {
+			reg_extra |= ITE_EC_ADC_TEMP_EXTRA_TMPIN3_EXT;
+			pnp_write_hwm5_index(base, ITE_EC_ADC_TEMP_EXTRA_CHANNEL_ENABLE,
+					     reg_extra);
+		} else {
+			printk(BIOS_WARNING, "PECI to TMPIN%d not supported on this Super I/O",
+			       tmpin);
 			return;
 		}
 		enable_peci(base);
-		reg |= ITE_EC_ADC_TEMP_EXT_REPORTS_TO(tmpin);
+
 		break;
 	case THERMAL_DIODE:
 		reg |= ITE_EC_ADC_TEMP_DIODE_MODE(tmpin);
@@ -115,32 +103,30 @@ static void enable_tmpin(const u16 base, const u8 tmpin,
 		reg |= ITE_EC_ADC_TEMP_RESISTOR_MODE(tmpin);
 		break;
 	default:
-		printk(BIOS_WARNING,
-		       "Unsupported thermal mode 0x%x on TMPIN%d\n",
+		printk(BIOS_WARNING, "Unsupported thermal mode 0x%x on TMPIN%d\n",
 		       conf->mode, tmpin);
 		return;
 	}
 
-	ite_ec_write(base, ITE_EC_ADC_TEMP_CHANNEL_ENABLE, reg);
+	pnp_write_hwm5_index(base, ITE_EC_ADC_TEMP_CHANNEL_ENABLE, reg);
 
 	/* Set temperature offsets */
 	if (conf->mode != THERMAL_RESISTOR) {
-		reg = ite_ec_read(base, ITE_EC_BEEP_ENABLE);
+		reg = pnp_read_hwm5_index(base, ITE_EC_BEEP_ENABLE);
 		reg |= ITE_EC_TEMP_ADJUST_WRITE_ENABLE;
-		ite_ec_write(base, ITE_EC_BEEP_ENABLE, reg);
-		ite_ec_write(base, ITE_EC_TEMP_ADJUST[tmpin-1], conf->offset);
+		pnp_write_hwm5_index(base, ITE_EC_BEEP_ENABLE, reg);
+		pnp_write_hwm5_index(base, ITE_EC_TEMP_ADJUST[tmpin-1], conf->offset);
 	}
 
 	/* Set temperature limits */
 	u8 max = conf->max;
-	ite_ec_write(base, ITE_EC_HIGH_TEMP_LIMIT(tmpin),
-		     max ? max : 127);
-	ite_ec_write(base, ITE_EC_LOW_TEMP_LIMIT(tmpin), conf->min);
+	pnp_write_hwm5_index(base, ITE_EC_HIGH_TEMP_LIMIT(tmpin), max ? max : 127);
+	pnp_write_hwm5_index(base, ITE_EC_LOW_TEMP_LIMIT(tmpin), conf->min);
 
 	/* Enable the startup of monitoring operation */
-	reg = ite_ec_read(base, ITE_EC_CONFIGURATION);
+	reg = pnp_read_hwm5_index(base, ITE_EC_CONFIGURATION);
 	reg |= ITE_EC_CONFIGURATION_START;
-	ite_ec_write(base, ITE_EC_CONFIGURATION, reg);
+	pnp_write_hwm5_index(base, ITE_EC_CONFIGURATION, reg);
 }
 
 static void fan_smartconfig(const u16 base, const u8 fan,
@@ -150,6 +136,7 @@ static void fan_smartconfig(const u16 base, const u8 fan,
 	u8 pwm_ctrl;
 	u8 pwm_start = 0;
 	u8 pwm_auto = 0;
+	u8 delta_temp;
 
 	if (mode == FAN_SMART_SOFTWARE) {
 		pwm_ctrl = ITE_EC_FAN_CTL_PWM_MODE_SOFTWARE;
@@ -164,27 +151,40 @@ static void fan_smartconfig(const u16 base, const u8 fan,
 		pwm_ctrl = ITE_EC_FAN_CTL_PWM_MODE_AUTOMATIC;
 		pwm_ctrl |= ITE_EC_FAN_CTL_TEMPIN(conf->tmpin);
 
-		pwm_start = ITE_EC_FAN_CTL_PWM_START_DUTY(conf->pwm_start);
-		pwm_start |= ITE_EC_FAN_CTL_PWM_SLOPE_BIT6(conf->slope);
+		if (conf->clsd_loop) {
+			pwm_ctrl |= ITE_EC_FAN_PWM_CLSD_LOOP;
+			pwm_start = ITE_EC_FAN_CTL_PWM_START_RPM(conf->rpm_start);
+			pwm_auto = ITE_EC_FAN_CTL_PWM_SLOPE_LOWER(conf->slope);
+		} else {
+			pwm_start = ITE_EC_FAN_CTL_PWM_START_DUTY(conf->pwm_start);
 
-		pwm_auto = ITE_EC_FAN_CTL_PWM_SLOPE_LOWER(conf->slope);
+			if (CONFIG(SUPERIO_ITE_ENV_CTRL_7BIT_SLOPE_REG)) {
+				pwm_auto = conf->slope & 0x7f;
+			} else {
+				pwm_start |= ITE_EC_FAN_CTL_PWM_SLOPE_BIT6(conf->slope);
+				pwm_auto = ITE_EC_FAN_CTL_PWM_SLOPE_LOWER(conf->slope);
+			}
+		}
+
 		if (conf->smoothing)
 			pwm_auto |= ITE_EC_FAN_CTL_AUTO_SMOOTHING_EN;
 
-		ite_ec_write(base, ITE_EC_FAN_CTL_TEMP_LIMIT_OFF(fan),
-			     conf->tmp_off);
-		ite_ec_write(base, ITE_EC_FAN_CTL_TEMP_LIMIT_START(fan),
-			     conf->tmp_start);
+		pnp_write_hwm5_index(base, ITE_EC_FAN_CTL_TEMP_LIMIT_OFF(fan), conf->tmp_off);
+		pnp_write_hwm5_index(base, ITE_EC_FAN_CTL_TEMP_LIMIT_START(fan),
+			conf->tmp_start);
 		/* Full speed above 127°C by default */
-		ite_ec_write(base, ITE_EC_FAN_CTL_TEMP_LIMIT_FULL(fan),
-			     conf->tmp_full ? conf->tmp_full : 127);
-		ite_ec_write(base, ITE_EC_FAN_CTL_DELTA_TEMP(fan),
-			     ITE_EC_FAN_CTL_DELTA_TEMP_INTRVL(conf->tmp_delta));
+		pnp_write_hwm5_index(base, ITE_EC_FAN_CTL_TEMP_LIMIT_FULL(fan),
+			conf->tmp_full ? conf->tmp_full : 127);
+
+		delta_temp = ITE_EC_FAN_CTL_DELTA_TEMP_INTRVL(conf->tmp_delta);
+		delta_temp |= ITE_EC_FAN_CTL_FULL_AT_THRML_LMT(conf->full_lmt);
+		pnp_write_hwm5_index(base, ITE_EC_FAN_CTL_DELTA_TEMP(fan),
+			delta_temp);
 	}
 
-	ite_ec_write(base, ITE_EC_FAN_CTL_PWM_CONTROL(fan), pwm_ctrl);
-	ite_ec_write(base, ITE_EC_FAN_CTL_PWM_START(fan), pwm_start);
-	ite_ec_write(base, ITE_EC_FAN_CTL_PWM_AUTO(fan), pwm_auto);
+	pnp_write_hwm5_index(base, ITE_EC_FAN_CTL_PWM_CONTROL(fan), pwm_ctrl);
+	pnp_write_hwm5_index(base, ITE_EC_FAN_CTL_PWM_START(fan), pwm_start);
+	pnp_write_hwm5_index(base, ITE_EC_FAN_CTL_PWM_AUTO(fan), pwm_auto);
 }
 
 static void enable_fan(const u16 base, const u8 fan,
@@ -199,39 +199,38 @@ static void enable_fan(const u16 base, const u8 fan,
 
 	/* FAN_CTL2 might have its own frequency setting */
 	if (CONFIG(SUPERIO_ITE_ENV_CTRL_PWM_FREQ2) && fan == 2) {
-		reg = ite_ec_read(base, ITE_EC_ADC_TEMP_EXTRA_CHANNEL_ENABLE);
+		reg = pnp_read_hwm5_index(base, ITE_EC_ADC_TEMP_EXTRA_CHANNEL_ENABLE);
 		reg &= ~ITE_EC_FAN_PWM_CLOCK_MASK;
 		reg |= ITE_EC_FAN_PWM_DEFAULT_CLOCK;
-		ite_ec_write(base, ITE_EC_ADC_TEMP_EXTRA_CHANNEL_ENABLE, reg);
+		pnp_write_hwm5_index(base, ITE_EC_ADC_TEMP_EXTRA_CHANNEL_ENABLE, reg);
 	}
 
 	if (conf->mode >= FAN_SMART_SOFTWARE) {
 		fan_smartconfig(base, fan, conf->mode, &conf->smart);
 	} else {
-		reg = ite_ec_read(base, ITE_EC_FAN_CTL_MODE);
+		reg = pnp_read_hwm5_index(base, ITE_EC_FAN_CTL_MODE);
 		if (conf->mode == FAN_MODE_ON)
 			reg |= ITE_EC_FAN_CTL_ON(fan);
 		else
 			reg &= ~ITE_EC_FAN_CTL_ON(fan);
-		ite_ec_write(base, ITE_EC_FAN_CTL_MODE, reg);
+		pnp_write_hwm5_index(base, ITE_EC_FAN_CTL_MODE, reg);
 	}
 
-	if (CONFIG(SUPERIO_ITE_ENV_CTRL_FAN16_CONFIG)
-	    && conf->mode >= FAN_MODE_ON) {
-		reg = ite_ec_read(base, ITE_EC_FAN_TAC_COUNTER_ENABLE);
+	if (CONFIG(SUPERIO_ITE_ENV_CTRL_FAN16_CONFIG) && conf->mode >= FAN_MODE_ON) {
+		reg = pnp_read_hwm5_index(base, ITE_EC_FAN_TAC_COUNTER_ENABLE);
 		reg |= ITE_EC_FAN_TAC_16BIT_ENABLE(fan);
-		ite_ec_write(base, ITE_EC_FAN_TAC_COUNTER_ENABLE, reg);
+		pnp_write_hwm5_index(base, ITE_EC_FAN_TAC_COUNTER_ENABLE, reg);
 	}
 
 	if (CONFIG(SUPERIO_ITE_ENV_CTRL_5FANS) && fan > 3) {
-		reg = ite_ec_read(base, ITE_EC_FAN_SEC_CTL);
+		reg = pnp_read_hwm5_index(base, ITE_EC_FAN_SEC_CTL);
 		if (conf->mode >= FAN_MODE_ON)
 			reg |= ITE_EC_FAN_SEC_CTL_TAC_EN(fan);
 		else
 			reg &= ~ITE_EC_FAN_SEC_CTL_TAC_EN(fan);
-		ite_ec_write(base, ITE_EC_FAN_SEC_CTL, reg);
+		pnp_write_hwm5_index(base, ITE_EC_FAN_SEC_CTL, reg);
 	} else {
-		reg = ite_ec_read(base, ITE_EC_FAN_MAIN_CTL);
+		reg = pnp_read_hwm5_index(base, ITE_EC_FAN_MAIN_CTL);
 		if (conf->mode >= FAN_MODE_ON)
 			reg |= ITE_EC_FAN_MAIN_CTL_TAC_EN(fan);
 		else
@@ -244,7 +243,7 @@ static void enable_fan(const u16 base, const u8 fan,
 			else
 				reg &= ~ITE_EC_FAN_MAIN_CTL_SMART(fan);
 		}
-		ite_ec_write(base, ITE_EC_FAN_MAIN_CTL, reg);
+		pnp_write_hwm5_index(base, ITE_EC_FAN_MAIN_CTL, reg);
 	}
 }
 
@@ -255,20 +254,20 @@ static void enable_beeps(const u16 base, const struct ite_ec_config *const conf)
 
 	if (conf->tmpin_beep) {
 		reg |= ITE_EC_BEEP_ON_TMP_LIMIT;
-		ite_ec_write(base, ITE_EC_BEEP_FREQ_DIV_OF_TMPIN, freq);
+		pnp_write_hwm5_index(base, ITE_EC_BEEP_FREQ_DIV_OF_TMPIN, freq);
 	}
 	if (conf->fan_beep) {
 		reg |= ITE_EC_BEEP_ON_FAN_LIMIT;
-		ite_ec_write(base, ITE_EC_BEEP_FREQ_DIV_OF_FAN, freq);
+		pnp_write_hwm5_index(base, ITE_EC_BEEP_FREQ_DIV_OF_FAN, freq);
 	}
 	if (conf->vin_beep) {
 		reg |= ITE_EC_BEEP_ON_VIN_LIMIT;
-		ite_ec_write(base, ITE_EC_BEEP_FREQ_DIV_OF_VIN, freq);
+		pnp_write_hwm5_index(base, ITE_EC_BEEP_FREQ_DIV_OF_VIN, freq);
 	}
 
 	if (reg) {
-		reg |= ite_ec_read(base, ITE_EC_BEEP_ENABLE);
-		ite_ec_write(base, ITE_EC_BEEP_ENABLE, reg);
+		reg |= pnp_read_hwm5_index(base, ITE_EC_BEEP_ENABLE);
+		pnp_write_hwm5_index(base, ITE_EC_BEEP_ENABLE, reg);
 	}
 }
 
@@ -277,18 +276,32 @@ void ite_ec_init(const u16 base, const struct ite_ec_config *const conf)
 	size_t i;
 
 	/* Configure 23.43kHz PWM active high output */
-	u8 fan_ctl = ite_ec_read(base, ITE_EC_FAN_CTL_MODE);
+	u8 fan_ctl = pnp_read_hwm5_index(base, ITE_EC_FAN_CTL_MODE);
 	fan_ctl &= ~ITE_EC_FAN_PWM_CLOCK_MASK;
 	fan_ctl |= ITE_EC_FAN_PWM_DEFAULT_CLOCK;
 	fan_ctl |= ITE_EC_FAN_CTL_POLARITY_HIGH;
-	ite_ec_write(base, ITE_EC_FAN_CTL_MODE, fan_ctl);
+	pnp_write_hwm5_index(base, ITE_EC_FAN_CTL_MODE, fan_ctl);
 
 	/* Enable HWM if configured */
 	for (i = 0; i < ITE_EC_TMPIN_CNT; ++i)
 		enable_tmpin(base, i + 1, &conf->tmpin[i]);
 
+	/* Enable External Sensor SMBus Host if configured */
+	if (conf->smbus_en) {
+		pnp_write_hwm5_index(base, ITE_EC_INTERFACE_SELECT,
+			pnp_read_hwm5_index(base, ITE_EC_INTERFACE_SELECT) |
+				ITE_EC_INTERFACE_SMB_ENABLE);
+	}
+
+	/* Set SST/PECI Host Controller Clock to either 24 MHz or internal 32 MHz */
+	if (conf->smbus_24mhz) {
+		pnp_write_hwm5_index(base, ITE_EC_INTERFACE_SELECT,
+			pnp_read_hwm5_index(base, ITE_EC_INTERFACE_SELECT) |
+				ITE_EC_INTERFACE_CLOCK_24MHZ);
+	}
+
 	/* Enable reading of voltage pins */
-	ite_ec_write(base, ITE_EC_ADC_VOLTAGE_CHANNEL_ENABLE, conf->vin_mask);
+	pnp_write_hwm5_index(base, ITE_EC_ADC_VOLTAGE_CHANNEL_ENABLE, conf->vin_mask);
 
 	/* Enable FANx if configured */
 	for (i = 0; i < ITE_EC_FAN_CNT; ++i)

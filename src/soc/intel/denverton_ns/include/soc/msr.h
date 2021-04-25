@@ -1,30 +1,16 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google, Inc.
- * Copyright (C) 2014 - 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _DENVERTON_NS_MSR_H_
 #define _DENVERTON_NS_MSR_H_
 
-#define MSR_PIC_MSG_CONTROL 0x2e
 #define MSR_CORE_THREAD_COUNT 0x35
 #define MSR_PLATFORM_INFO 0xce
 #define PLATFORM_INFO_SET_TDP (1 << 29)
 #define MSR_PKG_CST_CONFIG_CONTROL 0xe2
 #define MSR_PMG_IO_CAPTURE_BASE 0xe4
 #define MSR_FEATURE_CONFIG 0x13c
+#define   FEATURE_CONFIG_RESERVED_MASK	0x3ULL
+#define   FEATURE_CONFIG_LOCK	(1 << 0)
 #define IA32_MCG_CAP			0x179
 #define  IA32_MCG_CAP_COUNT_MASK	0xff
 #define  IA32_MCG_CAP_CTL_P_BIT		8
@@ -36,6 +22,8 @@
 #define MSR_FLEX_RATIO 0x194
 #define FLEX_RATIO_LOCK (1 << 20)
 #define FLEX_RATIO_EN (1 << 16)
+/*      IA32_MISC_ENABLE 0x1a0 */
+#define  THERMAL_MONITOR_ENABLE_BIT (1 << 3)
 #define MSR_MISC_PWR_MGMT 0x1aa
 #define MISC_PWR_MGMT_EIST_HW_DIS (1 << 0)
 #define MSR_TURBO_RATIO_LIMIT 0x1ad
@@ -95,10 +83,6 @@
 /* MTRRcap_MSR bits */
 #define SMRR_SUPPORTED (1 << 11)
 #define PRMRR_SUPPORTED (1 << 12)
-
-/* IA32_MISC_ENABLE bits */
-#define FAST_STRINGS_ENABLE_BIT (1 << 0)
-#define SPEED_STEP_ENABLE_BIT (1 << 16)
 
 /* Read BCLK from MSR */
 unsigned int bus_freq_khz(void);

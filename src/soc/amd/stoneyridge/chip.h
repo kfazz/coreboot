@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2010-2017 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __STONEYRIDGE_CHIP_H__
 #define __STONEYRIDGE_CHIP_H__
@@ -20,12 +7,17 @@
 #include <stdint.h>
 #include <commonlib/helpers.h>
 #include <drivers/i2c/designware/dw_i2c.h>
-#include <soc/gpio.h>
-#include <arch/acpi_device.h>
+#include <soc/i2c.h>
+#include <acpi/acpi_device.h>
 
 #define MAX_NODES 1
+#if CONFIG(AMD_APU_MERLINFALCON)
+#define MAX_DRAM_CH 2
+#define MAX_DIMMS_PER_CH 2
+#else /* AMD_APU_STONEYRIDGE || AMD_APU_PRAIRIEFALCON */
 #define MAX_DRAM_CH 1
 #define MAX_DIMMS_PER_CH 2
+#endif
 
 #define STONEY_I2C_DEV_MAX 4
 
@@ -51,9 +43,9 @@ struct soc_amd_stoneyridge_config {
 	size_t uma_size;
 
 	/*
-	 * If sb_reset_i2c_slaves() is called, this devicetree register
+	 * If sb_reset_i2c_peripherals() is called, this devicetree register
 	 * defines which I2C SCL will be toggled 9 times at 100 KHz.
-	 * For example, should we need I2C0 and  I2C3 have their slave
+	 * For example, should we need I2C0 and  I2C3 have their peripheral
 	 * devices reseted by toggling SCL, use:
 	 *
 	 * register i2c_scl_reset = (GPIO_I2C0_SCL | GPIO_I2C3_SCL)
@@ -73,9 +65,5 @@ struct soc_amd_stoneyridge_config {
 	u8 lvds_poseq_varybl_to_blon;
 	u8 lvds_poseq_blon_to_varybl;
 };
-
-typedef struct soc_amd_stoneyridge_config config_t;
-
-extern struct device_operations pci_domain_ops;
 
 #endif /* __STONEYRIDGE_CHIP_H__ */

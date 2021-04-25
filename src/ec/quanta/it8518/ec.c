@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/io.h>
 #include <console/console.h>
@@ -20,7 +6,6 @@
 #include <device/device.h>
 #include <device/pnp.h>
 #include <pc80/keyboard.h>
-#include <stdlib.h>
 
 #include "ec.h"
 #include "chip.h"
@@ -41,7 +26,6 @@ static int input_buffer_empty(u16 status_reg)
 	return !!timeout;
 }
 
-
 static int output_buffer_full(u16 status_reg)
 {
 	u32 timeout;
@@ -56,8 +40,6 @@ static int output_buffer_full(u16 status_reg)
 	}
 	return !!timeout;
 }
-
-
 
 /* The IT8518 60/64 EC registers are the same command/status IB/OB KBC pair.
  * Check status from 64 port before each command.
@@ -87,7 +69,6 @@ void ec_kbc_write_ib(u8 data)
 	if (!input_buffer_empty(KBD_STATUS)) return;
 	outb(data, KBD_DATA);
 }
-
 
 /*
  * These functions are for accessing the IT8518 device RAM space via 0x66/0x68
@@ -125,8 +106,6 @@ void ec_write(u16 addr, u8 data)
 	ec_write_ib(data);
 }
 
-#ifndef __PRE_RAM__
-
 u8 ec_it8518_get_event(void)
 {
 	u8 cmd = 0;
@@ -150,7 +129,6 @@ void ec_it8518_enable_wake_events(void)
 	ec_write(EC_WAKE_SRC_ENABLE, reg8 | EC_LID_WAKE_ENABLE);
 }
 
-#ifndef __SMM__
 static void it8518_init(struct device *dev)
 {
 	if (!dev->enabled)
@@ -162,8 +140,8 @@ static void it8518_init(struct device *dev)
 
 static struct device_operations ops = {
 	.init             = it8518_init,
-	.read_resources   = DEVICE_NOOP,
-	.enable_resources = DEVICE_NOOP,
+	.read_resources   = noop_read_resources,
+	.set_resources    = noop_set_resources,
 };
 
 static struct pnp_info pnp_dev_info[] = {
@@ -179,5 +157,3 @@ struct chip_operations ec_quanta_it8518_ops = {
 	CHIP_NAME("QUANTA IT8518 EC")
 	.enable_dev = enable_dev
 };
-#endif /* ! __SMM__ */
-#endif /* ! __PRE_RAM__ */

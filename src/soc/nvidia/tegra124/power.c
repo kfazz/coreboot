@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2013 Google Inc.
- * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <console/console.h>
@@ -93,12 +79,12 @@ int power_reset_status(void)
 void ram_repair(void)
 {
 	// Request RAM repair for cluster 0
-	setbits_le32(&flow->ram_repair, RAM_REPAIR_REQ);
+	setbits32(&flow->ram_repair, RAM_REPAIR_REQ);
 	// Poll for completion
 	while (!(read32(&flow->ram_repair) & RAM_REPAIR_STS))
 		;
 	// Request RAM repair for cluster 1
-	setbits_le32(&flow->ram_repair_cluster1, RAM_REPAIR_REQ);
+	setbits32(&flow->ram_repair_cluster1, RAM_REPAIR_REQ);
 	// Poll for completion
 	while (!(read32(&flow->ram_repair_cluster1) & RAM_REPAIR_STS))
 		;

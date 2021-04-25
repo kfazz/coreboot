@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Google LLC
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /*
  * The stub is a generic wrapper for bootstrapping a C-based SMM handler. Its
@@ -24,6 +10,8 @@
  */
 
 #include <cpu/x86/cr.h>
+#include <cpu/x86/msr.h>
+#include <cpu/x86/lapic_def.h>
 
 .code32
 .section ".module_parameters", "aw", @progbits
@@ -34,24 +22,18 @@ stack_top:
 .long 0
 c_handler:
 .long 0
-c_handler_arg:
-.long 0
 fxsave_area:
 .long 0
 fxsave_area_size:
-.long 0
-/* struct smm_runtime begins here. */
-smm_runtime:
-smbase:
-.long 0
-save_state_size:
 .long 0
 /* apic_to_cpu_num is a table mapping the default APIC id to CPU num. If the
  * APIC id is found at the given index, the contiguous CPU number is index
  * into the table. */
 apic_to_cpu_num:
-.fill CONFIG_MAX_CPUS,1,0xff
-/* end struct smm_runtime */
+.fill CONFIG_MAX_CPUS,2,0xffff
+/* allows the STM to bring up SMM in 32-bit mode */
+start32_offset:
+.long smm_trampoline32 - _start
 
 .data
 /* Provide fallback stack to use when a valid CPU number cannot be found. */
@@ -92,6 +74,14 @@ smm_relocate_gdt:
 	/* gdt selector 0x10, flat data segment */
 	.word	0xffff, 0x0000
 	.byte	0x00, 0x93, 0xcf, 0x00
+
+	/* gdt selector 0x18, flat code segment (64-bit) */
+	.word	0xffff, 0x0000
+	.byte	0x00, 0x9b, 0xaf, 0x00
+
+	/* gdt selector 0x20 tss segment */
+	.word   0xffff, 0x0000
+	.byte   0x00, 0x8b, 0x80, 0x00
 smm_relocate_gdt_end:
 
 .align 4
@@ -108,16 +98,31 @@ smm_trampoline32:
 
 	/* The CPU number is calculated by reading the initial APIC id. Since
 	 * the OS can maniuplate the APIC id use the non-changing cpuid result
-	 * for APIC id (ebx[31:24]). A table is used to handle a discontiguous
+	 * for APIC id (ax). A table is used to handle a discontiguous
 	 * APIC id space.  */
-	mov	$1, %eax
-	cpuid
-	bswap	%ebx	/* Default APIC id in bl. */
-	mov	$(apic_to_cpu_num), %eax
-	xor	%ecx, %ecx
+apic_id:
+        mov $LAPIC_BASE_MSR, %ecx
+        rdmsr
+        andl $LAPIC_BASE_MSR_X2APIC_MODE, %eax
+        jz xapic
+
+x2apic:
+        mov $X2APIC_LAPIC_ID, %ecx
+        rdmsr
+        jmp apicid_end
+
+xapic:
+        movl    $(LOCAL_APIC_ADDR | LAPIC_ID), %esi
+        movl    (%esi), %eax
+        shr     $24, %eax
+
+apicid_end:
+
+        mov     $(apic_to_cpu_num), %ebx
+        xor     %ecx, %ecx
 
 1:
-	cmp	(%eax, %ecx, 1), %bl
+	cmp	(%ebx, %ecx, 2), %ax
 	je	1f
 	inc	%ecx
 	cmp	$CONFIG_MAX_CPUS, %ecx
@@ -140,13 +145,16 @@ smm_trampoline32:
 	movl	stack_size, %eax
 	subl	%eax, %ebx /* %ebx(stack_top) - size = %ebx(stack_bottom) */
 	movl	%ebx, (%ebx)
+#if ENV_X86_64
+	movl	$0, 4(%ebx)
+#endif
 
 	/* Create stack frame by pushing a NULL stack base pointer */
 	pushl	$0x0
 	mov	%esp, %ebp
 
-	/* Allocate locals (fxsave) */
-	subl	$0x4, %esp
+	/* Allocate locals (fxsave, efer_backup) */
+	subl	$0xc, %esp
 
 	/* calculate fxsave location */
 	mov	fxsave_area, %edi
@@ -174,22 +182,59 @@ smm_trampoline32:
 	/* Align stack to 16 bytes. Another 32 bytes are pushed below. */
 	andl	$0xfffffff0, %esp
 
+#ifdef __x86_64__
+	mov	%ecx, %edi
+	/* Backup IA32_EFER. Preserves ebx. */
+	movl	$(IA32_EFER), %ecx
+	rdmsr
+	movl	%eax, -0x8(%ebp)
+	movl	%edx, -0xc(%ebp)
+
+	/* entry64.inc preserves ebx, esi, edi */
+#include <cpu/x86/64bit/entry64.inc>
+	mov	%edi, %ecx
+
+#endif
+
 	/* Call into the c-based SMM relocation function with the platform
 	 * parameters. Equivalent to:
 	 *   struct arg = { c_handler_params, cpu_num, smm_runtime, canary };
 	 *   c_handler(&arg)
 	 */
-	push	$0x0 /* Padding */
-	push	$0x0 /* Padding */
+#ifdef __x86_64__
+	push	%rbx /* uintptr_t *canary */
+	push	%rcx /* size_t cpu */
+
+	mov	%rsp, %rdi	/* *arg */
+
+	movl	c_handler, %eax
+	call	*%rax
+
+	/*
+	 * The only reason to go back to protected mode is that RSM doesn't restore
+	 * MSR registers and MSR IA32_EFER was modified by entering long mode.
+	 * Drop to protected mode to safely operate on the IA32_EFER MSR.
+	 */
+
+	/* Disable long mode. */
+	#include <cpu/x86/64bit/exit32.inc>
+
+	/* Restore IA32_EFER as RSM doesn't restore MSRs. */
+	movl	$(IA32_EFER), %ecx
+	rdmsr
+	movl	-0x8(%ebp), %eax
+	movl	-0xc(%ebp), %edx
+
+	wrmsr
+
+#else
 	push	$0x0 /* Padding */
 	push	%ebx /* uintptr_t *canary */
-	push	$(smm_runtime)
-	push	%ecx /* int cpu */
-	push	c_handler_arg /* void *arg */
+	push	%ecx /* size_t cpu */
 	push	%esp /* smm_module_params *arg (allocated on stack). */
 	mov	c_handler, %eax
 	call	*%eax
-
+#endif
 	/* Retrieve fxsave location. */
 	mov	-4(%ebp), %edi
 	test	%edi, %edi

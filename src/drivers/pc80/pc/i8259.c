@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2009 coresystems GmbH
- * Copyright (C) 2013 Sage Electronic Engineering, LLC.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/io.h>
 #include <pc80/i8259.h>
@@ -122,18 +108,4 @@ void i8259_configure_irq_trigger(int int_num, int is_level_triggered)
 	/* Write new values */
 	outb((u8)(int_bits & 0xff), ELCR1);
 	outb((u8)(int_bits >> 8), ELCR2);
-
-#ifdef PARANOID_IRQ_TRIGGERS
-	/* Try reading back the new values. This seems like an error
-	 * but it is not. */
-	if (inb(ELCR1) != (int_bits & 0xff)) {
-		printk(BIOS_ERR, "%s: lower order bits are wrong: want 0x%x, got 0x%x\n",
-				__func__, (int_bits & 0xff), inb(ELCR1));
-	}
-
-	if (inb(ELCR2) != (int_bits >> 8)) {
-		printk(BIOS_ERR, "%s: higher order bits are wrong: want 0x%x, got 0x%x\n",
-				__func__, (int_bits>>8), inb(ELCR2));
-	}
-#endif
 }

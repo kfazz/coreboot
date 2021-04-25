@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <cbmem.h>
 #include <soc/soc_services.h>
@@ -23,7 +10,7 @@ void ipq_cbmem_backing_store_ready(void)
 	cbmem_backing_store_ready = 1;
 }
 
-void *cbmem_top(void)
+void *cbmem_top_chipset(void)
 {
 	/*
 	 * In romstage, make sure that cbmem backing store is ready before
@@ -32,7 +19,7 @@ void *cbmem_top(void)
 	 * (e.g. vboot_locator for loading ipq blobs before DRAM is
 	 * initialized).
 	 */
-	if (ENV_ROMSTAGE && (cbmem_backing_store_ready == 0))
+	if (cbmem_backing_store_ready == 0)
 		return NULL;
 
 	return _memlayout_cbmem_top;

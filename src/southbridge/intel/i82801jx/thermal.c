@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 secunet Security Networks AG
- * (Written by Nico Huber <nico.huber@secunet.com> for secunet)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <device/pci_ops.h>
@@ -25,15 +10,10 @@
 
 static void thermal_init(struct device *dev)
 {
-	if (LPC_IS_MOBILE(pcidev_on_root(0x1f, 0)))
-		return;
-
 	u8 reg8;
-	u32 reg32;
 
 	pci_write_config32(dev, 0x10, (uintptr_t)DEFAULT_TBAR);
-	reg32 = pci_read_config32(dev, 0x04);
-	pci_write_config32(dev, 0x04, reg32 | (1 << 1));
+	pci_or_config32(dev, 0x04, 1 << 1);
 
 	write32(DEFAULT_TBAR + 0x04, 0); /* Clear thermal trip points. */
 	write32(DEFAULT_TBAR + 0x44, 0);
@@ -46,22 +26,16 @@ static void thermal_init(struct device *dev)
 	reg8 = read8(DEFAULT_TBAR + 0x48);
 	write8(DEFAULT_TBAR + 0x48, reg8 | (1 << 7));
 
-	reg32 = pci_read_config32(dev, 0x04);
-	pci_write_config32(dev, 0x04, reg32 & ~(1 << 1));
+	pci_and_config32(dev, 0x04, ~(1 << 1));
 	pci_write_config32(dev, 0x10, 0);
 }
-
-static struct pci_operations thermal_pci_ops = {
-	.set_subsystem = pci_dev_set_subsystem,
-};
 
 static struct device_operations device_ops = {
 	.read_resources		= pci_dev_read_resources,
 	.set_resources		= pci_dev_set_resources,
 	.enable_resources	= pci_dev_enable_resources,
 	.init			= thermal_init,
-	.scan_bus		= 0,
-	.ops_pci		= &thermal_pci_ops,
+	.ops_pci		= &pci_dev_ops_pci,
 };
 
 static const unsigned short pci_device_ids[] = {

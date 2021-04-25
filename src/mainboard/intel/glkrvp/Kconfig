@@ -1,7 +1,7 @@
 
 config BOARD_INTEL_BASEBOARD_GLKRVP
 	def_bool n
-	select SOC_INTEL_GLK
+	select SOC_INTEL_GEMINILAKE
 	select BOARD_ROMSIZE_KB_16384
 	select DRIVERS_I2C_GENERIC
 	select DRIVERS_I2C_HID
@@ -30,7 +30,7 @@ choice
 config GLK_CHROME_EC
 	bool "Chrome EC"
 	select EC_GOOGLE_CHROMEEC
-	select EC_GOOGLE_CHROMEEC_LPC
+	select EC_GOOGLE_CHROMEEC_ESPI
 
 config GLK_INTEL_EC
 	bool "Intel EC"
@@ -38,19 +38,16 @@ config GLK_INTEL_EC
 endchoice
 
 config CHROMEOS
-	bool
-	default y
 	select GBB_FLAG_DISABLE_EC_SOFTWARE_SYNC
 	select VBOOT_LID_SWITCH if GLK_CHROME_EC
 
 config VBOOT
 	select HAS_RECOVERY_MRC_CACHE
-	select MRC_CLEAR_NORMAL_CACHE_ON_RECOVERY_RETRAIN
 	select EC_GOOGLE_CHROMEEC_SWITCHES if GLK_CHROME_EC
 
 config MAINBOARD_DIR
 	string
-	default intel/glkrvp
+	default "intel/glkrvp"
 
 config VARIANT_DIR
 	string
@@ -68,15 +65,6 @@ config MAINBOARD_FAMILY
 	string
 	default "Intel_Glkrvp" if BOARD_INTEL_GLKRVP
 
-config GBB_HWID
-	string
-	depends on CHROMEOS
-	default "GLKRVP TEST A-A 6939" if BOARD_INTEL_GLKRVP
-
-config MAX_CPUS
-	int
-	default 4
-
 config UART_FOR_CONSOLE
 	int
 	default 2
@@ -90,5 +78,9 @@ config INCLUDE_NHLT_BLOBS
 config IS_GLK_RVP_1
 	bool "Is this RVP1?"
 	default n
+
+config SOC_INTEL_COMMON_BLOCK_SGX_ENABLE
+	bool
+	default y
 
 endif # BOARD_INTEL_GLKRVP

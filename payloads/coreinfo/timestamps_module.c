@@ -1,15 +1,4 @@
-/*
- * This file is part of the coreinfo project.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include "coreinfo.h"
 #include <commonlib/timestamp_serialized.h>
@@ -29,9 +18,7 @@ static unsigned long tick_freq_mhz;
 
 static const char *timestamp_name(uint32_t id)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(timestamp_ids); i++) {
+	for (size_t i = 0; i < ARRAY_SIZE(timestamp_ids); i++) {
 		if (timestamp_ids[i].id == id)
 			return timestamp_ids[i].name;
 	}
@@ -150,7 +137,7 @@ static int timestamps_module_init(void)
 	if (ret)
 		return -1;
 
-	struct timestamp_table *timestamps = lib_sysinfo.tstamp_table;
+	struct timestamp_table *timestamps = phys_to_virt(lib_sysinfo.tstamp_table);
 
 	if (timestamps == NULL)
 		return -1;
@@ -184,7 +171,7 @@ static int timestamps_module_init(void)
 	prev_stamp = base_time;
 
 	total_time = 0;
-	for (int i = 0; i < n_entries; i++) {
+	for (u32 i = 0; i < n_entries; i++) {
 		uint64_t stamp;
 		const struct timestamp_entry *tse = &timestamps->entries[i];
 

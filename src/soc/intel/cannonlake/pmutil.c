@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /*
  * Helper functions for dealing with power management registers
@@ -21,8 +7,8 @@
 
 #define __SIMPLE_DEVICE__
 
+#include <acpi/acpi_pm.h>
 #include <device/mmio.h>
-#include <cbmem.h>
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_def.h>
@@ -30,7 +16,6 @@
 #include <intelblocks/pmclib.h>
 #include <intelblocks/rtc.h>
 #include <intelblocks/tco.h>
-#include <stdlib.h>
 #include <soc/gpe.h>
 #include <soc/gpio.h>
 #include <soc/iomap.h>
@@ -132,7 +117,7 @@ void pmc_set_disb(void)
 	/* Set the DISB after DRAM init */
 	uint8_t disb_val;
 	/* Only care about bits [23:16] of register GEN_PMCON_A */
-	uint8_t *addr = (void *)(pmc_mmio_regs() + GEN_PMCON_A + 2);
+	uint8_t *addr = (uint8_t *)(pmc_mmio_regs() + GEN_PMCON_A + 2);
 
 	disb_val = read8(addr);
 	disb_val |= (DISB >> 16);
@@ -172,17 +157,15 @@ uintptr_t soc_read_pmc_base(void)
 	return (uintptr_t)pmc_mmio_regs();
 }
 
+uint32_t *soc_pmc_etr_addr(void)
+{
+	return (uint32_t *)(soc_read_pmc_base() + ETR);
+}
+
 void soc_get_gpi_gpe_configs(uint8_t *dw0, uint8_t *dw1, uint8_t *dw2)
 {
 	DEVTREE_CONST struct soc_intel_cannonlake_config *config;
-
-	/* Look up the device in devicetree */
-	DEVTREE_CONST struct device *dev = dev_find_slot(0, PCH_DEVFN_PMC);
-	if (!dev || !dev->chip_info) {
-		printk(BIOS_ERR, "BUG! Could not find SOC devicetree config\n");
-		return;
-	}
-	config = dev->chip_info;
+	config = config_of_soc();
 
 	/* Assign to out variable */
 	*dw0 = config->gpe0_dw0;
@@ -197,12 +180,10 @@ static int rtc_failed(uint32_t gen_pmcon_b)
 
 int soc_get_rtc_failed(void)
 {
-	const struct chipset_power_state *ps = cbmem_find(CBMEM_ID_POWER_STATE);
+	const struct chipset_power_state *ps;
 
-	if (!ps) {
-		printk(BIOS_ERR, "Could not find power state in cbmem, RTC init aborted\n");
+	if (acpi_pm_state_for_rtc(&ps) < 0)
 		return 1;
-	}
 
 	return rtc_failed(ps->gen_pmcon_b);
 }
@@ -221,15 +202,13 @@ static inline int deep_s3_enabled(void)
 }
 
 /* Return 0, 3, or 5 to indicate the previous sleep state. */
-int soc_prev_sleep_state(const struct chipset_power_state *ps,
-	int prev_sleep_state)
+int soc_prev_sleep_state(const struct chipset_power_state *ps, int prev_sleep_state)
 {
-
 	/*
 	 * Check for any power failure to determine if this a wake from
-	* S5 because the PCH does not set the WAK_STS bit when waking
-	* from a true G3 state.
-	*/
+	 * S5 because the PCH does not set the WAK_STS bit when waking
+	 * from a true G3 state.
+	 */
 	if (ps->gen_pmcon_a & (PWR_FLR | SUS_PWR_FLR))
 		prev_sleep_state = ACPI_S5;
 
@@ -260,8 +239,7 @@ void soc_fill_power_state(struct chipset_power_state *ps)
 	ps->tco1_sts = tco_read_reg(TCO1_STS);
 	ps->tco2_sts = tco_read_reg(TCO2_STS);
 
-	printk(BIOS_DEBUG, "TCO_STS:   %04x %04x\n",
-	ps->tco1_sts, ps->tco2_sts);
+	printk(BIOS_DEBUG, "TCO_STS:   %04x %04x\n", ps->tco1_sts, ps->tco2_sts);
 
 	pmc = pmc_mmio_regs();
 	ps->gen_pmcon_a = read32(pmc + GEN_PMCON_A);
@@ -274,4 +252,27 @@ void soc_fill_power_state(struct chipset_power_state *ps)
 
 	printk(BIOS_DEBUG, "GBLRST_CAUSE: %08x %08x\n",
 		ps->gblrst_cause[0], ps->gblrst_cause[1]);
+}
+
+/* STM Support */
+uint16_t get_pmbase(void)
+{
+	return (uint16_t) ACPI_BASE_ADDRESS;
+}
+
+/*
+ * Set which power state system will be after reapplying
+ * the power (from G3 State)
+ */
+void pmc_soc_set_afterg3_en(const bool on)
+{
+	uint8_t reg8;
+	uint8_t *const pmcbase = pmc_mmio_regs();
+
+	reg8 = read8(pmcbase + GEN_PMCON_A);
+	if (on)
+		reg8 &= ~SLEEP_AFTER_POWER_FAIL;
+	else
+		reg8 |= SLEEP_AFTER_POWER_FAIL;
+	write8(pmcbase + GEN_PMCON_A, reg8);
 }

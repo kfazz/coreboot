@@ -1,310 +1,157 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Vladimir Serbinenko <phcoder@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <device/pci_ops.h>
-#include <arch/cbfs.h>
+#include <cf9_reset.h>
 #include <ip_checksum.h>
 #include <device/pci_def.h>
+#include <device/smbus_host.h>
 #include <southbridge/intel/common/gpio.h>
 #include <southbridge/intel/common/pmbase.h>
+#include <southbridge/intel/common/rcba.h>
 
 /* For DMI bar.  */
 #include <northbridge/intel/sandybridge/sandybridge.h>
 
 #include "pch.h"
+#include "chip.h"
 
 #define SOUTHBRIDGE PCI_DEV(0, 0x1f, 0)
 
-static void
-wait_iobp(void)
+static void wait_iobp(void)
 {
-	while (read8(DEFAULT_RCBA + IOBPS) & 1)
+	while (RCBA8(IOBPS) & 1)
 		; // implement timeout?
 }
 
-static u32
-read_iobp(u32 address)
+static u32 read_iobp(u32 address)
 {
 	u32 ret;
 
-	write32(DEFAULT_RCBA + IOBPIRI, address);
-	write16(DEFAULT_RCBA + IOBPS, (read16(DEFAULT_RCBA + IOBPS)
-					 & 0x1ff) | 0x600);
+	RCBA32(IOBPIRI) = address;
+	RCBA16(IOBPS) = (RCBA16(IOBPS) & 0x1ff) | 0x600;
 	wait_iobp();
-	ret = read32(DEFAULT_RCBA + IOBPD);
+	ret = RCBA32(IOBPD);
 	wait_iobp();
-	read8(DEFAULT_RCBA + IOBPS); // call wait_iobp() instead here?
+	RCBA8(IOBPS); // call wait_iobp() instead here?
 	return ret;
 }
 
-static void
-write_iobp(u32 address, u32 val)
+static void write_iobp(u32 address, u32 val)
 {
 	/* this function was probably pch_iobp_update with the andvalue
 	 * being 0. So either the IOBP read can be removed or this function
 	 * and the pch_iobp_update function in ramstage could be merged */
 	read_iobp(address);
-	write16(DEFAULT_RCBA + IOBPS, (read16(DEFAULT_RCBA + IOBPS)
-					 & 0x1ff) | 0x600);
+	RCBA16(IOBPS) = (RCBA16(IOBPS) & 0x1ff) | 0x600;
 	wait_iobp();
 
-	write32(DEFAULT_RCBA + IOBPD, val);
+	RCBA32(IOBPD) = val;
 	wait_iobp();
-	write16(DEFAULT_RCBA + IOBPS,
-		 (read16(DEFAULT_RCBA + IOBPS) & 0x1ff) | 0x600);
-	read8(DEFAULT_RCBA + IOBPS); // call wait_iobp() instead here?
+	RCBA16(IOBPS) = (RCBA16(IOBPS) & 0x1ff) | 0x600;
+
+	RCBA8(IOBPS); // call wait_iobp() instead here?
 }
 
-
-static void
-init_dmi (void)
+void early_pch_init_native_dmi_pre(void)
 {
-	int i;
+	/* Link Capabilities Register */
+	RCBA32(LCAP) = (RCBA32(LCAP) & ~0x3fc00) |
+			 (3 << 10) | // L0s and L1 entry supported
+			 (2 << 12) | // L0s 128 ns to less than 256 ns
+			 (2 << 15);  // L1 2 us to less than 4 us
 
-	write32 (DEFAULT_DMIBAR + 0x0914,
-		 read32 (DEFAULT_DMIBAR + 0x0914) | 0x80000000);
-	write32 (DEFAULT_DMIBAR + 0x0934,
-		 read32 (DEFAULT_DMIBAR + 0x0934) | 0x80000000);
-	for (i = 0; i < 4; i++)
-	{
-		write32 (DEFAULT_DMIBAR + 0x0a00 + (i << 4),
-			 read32 (DEFAULT_DMIBAR + 0x0a00 + (i << 4)) & 0xf3ffffff);
-		write32 (DEFAULT_DMIBAR + 0x0a04 + (i << 4),
-			 read32 (DEFAULT_DMIBAR + 0x0a04 + (i << 4)) | 0x800);
-	}
-	write32 (DEFAULT_DMIBAR + 0x0c30, (read32 (DEFAULT_DMIBAR + 0x0c30)
-					   & 0xfffffff) | 0x40000000);
-	for (i = 0; i < 2; i++)
-	{
-		write32 (DEFAULT_DMIBAR + 0x0904 + (i << 5),
-			 read32 (DEFAULT_DMIBAR + 0x0904 + (i << 5)) & 0xfe3fffff);
-		write32 (DEFAULT_DMIBAR + 0x090c + (i << 5),
-			 read32 (DEFAULT_DMIBAR + 0x090c + (i << 5)) & 0xfff1ffff);
-	}
-	write32 (DEFAULT_DMIBAR + 0x090c,
-		 read32 (DEFAULT_DMIBAR + 0x090c) & 0xfe1fffff);
-	write32 (DEFAULT_DMIBAR + 0x092c,
-		 read32 (DEFAULT_DMIBAR + 0x092c) & 0xfe1fffff);
-	read32 (DEFAULT_DMIBAR + 0x0904);	// !!! = 0x7a1842ec
-	write32 (DEFAULT_DMIBAR + 0x0904, 0x7a1842ec);
-	read32 (DEFAULT_DMIBAR + 0x090c);	// !!! = 0x00000208
-	write32 (DEFAULT_DMIBAR + 0x090c, 0x00000128);
-	read32 (DEFAULT_DMIBAR + 0x0924);	// !!! = 0x7a1842ec
-	write32 (DEFAULT_DMIBAR + 0x0924, 0x7a1842ec);
-	read32 (DEFAULT_DMIBAR + 0x092c);	// !!! = 0x00000208
-	write32 (DEFAULT_DMIBAR + 0x092c, 0x00000128);
-	read32 (DEFAULT_DMIBAR + 0x0700);	// !!! = 0x46139008
-	write32 (DEFAULT_DMIBAR + 0x0700, 0x46139008);
-	read32 (DEFAULT_DMIBAR + 0x0720);	// !!! = 0x46139008
-	write32 (DEFAULT_DMIBAR + 0x0720, 0x46139008);
-	read32 (DEFAULT_DMIBAR + 0x0c04);	// !!! = 0x2e680008
-	write32 (DEFAULT_DMIBAR + 0x0c04, 0x2e680008);
-	read32 (DEFAULT_DMIBAR + 0x0904);	// !!! = 0x7a1842ec
-	write32 (DEFAULT_DMIBAR + 0x0904, 0x3a1842ec);
-	read32 (DEFAULT_DMIBAR + 0x0924);	// !!! = 0x7a1842ec
-	write32 (DEFAULT_DMIBAR + 0x0924, 0x3a1842ec);
-	read32 (DEFAULT_DMIBAR + 0x0910);	// !!! = 0x00006300
-	write32 (DEFAULT_DMIBAR + 0x0910, 0x00004300);
-	read32 (DEFAULT_DMIBAR + 0x0930);	// !!! = 0x00006300
-	write32 (DEFAULT_DMIBAR + 0x0930, 0x00004300);
-	read32 (DEFAULT_DMIBAR + 0x0a00);	// !!! = 0x03042010
-	write32 (DEFAULT_DMIBAR + 0x0a00, 0x03042018);
-	read32 (DEFAULT_DMIBAR + 0x0a10);	// !!! = 0x03042010
-	write32 (DEFAULT_DMIBAR + 0x0a10, 0x03042018);
-	read32 (DEFAULT_DMIBAR + 0x0a20);	// !!! = 0x03042010
-	write32 (DEFAULT_DMIBAR + 0x0a20, 0x03042018);
-	read32 (DEFAULT_DMIBAR + 0x0a30);	// !!! = 0x03042010
-	write32 (DEFAULT_DMIBAR + 0x0a30, 0x03042018);
-	read32 (DEFAULT_DMIBAR + 0x0c00);	// !!! = 0x29700c08
-	write32 (DEFAULT_DMIBAR + 0x0c00, 0x29700c08);
-	read32 (DEFAULT_DMIBAR + 0x0a04);	// !!! = 0x0c0708f0
-	write32 (DEFAULT_DMIBAR + 0x0a04, 0x0c0718f0);
-	read32 (DEFAULT_DMIBAR + 0x0a14);	// !!! = 0x0c0708f0
-	write32 (DEFAULT_DMIBAR + 0x0a14, 0x0c0718f0);
-	read32 (DEFAULT_DMIBAR + 0x0a24);	// !!! = 0x0c0708f0
-	write32 (DEFAULT_DMIBAR + 0x0a24, 0x0c0718f0);
-	read32 (DEFAULT_DMIBAR + 0x0a34);	// !!! = 0x0c0708f0
-	write32 (DEFAULT_DMIBAR + 0x0a34, 0x0c0718f0);
-	read32 (DEFAULT_DMIBAR + 0x0900);	// !!! = 0x50000000
-	write32 (DEFAULT_DMIBAR + 0x0900, 0x50000000);
-	read32 (DEFAULT_DMIBAR + 0x0920);	// !!! = 0x50000000
-	write32 (DEFAULT_DMIBAR + 0x0920, 0x50000000);
-	read32 (DEFAULT_DMIBAR + 0x0908);	// !!! = 0x51ffffff
-	write32 (DEFAULT_DMIBAR + 0x0908, 0x51ffffff);
-	read32 (DEFAULT_DMIBAR + 0x0928);	// !!! = 0x51ffffff
-	write32 (DEFAULT_DMIBAR + 0x0928, 0x51ffffff);
-	read32 (DEFAULT_DMIBAR + 0x0a00);	// !!! = 0x03042018
-	write32 (DEFAULT_DMIBAR + 0x0a00, 0x03042018);
-	read32 (DEFAULT_DMIBAR + 0x0a10);	// !!! = 0x03042018
-	write32 (DEFAULT_DMIBAR + 0x0a10, 0x03042018);
-	read32 (DEFAULT_DMIBAR + 0x0a20);	// !!! = 0x03042018
-	write32 (DEFAULT_DMIBAR + 0x0a20, 0x03042018);
-	read32 (DEFAULT_DMIBAR + 0x0a30);	// !!! = 0x03042018
-	write32 (DEFAULT_DMIBAR + 0x0a30, 0x03042018);
-	read32 (DEFAULT_DMIBAR + 0x0700);	// !!! = 0x46139008
-	write32 (DEFAULT_DMIBAR + 0x0700, 0x46139008);
-	read32 (DEFAULT_DMIBAR + 0x0720);	// !!! = 0x46139008
-	write32 (DEFAULT_DMIBAR + 0x0720, 0x46139008);
-	read32 (DEFAULT_DMIBAR + 0x0904);	// !!! = 0x3a1842ec
-	write32 (DEFAULT_DMIBAR + 0x0904, 0x3a1846ec);
-	read32 (DEFAULT_DMIBAR + 0x0924);	// !!! = 0x3a1842ec
-	write32 (DEFAULT_DMIBAR + 0x0924, 0x3a1846ec);
-	read32 (DEFAULT_DMIBAR + 0x0a00);	// !!! = 0x03042018
-	write32 (DEFAULT_DMIBAR + 0x0a00, 0x03042018);
-	read32 (DEFAULT_DMIBAR + 0x0a10);	// !!! = 0x03042018
-	write32 (DEFAULT_DMIBAR + 0x0a10, 0x03042018);
-	read32 (DEFAULT_DMIBAR + 0x0a20);	// !!! = 0x03042018
-	write32 (DEFAULT_DMIBAR + 0x0a20, 0x03042018);
-	read32 (DEFAULT_DMIBAR + 0x0a30);	// !!! = 0x03042018
-	write32 (DEFAULT_DMIBAR + 0x0a30, 0x03042018);
-	read32 (DEFAULT_DMIBAR + 0x0908);	// !!! = 0x51ffffff
-	write32 (DEFAULT_DMIBAR + 0x0908, 0x51ffffff);
-	read32 (DEFAULT_DMIBAR + 0x0928);	// !!! = 0x51ffffff
-	write32 (DEFAULT_DMIBAR + 0x0928, 0x51ffffff);
-	read32 (DEFAULT_DMIBAR + 0x0c00);	// !!! = 0x29700c08
-	write32 (DEFAULT_DMIBAR + 0x0c00, 0x29700c08);
-	read32 (DEFAULT_DMIBAR + 0x0c0c);	// !!! = 0x16063400
-	write32 (DEFAULT_DMIBAR + 0x0c0c, 0x00063400);
-	read32 (DEFAULT_DMIBAR + 0x0700);	// !!! = 0x46139008
-	write32 (DEFAULT_DMIBAR + 0x0700, 0x46339008);
-	read32 (DEFAULT_DMIBAR + 0x0720);	// !!! = 0x46139008
-	write32 (DEFAULT_DMIBAR + 0x0720, 0x46339008);
-	read32 (DEFAULT_DMIBAR + 0x0700);	// !!! = 0x46339008
-	write32 (DEFAULT_DMIBAR + 0x0700, 0x45339008);
-	read32 (DEFAULT_DMIBAR + 0x0720);	// !!! = 0x46339008
-	write32 (DEFAULT_DMIBAR + 0x0720, 0x45339008);
-	read32 (DEFAULT_DMIBAR + 0x0700);	// !!! = 0x45339008
-	write32 (DEFAULT_DMIBAR + 0x0700, 0x453b9008);
-	read32 (DEFAULT_DMIBAR + 0x0720);	// !!! = 0x45339008
-	write32 (DEFAULT_DMIBAR + 0x0720, 0x453b9008);
-	read32 (DEFAULT_DMIBAR + 0x0700);	// !!! = 0x453b9008
-	write32 (DEFAULT_DMIBAR + 0x0700, 0x45bb9008);
-	read32 (DEFAULT_DMIBAR + 0x0720);	// !!! = 0x453b9008
-	write32 (DEFAULT_DMIBAR + 0x0720, 0x45bb9008);
-	read32 (DEFAULT_DMIBAR + 0x0700);	// !!! = 0x45bb9008
-	write32 (DEFAULT_DMIBAR + 0x0700, 0x45fb9008);
-	read32 (DEFAULT_DMIBAR + 0x0720);	// !!! = 0x45bb9008
-	write32 (DEFAULT_DMIBAR + 0x0720, 0x45fb9008);
-	read32 (DEFAULT_DMIBAR + 0x0914);	// !!! = 0x9021a080
-	write32 (DEFAULT_DMIBAR + 0x0914, 0x9021a280);
-	read32 (DEFAULT_DMIBAR + 0x0934);	// !!! = 0x9021a080
-	write32 (DEFAULT_DMIBAR + 0x0934, 0x9021a280);
-	read32 (DEFAULT_DMIBAR + 0x0914);	// !!! = 0x9021a280
-	write32 (DEFAULT_DMIBAR + 0x0914, 0x9821a280);
-	read32 (DEFAULT_DMIBAR + 0x0934);	// !!! = 0x9021a280
-	write32 (DEFAULT_DMIBAR + 0x0934, 0x9821a280);
-	read32 (DEFAULT_DMIBAR + 0x0a00);	// !!! = 0x03042018
-	write32 (DEFAULT_DMIBAR + 0x0a00, 0x03242018);
-	read32 (DEFAULT_DMIBAR + 0x0a10);	// !!! = 0x03042018
-	write32 (DEFAULT_DMIBAR + 0x0a10, 0x03242018);
-	read32 (DEFAULT_DMIBAR + 0x0a20);	// !!! = 0x03042018
-	write32 (DEFAULT_DMIBAR + 0x0a20, 0x03242018);
-	read32 (DEFAULT_DMIBAR + 0x0a30);	// !!! = 0x03042018
-	write32 (DEFAULT_DMIBAR + 0x0a30, 0x03242018);
-	read32 (DEFAULT_DMIBAR + 0x0258);	// !!! = 0x40000600
-	write32 (DEFAULT_DMIBAR + 0x0258, 0x60000600);
-	read32 (DEFAULT_DMIBAR + 0x0904);	// !!! = 0x3a1846ec
-	write32 (DEFAULT_DMIBAR + 0x0904, 0x2a1846ec);
-	read32 (DEFAULT_DMIBAR + 0x0914);	// !!! = 0x9821a280
-	write32 (DEFAULT_DMIBAR + 0x0914, 0x98200280);
-	read32 (DEFAULT_DMIBAR + 0x0924);	// !!! = 0x3a1846ec
-	write32 (DEFAULT_DMIBAR + 0x0924, 0x2a1846ec);
-	read32 (DEFAULT_DMIBAR + 0x0934);	// !!! = 0x9821a280
-	write32 (DEFAULT_DMIBAR + 0x0934, 0x98200280);
-	read32 (DEFAULT_DMIBAR + 0x022c);	// !!! = 0x00c26460
-	write32 (DEFAULT_DMIBAR + 0x022c, 0x00c2403c);
-	read8 (DEFAULT_RCBA + 0x21a4);	// !!! = 0x42
-
-	read32 (DEFAULT_RCBA + 0x21a4);	// !!! = 0x00012c42
-	read32 (DEFAULT_RCBA + 0x2340);	// !!! = 0x0013001b
-	write32 (DEFAULT_RCBA + 0x2340, 0x003a001b);
-	read8 (DEFAULT_RCBA + 0x21b0);	// !!! = 0x01
-	write8 (DEFAULT_RCBA + 0x21b0, 0x02);
-	read32 (DEFAULT_DMIBAR + 0x0084);	// !!! = 0x0041ac41
-	write32 (DEFAULT_DMIBAR + 0x0084, 0x0041ac42);
-	read8 (DEFAULT_DMIBAR + 0x0088);	// !!! = 0x00
-	write8 (DEFAULT_DMIBAR + 0x0088, 0x20);
-	read16 (DEFAULT_DMIBAR + 0x008a);	// !!! = 0x0041
-	read8 (DEFAULT_DMIBAR + 0x0088);	// !!! = 0x00
-	write8 (DEFAULT_DMIBAR + 0x0088, 0x20);
-	read16 (DEFAULT_DMIBAR + 0x008a);	// !!! = 0x0042
-	read16 (DEFAULT_DMIBAR + 0x008a);	// !!! = 0x0042
-
-	read32 (DEFAULT_DMIBAR + 0x0014);	// !!! = 0x8000007f
-	write32 (DEFAULT_DMIBAR + 0x0014, 0x80000019);
-	read32 (DEFAULT_DMIBAR + 0x0020);	// !!! = 0x01000000
-	write32 (DEFAULT_DMIBAR + 0x0020, 0x81000022);
-	read32 (DEFAULT_DMIBAR + 0x002c);	// !!! = 0x02000000
-	write32 (DEFAULT_DMIBAR + 0x002c, 0x82000044);
-	read32 (DEFAULT_DMIBAR + 0x0038);	// !!! = 0x07000080
-	write32 (DEFAULT_DMIBAR + 0x0038, 0x87000080);
-	read8 (DEFAULT_DMIBAR + 0x0004);	// !!! = 0x00
-	write8 (DEFAULT_DMIBAR + 0x0004, 0x01);
-
-	read32 (DEFAULT_RCBA + 0x0050);	// !!! = 0x01200654
-	write32 (DEFAULT_RCBA + 0x0050, 0x01200654);
-	read32 (DEFAULT_RCBA + 0x0050);	// !!! = 0x01200654
-	write32 (DEFAULT_RCBA + 0x0050, 0x012a0654);
-	read32 (DEFAULT_RCBA + 0x0050);	// !!! = 0x012a0654
-	read8 (DEFAULT_RCBA + 0x1114);	// !!! = 0x00
-	write8 (DEFAULT_RCBA + 0x1114, 0x05);
-	read32 (DEFAULT_RCBA + 0x2014);	// !!! = 0x80000011
-	write32 (DEFAULT_RCBA + 0x2014, 0x80000019);
-	read32 (DEFAULT_RCBA + 0x2020);	// !!! = 0x00000000
-	write32 (DEFAULT_RCBA + 0x2020, 0x81000022);
-	read32 (DEFAULT_RCBA + 0x2020);	// !!! = 0x81000022
-	read32 (DEFAULT_RCBA + 0x2030);	// !!! = 0x00000000
-	write32 (DEFAULT_RCBA + 0x2030, 0x82000044);
-	read32 (DEFAULT_RCBA + 0x2030);	// !!! = 0x82000044
-	read32 (DEFAULT_RCBA + 0x2040);	// !!! = 0x00000000
-	write32 (DEFAULT_RCBA + 0x2040, 0x87000080);
-	read32 (DEFAULT_RCBA + 0x0050);	// !!! = 0x012a0654
-	write32 (DEFAULT_RCBA + 0x0050, 0x812a0654);
-	read32 (DEFAULT_RCBA + 0x0050);	// !!! = 0x812a0654
-	read16 (DEFAULT_RCBA + 0x201a);	// !!! = 0x0000
-	read16 (DEFAULT_RCBA + 0x2026);	// !!! = 0x0000
-	read16 (DEFAULT_RCBA + 0x2036);	// !!! = 0x0000
-	read16 (DEFAULT_RCBA + 0x2046);	// !!! = 0x0000
-	read16 (DEFAULT_DMIBAR + 0x001a);	// !!! = 0x0000
-	read16 (DEFAULT_DMIBAR + 0x0026);	// !!! = 0x0000
-	read16 (DEFAULT_DMIBAR + 0x0032);	// !!! = 0x0000
-	read16 (DEFAULT_DMIBAR + 0x003e);	// !!! = 0x0000
+	RCBA32(0x2340) = (RCBA32(0x2340) & ~0xff0000) | (0x3a << 16);
+	RCBA8(DLCTL2) = (RCBA8(DLCTL2) & ~0xf) | 2;
 }
 
-void
-early_pch_init_native (void)
+void early_pch_init_native_dmi_post(void)
 {
-	pci_write_config8 (SOUTHBRIDGE, 0xa6,
-			    pci_read_config8 (SOUTHBRIDGE, 0xa6) | 2);
+	RCBA32(CIR0);	// !!! = 0x01200654
+	RCBA32(CIR0) = 0x01200654;
+	RCBA32(CIR0);	// !!! = 0x01200654
+	RCBA32(CIR0) = 0x012a0654;
+	RCBA32(CIR0);	// !!! = 0x012a0654
+	RCBA8(UPDCR);	// !!! = 0x00
+	RCBA8(UPDCR) = 0x05;
 
-	write32 (DEFAULT_RCBA + 0x2088, 0x00109000);
-	read32 (DEFAULT_RCBA + 0x20ac);	// !!! = 0x00000000
-	write32 (DEFAULT_RCBA + 0x20ac, 0x40000000);
-	write32 (DEFAULT_RCBA + 0x100c, 0x01110000);
-	write8 (DEFAULT_RCBA + 0x2340, 0x1b);
-	read32 (DEFAULT_RCBA + 0x2314);	// !!! = 0x0a080000
-	write32 (DEFAULT_RCBA + 0x2314, 0x0a280000);
-	read32 (DEFAULT_RCBA + 0x2310);	// !!! = 0xc809605b
-	write32 (DEFAULT_RCBA + 0x2310, 0xa809605b);
-	write32 (DEFAULT_RCBA + 0x2324, 0x00854c74);
-	read8 (DEFAULT_RCBA + 0x0400);	// !!! = 0x00
-	read32 (DEFAULT_RCBA + 0x2310);	// !!! = 0xa809605b
-	write32 (DEFAULT_RCBA + 0x2310, 0xa809605b);
-	read32 (DEFAULT_RCBA + 0x2310);	// !!! = 0xa809605b
-	write32 (DEFAULT_RCBA + 0x2310, 0xa809605b);
+	/*
+	 * Virtual Channel resources must match settings in DMIBAR!
+	 *
+	 * Some of the following settings are taken from
+	 * "Intel Core i5-600, i3-500 Desktop Processor Series and Intel
+	 * Pentium Desktop Processor 6000 Series Vol. 2" datasheet and
+	 * serialice traces.
+	 */
+
+	/* Virtual Channel 0 Resource Control Register.
+	 * Enable channel.
+	 * Set Virtual Channel Identifier.
+	 * Map TC0 and TC3 and TC4 to VC0.
+	 */
+
+	RCBA32(V0CTL) = (1 << 31) | (0 << 24) | (0x0c << 1) | 1;
+
+	/* Virtual Channel 1 Resource Control Register.
+	 * Enable channel.
+	 * Set Virtual Channel Identifier.
+	 * Map TC1 and TC5 to VC1.
+	 */
+	RCBA32(V1CTL) = (1 << 31) | (1 << 24) | (0x11 << 1);
+	/* Read back register */
+	RCBA32(V1CTL);
+
+	/* Virtual Channel private Resource Control Register.
+	 * Enable channel.
+	 * Set Virtual Channel Identifier.
+	 * Map TC2 and TC6 to VCp.
+	 */
+	RCBA32(CIR31) = (1 << 31) | (2 << 24) | (0x22 << 1);
+	/* Read back register */
+	RCBA32(CIR31);
+
+	/* Virtual Channel ME Resource Control Register.
+	 * Enable channel.
+	 * Set Virtual Channel Identifier.
+	 * Map TC7 to VCm.
+	 */
+	RCBA32(CIR32) = (1 << 31) | (7 << 24) | (0x40 << 1);
+
+	/* Lock Virtual Channel Resource control register. */
+	RCBA32(CIR0) |= TCLOCKDN;
+	/* Read back register */
+	RCBA32(CIR0);
+
+	/* Wait for virtual channels negotiation pending */
+	while (RCBA16(V0STS) & VCNEGPND)
+		;
+	while (RCBA16(V1STS) & VCNEGPND)
+		;
+	while (RCBA16(0x2036) & VCNEGPND)
+		;
+	while (RCBA16(0x2046) & VCNEGPND)
+		;
+}
+
+void early_pch_init_native(void)
+{
+	pci_write_config8(SOUTHBRIDGE, 0xa6, pci_read_config8(SOUTHBRIDGE, 0xa6) | 2);
+
+	RCBA32(CIR1) = 0x00109000;
+	RCBA32(REC); // !!! = 0x00000000
+	RCBA32(REC) = 0x40000000;
+	RCBA32(0x100c) = 0x01110000;
+	RCBA8(0x2340) = 0x1b;
+	RCBA32(CIR6); // !!! = 0x0a080000
+	RCBA32(CIR6) = 0x0a280000;
+	RCBA32(0x2310); // !!! = 0xc809605b
+	RCBA32(0x2310) = 0xa809605b;
+	RCBA32(DMC2) = 0x00854c74;
+	RCBA8(RPC);  // !!! = 0x00
+	RCBA32(0x2310); // !!! = 0xa809605b
+	RCBA32(0x2310) = 0xa809605b;
+	RCBA32(0x2310); // !!! = 0xa809605b
+	RCBA32(0x2310) = 0xa809605b;
 
 	write_iobp(0xea007f62, 0x00590133);
 	write_iobp(0xec007f62, 0x00590133);
@@ -367,17 +214,15 @@ early_pch_init_native (void)
 	write_iobp(0xec0007b2, 0x04514b5e);
 	write_iobp(0xec00078c, 0x40000200);
 	write_iobp(0xec000780, 0x02000020);
-
-	init_dmi();
 }
 
 static void pch_enable_bars(void)
 {
-	pci_write_config32(PCH_LPC_DEV, RCBA, (uintptr_t)DEFAULT_RCBA | 1);
+	pci_write_config32(PCH_LPC_DEV, RCBA, CONFIG_FIXED_RCBA_MMIO_BASE | 1);
 
 	pci_write_config32(PCH_LPC_DEV, PMBASE, DEFAULT_PMBASE | 1);
 
-	pci_write_config8(PCH_LPC_DEV, ACPI_CNTL, 0x80);
+	pci_write_config8(PCH_LPC_DEV, ACPI_CNTL, ACPI_EN);
 
 	pci_write_config32(PCH_LPC_DEV, GPIO_BASE, DEFAULT_GPIOBASE | 1);
 
@@ -391,13 +236,80 @@ static void pch_generic_setup(void)
 	write_pmbase16(TCO1_CNT, 1 << 11);	/* halt timer */
 }
 
+static void pch_enable_gbe(void)
+{
+	uint8_t wanted_buc;
+
+	/* Don't do this in the bootblock, it might be RO. So one
+	   couldn't change the setting later in an updated romstage. */
+	if (ENV_BOOTBLOCK)
+		return;
+
+	const struct device *const gbe = pcidev_on_root(0x19, 0);
+	if (gbe && gbe->enabled)
+		wanted_buc = RCBA8(BUC) & ~PCH_DISABLE_GBE;
+	else
+		wanted_buc = RCBA8(BUC) | PCH_DISABLE_GBE;
+
+	if (RCBA8(BUC) != wanted_buc) {
+		RCBA8(BUC) = wanted_buc;
+		/* Be double sure not to reset for naught. */
+		if (RCBA8(BUC) != wanted_buc)
+			return;
+		full_reset();
+	}
+}
+
+static void pch_enable_lpc_decode(void)
+{
+	/*
+	 * Enable some common LPC IO ranges:
+	 * - 0x2e/0x2f, 0x4e/0x4f often SuperIO
+	 * - 0x60/0x64, 0x62/0x66 often KBC/EC
+	 * - 0x3f0-0x3f5/0x3f7 FDD
+	 * - 0x378-0x37f and 0x778-0x77f LPT
+	 * - 0x2f8-0x2ff COMB
+	 * - 0x3f8-0x3ff COMA
+	 */
+	pci_write_config16(PCH_LPC_DEV, LPC_IO_DEC, 0x0010);
+	pci_write_config16(PCH_LPC_DEV, LPC_EN, CNF2_LPC_EN | CNF1_LPC_EN | MC_LPC_EN
+		| KBC_LPC_EN | FDD_LPC_EN | LPT_LPC_EN | COMB_LPC_EN | COMA_LPC_EN);
+
+	const struct device *dev = pcidev_on_root(0x1f, 0);
+	const struct southbridge_intel_bd82x6x_config *config = NULL;
+
+	/* Set up generic decode ranges */
+	if (!dev)
+		return;
+	if (dev->chip_info)
+		config = dev->chip_info;
+	if (!config)
+		return;
+
+	pci_write_config32(PCH_LPC_DEV, LPC_GEN1_DEC, config->gen1_dec);
+	pci_write_config32(PCH_LPC_DEV, LPC_GEN2_DEC, config->gen2_dec);
+	pci_write_config32(PCH_LPC_DEV, LPC_GEN3_DEC, config->gen3_dec);
+	pci_write_config32(PCH_LPC_DEV, LPC_GEN4_DEC, config->gen4_dec);
+}
+
+__weak void mainboard_pch_lpc_setup(void)
+{
+}
+
 void early_pch_init(void)
 {
-	pch_enable_lpc();
+	pch_enable_lpc_decode();
+
+	mainboard_pch_lpc_setup();
 
 	pch_enable_bars();
 
 	pch_generic_setup();
 
+	pch_enable_gbe();
+
 	setup_pch_gpios(&mainboard_gpio_map);
+
+	if (ENV_ROMSTAGE)
+		enable_smbus();
 }

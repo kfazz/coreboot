@@ -1,21 +1,6 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2009 Vipin Kumar, ST Microelectronics
- * Copyright 2017 Google Inc.
- * Copyright 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpigen.h>
+#include <acpi/acpigen.h>
 #include <device/mmio.h>
 #include <console/console.h>
 #include <device/device.h>
@@ -106,53 +91,57 @@ enum {
 
 /* I2C Controller MMIO register space */
 struct dw_i2c_regs {
-	uint32_t control;
-	uint32_t target_addr;
-	uint32_t slave_addr;
-	uint32_t master_addr;
-	uint32_t cmd_data;
-	uint32_t ss_scl_hcnt;
-	uint32_t ss_scl_lcnt;
-	uint32_t fs_scl_hcnt;
-	uint32_t fs_scl_lcnt;
-	uint32_t hs_scl_hcnt;
-	uint32_t hs_scl_lcnt;
-	uint32_t intr_stat;
-	uint32_t intr_mask;
-	uint32_t raw_intr_stat;
-	uint32_t rx_thresh;
-	uint32_t tx_thresh;
-	uint32_t clear_intr;
-	uint32_t clear_rx_under_intr;
-	uint32_t clear_rx_over_intr;
-	uint32_t clear_tx_over_intr;
-	uint32_t clear_rd_req_intr;
-	uint32_t clear_tx_abrt_intr;
-	uint32_t clear_rx_done_intr;
-	uint32_t clear_activity_intr;
-	uint32_t clear_stop_det_intr;
-	uint32_t clear_start_det_intr;
-	uint32_t clear_gen_call_intr;
-	uint32_t enable;
-	uint32_t status;
-	uint32_t tx_level;
-	uint32_t rx_level;
-	uint32_t sda_hold;
-	uint32_t tx_abort_source;
-	uint32_t slv_data_nak_only;
-	uint32_t dma_cr;
-	uint32_t dma_tdlr;
-	uint32_t dma_rdlr;
-	uint32_t sda_setup;
-	uint32_t ack_general_call;
-	uint32_t enable_status;
-	uint32_t fs_spklen;
-	uint32_t hs_spklen;
-	uint32_t clr_restart_det;
-	uint32_t comp_param1;
-	uint32_t comp_version;
-	uint32_t comp_type;
+	uint32_t control;		/* 0x0 */
+	uint32_t target_addr;		/* 0x4 */
+	uint32_t slave_addr;		/* 0x8 */
+	uint32_t master_addr;		/* 0xc */
+	uint32_t cmd_data;		/* 0x10 */
+	uint32_t ss_scl_hcnt;		/* 0x14 */
+	uint32_t ss_scl_lcnt;		/* 0x18 */
+	uint32_t fs_scl_hcnt;		/* 0x1c */
+	uint32_t fs_scl_lcnt;		/* 0x20 */
+	uint32_t hs_scl_hcnt;		/* 0x24 */
+	uint32_t hs_scl_lcnt;		/* 0x28 */
+	uint32_t intr_stat;		/* 0x2c */
+	uint32_t intr_mask;		/* 0x30 */
+	uint32_t raw_intr_stat;		/* 0x34 */
+	uint32_t rx_thresh;		/* 0x38 */
+	uint32_t tx_thresh;		/* 0x3c */
+	uint32_t clear_intr;		/* 0x40 */
+	uint32_t clear_rx_under_intr;	/* 0x44 */
+	uint32_t clear_rx_over_intr;	/* 0x48 */
+	uint32_t clear_tx_over_intr;	/* 0x4c */
+	uint32_t clear_rd_req_intr;	/* 0x50 */
+	uint32_t clear_tx_abrt_intr;	/* 0x54 */
+	uint32_t clear_rx_done_intr;	/* 0x58 */
+	uint32_t clear_activity_intr;	/* 0x5c */
+	uint32_t clear_stop_det_intr;	/* 0x60 */
+	uint32_t clear_start_det_intr;	/* 0x64 */
+	uint32_t clear_gen_call_intr;	/* 0x68 */
+	uint32_t enable;		/* 0x6c */
+	uint32_t status;		/* 0x70 */
+	uint32_t tx_level;		/* 0x74 */
+	uint32_t rx_level;		/* 0x78 */
+	uint32_t sda_hold;		/* 0x7c */
+	uint32_t tx_abort_source;	/* 0x80 */
+	uint32_t slv_data_nak_only;	/* 0x84 */
+	uint32_t dma_cr;		/* 0x88 */
+	uint32_t dma_tdlr;		/* 0x8c */
+	uint32_t dma_rdlr;		/* 0x90 */
+	uint32_t sda_setup;		/* 0x94 */
+	uint32_t ack_general_call;	/* 0x98 */
+	uint32_t enable_status;		/* 0x9c */
+	uint32_t fs_spklen;		/* 0xa0 */
+	uint32_t hs_spklen;		/* 0xa4 */
+	uint32_t clr_restart_det;	/* 0xa8 */
+	uint32_t reserved[18];		/* 0xac - 0xf0 */
+	uint32_t comp_param1;		/* 0xf4 */
+	uint32_t comp_version;		/* 0xf8 */
+	uint32_t comp_type;		/* 0xfc */
 } __packed;
+
+/* Constant value defined in the DesignWare DW_apb_i2c Databook. */
+#define DW_I2C_COMP_TYPE	0x44570140
 
 static const struct i2c_descriptor {
 	enum i2c_speed speed;
@@ -215,6 +204,13 @@ static const struct soc_clock {
 		.freq = {
 			.ticks = 400,
 			.ns = 3000,
+		},
+	},
+	{
+		.clk_speed_mhz = 150,
+		.freq = {
+			.ticks = 600,
+			.ns = 4000,
 		},
 	},
 	{
@@ -422,6 +418,15 @@ static int _dw_i2c_transfer(unsigned int bus, const struct i2c_msg *segments,
 
 	/* Read to clear INTR_STAT_STOP_DET */
 	read32(&regs->clear_stop_det_intr);
+
+	/* Check TX abort */
+	if (read32(&regs->raw_intr_stat) & INTR_STAT_TX_ABORT) {
+		printk(BIOS_ERR, "I2C TX abort detected (%08x)\n",
+		       read32(&regs->tx_abort_source));
+		/* clear INTR_STAT_TX_ABORT */
+		read32(&regs->clear_tx_abrt_intr);
+		goto out;
+	}
 
 	/* Wait for the bus to go idle */
 	if (dw_i2c_wait_for_bus_idle(regs)) {
@@ -702,7 +707,6 @@ static int dw_i2c_set_speed(unsigned int bus, enum i2c_speed speed,
 	return 0;
 }
 
-
 /*
  * Initialize this bus controller and set the speed.
  *
@@ -725,6 +729,14 @@ int dw_i2c_init(unsigned int bus, const struct dw_i2c_bus_config *bcfg)
 		return -1;
 	}
 
+	if (read32(&regs->comp_type) != DW_I2C_COMP_TYPE) {
+		printk(BIOS_ERR, "I2C bus %u has unknown type 0x%x.\n", bus,
+		       read32(&regs->comp_type));
+		return -1;
+	}
+
+	printk(BIOS_DEBUG, "I2C bus %u version 0x%x\n", bus, read32(&regs->comp_version));
+
 	if (dw_i2c_disable(regs) < 0) {
 		printk(BIOS_ERR, "I2C timeout disabling bus %u\n", bus);
 		return -1;
@@ -744,10 +756,10 @@ int dw_i2c_init(unsigned int bus, const struct dw_i2c_bus_config *bcfg)
 	write32(&regs->rx_thresh, 0);
 	write32(&regs->tx_thresh, 0);
 
-	/* Enable stop detection interrupt */
-	write32(&regs->intr_mask, INTR_STAT_STOP_DET);
+	/* Enable stop detection and TX abort interrupt */
+	write32(&regs->intr_mask, INTR_STAT_STOP_DET | INTR_STAT_TX_ABORT);
 
-	printk(BIOS_INFO, "DW I2C bus %u at 0x%p (%u KHz)\n",
+	printk(BIOS_INFO, "DW I2C bus %u at %p (%u KHz)\n",
 	       bus, regs, speed / KHz);
 
 	return 0;
@@ -812,22 +824,14 @@ void dw_i2c_dev_init(struct device *dev)
  * Generate I2C timing information into the SSDT for the OS driver to consume,
  * optionally applying override values provided by the caller.
  */
-void dw_i2c_acpi_fill_ssdt(struct device *dev)
+void dw_i2c_acpi_fill_ssdt(const struct device *dev)
 {
 	const struct dw_i2c_bus_config *bcfg;
 	uintptr_t dw_i2c_addr;
 	struct dw_i2c_speed_config sgen;
-	enum i2c_speed speeds[DW_I2C_SPEED_CONFIG_COUNT] = {
-		I2C_SPEED_STANDARD,
-		I2C_SPEED_FAST,
-		I2C_SPEED_FAST_PLUS,
-		I2C_SPEED_HIGH,
-	};
-	int i, bus;
+	int bus;
 	const char *path;
-
-	if (!dev->enabled)
-		return;
+	unsigned int speed;
 
 	bus = dw_i2c_soc_dev_to_bus(dev);
 
@@ -847,20 +851,15 @@ void dw_i2c_acpi_fill_ssdt(struct device *dev)
 	if (!path)
 		return;
 
-	acpigen_write_scope(path);
+	/* Ensure a default speed is available */
+	speed = (bcfg->speed == 0) ? I2C_SPEED_FAST : bcfg->speed;
 
 	/* Report timing values for the OS driver */
-	for (i = 0; i < DW_I2C_SPEED_CONFIG_COUNT; i++) {
-		/* Generate speed config. */
-		if (dw_i2c_gen_speed_config(dw_i2c_addr, speeds[i], bcfg,
-						&sgen) < 0)
-			continue;
-
-		/* Generate ACPI based on selected speed config */
+	if (dw_i2c_gen_speed_config(dw_i2c_addr, speed, bcfg, &sgen) >= 0) {
+		acpigen_write_scope(path);
 		dw_i2c_acpi_write_speed_config(&sgen);
+		acpigen_pop_len();
 	}
-
-	acpigen_pop_len();
 }
 
 static int dw_i2c_dev_transfer(struct device *dev,

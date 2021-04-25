@@ -1,24 +1,12 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 Google Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <bootblock_common.h>
-#include <commonlib/compression.h>
+#include <commonlib/bsd/compression.h>
 #include <delay.h>
+#include <metadata_hash.h>
 #include <program_loading.h>
 #include <symbols.h>
+#include <timestamp.h>
 
 extern u8 compressed_bootblock[];
 asm (
@@ -54,6 +42,9 @@ void main(void)
 
 	if (CONFIG(COLLECT_TIMESTAMPS))
 		arg.base_timestamp = timestamp_get();
+
+	if (CONFIG(CBFS_VERIFICATION))
+		arg.metadata_hash_anchor = metadata_hash_export_anchor();
 
 	decompressor_soc_init();
 

@@ -1,20 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
-
-#include <stdint.h>
-#include <stdlib.h>
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <soc/addressmap.h>
 #include <soc/clock.h>
@@ -25,6 +9,7 @@
 #include <soc/mipi_display.h>
 #include <soc/tegra_dsi.h>
 #include <soc/mipi-phy.h>
+#include <types.h>
 
 int mipi_dphy_set_timing(struct tegra_dsi *dsi)
 {

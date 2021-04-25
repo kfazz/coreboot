@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- * Copyright (C) 2011 The ChromiumOS Authors.  All rights reserved.
- * Copyright 2013 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <bootmode.h>
 #include <console/console.h>
@@ -29,7 +14,7 @@
  * Will break if we get 2. Sigh.
  * We assume it's all multiples of MiB for MMUs sake.
  */
-static void soc_enable(struct device *dev)
+static void soc_read_resources(struct device *dev)
 {
 	u32 lcdbase = fb_base_mb();
 	unsigned long fb_size = FB_SIZE_MB;
@@ -56,11 +41,9 @@ static void soc_init(struct device *dev)
 }
 
 static struct device_operations soc_ops = {
-	.read_resources   = DEVICE_NOOP,
-	.set_resources    = DEVICE_NOOP,
-	.enable_resources = soc_enable,
+	.read_resources   = soc_read_resources,
+	.set_resources    = noop_set_resources,
 	.init             = soc_init,
-	.scan_bus         = 0,
 };
 
 static void enable_tegra124_dev(struct device *dev)

@@ -1,5 +1,4 @@
 ##
-## This file is part of the libpayload project.
 ##
 ## Copyright (C) 2008 Advanced Micro Devices, Inc.
 ## Copyright (C) 2008 coresystems GmbH
@@ -80,6 +79,14 @@ config COMPILER_LLVM_CLANG
 
 endchoice
 
+config LTO
+	bool "Use link time optimization (LTO)"
+	default n
+	depends on COMPILER_GCC
+	help
+	  Compile with link time optimization. This can often decrease the
+	  final binary size, but may increase compilation time.
+
 config REMOTEGDB
 	bool "Remote GDB stub"
 	default n
@@ -114,11 +121,6 @@ config ARCH_ARM64
         help
           Support the ARM64 architecture
 
-config ARCH_MIPS
-	bool "MIPS"
-	help
-	  Support the MIPS architecture
-
 endchoice
 
 config MULTIBOOT
@@ -147,12 +149,11 @@ config BASE_ADDRESS
 	hex "Base address"
 	default 0x04000000 if ARCH_ARM
 	default 0x80100000 if ARCH_ARM64
-	default 0x00000000 if ARCH_MIPS
 	default 0x00100000 if ARCH_X86
 	help
 	  This is the base address for the payload.
 
-	  If unsure, set to 0x00100000 on x86, 0x00000000 on MIPS,
+	  If unsure, set to 0x00100000 on x86,
 	  0x04000000 on ARM or 0x80100000 on ARM64.
 
 endmenu
@@ -258,6 +259,16 @@ config IPQ40XX_SERIAL_CONSOLE
 	depends on SERIAL_CONSOLE
 	default n
 
+config QCS405_SERIAL_CONSOLE
+	bool "QCS405 SOC compatible serial port driver"
+	depends on SERIAL_CONSOLE
+	default n
+
+config QUALCOMM_QUPV3_SERIAL_CONSOLE
+	bool "Qualcomm QUPV3 serial port driver"
+	depends on SERIAL_CONSOLE
+	default n
+
 config PL011_SERIAL_CONSOLE
 	bool "PL011 compatible serial port driver"
 	depends on 8250_SERIAL_CONSOLE
@@ -316,6 +327,13 @@ config COREBOOT_VIDEO_CONSOLE
 	  Say Y here if coreboot switched to a graphics mode and
 	  your payload wants to use it.
 
+config COREBOOT_VIDEO_CENTERED
+	bool "Center a classic 80x25 console on bigger screens"
+	depends on COREBOOT_VIDEO_CONSOLE
+	help
+	  Say 'y' here if your payload is hardcoded to a 80x25 console. Otherwise
+	  its output would look squeezed into the upper-left corner of the screen.
+
 config FONT_SCALE_FACTOR
 	int "Scale factor for the included font"
 	depends on GEODELX_VIDEO_CONSOLE || COREBOOT_VIDEO_CONSOLE
@@ -323,6 +341,19 @@ config FONT_SCALE_FACTOR
 	help
 	  By default (value of 0), the scale factor is automatically
 	  calculated to ensure at least 130 columns (when possible).
+
+config CBGFX_FAST_RESAMPLE
+	bool "CBGFX: use faster (less pretty) image scaling"
+	default n
+	help
+	  When payloads use the CBGFX library to draw .BMPs on the screen,
+	  they will be resampled with an anti-aliasing filter to scale to the
+	  requested output size. The default implementation should normally be
+	  fast enough, but if desired this option can make it about 50-100%
+	  faster at the cost of quality. (It changes the 'a' parameter in the
+	  Lanczos resampling algorithm from 3 to 2.)
+
+	  Only affects .BMPs that aren't already provided at the right size.
 
 config PC_I8042
 	bool "A common PC i8042 driver"
@@ -342,10 +373,6 @@ config PC_MOUSE
 config PC_KEYBOARD
 	bool "Allow input from a PC keyboard"
 	default y if ARCH_X86 # uses IO
-	default n
-
-config PC_KEYBOARD_IGNORE_INIT_FAILURE
-	bool "Ignore keyboard failures during init and always add input device"
 	default n
 
 config PC_KEYBOARD_LAYOUT_US
@@ -447,5 +474,4 @@ config IO_ADDRESS_SPACE
 
 source "arch/arm/Kconfig"
 source "arch/arm64/Kconfig"
-source "arch/mips/Kconfig"
 source "arch/x86/Kconfig"

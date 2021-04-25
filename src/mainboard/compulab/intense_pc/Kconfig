@@ -7,7 +7,7 @@ config BOARD_SPECIFIC_OPTIONS
 	select HAVE_ACPI_RESUME
 	select HAVE_ACPI_TABLES
 	select INTEL_INT15
-	select NORTHBRIDGE_INTEL_IVYBRIDGE
+	select NORTHBRIDGE_INTEL_SANDYBRIDGE
 	select SERIRQ_CONTINUOUS_MODE
 	select SOUTHBRIDGE_INTEL_C216
 	select SYSTEM_TYPE_LAPTOP
@@ -18,7 +18,7 @@ config BOARD_SPECIFIC_OPTIONS
 
 config MAINBOARD_DIR
 	string
-	default compulab/intense_pc
+	default "compulab/intense_pc"
 
 config MAINBOARD_PART_NUMBER
 	string
@@ -31,10 +31,6 @@ config VGA_BIOS_ID
 config DRAM_RESET_GATE_GPIO # FIXME: check this
 	int
 	default 60
-
-config MAX_CPUS
-	int
-	default 8
 
 config USBDEBUG_HCD_INDEX # FIXME: check this
 	int

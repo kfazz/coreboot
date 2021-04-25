@@ -1,20 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2010 coresystems GmbH
- * Copyright (C) 2011 The ChromiumOS Authors.  All rights reserved.
- * Copyright (C) 2017 Tobias Diedrich <ranma+coreboot@tdiedrich.de>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <stdint.h>
 #include <northbridge/intel/sandybridge/sandybridge.h>
@@ -30,15 +14,15 @@ void mainboard_fill_pei_data(struct pei_data *pei_data)
 {
 	struct pei_data pei_data_template = {
 		.pei_version = PEI_VERSION,
-		.mchbar = (uintptr_t)DEFAULT_MCHBAR,
-		.dmibar = (uintptr_t)DEFAULT_DMIBAR,
-		.epbar = DEFAULT_EPBAR,
+		.mchbar = CONFIG_FIXED_MCHBAR_MMIO_BASE,
+		.dmibar = CONFIG_FIXED_DMIBAR_MMIO_BASE,
+		.epbar = CONFIG_FIXED_EPBAR_MMIO_BASE,
 		.pciexbar = CONFIG_MMCONF_BASE_ADDRESS,
-		.smbusbar = SMBUS_IO_BASE,
+		.smbusbar = CONFIG_FIXED_SMBUS_IO_BASE,
 		.wdbbar = 0x4000000,
 		.wdbsize = 0x1000,
 		.hpet_address = CONFIG_HPET_ADDRESS,
-		.rcba = (uintptr_t)DEFAULT_RCBABASE,
+		.rcba = (uintptr_t)DEFAULT_RCBA,
 		.pmbase = DEFAULT_PMBASE,
 		.gpiobase = DEFAULT_GPIOBASE,
 		.thermalbase = 0xfed08000,
@@ -48,12 +32,6 @@ void mainboard_fill_pei_data(struct pei_data *pei_data)
 		.ts_addresses = { 0x00, 0x00, 0x00, 0x00 },
 		.ec_present = 0,
 		.gbe_enable = 1,
-		// 0 = leave channel enabled
-		// 1 = disable dimm 0 on channel
-		// 2 = disable dimm 1 on channel
-		// 3 = disable dimm 0+1 on channel
-		.dimm_channel0_disabled = 2,
-		.dimm_channel1_disabled = 2,
 		.max_ddr3_freq = 1333,
 		.usb_port_config = {
 #define USB_CONFIG(enabled, current, ocpin) { enabled, ocpin, 0x040 * current }

@@ -1,12 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # git pre-commit hook that runs an clang-format stylecheck.
 # Features:
 #  - abort commit when commit does not comply with the style guidelines
 #  - create a patch of the proposed style changes
 #
 # modifications for clang-format by rene.milk@wwu.de
-# This file is part of a set of unofficial pre-commit hooks available
-# at github.
 # Link:    https://github.com/githubbrowser/Pre-commit-hooks
 # Contact: David Martin, david.martin.mailbox@googlemail.com
 
@@ -15,7 +13,7 @@
 ##################################################################
 # SETTINGS
 # set path to clang-format binary
-CLANG_FORMAT="/usr/bin/clang-format"
+CLANG_FORMAT="$(command -v clang-format)"
 
 # remove any older patches from previous commits. Set to true or false.
 # DELETE_OLD_PATCHES=false
@@ -137,7 +135,10 @@ cat "$patch"
 
 printf "\nYou can apply these changes with:\n git apply $patch\n"
 printf "(may need to be called from the root directory of your repository)\n"
-printf "Aborting commit. Apply changes and commit again or skip checking with"
-printf " --no-verify (not recommended).\n"
 
-exit 1
+# FIXME: clang-format is currently unusable, so don't abort the commit.
+# printf "Aborting commit. Apply changes and commit again or skip checking with"
+# printf " --no-verify (not recommended).\n"
+# exit 1
+
+exit 0

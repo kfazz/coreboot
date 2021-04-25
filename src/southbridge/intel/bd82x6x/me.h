@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 The Chromium OS Authors. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _INTEL_ME_H
 #define _INTEL_ME_H
@@ -61,30 +47,36 @@
 #define  ME_HFS_ACK_GBL_RESET	6
 #define  ME_HFS_ACK_CONTINUE	7
 
-struct me_hfs {
-	u32 working_state: 4;
-	u32 mfg_mode: 1;
-	u32 fpt_bad: 1;
-	u32 operation_state: 3;
-	u32 fw_init_complete: 1;
-	u32 ft_bup_ld_flr: 1;
-	u32 update_in_progress: 1;
-	u32 error_code: 4;
-	u32 operation_mode: 4;
-	u32 reserved: 4;
-	u32 boot_options_present: 1;
-	u32 ack_data: 3;
-	u32 bios_msg_ack: 4;
+union me_hfs {
+	struct {
+		u32 working_state: 4;
+		u32 mfg_mode: 1;
+		u32 fpt_bad: 1;
+		u32 operation_state: 3;
+		u32 fw_init_complete: 1;
+		u32 ft_bup_ld_flr: 1;
+		u32 update_in_progress: 1;
+		u32 error_code: 4;
+		u32 operation_mode: 4;
+		u32 reserved: 4;
+		u32 boot_options_present: 1;
+		u32 ack_data: 3;
+		u32 bios_msg_ack: 4;
+	};
+	u32 raw;
 } __packed;
 
 #define PCI_ME_UMA		0x44
 
-struct me_uma {
-	u32 size: 6;
-	u32 reserved_1: 10;
-	u32 valid: 1;
-	u32 reserved_0: 14;
-	u32 set_to_one: 1;
+union me_uma {
+	struct {
+		u32 size: 6;
+		u32 reserved_1: 10;
+		u32 valid: 1;
+		u32 reserved_0: 14;
+		u32 set_to_one: 1;
+	};
+	u32 raw;
 } __packed;
 
 #define PCI_ME_H_GS		0x4c
@@ -93,11 +85,14 @@ struct me_uma {
 #define  ME_INIT_STATUS_NOMEM	1
 #define  ME_INIT_STATUS_ERROR	2
 
-struct me_did {
-	u32 uma_base: 16;
-	u32 reserved: 8;
-	u32 status: 4;
-	u32 init_done: 4;
+union me_did {
+	struct {
+		u32 uma_base: 16;
+		u32 reserved: 8;
+		u32 status: 4;
+		u32 init_done: 4;
+	};
+	u32 raw;
 } __packed;
 
 #define PCI_ME_GMES		0x48
@@ -109,21 +104,24 @@ struct me_did {
 #define  ME_GMES_PHASE_UNKNOWN	5
 #define  ME_GMES_PHASE_HOST	6
 
-struct me_gmes {
-	u32 bist_in_prog : 1;
-	u32 icc_prog_sts : 2;
-	u32 invoke_mebx : 1;
-	u32 cpu_replaced_sts : 1;
-	u32 mbp_rdy : 1;
-	u32 mfs_failure : 1;
-	u32 warm_rst_req_for_df : 1;
-	u32 cpu_replaced_valid : 1;
-	u32 reserved_1 : 2;
-	u32 fw_upd_ipu : 1;
-	u32 reserved_2 : 4;
-	u32 current_state: 8;
-	u32 current_pmevent: 4;
-	u32 progress_code: 4;
+union me_gmes {
+	struct {
+		u32 bist_in_prog : 1;
+		u32 icc_prog_sts : 2;
+		u32 invoke_mebx : 1;
+		u32 cpu_replaced_sts : 1;
+		u32 mbp_rdy : 1;
+		u32 mfs_failure : 1;
+		u32 warm_rst_req_for_df : 1;
+		u32 cpu_replaced_valid : 1;
+		u32 reserved_1 : 2;
+		u32 fw_upd_ipu : 1;
+		u32 reserved_2 : 4;
+		u32 current_state: 8;
+		u32 current_pmevent: 4;
+		u32 progress_code: 4;
+	};
+	u32 raw;
 } __packed;
 
 #define PCI_ME_HERES		0xbc
@@ -131,11 +129,14 @@ struct me_gmes {
 #define  PCI_ME_EXT_SHA256	0x02
 #define PCI_ME_HER(x)		(0xc0+(4*(x)))
 
-struct me_heres {
-	u32 extend_reg_algorithm: 4;
-	u32 reserved: 26;
-	u32 extend_feature_present: 1;
-	u32 extend_reg_valid: 1;
+union me_heres {
+	struct {
+		u32 extend_reg_algorithm: 4;
+		u32 reserved: 26;
+		u32 extend_feature_present: 1;
+		u32 extend_reg_valid: 1;
+	};
+	u32 raw;
 } __packed;
 
 /*
@@ -185,6 +186,22 @@ struct mei_header {
 #define MKHI_GLOBAL_RESET	0x0b
 
 #define MKHI_FWCAPS_GET_RULE	0x02
+#define MKHI_FWCAPS_SET_RULE	0x03
+
+#define MKHI_DISABLE_RULE_ID	0x06
+
+#define CMOS_ME_STATE(state)	((state) & 0x1)
+#define CMOS_ME_CHANGED(state)	(((state) & 0x2) >> 1)
+#define CMOS_ME_STATE_NORMAL	0
+#define CMOS_ME_STATE_DISABLED	1
+#define CMOS_ME_STATE_CHANGED	2
+
+#define ME_ENABLE_TIMEOUT	20000
+
+struct me_disable {
+	u32 rule_id;
+	u16 data;
+} __packed;
 
 #define MKHI_MDES_ENABLE	0x09
 
@@ -211,7 +228,6 @@ struct me_fw_version {
 	u16 recovery_hot_fix;
 } __packed;
 
-
 #define HECI_EOP_STATUS_SUCCESS       0x0
 #define HECI_EOP_PERFORM_GLOBAL_RESET 0x1
 
@@ -235,20 +251,46 @@ typedef enum {
 	ME_FIRMWARE_UPDATE_BIOS_PATH,
 } me_bios_path;
 
-/* Defined in me_status.c for both romstage and ramstage */
-void intel_me_status(struct me_hfs *hfs, struct me_gmes *gmes);
+/* Defined in me_common.c for both ramstage and smm */
+const char *const me_get_bios_path_string(int path);
 
-#ifdef __PRE_RAM__
+void mei_read_dword_ptr(void *ptr, int offset);
+void mei_write_dword_ptr(void *ptr, int offset);
+
+#ifndef __SIMPLE_DEVICE__
+bool enter_soft_temp_disable(void);
+void enter_soft_temp_disable_wait(void);
+void exit_soft_temp_disable(struct device *dev);
+void exit_soft_temp_disable_wait(struct device *dev);
+#endif
+
+void read_host_csr(struct mei_csr *csr);
+void write_host_csr(struct mei_csr *csr);
+
+void read_me_csr(struct mei_csr *csr);
+
+void write_cb(u32 dword);
+u32 read_cb(void);
+
+int mei_sendrecv(struct mei_header *mei, struct mkhi_header *mkhi,
+		 void *req_data, void *rsp_data, int rsp_bytes);
+
+void update_mei_base_address(void);
+bool is_mei_base_address_valid(void);
+int intel_mei_setup(struct device *dev);
+int intel_me_extend_valid(struct device *dev);
+void intel_me_hide(struct device *dev);
+
+/* Defined in me_status.c for both romstage and ramstage */
+void intel_me_status(union me_hfs *hfs, union me_gmes *gmes);
+
 void intel_early_me_status(void);
 int intel_early_me_init(void);
 int intel_early_me_uma_size(void);
 int intel_early_me_init_done(u8 status);
-#endif
 
-#ifdef __SMM__
 void intel_me_finalize_smm(void);
-void intel_me8_finalize_smm(void);
-#endif
+
 typedef struct {
 	u32       major_version  : 16;
 	u32       minor_version  : 16;

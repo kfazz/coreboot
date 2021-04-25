@@ -1,32 +1,4 @@
-/*
- * Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name of Google, Inc. nor the names of its contributors
- *    may be used to endorse or promote products derived from this
- *    software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
- * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- */
+/* SPDX-License-Identifier: BSD-3-Clause */
 
 #include <device/mmio.h>
 #include <gpio.h>
@@ -45,7 +17,6 @@ static inline int gpio_not_valid(gpio_t gpio)
 	return (gpio > GPIO_MAX_NUM);
 }
 
-
 /*******************************************************
 Function description: configure GPIO functinality
 Arguments :
@@ -58,12 +29,11 @@ unsigned enable - 0 Disable, 1 - Enable.
 Return : None
 *******************************************************/
 
-
-void gpio_tlmm_config_set(gpio_t gpio, unsigned func,
-			  unsigned pull, unsigned drvstr,
-			  unsigned enable)
+void gpio_tlmm_config_set(gpio_t gpio, unsigned int func,
+			  unsigned int pull, unsigned int drvstr,
+			  unsigned int enable)
 {
-	unsigned val = 0;
+	unsigned int val = 0;
 
 	if (gpio_not_valid(gpio))
 		return;
@@ -88,12 +58,11 @@ unsigned *enable - 0 - Disable, 1- Enable.
 Return : None
 *******************************************************/
 
-
-void gpio_tlmm_config_get(gpio_t gpio, unsigned *func,
-			  unsigned *pull, unsigned *drvstr,
-			  unsigned *enable)
+void gpio_tlmm_config_get(gpio_t gpio, unsigned int *func,
+			  unsigned int *pull, unsigned int *drvstr,
+			  unsigned int *enable)
 {
-	unsigned val;
+	unsigned int val;
 	void *addr = GPIO_CONFIG_ADDR(gpio);
 
 	if (gpio_not_valid(gpio))
@@ -120,7 +89,6 @@ int gpio_get(gpio_t gpio)
 {
 	if (gpio_not_valid(gpio))
 		return -1;
-
 
 	return (read32(GPIO_IN_OUT_ADDR(gpio)) >> GPIO_IO_IN_SHIFT) &
 		GPIO_IO_IN_MASK;

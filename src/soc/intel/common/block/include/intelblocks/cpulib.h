@@ -1,23 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Intel Corporation.
- * Copyright (C) 2018 Siemens AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef SOC_INTEL_COMMON_BLOCK_CPULIB_H
 #define SOC_INTEL_COMMON_BLOCK_CPULIB_H
 
-#include <stdint.h>
+#include <types.h>
 
 /*
  * Set PERF_CTL MSR (0x199) P_Req with
@@ -147,6 +133,9 @@ uint32_t cpu_get_min_ratio(void);
  */
 uint32_t cpu_get_max_ratio(void);
 
+/* Thermal throttle activation offset */
+void configure_tcc_thermal_target(void);
+
 /*
  * cpu_get_power_max calculates CPU TDP in mW
  */
@@ -159,6 +148,22 @@ uint32_t cpu_get_power_max(void);
 uint32_t cpu_get_max_turbo_ratio(void);
 
 /* Configure Machine Check Architecture support */
-void mca_configure(void *unused);
+void mca_configure(void);
+
+/* Lock chipset memory registers to protect SMM */
+void cpu_lt_lock_memory(void);
+
+/* Get a supported PRMRR size in bytes with respect to users choice */
+int get_valid_prmrr_size(void);
+
+/*
+ * Enable the emulated ACPI timer in case it's not available or to allow
+ * disabling the PM ACPI timer (PM1_TMR) for power saving.
+ */
+void enable_pm_timer_emulation(void);
+
+/* Derive core, package and thread information from lapic ID */
+void get_cpu_topology_from_apicid(uint32_t apicid, uint8_t *package,
+		uint8_t *core, uint8_t *thread);
 
 #endif	/* SOC_INTEL_COMMON_BLOCK_CPULIB_H */

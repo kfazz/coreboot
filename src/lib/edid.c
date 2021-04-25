@@ -1,26 +1,4 @@
-/*
- * Copyright 2013 Google Inc.
- * Copyright 2006-2012 Red Hat, Inc.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * on the rights to use, copy, modify, merge, publish, distribute, sub
- * license, and/or sell copies of the Software, and to permit persons to whom
- * the Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
-/* Author: Adam Jackson <ajax@nwnk.net> */
+/* SPDX-License-Identifier: MIT */
 
 /* this is a pretty robust parser for EDID, and we're tasked with parsing
  * an arbitrary panel. We will pass it a raw EDID block and a struct which
@@ -29,13 +7,12 @@
  */
 
 #include <assert.h>
-#include <stddef.h>
+#include <commonlib/helpers.h>
 #include <console/console.h>
+#include <ctype.h>
 #include <stdint.h>
 #include <string.h>
-#include <stdlib.h>
 #include <edid.h>
-#include <boot/coreboot_tables.h>
 #include <vbe.h>
 
 struct edid_context {
@@ -71,7 +48,6 @@ struct edid_context {
 /* Stuff that isn't used anywhere but is nice to pretty-print while
    we're decoding everything else. */
 static struct {
-	char manuf_name[4];
 	unsigned int model;
 	unsigned int serial;
 	unsigned int year;
@@ -93,20 +69,20 @@ static struct {
 
 static struct edid tmp_edid;
 
-static char *manufacturer_name(unsigned char *x)
+static int manufacturer_name(unsigned char *x, char *output)
 {
-	extra_info.manuf_name[0] = ((x[0] & 0x7C) >> 2) + '@';
-	extra_info.manuf_name[1] = ((x[0] & 0x03) << 3) + ((x[1] & 0xE0) >> 5)
-		+ '@';
-	extra_info.manuf_name[2] = (x[1] & 0x1F) + '@';
-	extra_info.manuf_name[3] = 0;
+	output[0] = ((x[0] & 0x7C) >> 2) + '@';
+	output[1] = ((x[0] & 0x03) << 3) + ((x[1] & 0xE0) >> 5) + '@';
+	output[2] = (x[1] & 0x1F) + '@';
+	output[3] = 0;
 
-	if (isupper(extra_info.manuf_name[0]) &&
-	    isupper(extra_info.manuf_name[1]) &&
-	    isupper(extra_info.manuf_name[2]))
-		return extra_info.manuf_name;
+	if (isupper(output[0]) &&
+	    isupper(output[1]) &&
+	    isupper(output[2]))
+		return 1;
 
-	return NULL;
+	memset(output, 0, 4);
+	return 0;
 }
 
 static int
@@ -179,7 +155,7 @@ extract_string(unsigned char *x, int *valid_termination, int len)
 
 	memset(ret, 0, sizeof(ret));
 
-	for (i = 0; i < min(len, EDID_ASCII_STRING_LENGTH); i++) {
+	for (i = 0; i < MIN(len, EDID_ASCII_STRING_LENGTH); i++) {
 		if (seen_newline) {
 			if (x[i] != 0x20) {
 				*valid_termination = 0;
@@ -285,6 +261,7 @@ detailed_block(struct edid *result_edid, unsigned char *x, int in_extension,
 			       extract_string(x + 5,
 					      &c->has_valid_string_termination,
 					      EDID_ASCII_STRING_LENGTH));
+			c->has_name_descriptor = 1;
 			return 1;
 		case 0xFD:
 		{
@@ -525,7 +502,7 @@ detailed_block(struct edid *result_edid, unsigned char *x, int in_extension,
 	 * another call to edid_set_framebuffer_bits_per_pixel(). As a cheap
 	 * heuristic, assume that X86 systems require a 64-byte row alignment
 	 * (since that seems to be true for most Intel chipsets). */
-	if (CONFIG(ARCH_X86))
+	if (ENV_X86)
 		edid_set_framebuffer_bits_per_pixel(out, 32, 64);
 	else
 		edid_set_framebuffer_bits_per_pixel(out, 32, 0);
@@ -574,7 +551,7 @@ detailed_block(struct edid *result_edid, unsigned char *x, int in_extension,
 		"Detailed mode (IN HEX): Clock %d KHz, %x mm x %x mm\n"
 	       "               %04x %04x %04x %04x hborder %x\n"
 	       "               %04x %04x %04x %04x vborder %x\n"
-	       "               %chsync %cvsync%s%s %s\n",
+	       "               %chsync %cvsync%s%s%s\n",
 	       out->mode.pixel_clock,
 	       extra_info.x_mm,
 	       extra_info.y_mm,
@@ -1139,8 +1116,6 @@ int decode_edid(unsigned char *edid, int size, struct edid *out)
 	    .conformant = EDID_CONFORMANT,
 	};
 
-	memset(out, 0, sizeof(*out));
-
 	if (!edid) {
 		printk(BIOS_ERR, "No EDID found\n");
 		return EDID_ABSENT;
@@ -1153,7 +1128,9 @@ int decode_edid(unsigned char *edid, int size, struct edid *out)
 		return EDID_ABSENT;
 	}
 
-	if (manufacturer_name(edid + 0x08))
+	memset(out, 0, sizeof(*out));
+
+	if (manufacturer_name(edid + 0x08, out->manufacturer_name))
 		c.manufacturer_name_well_formed = 1;
 
 	extra_info.model = (unsigned short)(edid[0x0A] + (edid[0x0B] << 8));
@@ -1161,7 +1138,7 @@ int decode_edid(unsigned char *edid, int size, struct edid *out)
 				     + (edid[0x0E] << 16) + (edid[0x0F] << 24));
 
 	printk(BIOS_SPEW, "Manufacturer: %s Model %x Serial Number %u\n",
-	       extra_info.manuf_name,
+	       out->manufacturer_name,
 	       (unsigned short)(edid[0x0A] + (edid[0x0B] << 8)),
 	       (unsigned int)(edid[0x0C] + (edid[0x0D] << 8)
 			      + (edid[0x0E] << 16) + (edid[0x0F] << 24)));
@@ -1206,14 +1183,16 @@ int decode_edid(unsigned char *edid, int size, struct edid *out)
 		switch (edid[0x13]) {
 		case 4:
 			c.claims_one_point_four = 1;
+			/* fall through */
 		case 3:
 			c.claims_one_point_three = 1;
+			/* fall through */
 		case 2:
 			c.claims_one_point_two = 1;
+			/* fall through */
 		default:
-			break;
+			c.claims_one_point_oh = 1;
 		}
-		c.claims_one_point_oh = 1;
 	}
 
 	/* display section */
@@ -1690,7 +1669,7 @@ void edid_set_framebuffer_bits_per_pixel(struct edid *edid, int fb_bpp,
 {
 	/* Caller should pass a supported value, everything else is BUG(). */
 	assert(fb_bpp == 32 || fb_bpp == 24 || fb_bpp == 16);
-	row_byte_alignment = max(row_byte_alignment, 1);
+	row_byte_alignment = MAX(row_byte_alignment, 1);
 
 	edid->framebuffer_bits_per_pixel = fb_bpp;
 	edid->bytes_per_line = ALIGN_UP(edid->mode.ha *

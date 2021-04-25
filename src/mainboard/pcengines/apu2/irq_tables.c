@@ -1,20 +1,7 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
-#include <device/pci.h>
+#include <device/pci_def.h>
 #include <string.h>
 #include <stdint.h>
 #include <arch/pirq_routing.h>
@@ -37,7 +24,6 @@ static void write_pirq_info(struct irq_info *pirq_info, u8 bus, u8 devfn,
 	pirq_info->slot = slot;
 	pirq_info->rfu = rfu;
 }
-
 
 unsigned long write_pirq_routing_table(unsigned long addr)
 {
@@ -96,7 +82,7 @@ unsigned long write_pirq_routing_table(unsigned long addr)
 		pirq->checksum = sum;
 	}
 
-	printk(BIOS_INFO, "write_pirq_routing_table done.\n");
+	printk(BIOS_INFO, "%s done.\n", __func__);
 
 	return (unsigned long)pirq_info;
 }

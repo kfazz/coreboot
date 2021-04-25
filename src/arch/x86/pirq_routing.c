@@ -1,27 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Alexandru Gagniuc <mr.nuke.me@gmail.com>
- * Copyright (C) 2010 Stefan Reinauer <stepan@coreboot.org>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
 #include <console/console.h>
 #include <arch/pirq_routing.h>
+#include <commonlib/helpers.h>
 #include <string.h>
 #include <device/pci.h>
-
-void __weak pirq_assign_irqs(const unsigned char pirq[CONFIG_MAX_PIRQ_LINKS])
-{
-}
 
 static void check_pirq_routing_table(struct irq_routing_table *rt)
 {
@@ -44,7 +27,6 @@ static void check_pirq_routing_table(struct irq_routing_table *rt)
 
 	printk(BIOS_DEBUG, "%s(): Interrupt Routing Table located at %p.\n",
 		     __func__, addr);
-
 
 	sum = rt->checksum - sum;
 
@@ -123,8 +105,6 @@ static u8 pirq_get_next_free_irq(u8 *pirq, u16 bitmap)
 		/* If it's not yet routed, use it */
 		if (!already_routed)
 			break;
-		/* But if it was already routed, try the next one */
-		continue;
 	}
 	/* Now we got our IRQ */
 	return irq;
@@ -145,8 +125,11 @@ static void pirq_route_irqs(unsigned long addr)
 	/* Set PCI IRQs. */
 	for (i = 0; i < num_entries; i++) {
 
+		u8 bus = pirq_tbl->slots[i].bus;
+		u8 devfn = pirq_tbl->slots[i].devfn;
+
 		printk(BIOS_DEBUG, "PIRQ Entry %d Dev/Fn: %X Slot: %d\n", i,
-			pirq_tbl->slots[i].devfn >> 3, pirq_tbl->slots[i].slot);
+			devfn >> 3, pirq_tbl->slots[i].slot);
 
 		for (intx = 0; intx < MAX_INTX_ENTRIES; intx++) {
 
@@ -177,8 +160,7 @@ static void pirq_route_irqs(unsigned long addr)
 		}
 
 		/* Bus, device, slots IRQs for {A,B,C,D}. */
-		pci_assign_irqs(pirq_tbl->slots[i].bus,
-			pirq_tbl->slots[i].devfn >> 3, irq_slot);
+		pci_assign_irqs(pcidev_path_on_bus(bus, devfn), irq_slot);
 	}
 
 	for (i = 0; i < CONFIG_MAX_PIRQ_LINKS; i++)
@@ -191,7 +173,7 @@ unsigned long copy_pirq_routing_table(unsigned long addr,
 	const struct irq_routing_table *routing_table)
 {
 	/* Align the table to be 16 byte aligned. */
-	addr = ALIGN(addr, 16);
+	addr = ALIGN_UP(addr, 16);
 
 	/* This table must be between 0xf0000 & 0x100000 */
 	printk(BIOS_INFO, "Copying Interrupt Routing Table to 0x%08lx... ",

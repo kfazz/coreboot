@@ -1,18 +1,5 @@
-/*
- * inteltool - dump all registers on an Intel CPU + chipset based system.
- *
- * Copyright (C) 2008-2010 by coresystems GmbH
- * Copyright (C) 2012 Anton Kochkov
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* inteltool - dump all registers on an Intel CPU + chipset based system */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -264,12 +251,18 @@ int print_epbar(struct pci_dev *nb)
 	case PCI_DEVICE_ID_INTEL_CORE_4TH_GEN_U:
 	case PCI_DEVICE_ID_INTEL_CORE_5TH_GEN_U:
 	case PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_D2:
+	case PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_U:
+	case PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_Y:
 	case PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_M:
 	case PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_WST:
 	case PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_D:
+	case PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_E:
 	case PCI_DEVICE_ID_INTEL_CORE_7TH_GEN_U:
 	case PCI_DEVICE_ID_INTEL_CORE_7TH_GEN_Y:
 	case PCI_DEVICE_ID_INTEL_CORE_7TH_GEN_U_Q:
+	case PCI_DEVICE_ID_INTEL_CORE_7TH_GEN_E3:
+	case PCI_DEVICE_ID_INTEL_CORE_8TH_GEN_U_1:
+	case PCI_DEVICE_ID_INTEL_CORE_8TH_GEN_U_2:
 		epbar_phys = pci_read_long(nb, 0x40) & 0xfffffffe;
 		epbar_phys |= ((uint64_t)pci_read_long(nb, 0x44)) << 32;
 		break;
@@ -294,8 +287,8 @@ int print_epbar(struct pci_dev *nb)
 
 	printf("EPBAR = 0x%08" PRIx64 " (MEM)\n\n", epbar_phys);
 	for (i = 0; i < size; i += 4) {
-		if (*(uint32_t *)(epbar + i))
-			printf("0x%04x: 0x%08x\n", i, *(uint32_t *)(epbar+i));
+		if (read32(epbar + i))
+			printf("0x%04x: 0x%08x\n", i, read32(epbar+i));
 	}
 
 	unmap_physical((void *)epbar, size);
@@ -389,12 +382,18 @@ int print_dmibar(struct pci_dev *nb)
 		dmibar_phys &= 0x0000007ffffff000UL; /* 38:12 */
 		break;
 	case PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_D2:
+	case PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_U:
+	case PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_Y:
 	case PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_M:
 	case PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_WST:
 	case PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_D:
+	case PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_E:
 	case PCI_DEVICE_ID_INTEL_CORE_7TH_GEN_U:
 	case PCI_DEVICE_ID_INTEL_CORE_7TH_GEN_Y:
 	case PCI_DEVICE_ID_INTEL_CORE_7TH_GEN_U_Q:
+	case PCI_DEVICE_ID_INTEL_CORE_7TH_GEN_E3:
+	case PCI_DEVICE_ID_INTEL_CORE_8TH_GEN_U_1:
+	case PCI_DEVICE_ID_INTEL_CORE_8TH_GEN_U_2:
 		dmi_registers = skylake_dmi_registers;
 		size = ARRAY_SIZE(skylake_dmi_registers);
 		dmibar_phys = pci_read_long(nb, 0x68);
@@ -420,27 +419,27 @@ int print_dmibar(struct pci_dev *nb)
 				case 4:
 					printf("dmibase+0x%04x: 0x%08x (%s)\n",
 						dmi_registers[i].addr,
-						*(uint32_t *)(dmibar+dmi_registers[i].addr),
+						read32(dmibar+dmi_registers[i].addr),
 						dmi_registers[i].name);
 					break;
 				case 2:
 					printf("dmibase+0x%04x: 0x%04x     (%s)\n",
 						dmi_registers[i].addr,
-						*(uint16_t *)(dmibar+dmi_registers[i].addr),
+						read16(dmibar+dmi_registers[i].addr),
 						dmi_registers[i].name);
 					break;
 				case 1:
 					printf("dmibase+0x%04x: 0x%02x       (%s)\n",
 						dmi_registers[i].addr,
-						*(uint8_t *)(dmibar+dmi_registers[i].addr),
+						read8(dmibar+dmi_registers[i].addr),
 						dmi_registers[i].name);
 					break;
 			}
 		}
 	} else {
 		for (i = 0; i < size; i += 4) {
-			if (*(uint32_t *)(dmibar + i))
-				printf("0x%04x: 0x%08x\n", i, *(uint32_t *)(dmibar+i));
+			if (read32(dmibar + i))
+				printf("0x%04x: 0x%08x\n", i, read32(dmibar+i));
 		}
 	}
 
@@ -498,12 +497,18 @@ int print_pciexbar(struct pci_dev *nb)
 	case PCI_DEVICE_ID_INTEL_CORE_4TH_GEN_U:
 	case PCI_DEVICE_ID_INTEL_CORE_5TH_GEN_U:
 	case PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_D2:
+	case PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_U:
+	case PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_Y:
 	case PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_M:
 	case PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_WST:
 	case PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_D:
+	case PCI_DEVICE_ID_INTEL_CORE_6TH_GEN_E:
 	case PCI_DEVICE_ID_INTEL_CORE_7TH_GEN_U:
 	case PCI_DEVICE_ID_INTEL_CORE_7TH_GEN_Y:
 	case PCI_DEVICE_ID_INTEL_CORE_7TH_GEN_U_Q:
+	case PCI_DEVICE_ID_INTEL_CORE_7TH_GEN_E3:
+	case PCI_DEVICE_ID_INTEL_CORE_8TH_GEN_U_1:
+	case PCI_DEVICE_ID_INTEL_CORE_8TH_GEN_U_2:
 		pciexbar_reg = pci_read_long(nb, 0x60);
 		pciexbar_reg |= ((uint64_t)pci_read_long(nb, 0x64)) << 32;
 		break;
@@ -555,12 +560,12 @@ int print_pciexbar(struct pci_dev *nb)
 			for (fn = 0; fn < 8; fn++) {
 				devbase = (bus * 1024 * 1024) + (dev * 32 * 1024) + (fn * 4 * 1024);
 
-				if (*(uint16_t *)(pciexbar + devbase) == 0xffff)
+				if (read16(pciexbar + devbase) == 0xffff)
 					continue;
 
 				/* This is a heuristics. Anyone got a better check? */
-				if( (*(uint32_t *)(pciexbar + devbase + 256) == 0xffffffff) &&
-					(*(uint32_t *)(pciexbar + devbase + 512) == 0xffffffff) ) {
+				if( (read32(pciexbar + devbase + 256) == 0xffffffff) &&
+					(read32(pciexbar + devbase + 512) == 0xffffffff) ) {
 #if DEBUG
 					printf("Skipped non-PCIe device %02x:%02x.%01x\n", bus, dev, fn);
 #endif

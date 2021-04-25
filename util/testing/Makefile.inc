@@ -1,15 +1,4 @@
-##
-## This file is part of the coreboot project.
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
+## SPDX-License-Identifier: GPL-2.0-only
 
 test-help help::
 	@echo  '*** coreboot test targets ***'
@@ -60,14 +49,16 @@ junit.xml:
 	echo
 
 TOOLLIST= \
+amdfwtool \
 cbmem \
 ectool \
 futility \
+intelmetool \
 inteltool \
 intelvbttool \
 nvramtool \
-superiotool \
-viatool
+post \
+superiotool
 
 TEST_PAYLOADLIST_INTERNAL= \
 coreinfo \
@@ -80,18 +71,30 @@ CPUS?=4
 lint lint-stable lint-extended:
 	util/lint/lint $@
 
+ABUILD_OPTIONS=-B -J -c $(CPUS) -Z -p $(JENKINS_PAYLOAD)
+ABUILD_OPTIONS+=$(if $(V),-v,)
+ABUILD_OPTIONS+=$(if $(JENKINS_NOCCACHE),,-y)
+ABUILD_OPTIONS+=$(JENKINS_ABUILD_OPT)
+
+COREBOOT_BUILD_DIR?=coreboot-builds
+
 what-jenkins-does:
+	rm -rf $(COREBOOT_BUILD_DIR)/chromeos $(COREBOOT_BUILD_DIR)/default
+ifneq ($(JENKINS_SKIP_LINT_TESTS),y)
 	util/lint/lint lint-stable --junit
 	util/lint/lint lint-extended --junit
-	util/abuild/abuild -B -J $(if $(V),-v,) $(if $(JENKINS_NOCCACHE),,-y) -c $(CPUS) -z -p $(JENKINS_PAYLOAD) -x -X $(top)/abuild-chromeos.xml
-	util/abuild/abuild -B -J $(if $(V),-v,) $(if $(JENKINS_NOCCACHE),,-y) -c $(CPUS) -z -p $(JENKINS_PAYLOAD)
-	(cd payloads/libpayload; unset COREBOOT_BUILD_DIR; $(MAKE) $(if $(JENKINS_NOCCACHE),,CONFIG_LP_CCACHE=y) V=$(V) Q=$(Q) junit.xml)
+endif
+	util/abuild/abuild -o $(COREBOOT_BUILD_DIR)/chromeos $(ABUILD_OPTIONS) -x -X $(top)/abuild-chromeos.xml
+	util/abuild/abuild -o $(COREBOOT_BUILD_DIR)/default $(ABUILD_OPTIONS)
 	$(foreach tool, $(TOOLLIST), $(MAKE) CPUS=$(CPUS) V=$(V) Q=$(Q) BLD_DIR="util/$(tool)" BLD="$(tool)" MFLAGS= MAKEFLAGS= MAKETARGET= junit.xml; )
 	unset COREBOOT_BUILD_DIR;$(MAKE) CPUS=$(CPUS) V=$(V) Q=$(Q) BLD_DIR=payloads/nvramcui BLD=nvramcui MFLAGS= MAKEFLAGS= MAKETARGET=all junit.xml
 	unset COREBOOT_BUILD_DIR;$(MAKE) CPUS=$(CPUS) V=$(V) Q=$(Q) BLD_DIR=payloads/coreinfo BLD=coreinfo MFLAGS= MAKEFLAGS= MAKETARGET=defaultbuild junit.xml
-	$(MAKE) CPUS=$(CPUS) V=$(V) Q=$(Q) BLD_DIR=util/romcc BLD=romcc MFLAGS= MAKEFLAGS= MAKETARGET=test junit.xml
-	$(MAKE) CPUS=$(CPUS) V=$(V) Q=$(Q) BLD_DIR=src/soc/nvidia/tegra124/lp0 BLD=tegra124_lp0 MFLAGS= MAKEFLAGS= MAKETARGET=all junit.xml
-	$(MAKE) CPUS=$(CPUS) V=$(V) Q=$(Q) BLD_DIR=src/soc/nvidia/tegra210/lp0 BLD=tegra120_lp0 MFLAGS= MAKEFLAGS= MAKETARGET=all junit.xml
+	(cd payloads/libpayload; unset COREBOOT_BUILD_DIR; $(MAKE) $(if $(JENKINS_NOCCACHE),,CONFIG_LP_CCACHE=y) V=$(V) Q=$(Q) junit.xml)
+# These targets don't use the standard build system, so we need to provide an xcompile to them.
+	$(MAKE) xcompile=$(COREBOOT_BUILD_DIR)/xcompile $(COREBOOT_BUILD_DIR)/xcompile
+	$(MAKE) CPUS=$(CPUS) V=$(V) Q=$(Q) BLD_DIR=src/soc/nvidia/tegra124/lp0 BLD=tegra124_lp0 MFLAGS= MAKEFLAGS=xcompile=$(COREBOOT_BUILD_DIR)/xcompile MAKETARGET=all junit.xml
+	$(MAKE) CPUS=$(CPUS) V=$(V) Q=$(Q) BLD_DIR=src/soc/nvidia/tegra210/lp0 BLD=tegra120_lp0 MFLAGS= MAKEFLAGS=xcompile=$(COREBOOT_BUILD_DIR)/xcompile MAKETARGET=all junit.xml
+	$(MAKE) unit-tests JUNIT_OUTPUT=y
 
 test-basic: test-lint test-tools test-abuild test-payloads test-cleanup
 
@@ -101,8 +104,8 @@ test-lint:
 
 test-abuild:
 	rm -rf coreboot-builds-chromeos coreboot-builds
-	export COREBOOT_BUILD_DIR=coreboot-builds-chromeos; util/abuild/abuild -B -e $(if $(TEST_NOCCACHE),,-y) -c $(CPUS) -p $(TEST_PAYLOAD) -x
-	util/abuild/abuild -B -e $(if $(TEST_NOCCACHE),,-y) -c $(CPUS) -p $(TEST_PAYLOAD)
+	util/abuild/abuild -o $(COREBOOT_BUILD_DIR)/chromeos -B -e $(if $(TEST_NOCCACHE),,-y) -c $(CPUS) -p $(TEST_PAYLOAD) -x
+	util/abuild/abuild -o $(COREBOOT_BUILD_DIR)/default -B -e $(if $(TEST_NOCCACHE),,-y) -c $(CPUS) -p $(TEST_PAYLOAD)
 
 test-payloads:
 	$(MAKE) -C payloads/libpayload test-configs -j $(CPUS) V=$(V) Q=$(Q) MFLAGS= MAKEFLAGS= $(if $(TEST_NOCCACHE),,CONFIG_LP_CCACHE=y)
@@ -116,12 +119,7 @@ test-payloads:
 test-tools:
 	@echo "Build testing $(TOOLLIST)"
 	$(foreach tool, $(TOOLLIST), $(MAKE) -C util/$(tool) clean ; )
-	$(MAKE) -C util/romcc clean
 	$(foreach tool, $(TOOLLIST), echo "Building $(tool)";export MFLAGS= ;export MAKEFLAGS= ;$(MAKE) -C util/$(tool) all V=$(V) Q=$(Q) || exit 1; )
-	echo "Building romcc"
-	$(MAKE) -C util/romcc all test -j $(CPUS) V=$(V) Q=$(Q)
-	echo "Testing broadcom/secimage"
-	$(MAKE) -C util/broadcom/secimage test
 	@echo "Running gitconfig tests"
 	@for test in $$(find util/gitconfig/test -maxdepth 1 \
 		-type f -executable); do \
@@ -134,7 +132,6 @@ test-cleanup:
 	$(MAKE) clean
 	$(MAKE) distclean
 	$(foreach tool, $(TOOLLIST), $(MAKE) -C util/$(tool) clean ; )
-	$(MAKE) -C util/romcc clean
 
 .PHONY: test-basic test-lint test-abuild test-payloads
 .PHONY: test-tools test-cleanup test-help

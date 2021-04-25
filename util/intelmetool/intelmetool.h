@@ -1,19 +1,4 @@
-/*
- * intelmetool
- *
- * Copyright (C) 2008-2010 by coresystems GmbH
- * Copyright (C) 2009 Carl-Daniel Hailfinger
- * Copyright (C) 2015-2019 Damien Zammit
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #define ME_NOT_PRESENT 0
 #define ME_FOUND_NOTHING 1
@@ -63,11 +48,6 @@
 #define ME_MESSAGE_LEN 256
 
 extern int debug;
-static inline void print_cap(const char *name, int state)
-{
-	printf("ME Capability: %-30s : %s\n",
-	       name, state ? CRED "ON" RESET : CGRN "OFF" RESET);
-}
 
 #define PCI_VENDOR_ID_INTEL 0x8086
 
@@ -445,6 +425,8 @@ static inline void print_cap(const char *name, int state)
 #define PCI_DEVICE_ID_INTEL_WILDCAT_1 0x9CBA /* Wildcat Point LP */
 #define PCI_DEVICE_ID_INTEL_WILDCAT_2 0x9CBB /* Wildcat Point LP 2 */
 #define PCI_DEVICE_ID_INTEL_SUNRISE_LP 0x9d3a /* SUNRISE Point-LP */
+#define PCI_DEVICE_ID_INTEL_CANNONPOINT_LP 0x9de0 /* Cannon Point-LP */
+#define PCI_DEVICE_ID_INTEL_COMETPOINT_LP 0x02e0 /* Comet Point-LP (Cometlake-U) */
 #define PCI_DEVICE_ID_INTEL_SUNRISE_H1_ME 0xa13a /* SUNRISE Point-H 1 */
 #define PCI_DEVICE_ID_INTEL_SUNRISE_H2_ME 0xa13b /* SUNRISE Point-H 2 */
 #define PCI_DEVICE_ID_INTEL_SUNRISE_H3_ME 0xA13E /* SUNRISE Point-H 3 */
@@ -497,6 +479,8 @@ static inline void print_cap(const char *name, int state)
 	((x) ==  PCI_DEVICE_ID_INTEL_WILDCAT_1) || \
 	((x) ==  PCI_DEVICE_ID_INTEL_WILDCAT_2) || \
 	((x) ==  PCI_DEVICE_ID_INTEL_SUNRISE_LP) || \
+	((x) ==  PCI_DEVICE_ID_INTEL_CANNONPOINT_LP) || \
+	((x) ==  PCI_DEVICE_ID_INTEL_COMETPOINT_LP) || \
 	((x) ==  PCI_DEVICE_ID_INTEL_SUNRISE_H1_ME) || \
 	((x) ==  PCI_DEVICE_ID_INTEL_SUNRISE_H2_ME) || \
 	((x) ==  PCI_DEVICE_ID_INTEL_SUNRISE_H3_ME) || \
@@ -508,13 +492,3 @@ static inline void print_cap(const char *name, int state)
 	((x) ==  PCI_DEVICE_ID_INTEL_LEWISBURG_IE3) || \
 	((x) ==  PCI_DEVICE_ID_INTEL_CANNONLAKE) || \
 	0)
-
-#define BOOTGUARD_DISABLED 0x400000000
-#define BOOTGUARD_ENABLED_VERIFIED_MODE 0x100000000
-#define BOOTGUARD_ENABLED_MEASUREMENT_MODE 0x200000000
-#define BOOTGUARD_ENABLED_COMBI_MODE 0x300000000
-#define BOOTGUARD_CAPABILITY(x) ( \
-		((x) == BOOTGUARD_DISABLED) || \
-		((x) == BOOTGUARD_ENABLED_VERIFIED_MODE) || \
-		((x) == BOOTGUARD_ENABLED_MEASUREMENT_MODE) || \
-		((x) == BOOTGUARD_ENABLED_COMBI_MODE))

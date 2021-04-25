@@ -1,24 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 secunet Security Networks AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <stdlib.h>
 #include <console/console.h>
 #include <device/device.h>
 #include <device/pnp.h>
 #include <ec/acpi/ec.h>
-#include <pc80/mc146818rtc.h>
+#include <option.h>
 
 #include "ec.h"
 #include "chip.h"
@@ -147,13 +133,13 @@ static void it8516e_set_fan_from_options(const config_t *const config,
 	u8 fan_max	= config->default_fan_max[fan_idx];
 
 	fanX_mode[3] = '1' + fan_idx;
-	get_option(&fan_mode, fanX_mode);
+	fan_mode = get_int_option(fanX_mode, fan_mode);
 	if (!fan_mode)
 		fan_mode = IT8516E_MODE_AUTO;
 	it8516e_set_fan_mode(fan_idx, fan_mode);
 
 	fanX_target[3] = '1' + fan_idx;
-	get_option(&fan_target, fanX_target);
+	fan_target = get_int_option(fanX_target, fan_target);
 	switch (fan_mode) {
 	case IT8516E_MODE_AUTO:
 		printk(BIOS_DEBUG,
@@ -187,8 +173,8 @@ static void it8516e_set_fan_from_options(const config_t *const config,
 
 		fanX_min[3] = '1' + fan_idx;
 		fanX_max[3] = '1' + fan_idx;
-		get_option(&fan_min, fanX_min);
-		get_option(&fan_max, fanX_max);
+		fan_min = get_int_option(fanX_min, fan_min);
+		fan_max = get_int_option(fanX_max, fan_max);
 
 		if (!fan_max || fan_max > 100)	/* Constrain fan_max to 100% */
 			fan_max = 100;
@@ -216,8 +202,7 @@ static void it8516e_pm2_init(struct device *dev)
 	ec_set_ports(find_resource(dev, PNP_IDX_IO1)->base,
 		     find_resource(dev, PNP_IDX_IO0)->base);
 
-	u8 systemp_type = config->default_systemp;
-	get_option(&systemp_type, "systemp_type");
+	u8 systemp_type = get_int_option("systemp_type", config->default_systemp);
 	if (systemp_type >= IT8516E_SYSTEMP_LASTPLUSONE)
 		systemp_type = IT8516E_SYSTEMP_NONE;
 	it8516e_set_systemp_type(systemp_type);

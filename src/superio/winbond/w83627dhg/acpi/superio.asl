@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Christoph Grenz <christophg+cb@grenz-bonn.de>
- * Copyright (C) 2013 secunet Security Networks AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /*
  * Include this file into a mainboard's DSDT _SB device tree and it will
@@ -63,9 +49,9 @@ Device(SUPERIO_DEV) {
 	Field (CREG, ByteAcc, NoLock, Preserve)
 	{
 		PNP_ADDR_REG,	8,
-		PNP_DATA_REG,   8
+		PNP_DATA_REG,	8
 	}
-	IndexField (ADDR, DATA, ByteAcc, NoLock, Preserve)
+	IndexField (PNP_ADDR_REG, PNP_DATA_REG, ByteAcc, NoLock, Preserve)
 	{
 		Offset (0x07),
 		PNP_LOGICAL_DEVICE,	8, /* Logical device selector */
@@ -122,31 +108,31 @@ Device(SUPERIO_DEV) {
 	#define PNP_EXIT_MAGIC_1ST	0xaa
 	#include <superio/acpi/pnp_config.asl>
 
-	/* PM: indicate IPD (Immediate Power Down) bit state as D0/D2 */
+	/* PM: indicate IPD (Immediate Power Down) bit state as D0/D3 */
 	Method (_PSC) {
 		ENTER_CONFIG_MODE (PNP_NO_LDN_CHANGE)
-		  Store (IPD, Local0)
+		  Local0 = IPD
 		EXIT_CONFIG_MODE ()
-		If (Local0) { Return (2) }
+		If (Local0) { Return (3) }
 		Else { Return (0) }
 	}
 
-	/* PM: Switch to D0 by setting IPD low  */
+	/* PM: Switch to D0 by setting IPD low */
 	Method (_PS0) {
 		ENTER_CONFIG_MODE (PNP_NO_LDN_CHANGE)
-		  Store (Zero, IPD)
+		  IPD = 0
 		EXIT_CONFIG_MODE ()
 	}
 
-	/* PM: Switch to D2 by setting IPD high  */
-	Method (_PS2) {
+	/* PM: Switch to D3 by setting IPD high */
+	Method (_PS3) {
 		ENTER_CONFIG_MODE (PNP_NO_LDN_CHANGE)
-		  Store (One, IPD)
+		  IPD = 1
 		EXIT_CONFIG_MODE ()
 	}
 
 	/* Suspend LED: Write given three-bit value into appropriate register.
-	                From the datasheet:
+			From the datasheet:
 			000 - drive pin constantly high
 			001 - drive 0.5Hz pulses
 			010 - drive pin constantly low
@@ -159,10 +145,10 @@ Device(SUPERIO_DEV) {
 	#define SUPERIO_SUSL_LDN 9
 	Method (SUSL, 1, Serialized) {
 		ENTER_CONFIG_MODE (SUPERIO_SUSL_LDN)
-		  Store (SULM, Local0)
-		  And (Local0, 0x1f, Local0)
-		  Or (Local0, ShiftLeft (Arg0, 5), Local0)
-		  Store (Local0, SULM)
+		  Local0 = SULM
+		  Local0 &= 0x1f
+		  Local0 |= (Arg0 << 5)
+		  SULM = Local0
 		EXIT_CONFIG_MODE ()
 	}
 

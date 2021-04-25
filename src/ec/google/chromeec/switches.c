@@ -1,21 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2016 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <bootmode.h>
-#include <cbmem.h>
 #include <ec/google/chromeec/ec.h>
+#include <elog.h>
 
 #if CONFIG(EC_GOOGLE_CHROMEEC_LPC)
 int get_lid_switch(void)
@@ -34,40 +21,42 @@ int get_recovery_mode_switch(void)
 	    (google_chromeec_get_switches() & EC_SWITCH_DEDICATED_RECOVERY))
 		return 1;
 
-	/* Check if the EC has posted the keyboard recovery/fastboot event. */
+	/* Check if the EC has posted the keyboard recovery event. */
 	return !!(google_chromeec_get_events_b() &
-		  (EC_HOST_EVENT_MASK(EC_HOST_EVENT_KEYBOARD_RECOVERY) |
-		   EC_HOST_EVENT_MASK(EC_HOST_EVENT_KEYBOARD_FASTBOOT)));
+		  EC_HOST_EVENT_MASK(EC_HOST_EVENT_KEYBOARD_RECOVERY));
 }
 
 int get_recovery_mode_retrain_switch(void)
 {
-	uint64_t events;
-	const uint64_t mask =
-		EC_HOST_EVENT_MASK(EC_HOST_EVENT_KEYBOARD_RECOVERY_HW_REINIT);
-
 	/*
 	 * Check if the EC has posted the keyboard recovery event with memory
 	 * retrain.
 	 */
-	events = google_chromeec_get_events_b();
+	return !!(google_chromeec_get_events_b() &
+		  EC_HOST_EVENT_MASK(EC_HOST_EVENT_KEYBOARD_RECOVERY_HW_REINIT));
+}
 
-	if (cbmem_possibly_online()) {
-		const uint64_t *events_save;
+static void elog_add_recovery_mode_switch_event(void)
+{
+	uint64_t events = google_chromeec_get_events_b();
+	uint8_t event_byte = EC_HOST_EVENT_KEYBOARD_RECOVERY;
 
-		events_save = cbmem_find(CBMEM_ID_EC_HOSTEVENT);
-		if (events_save != NULL)
-			events |= *events_save;
-	}
+	if (!(events & EC_HOST_EVENT_MASK(EC_HOST_EVENT_KEYBOARD_RECOVERY)))
+		return;
 
-	return !!(events & mask);
+	if (events & EC_HOST_EVENT_MASK(EC_HOST_EVENT_KEYBOARD_RECOVERY_HW_REINIT))
+		event_byte = EC_HOST_EVENT_KEYBOARD_RECOVERY_HW_REINIT;
+
+	elog_add_event_byte(ELOG_TYPE_EC_EVENT, event_byte);
 }
 
 int clear_recovery_mode_switch(void)
 {
+	/* Log elog event before clearing */
+	elog_add_recovery_mode_switch_event();
+
 	/* Clear all host event bits requesting recovery mode. */
 	return google_chromeec_clear_events_b(
 		EC_HOST_EVENT_MASK(EC_HOST_EVENT_KEYBOARD_RECOVERY) |
-		EC_HOST_EVENT_MASK(EC_HOST_EVENT_KEYBOARD_RECOVERY_HW_REINIT) |
-		EC_HOST_EVENT_MASK(EC_HOST_EVENT_KEYBOARD_FASTBOOT));
+		EC_HOST_EVENT_MASK(EC_HOST_EVENT_KEYBOARD_RECOVERY_HW_REINIT));
 }

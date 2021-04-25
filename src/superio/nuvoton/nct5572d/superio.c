@@ -1,28 +1,11 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Felix Held <felix-coreboot@felixheld.de>
- * Copyright (C) 2014 Edward O'Callaghan <eocallaghan@alterapraxis.com>
- * Copyright (C) 2015 Timothy Pearson <tpearson@raptorengineeringinc.com>, Raptor Engineering
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <console/console.h>
 #include <device/device.h>
 #include <device/pnp.h>
 #include <pc80/keyboard.h>
-#include <pc80/mc146818rtc.h>
-#include <stdlib.h>
-#include <arch/acpi.h>
+#include <option.h>
+#include <acpi/acpi.h>
 #include <superio/conf_mode.h>
 
 #include "nct5572d.h"
@@ -44,29 +27,29 @@ static void nct5572d_init(struct device *dev)
 	/* TODO: Might potentially need code for HWM or FDC etc. */
 	case NCT5572D_KBC:
 		/* Enable mouse controller */
-		pnp_enter_conf_mode_8787(dev);
+		pnp_enter_conf_mode(dev);
 		byte = pnp_read_config(dev, 0x2a);
 		byte &= ~(0x1 << 1);
 		pnp_write_config(dev, 0x2a, byte);
-		pnp_exit_conf_mode_aa(dev);
+		pnp_exit_conf_mode(dev);
 
 		mouse_detected = pc_keyboard_init(PROBE_AUX_DEVICE);
 
 		if (!mouse_detected) {
-			printk(BIOS_INFO, "%s: Disable mouse controller.",
+			printk(BIOS_INFO, "%s: Disable mouse controller.\n",
 					__func__);
-			pnp_enter_conf_mode_8787(dev);
+			pnp_enter_conf_mode(dev);
 			byte = pnp_read_config(dev, 0x2a);
 			byte |= 0x1 << 1;
 			pnp_write_config(dev, 0x2a, byte);
-			pnp_exit_conf_mode_aa(dev);
+			pnp_exit_conf_mode(dev);
 		}
 		break;
 	case NCT5572D_ACPI:
 		/* Set power state after power fail */
-		power_status = CONFIG_MAINBOARD_POWER_FAILURE_STATE;
-		get_option(&power_status, "power_on_after_fail");
-		pnp_enter_conf_mode_8787(dev);
+		power_status = get_int_option("power_on_after_fail",
+				CONFIG_MAINBOARD_POWER_FAILURE_STATE);
+		pnp_enter_conf_mode(dev);
 		pnp_set_logical_device(dev);
 		byte = pnp_read_config(dev, 0xe4);
 		byte &= ~0x60;
@@ -75,7 +58,7 @@ static void nct5572d_init(struct device *dev)
 		else if (power_status == MAINBOARD_POWER_KEEP)
 			byte |= (0x2 << 5);
 		pnp_write_config(dev, 0xe4, byte);
-		pnp_exit_conf_mode_aa(dev);
+		pnp_exit_conf_mode(dev);
 		printk(BIOS_INFO, "set power %s after power fail\n", power_status ? "on" : "off");
 		break;
 	}

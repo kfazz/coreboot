@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <assert.h>
@@ -68,8 +55,8 @@ struct rk3288_crypto {
 } *crypto = (void *)CRYPTO_BASE;
 check_member(rk3288_crypto, trng_dout[7], 0x220);
 
-int vb2ex_hwcrypto_digest_init(enum vb2_hash_algorithm hash_alg,
-			       uint32_t data_size)
+vb2_error_t vb2ex_hwcrypto_digest_init(enum vb2_hash_algorithm hash_alg,
+				       uint32_t data_size)
 {
 	if (hash_alg != VB2_HASH_SHA256) {
 		printk(BIOS_INFO, "RK3288 doesn't support hash_alg %d!\n",
@@ -94,7 +81,7 @@ int vb2ex_hwcrypto_digest_init(enum vb2_hash_algorithm hash_alg,
 	return VB2_SUCCESS;
 }
 
-int vb2ex_hwcrypto_digest_extend(const uint8_t *buf, uint32_t size)
+vb2_error_t vb2ex_hwcrypto_digest_extend(const uint8_t *buf, uint32_t size)
 {
 	uint32_t intsts;
 
@@ -115,7 +102,8 @@ int vb2ex_hwcrypto_digest_extend(const uint8_t *buf, uint32_t size)
 	return VB2_SUCCESS;
 }
 
-int vb2ex_hwcrypto_digest_finalize(uint8_t *digest, uint32_t digest_size)
+vb2_error_t vb2ex_hwcrypto_digest_finalize(uint8_t *digest,
+					   uint32_t digest_size)
 {
 	uint32_t *dest = (uint32_t *)digest;
 	uint32_t *src = crypto->hash_dout;

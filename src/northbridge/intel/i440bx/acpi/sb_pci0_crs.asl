@@ -1,34 +1,21 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2010 Tobias Diedrich <ranma+coreboot@tdiedrich.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-/* i440bx Northbridge */
+/* i440bx Northbridge resources that sits on \_SB.PCI0 */
 Device (NB)
 {
 	Name(_ADR, 0x00000000)
 	OperationRegion(PCIC, PCI_Config, 0x00, 0x100)
-}
-
-Field (NB.PCIC, AnyAcc, NoLock, Preserve)
-{
-	Offset (0x67),	// DRB7
-	DRB7,	8,
-}
-
-Method(TOM1, 0) {
-	/* Multiply by 8MB to get TOM */
-	Return(ShiftLeft(DRB7, 23))
+	Field (PCIC, ByteAcc, NoLock, Preserve)
+	{
+		Offset (0x67),	// DRB7
+		DRB7,	8,
+		Offset (0x7A),	// PMCR
+		PMCR,	8
+	}
+	Method(TOM1, 0) {
+		/* Multiply by 8MB to get TOM */
+		Return(DRB7 << 23)
+	}
 }
 
 Method(_CRS, 0) {
@@ -73,10 +60,10 @@ Method(_CRS, 0) {
 	 * 32bit (0x00000000 - TOM1) will wrap and give the same
 	 * result as 64bit (0x100000000 - TOM1).
 	 */
-	Store(TOM1, MM1B)
-	ShiftLeft(0x10000000, 4, Local0)
-	Subtract(Local0, TOM1, Local0)
-	Store(Local0, MM1L)
+	MM1B = \_SB.PCI0.NB.TOM1
+	Local0 = 0x10000000 << 4
+	Local0 -= CONFIG_ROM_SIZE
+	MM1L = Local0 - MM1B
 
 	Return(TMP)
 }

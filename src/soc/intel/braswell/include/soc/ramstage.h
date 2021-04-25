@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- * Copyright (C) 2015 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _SOC_RAMSTAGE_H_
 #define _SOC_RAMSTAGE_H_
@@ -98,7 +84,6 @@ enum {
  */
 void soc_init_pre_device(struct soc_intel_braswell_config *config);
 void soc_init_cpus(struct device *dev);
-void set_max_freq(void);
 void southcluster_enable_dev(struct device *dev);
 void scc_enable_acpi_mode(struct device *dev, int iosf_reg, int nvs_index);
 int SocStepping(void);

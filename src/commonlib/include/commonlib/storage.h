@@ -1,20 +1,4 @@
-/*
- * Copyright 2008,2010 Freescale Semiconductor, Inc
- * Andy Fleming
- *
- * Copyright 2013 Google Inc.  All rights reserved.
- * Copyright 2017 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef __COMMONLIB_STORAGE_H__
 #define __COMMONLIB_STORAGE_H__
@@ -61,7 +45,7 @@
 #define EXT_CSD_DDR_BUS_WIDTH_8		6	/* Card is in 8 bit DDR mode */
 #define EXT_CSD_BUS_WIDTH_STROBE	(1<<7)	/* Enhanced strobe mode */
 
-#define EXT_CSD_TIMING_BC		0	/* Backwards compatility */
+#define EXT_CSD_TIMING_BC		0	/* Backwards compatibility */
 #define EXT_CSD_TIMING_HS		1	/* High speed */
 #define EXT_CSD_TIMING_HS200		2	/* HS200 */
 #define EXT_CSD_TIMING_HS400		3	/* HS400 */

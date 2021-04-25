@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2018 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <console/console.h>
@@ -45,10 +32,10 @@ int mtk_wdt_init(void)
 	 * ENABLE: disable watchdog on initialization.
 	 * Setting bit EXTEN to enable watchdog output.
 	 */
-	clrsetbits_le32(&mtk_wdt->wdt_mode,
-			MTK_WDT_MODE_DUAL_MODE | MTK_WDT_MODE_IRQ |
-			MTK_WDT_MODE_EXT_POL | MTK_WDT_MODE_ENABLE,
-			MTK_WDT_MODE_EXTEN | MTK_WDT_MODE_KEY);
+	clrsetbits32(&mtk_wdt->wdt_mode,
+		     MTK_WDT_MODE_DUAL_MODE | MTK_WDT_MODE_IRQ |
+		     MTK_WDT_MODE_EXT_POL | MTK_WDT_MODE_ENABLE,
+		     MTK_WDT_MODE_EXTEN | MTK_WDT_MODE_KEY);
 
 	return wdt_sta;
 }

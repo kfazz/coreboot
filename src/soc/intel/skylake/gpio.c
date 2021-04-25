@@ -1,24 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2015 - 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <intelblocks/gpio.h>
 #include <intelblocks/pcr.h>
 #include <soc/pcr_ids.h>
 #include <soc/pm.h>
-
 
 static const struct reset_mapping rst_map[] = {
 	{ .logical = PAD_CFG0_LOGICAL_RESET_RSMRST, .chipset = 0U << 30},
@@ -77,6 +62,8 @@ static const struct pad_community skl_gpio_communities[] = {
 		.gpi_int_en_reg_0 = GPI_INT_EN_0,
 		.gpi_smi_sts_reg_0 = GPI_SMI_STS_0,
 		.gpi_smi_en_reg_0 = GPI_SMI_EN_0,
+		.gpi_nmi_sts_reg_0 = GPI_NMI_STS_0,
+		.gpi_nmi_en_reg_0 = GPI_NMI_EN_0,
 		.max_pads_per_group = GPIO_MAX_NUM_PER_GROUP,
 		.name = "GPIO_COM0",
 		.acpi_path = "\\_SB.PCI0.GPIO",
@@ -99,6 +86,8 @@ static const struct pad_community skl_gpio_communities[] = {
 		.gpi_int_en_reg_0 = GPI_INT_EN_0,
 		.gpi_smi_sts_reg_0 = GPI_SMI_STS_0,
 		.gpi_smi_en_reg_0 = GPI_SMI_EN_0,
+		.gpi_nmi_sts_reg_0 = GPI_NMI_STS_0,
+		.gpi_nmi_en_reg_0 = GPI_NMI_EN_0,
 		.max_pads_per_group = GPIO_MAX_NUM_PER_GROUP,
 		.name = "GPIO_COM1",
 		.acpi_path = "\\_SB.PCI0.GPIO",
@@ -122,6 +111,8 @@ static const struct pad_community skl_gpio_communities[] = {
 		.gpi_int_en_reg_0 = GPI_INT_EN_0,
 		.gpi_smi_sts_reg_0 = GPI_SMI_STS_0,
 		.gpi_smi_en_reg_0 = GPI_SMI_EN_0,
+		.gpi_nmi_sts_reg_0 = GPI_NMI_STS_0,
+		.gpi_nmi_en_reg_0 = GPI_NMI_EN_0,
 		.max_pads_per_group = GPIO_MAX_NUM_PER_GROUP,
 		.name = "GPIO_COM3",
 		.acpi_path = "\\_SB.PCI0.GPIO",
@@ -140,6 +131,8 @@ static const struct pad_community skl_gpio_communities[] = {
 		.gpi_int_en_reg_0 = GPI_INT_EN_0,
 		.gpi_smi_sts_reg_0 = GPI_SMI_STS_0,
 		.gpi_smi_en_reg_0 = GPI_SMI_EN_0,
+		.gpi_nmi_sts_reg_0 = GPI_NMI_STS_0,
+		.gpi_nmi_en_reg_0 = GPI_NMI_EN_0,
 		.max_pads_per_group = GPIO_MAX_NUM_PER_GROUP,
 		.name = "GPIO_COM2",
 		.acpi_path = "\\_SB.PCI0.GPIO",

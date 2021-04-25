@@ -1,29 +1,15 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 The ChromiumOS Authors.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
-#include <types.h>
 #include <bootblock_common.h>
 #include <console/uart.h>
-#include <cpu/ti/am335x/clock.h>
-#include <cpu/ti/am335x/gpio.h>
-#include <cpu/ti/am335x/pinmux.h>
+#include <soc/ti/am335x/clock.h>
+#include <soc/ti/am335x/gpio.h>
+#include <soc/ti/am335x/pinmux.h>
 
 #include "leds.h"
 
-void bootblock_mainboard_init(void)
+void bootblock_mainboard_early_init(void)
 {
 	write32(&am335x_cm_wkup->wkup_gpio0, CM_ST_SW_WKUP | CM_FCLK_EN);
 	write32(&am335x_cm_per->gpio1, CM_ST_SW_WKUP | CM_FCLK_EN);

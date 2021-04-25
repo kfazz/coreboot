@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* Intel PCH PCIe support */
 
@@ -67,7 +54,11 @@ Method (IRQM, 1, Serialized) {
 
 	Switch (ToInteger (Arg0))
 	{
-		Case (Package () { 1, 5, 9, 13 }) {
+		Case (Package () { 1, 5, 9, 13
+#if CONFIG(SOC_INTEL_CANNONLAKE_PCH_H)
+		, 17, 21
+#endif
+		}) {
 			If (PICM) {
 				Return (IQAA)
 			} Else {
@@ -75,7 +66,11 @@ Method (IRQM, 1, Serialized) {
 			}
 		}
 
-		Case (Package () { 2, 6, 10, 14 }) {
+		Case (Package () { 2, 6, 10, 14
+#if CONFIG(SOC_INTEL_CANNONLAKE_PCH_H)
+		, 18, 22
+#endif
+		}) {
 			If (PICM) {
 				Return (IQBA)
 			} Else {
@@ -83,7 +78,11 @@ Method (IRQM, 1, Serialized) {
 			}
 		}
 
-		Case (Package () { 3, 7, 11, 15 }) {
+		Case (Package () { 3, 7, 11, 15
+#if CONFIG(SOC_INTEL_CANNONLAKE_PCH_H)
+		, 19, 23
+#endif
+		}) {
 			If (PICM) {
 				Return (IQCA)
 			} Else {
@@ -91,7 +90,11 @@ Method (IRQM, 1, Serialized) {
 			}
 		}
 
-		Case (Package () { 4, 8, 12, 16 }) {
+		Case (Package () { 4, 8, 12, 16
+#if CONFIG(SOC_INTEL_CANNONLAKE_PCH_H)
+		, 20, 24
+#endif
+		}) {
 			If (PICM) {
 				Return (IQDA)
 			} Else {
@@ -380,3 +383,141 @@ Device (RP16)
 		Return (IRQM (RPPN))
 	}
 }
+
+#if CONFIG(SOC_INTEL_CANNONLAKE_PCH_H)
+Device (RP17)
+{
+	Name (_ADR, 0x001B0000)
+
+	OperationRegion (RPCS, PCI_Config, 0x4c, 4)
+	Field (RPCS, AnyAcc, NoLock, Preserve)
+	{
+		, 24,
+		RPPN, 8,	/* Root Port Number */
+	}
+
+	Method (_PRT)
+	{
+		Return (IRQM (RPPN))
+	}
+}
+
+Device (RP18)
+{
+	Name (_ADR, 0x001B0001)
+
+	OperationRegion (RPCS, PCI_Config, 0x4c, 4)
+	Field (RPCS, AnyAcc, NoLock, Preserve)
+	{
+		, 24,
+		RPPN, 8,	/* Root Port Number */
+	}
+
+	Method (_PRT)
+	{
+		Return (IRQM (RPPN))
+	}
+}
+
+Device (RP19)
+{
+	Name (_ADR, 0x001B0002)
+
+	OperationRegion (RPCS, PCI_Config, 0x4c, 4)
+	Field (RPCS, AnyAcc, NoLock, Preserve)
+	{
+		, 24,
+		RPPN, 8,	/* Root Port Number */
+	}
+
+	Method (_PRT)
+	{
+		Return (IRQM (RPPN))
+	}
+}
+
+Device (RP20)
+{
+	Name (_ADR, 0x001B0003)
+
+	OperationRegion (RPCS, PCI_Config, 0x4c, 4)
+	Field (RPCS, AnyAcc, NoLock, Preserve)
+	{
+		, 24,
+		RPPN, 8,	/* Root Port Number */
+	}
+
+	Method (_PRT)
+	{
+		Return (IRQM (RPPN))
+	}
+}
+
+Device (RP21)
+{
+	Name (_ADR, 0x001B0004)
+
+	OperationRegion (RPCS, PCI_Config, 0x4c, 4)
+	Field (RPCS, AnyAcc, NoLock, Preserve)
+	{
+		, 24,
+		RPPN, 8,	/* Root Port Number */
+	}
+
+	Method (_PRT)
+	{
+		Return (IRQM (RPPN))
+	}
+}
+
+Device (RP22)
+{
+	Name (_ADR, 0x001B0005)
+
+	OperationRegion (RPCS, PCI_Config, 0x4c, 4)
+	Field (RPCS, AnyAcc, NoLock, Preserve)
+	{
+		, 24,
+		RPPN, 8,	/* Root Port Number */
+	}
+
+	Method (_PRT)
+	{
+		Return (IRQM (RPPN))
+	}
+}
+
+Device (RP23)
+{
+	Name (_ADR, 0x001B0006)
+
+	OperationRegion (RPCS, PCI_Config, 0x4c, 4)
+	Field (RPCS, AnyAcc, NoLock, Preserve)
+	{
+		, 24,
+		RPPN, 8,	/* Root Port Number */
+	}
+
+	Method (_PRT)
+	{
+		Return (IRQM (RPPN))
+	}
+}
+
+Device (RP24)
+{
+	Name (_ADR, 0x001B0007)
+
+	OperationRegion (RPCS, PCI_Config, 0x4c, 4)
+	Field (RPCS, AnyAcc, NoLock, Preserve)
+	{
+		, 24,
+		RPPN, 8,	/* Root Port Number */
+	}
+
+	Method (_PRT)
+	{
+		Return (IRQM (RPPN))
+	}
+}
+#endif

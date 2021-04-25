@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Edward O'Callaghan <eocallaghan@alterapraxis.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /*
  * A generic romstage (pre-ram) driver for Fintek variant Super I/O chips.
@@ -43,7 +29,7 @@
 #define FINTEK_EXIT_KEY 0xAA
 
 /* Enable configuration: pass entry key '0x87' into index port dev. */
-static void pnp_enter_conf_state(pnp_devfn_t dev)
+void pnp_enter_conf_state(pnp_devfn_t dev)
 {
 	u16 port = dev >> 8;
 	outb(FINTEK_ENTRY_KEY, port);
@@ -51,7 +37,7 @@ static void pnp_enter_conf_state(pnp_devfn_t dev)
 }
 
 /* Disable configuration: pass exit key '0xAA' into index port dev. */
-static void pnp_exit_conf_state(pnp_devfn_t dev)
+void pnp_exit_conf_state(pnp_devfn_t dev)
 {
 	u16 port = dev >> 8;
 	outb(FINTEK_EXIT_KEY, port);

@@ -1,49 +1,14 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <arch/bootblock.h>
 #include <device/pci_ops.h>
+#include <southbridge/intel/common/early_spi.h>
 #include "pch.h"
-
-/*
- * Enable Prefetching and Caching.
- */
-static void enable_spi_prefetch(void)
-{
-	u8 reg8;
-	pci_devfn_t dev = PCH_LPC_DEV;
-
-	reg8 = pci_read_config8(dev, BIOS_CNTL);
-	reg8 &= ~(3 << 2);
-	reg8 |= (2 << 2); /* Prefetching and Caching Enabled */
-	pci_write_config8(dev, BIOS_CNTL, reg8);
-}
 
 static void enable_port80_on_lpc(void)
 {
-	pci_devfn_t dev = PCH_LPC_DEV;
-
 	/* Enable port 80 POST on LPC */
-	pci_write_config32(dev, RCBA, (uintptr_t)DEFAULT_RCBA | 1);
-#if 0
 	RCBA32(GCS) &= (~0x04);
-#else
-	volatile u32 *gcs = (volatile u32 *)(DEFAULT_RCBA + GCS);
-	u32 reg32 = *gcs;
-	reg32 = reg32 & ~0x04;
-	*gcs = reg32;
-#endif
 }
 
 static void set_spi_speed(void)
@@ -66,9 +31,12 @@ static void set_spi_speed(void)
 	RCBA8(0x3893) = ssfc;
 }
 
-static void bootblock_southbridge_init(void)
+void bootblock_early_southbridge_init(void)
 {
-	enable_spi_prefetch();
+	enable_spi_prefetching_and_caching();
+
+	early_pch_init();
+
 	enable_port80_on_lpc();
 	set_spi_speed();
 

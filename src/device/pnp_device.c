@@ -1,26 +1,6 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2004 Linux Networx
- * (Written by Eric Biederman <ebiederman@lnxi.com> for Linux Networx)
- * Copyright (C) 2004 Li-Ta Lo <ollie@lanl.gov>
- * Copyright (C) 2005 Tyan
- * (Written by Yinghai Lu <yhlu@tyan.com> for Tyan)
- * Copyright (C) 2013 Nico Huber <nico.h@gmx.de>
- * Copyright (C) 2018 Felix Held <felix-coreboot@felixheld.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
-#include <stdlib.h>
 #include <stdint.h>
 #include <arch/io.h>
 #include <device/device.h>
@@ -39,6 +19,19 @@ void pnp_exit_conf_mode(struct device *dev)
 	if (dev->ops->ops_pnp_mode)
 		dev->ops->ops_pnp_mode->exit_conf_mode(dev);
 }
+
+#if CONFIG(HAVE_ACPI_TABLES)
+void pnp_ssdt_enter_conf_mode(struct device *dev, const char *idx, const char *data)
+{
+	if (dev->ops->ops_pnp_mode && dev->ops->ops_pnp_mode->ssdt_enter_conf_mode)
+		dev->ops->ops_pnp_mode->ssdt_enter_conf_mode(dev, idx, data);
+}
+void pnp_ssdt_exit_conf_mode(struct device *dev, const char *idx, const char *data)
+{
+	if (dev->ops->ops_pnp_mode && dev->ops->ops_pnp_mode->ssdt_exit_conf_mode)
+		dev->ops->ops_pnp_mode->ssdt_exit_conf_mode(dev, idx, data);
+}
+#endif
 
 /* PNP fundamental operations */
 
@@ -63,7 +56,7 @@ void pnp_set_enable(struct device *dev, int enable)
 {
 	u8 tmp, bitpos;
 
-	tmp = pnp_read_config(dev, 0x30);
+	tmp = pnp_read_config(dev, PNP_IDX_EN);
 
 	/* Handle virtual devices, which share the same LDN register. */
 	bitpos = (dev->path.pnp.device >> 8) & 0x7;
@@ -73,14 +66,14 @@ void pnp_set_enable(struct device *dev, int enable)
 	else
 		tmp &= ~(1 << bitpos);
 
-	pnp_write_config(dev, 0x30, tmp);
+	pnp_write_config(dev, PNP_IDX_EN, tmp);
 }
 
 int pnp_read_enable(struct device *dev)
 {
 	u8 tmp, bitpos;
 
-	tmp = pnp_read_config(dev, 0x30);
+	tmp = pnp_read_config(dev, PNP_IDX_EN);
 
 	/* Handle virtual devices, which share the same LDN register. */
 	bitpos = (dev->path.pnp.device >> 8) & 0x7;
@@ -117,7 +110,7 @@ void pnp_read_resources(struct device *dev)
 static void pnp_set_resource(struct device *dev, struct resource *resource)
 {
 	if (!(resource->flags & IORESOURCE_ASSIGNED)) {
-		/* The PNP_MSC super IO registers have the IRQ flag set. If no
+		/* The PNP_MSC Super IO registers have the IRQ flag set. If no
 		   value is assigned in the devicetree, the corresponding
 		   PNP_MSC register doesn't get written, which should be printed
 		   as warning and not as error. */
@@ -125,12 +118,12 @@ static void pnp_set_resource(struct device *dev, struct resource *resource)
 		    (resource->index != PNP_IDX_IRQ0) &&
 		    (resource->index != PNP_IDX_IRQ1))
 			printk(BIOS_WARNING, "WARNING: %s %02lx %s size: "
-			       "0x%010llx not assigned\n", dev_path(dev),
+			       "0x%010llx not assigned in devicetree\n", dev_path(dev),
 			       resource->index, resource_type(resource),
 			       resource->size);
 		else
 			printk(BIOS_ERR, "ERROR: %s %02lx %s size: 0x%010llx "
-			       "not assigned\n", dev_path(dev), resource->index,
+			       "not assigned in devicetree\n", dev_path(dev), resource->index,
 			       resource_type(resource), resource->size);
 		return;
 	}
@@ -256,6 +249,8 @@ static void get_resources(struct device *dev, struct pnp_info *info)
 		pnp_get_ioresource(dev, PNP_IDX_IO2, info->io2);
 	if (info->flags & PNP_IO3)
 		pnp_get_ioresource(dev, PNP_IDX_IO3, info->io3);
+	if (info->flags & PNP_IO4)
+		pnp_get_ioresource(dev, PNP_IDX_IO4, info->io4);
 
 	if (info->flags & PNP_IRQ0) {
 		resource = new_resource(dev, PNP_IDX_IRQ0);
@@ -378,7 +373,7 @@ void pnp_enable_devices(struct device *base_dev, struct device_operations *ops,
 	/* Setup the ops and resources on the newly allocated devices. */
 	for (i = 0; i < functions; i++) {
 		/* Skip logical devices this Super I/O doesn't have. */
-		if (info[i].function == -1)
+		if (info[i].function == PNP_SKIP_FUNCTION)
 			continue;
 
 		path.pnp.device = info[i].function;

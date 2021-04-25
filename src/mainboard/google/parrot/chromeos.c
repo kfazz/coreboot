@@ -1,24 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011-2012 The ChromiumOS Authors.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
-#include <string.h>
 #include <bootmode.h>
+#include <boot/coreboot_tables.h>
 #include <device/pci_ops.h>
 #include <device/device.h>
-#include <device/pci.h>
 
 #include <southbridge/intel/bd82x6x/pch.h>
 #include <southbridge/intel/common/gpio.h>
@@ -26,22 +12,12 @@
 #include <vendorcode/google/chromeos/chromeos.h>
 #include "ec.h"
 
-
-#if ENV_RAMSTAGE
-#include <boot/coreboot_tables.h>
-
 void fill_lb_gpios(struct lb_gpios *gpios)
 {
-	struct device *dev = pcidev_on_root(0x1f, 0);
-	u16 gen_pmcon_1 = pci_read_config32(dev, GEN_PMCON_1);
+	const pci_devfn_t dev = PCI_DEV(0, 0x1f, 0);
+	u16 gen_pmcon_1 = pci_s_read_config32(dev, GEN_PMCON_1);
 
 	struct lb_gpio chromeos_gpios[] = {
-		/* Write Protect: GPIO70 active high */
-		{70, ACTIVE_LOW, !get_write_protect_state(), "write protect"},
-
-		/* Recovery: Virtual GPIO in the EC (Servo GPIO68 active low) */
-		{-1, ACTIVE_HIGH, get_recovery_mode_switch(), "recovery"},
-
 		/* Lid switch GPIO active high (open). */
 		{15, ACTIVE_HIGH, get_lid_switch(), "lid"},
 
@@ -54,7 +30,6 @@ void fill_lb_gpios(struct lb_gpios *gpios)
 	};
 	lb_add_gpios(gpios, chromeos_gpios, ARRAY_SIZE(chromeos_gpios));
 }
-#endif
 
 int get_lid_switch(void)
 {

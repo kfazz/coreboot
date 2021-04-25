@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2017-2018 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _SOC_CANNONLAKE_CPU_H_
 #define _SOC_CANNONLAKE_CPU_H_
@@ -36,16 +22,10 @@
 #define C9_POWER	0xc8
 #define C10_POWER	0xc8
 
-/* Common Timer Copy (CTC) frequency - 24MHz. */
-#define CTC_FREQ		24000000
-
 #define C_STATE_LATENCY_MICRO_SECONDS(limit, base) \
 	(((1 << ((base)*5)) * (limit)) / 1000)
 #define C_STATE_LATENCY_FROM_LAT_REG(reg) \
 	C_STATE_LATENCY_MICRO_SECONDS(C_STATE_LATENCY_CONTROL_ ##reg## _LIMIT, \
 				      (IRTL_1024_NS >> 10))
-
-/* Configure power limits for turbo mode */
-void set_power_limits(u8 power_limit_1_time);
 
 #endif

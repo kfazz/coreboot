@@ -1,20 +1,8 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
-#include <intelblocks/chip.h>
+#include <intelblocks/cfg.h>
+#include <intelblocks/pmclib.h>
 #include <intelpch/lockdown.h>
 #include <soc/pm.h>
 
@@ -60,6 +48,8 @@ static void pmc_lockdown_cfg(int chipset_lockdown)
 	pmc_lock_pmsync();
 	/* Lock down ABASE and sleep stretching policy */
 	pmc_lock_abase();
+	/* Make sure payload/OS can't trigger global reset */
+	pmc_global_reset_disable_and_lock();
 
 	if (chipset_lockdown == CHIPSET_LOCKDOWN_COREBOOT)
 		pmc_lock_smi();

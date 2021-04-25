@@ -1,7 +1,6 @@
 chip northbridge/intel/gm45
 	# IGD Displays
-	register "gfx.ndid" = "3"
-	register "gfx.did" = "{ 0x80000100, 0x80000240, 0x80000410, 0x80000410, 0x00000005 }"
+	register "gfx" = "GMA_STATIC_DISPLAYS(0)"
 	device cpu_cluster 0 on
 		chip cpu/intel/socket_BGA956
 			device lapic 0 on end
@@ -66,6 +65,8 @@ chip northbridge/intel/gm45
 			# Set power limits to 10 * 10^0 watts.
 			# Maybe we should set less for Mini PCIe.
 			register "pcie_power_limits" = "{ { 10, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 10, 0 }, { 0, 0 } }"
+
+			register "gen1_dec" = "0x000c0601"
 
 			device pci 19.0 off end # LAN
 			device pci 1a.0 on # UHCI

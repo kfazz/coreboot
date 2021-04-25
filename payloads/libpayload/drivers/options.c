@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2008 coresystems GmbH
  *
@@ -27,8 +26,11 @@
  * SUCH DAMAGE.
  */
 
+#define __STDC_FORMAT_MACROS
+
 #include <libpayload.h>
 #include <coreboot_tables.h>
+#include <inttypes.h>
 
 u8 *mem_accessor_base;
 
@@ -54,7 +56,7 @@ struct nvram_accessor *use_mem = &(struct nvram_accessor) {
 
 struct cb_cmos_option_table *get_system_option_table(void)
 {
-	return lib_sysinfo.option_table;
+	return phys_to_virt(lib_sysinfo.cmos_option_table);
 }
 
 int options_checksum_valid(const struct nvram_accessor *nvram)
@@ -157,7 +159,7 @@ static struct cb_cmos_entries *lookup_cmos_entry(struct cb_cmos_option_table *op
 	struct cb_cmos_entries *cmos_entry;
 	int len = name ? strnlen(name, CB_CMOS_MAX_NAME_LENGTH) : 0;
 
-	/* cmos entries are located right after the option table */
+	/* CMOS entries are located right after the option table */
 	cmos_entry = first_cmos_entry(option_table);
 	while (cmos_entry) {
 		if (memcmp((const char*)cmos_entry->name, name, len) == 0)
@@ -186,12 +188,12 @@ struct cb_cmos_entries *next_cmos_entry(struct cb_cmos_entries *cmos_entry)
 struct cb_cmos_enums *first_cmos_enum(struct cb_cmos_option_table *option_table)
 {
 	struct cb_cmos_entries *cmos_entry;
-	/* cmos entries are located right after the option table. Skip them */
+	/* CMOS entries are located right after the option table. Skip them */
 	cmos_entry = (struct cb_cmos_entries *)((unsigned char *)option_table + option_table->header_length);
 	while (cmos_entry->tag == CB_TAG_OPTION)
 		cmos_entry = (struct cb_cmos_entries*)((unsigned char *)cmos_entry + cmos_entry->size);
 
-	/* cmos enums are located after cmos entries. */
+	/* CMOS enums are located after CMOS entries. */
 	return (struct cb_cmos_enums *)cmos_entry;
 }
 
@@ -237,7 +239,7 @@ static struct cb_cmos_enums *lookup_cmos_enum_core(struct cb_cmos_option_table *
 {
 	int len = strnlen(text, CB_CMOS_MAX_TEXT_LENGTH);
 
-	/* cmos enums are located after cmos entries. */
+	/* CMOS enums are located after CMOS entries. */
 	struct cb_cmos_enums *cmos_enum;
 	for (   cmos_enum = first_cmos_enum_of_id(option_table, config_id);
 		cmos_enum;
@@ -326,7 +328,7 @@ int get_option_as_string(const struct nvram_accessor *nvram, struct cb_cmos_opti
 			/* only works on little endian.
 			   26 bytes is enough for a 64bit value in decimal */
 			*dest = malloc(26);
-			sprintf(*dest, "%llu", *(u64*)raw);
+			sprintf(*dest, "%" PRIu64, *(u64 *)raw);
 			break;
 		case 's':
 			*dest = strdup(raw);

@@ -1,39 +1,19 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- *               2012 secunet Security Networks AG
- * (Written by Nico Huber <nico.huber@secunet.com> for secunet)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <stdlib.h>
 #include <arch/io.h>
 #include <device/pci_ops.h>
 #include <device/device.h>
 #include <device/pci.h>
 #include <console/console.h>
+#include "chip.h"
 #include "i82801jx.h"
 
 typedef struct southbridge_intel_i82801jx_config config_t;
 
 static void i82801jx_enable_device(struct device *dev)
 {
-	u32 reg32;
-
 	/* Enable SERR */
-	reg32 = pci_read_config32(dev, PCI_COMMAND);
-	reg32 |= PCI_COMMAND_SERR;
-	pci_write_config32(dev, PCI_COMMAND, reg32);
+	pci_or_config16(dev, PCI_COMMAND, PCI_COMMAND_SERR);
 }
 
 static void i82801jx_early_settings(const config_t *const info)
@@ -54,7 +34,6 @@ static void i82801jx_pcie_init(const config_t *const info)
 {
 	struct device *pciePort[6];
 	int i, slot_number = 1; /* Reserve slot number 0 for nb's PEG. */
-	u32 reg32;
 
 	/* PCIe - BIOS must program... */
 	for (i = 0; i < 6; ++i) {
@@ -63,26 +42,13 @@ static void i82801jx_pcie_init(const config_t *const info)
 			printk(BIOS_EMERG, "PCIe port 00:1c.%x", i);
 			die(" is not listed in devicetree.\n");
 		}
-		reg32 = pci_read_config32(pciePort[i], 0x300);
-		pci_write_config32(pciePort[i], 0x300, reg32 | (1 << 21));
+		pci_or_config32(pciePort[i], 0x300, 1 << 21);
 		pci_write_config8(pciePort[i], 0x324, 0x40);
-	}
-
-	if (LPC_IS_MOBILE(pcidev_on_root(0x1f, 0))) {
-		for (i = 0; i < 6; ++i) {
-			if (pciePort[i]->enabled) {
-				reg32 = pci_read_config32(pciePort[i], 0xe8);
-				reg32 |= 1;
-				pci_write_config32(pciePort[i], 0xe8, reg32);
-			}
-		}
 	}
 
 	for (i = 5; (i >= 0) && !pciePort[i]->enabled; --i) {
 		/* Only for the top disabled ports. */
-		reg32 = pci_read_config32(pciePort[i], 0x300);
-		reg32 |= 0x3 << 16;
-		pci_write_config32(pciePort[i], 0x300, reg32);
+		pci_or_config32(pciePort[i], 0x300, 0x3 << 16);
 	}
 
 	/* Set slot implemented, slot number and slot power limits. */
@@ -108,10 +74,8 @@ static void i82801jx_pcie_init(const config_t *const info)
 	}
 
 	/* Lock R/WO ASPM support bits. */
-	for (i = 0; i < 6; ++i) {
-		reg32 = pci_read_config32(pciePort[i], 0x4c);
-		pci_write_config32(pciePort[i], 0x4c, reg32);
-	}
+	for (i = 0; i < 6; ++i)
+		pci_update_config32(pciePort[i], 0x4c, ~0, 0);
 }
 
 static void i82801jx_ehci_init(void)

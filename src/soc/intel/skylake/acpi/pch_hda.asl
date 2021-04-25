@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015 Intel Corporation.
- * Copyright (C) 2015 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* Audio Controller - Device 31, Function 3 */
 
@@ -40,19 +26,17 @@ Device (HDAS)
 	 */
 	Method (_DSM, 4)
 	{
-		If (LEqual (Arg0, ^UUID)) {
+		If (Arg0 == ^UUID) {
 			/*
 			 * Function 0: Function Support Query
 			 * Returns a bitmask of functions supported.
 			 */
-			If (LEqual (Arg2, Zero)) {
+			If (Arg2 == 0) {
 				/*
 				 * NHLT Query only supported for revision 1 and
 				 * if NHLT address and length are set in NVS.
 				 */
-				If (LAnd (LEqual (Arg1, One),
-					  LAnd (LNotEqual (NHLA, Zero),
-						LNotEqual (NHLL, Zero)))) {
+				If ((Arg1 == 1) && (NHLA != 0) && (NHLL != 0)) {
 					Return (Buffer (One) { 0x03 })
 				} Else {
 					Return (Buffer (One) { 0x01 })
@@ -66,14 +50,14 @@ Device (HDAS)
 			 *
 			 * Returns a pointer to NHLT table in memory.
 			 */
-			If (LEqual (Arg2, One)) {
+			If (Arg2 == 1) {
 				CreateQWordField (NBUF, ^NHLT._MIN, NBAS)
 				CreateQWordField (NBUF, ^NHLT._MAX, NMAS)
 				CreateQWordField (NBUF, ^NHLT._LEN, NLEN)
 
-				Store (NHLA, NBAS)
-				Store (NHLA, NMAS)
-				Store (NHLL, NLEN)
+				NBAS = NHLA
+				NMAS = NHLA
+				NLEN = NHLL
 
 				Return (NBUF)
 			}

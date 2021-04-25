@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2015 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _SOC_GPIO_PCH_H_DEFS_H_
 #define _SOC_GPIO_PCH_H_DEFS_H_
@@ -32,7 +19,6 @@
 #define GPP_H			7
 #define GPP_I			8
 #define GPD			9
-#define GPIO_NUM_GROUPS		10
 #define GPIO_MAX_NUM_PER_GROUP	24
 
 #define GPIO_DWx_COUNT		2 /* DW0 and DW1 */

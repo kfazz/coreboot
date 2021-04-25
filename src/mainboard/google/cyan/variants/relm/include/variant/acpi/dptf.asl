@@ -1,24 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2012 Google Inc.
- * Copyright (C) 2105 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #define DPTF_TSR0_SENSOR_ID	0
 #define DPTF_TSR0_SENSOR_NAME	"TMP432_PMIC"
 #define DPTF_TSR0_PASSIVE	49
 #define DPTF_TSR0_CRITICAL	70
-
 
 #define DPTF_TSR1_SENSOR_ID	1
 #define DPTF_TSR1_SENSOR_NAME	"TMP432_Charger"
@@ -29,7 +14,6 @@
 #define DPTF_TSR2_SENSOR_NAME	"TMP432_CPU_Vcore"
 #define DPTF_TSR2_PASSIVE	48
 #define DPTF_TSR2_CRITICAL	70
-
 
 #define DPTF_ENABLE_CHARGER
 

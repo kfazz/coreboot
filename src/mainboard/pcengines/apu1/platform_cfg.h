@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
-
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _PLATFORM_CFG_H_
 #define _PLATFORM_CFG_H_
@@ -53,13 +39,13 @@
  * @brief bit[0-6] used to control USB
  *   0 - Disable
  *   1 - Enable
- *  Usb Ohci1 Controller (Bus 0 Dev 18 Func0) is define at BIT0
- *  Usb Ehci1 Controller (Bus 0 Dev 18 Func2) is define at BIT1
- *  Usb Ohci2 Controller (Bus 0 Dev 19 Func0) is define at BIT2
- *  Usb Ehci2 Controller (Bus 0 Dev 19 Func2) is define at BIT3
- *  Usb Ohci3 Controller (Bus 0 Dev 22 Func0) is define at BIT4
- *  Usb Ehci3 Controller (Bus 0 Dev 22 Func2) is define at BIT5
- *  Usb Ohci4 Controller (Bus 0 Dev 20 Func5) is define at BIT6
+ *  Usb Ohci1 Controller (Bus 0 Dev 18 Func0) is defined at BIT0
+ *  Usb Ehci1 Controller (Bus 0 Dev 18 Func2) is defined at BIT1
+ *  Usb Ohci2 Controller (Bus 0 Dev 19 Func0) is defined at BIT2
+ *  Usb Ehci2 Controller (Bus 0 Dev 19 Func2) is defined at BIT3
+ *  Usb Ohci3 Controller (Bus 0 Dev 22 Func0) is defined at BIT4
+ *  Usb Ehci3 Controller (Bus 0 Dev 22 Func2) is defined at BIT5
+ *  Usb Ohci4 Controller (Bus 0 Dev 20 Func5) is defined at BIT6
  */
 #define USB_CONFIG		0x7F
 
@@ -125,7 +111,6 @@
  */
 #define SATA_PORT_MULT_CAP_RESERVED	1
 
-
 /**
  * @def   AZALIA_AUTO
  * @brief Detect Azalia controller automatically.
@@ -156,13 +141,13 @@
 /**
  * @def AZALIA_SDIN_PIN
  * @brief
- *  SDIN0 is define at BIT0 & BIT1
+ *  SDIN0 is defined at BIT0 & BIT1
  *   00 - GPIO PIN
  *   01 - Reserved
  *   10 - As a Azalia SDIN pin
- *  SDIN1 is define at BIT2 & BIT3
- *  SDIN2 is define at BIT4 & BIT5
- *  SDIN3 is define at BIT6 & BIT7
+ *  SDIN1 is defined at BIT2 & BIT3
+ *  SDIN2 is defined at BIT4 & BIT5
+ *  SDIN3 is defined at BIT6 & BIT7
  */
 //#define AZALIA_SDIN_PIN		0xAA
 #define AZALIA_SDIN_PIN			0x2A
@@ -211,18 +196,18 @@
  */
 #define GEC_CONFIG			0
 
-/* set up an ACPI preferred power management profile */
-/*  from acpi.h
- *	PM_UNSPECIFIED          = 0,
- *	PM_DESKTOP              = 1,
- *	PM_MOBILE               = 2,
- *	PM_WORKSTATION          = 3,
- *	PM_ENTERPRISE_SERVER    = 4,
- *	PM_SOHO_SERVER          = 5,
- *	PM_APPLIANCE_PC         = 6,
- *	PM_PERFORMANCE_SERVER   = 7,
- *	PM_TABLET               = 8
+/**
+ * @def USB_RX_MODE
+ *    0x00 - leave Cg2Pll voltage at default value (1.222V)
+ *    0x01 - lower Cg2Pll voltage to 1.1V
+ *
+ * Workaround for reset issues via outb(0x6, 0xcf9).
+ * For details check:
+ * AMD SB800 Family Product Errata,
+ * Section 15. USB Resets Asynchronously With Port CF9h Hard Reset
+ *
  */
-#define FADT_PM_PROFILE 1
+
+#define USB_RX_MODE 0x00
 
 #endif /* _PLATFORM_CFG_H_ */

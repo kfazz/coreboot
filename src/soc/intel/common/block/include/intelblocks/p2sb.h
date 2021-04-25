@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017-2018 Intel Corporation.
- * Copyright (C) 2019 Siemens AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef SOC_INTEL_COMMON_BLOCK_P2SB_H
 #define SOC_INTEL_COMMON_BLOCK_P2SB_H
@@ -42,6 +28,21 @@ void p2sb_hide(void);
 void p2sb_disable_sideband_access(void);
 void p2sb_enable_bar(void);
 void p2sb_configure_hpet(void);
+
+union p2sb_bdf {
+	struct {
+		uint16_t fn  : 3;
+		uint16_t dev : 5;
+		uint16_t bus : 8;
+	};
+	uint16_t raw;
+};
+
+union p2sb_bdf p2sb_get_hpet_bdf(void);
+void p2sb_set_hpet_bdf(union p2sb_bdf bdf);
+union p2sb_bdf p2sb_get_ioapic_bdf(void);
+void p2sb_set_ioapic_bdf(union p2sb_bdf bdf);
+
 
 /* SOC overrides */
 /*

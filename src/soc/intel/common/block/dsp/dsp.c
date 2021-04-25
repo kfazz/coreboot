@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- *  * Copyright (C) 2016 Google Inc.
- *  * Copyright (C) 2017-2018 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/device.h>
 #include <device/pci.h>
@@ -33,7 +19,27 @@ static const unsigned short pci_device_ids[] = {
 	PCI_DEVICE_ID_INTEL_SKL_AUDIO,
 	PCI_DEVICE_ID_INTEL_CNP_H_AUDIO,
 	PCI_DEVICE_ID_INTEL_CMP_AUDIO,
+	PCI_DEVICE_ID_INTEL_CMP_H_AUDIO,
 	PCI_DEVICE_ID_INTEL_ICL_AUDIO,
+	PCI_DEVICE_ID_INTEL_TGL_AUDIO,
+	PCI_DEVICE_ID_INTEL_MCC_AUDIO,
+	PCI_DEVICE_ID_INTEL_JSP_AUDIO,
+	PCI_DEVICE_ID_INTEL_ADP_P_AUDIO,
+	PCI_DEVICE_ID_INTEL_ADP_S_AUDIO_1,
+	PCI_DEVICE_ID_INTEL_ADP_S_AUDIO_2,
+	PCI_DEVICE_ID_INTEL_ADP_S_AUDIO_3,
+	PCI_DEVICE_ID_INTEL_ADP_S_AUDIO_4,
+	PCI_DEVICE_ID_INTEL_ADP_S_AUDIO_5,
+	PCI_DEVICE_ID_INTEL_ADP_S_AUDIO_6,
+	PCI_DEVICE_ID_INTEL_ADP_S_AUDIO_7,
+	PCI_DEVICE_ID_INTEL_ADP_S_AUDIO_8,
+	PCI_DEVICE_ID_INTEL_ADP_M_AUDIO_1,
+	PCI_DEVICE_ID_INTEL_ADP_M_AUDIO_2,
+	PCI_DEVICE_ID_INTEL_ADP_M_AUDIO_3,
+	PCI_DEVICE_ID_INTEL_ADP_M_AUDIO_4,
+	PCI_DEVICE_ID_INTEL_ADP_M_AUDIO_5,
+	PCI_DEVICE_ID_INTEL_ADP_M_AUDIO_6,
+	PCI_DEVICE_ID_INTEL_ADP_M_AUDIO_7,
 	0,
 };
 

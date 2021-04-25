@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2008 Jordan Crouse <jordan@cosmicpenguin.net>
  * Copyright (C) 2012 Google, Inc.
@@ -50,7 +49,6 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <compiler.h>
 
 /** These are standard values for the known compression
     alogrithms that coreboot knows about for stages and
@@ -144,6 +142,7 @@ struct cbfs_file {
 #define CBFS_FILE_ATTR_TAG_UNUSED2 0xffffffff
 #define CBFS_FILE_ATTR_TAG_COMPRESSION 0x42435a4c
 #define CBFS_FILE_ATTR_TAG_HASH 0x68736148
+#define CBFS_FILE_ATTR_TAG_IBB 0x32494242 /* Initial BootBlock */
 
 /* The common fields of extended cbfs file attributes.
    Attributes are expected to start with tag/len, then append their

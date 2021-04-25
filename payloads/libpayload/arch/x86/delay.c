@@ -1,5 +1,4 @@
 /*
- * This file is part of the libpayload project.
  *
  * Copyright (C) 2018 Google LLC
  *
@@ -38,7 +37,6 @@
 
 /* Let's assume APIC interrupts take at least 100us */
 #define APIC_INTERRUPT_LATENCY_NS	(100 * NSECS_PER_USEC)
-
 
 void arch_ndelay(uint64_t ns)
 {

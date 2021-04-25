@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2016 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
-#include <arch/early_variables.h>
+/* SPDX-License-Identifier: GPL-2.0-only */
 #include <console/console.h>
 #include <fsp/util.h>
 #include <memory_info.h>
@@ -21,11 +7,11 @@
 #include <fsp/soc_binding.h>
 #include <string.h>
 
-static size_t memory_size_mib CAR_GLOBAL;
+static size_t memory_size_mib;
 
 size_t memory_in_system_in_mib(void)
 {
-	return car_get_var(memory_size_mib);
+	return memory_size_mib;
 }
 
 static void accumulate_channel_memory(int density, int dual_rank)
@@ -61,7 +47,7 @@ static void accumulate_channel_memory(int density, int dual_rank)
 
 	sz *= GiB / MiB;
 
-	car_set_var(memory_size_mib, car_get_var(memory_size_mib) + sz);
+	memory_size_mib += sz;
 }
 
 size_t iohole_in_mib(void)
@@ -166,7 +152,7 @@ static const struct fsp_speed_profiles glk_profile = {
 
 static const struct fsp_speed_profiles *get_fsp_profile(void)
 {
-	if (CONFIG(SOC_INTEL_GLK))
+	if (CONFIG(SOC_INTEL_GEMINILAKE))
 		return &glk_profile;
 	else
 		return &apl_profile;

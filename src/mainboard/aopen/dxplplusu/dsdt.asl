@@ -1,34 +1,21 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Kyösti Mälkki <kyosti.malkki@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 
 DefinitionBlock(
 	"dsdt.aml",
 	"DSDT",
-	0x02,		// DSDT revision: ACPI v2.0 and up
+	ACPI_DSDT_REV_2,
 	OEM_ID,
 	ACPI_TABLE_CREATOR,
 	0x20111103	// OEM revision
 ) {
+	#include <acpi/dsdt_top.asl>
 
 Scope(\_SB)
 {
 	Device(PCI0) {
 		Name (_HID, EISAID("PNP0A03"))
-		Name (_ADR, 0x00)
 		Name (_PRT, Package() {
 			Package() { 0x001dffff, 0, 0, 16 },
 			Package() { 0x001dffff, 1, 0, 19 },

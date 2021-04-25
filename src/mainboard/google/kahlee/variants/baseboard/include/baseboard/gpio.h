@@ -1,31 +1,16 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __BASEBOARD_GPIO_H__
 #define __BASEBOARD_GPIO_H__
 
 #ifndef __ACPI__
+#include <amdblocks/gpio_defs.h>
 #include <soc/gpio.h>
 
 # define MEM_CONFIG0		GPIO_139
 # define MEM_CONFIG1		GPIO_142
 # define MEM_CONFIG2		GPIO_131
 # define MEM_CONFIG3		GPIO_132
-
-/* CR50 interrupt pin */
-#define H1_PCH_INT		GPIO_9
 
 /* SPI Write protect */
 #define CROS_WP_GPIO		GPIO_122
@@ -40,8 +25,8 @@
 #endif /* _ACPI__ */
 
 /* These define the GPE, not the GPIO. */
-#define EC_SCI_GPI		3	/* AGPIO 22 -> GPE  3 */
-#define EC_SMI_GPI		10	/* AGPIO 6  -> GPE 10 */
-#define EC_WAKE_GPI		15	/* AGPIO 24 -> GPE 15 */
+#define EC_SCI_GPI		GEVENT_3	/* AGPIO 22 -> GPE  3 */
+#define EC_SMI_GPI		GEVENT_10	/* AGPIO 6  -> GPE 10 */
+#define EC_WAKE_GPI		GEVENT_15	/* AGPIO 24 -> GPE 15 */
 
 #endif /* __BASEBOARD_GPIO_H__ */

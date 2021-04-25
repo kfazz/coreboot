@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Sage Electronic Engineering, LLC.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __ASM_MPSPEC_H
 #define __ASM_MPSPEC_H
@@ -35,7 +22,6 @@
  * a maximum of 16 APICs with the current APIC ID architecture.
  */
 #define MAX_APICS 16
-
 
 #define SMP_FLOATING_TABLE_LEN sizeof(struct intel_mp_floating)
 
@@ -142,7 +128,6 @@ enum mp_irq_source_types {
 #define MP_IRQ_TRIGGER_EDGE	0x4
 #define MP_IRQ_TRIGGER_LEVEL	0xc
 #define MP_IRQ_TRIGGER_MASK     0xc
-
 
 struct mpc_config_lintsrc {
 	u8 mpc_type;

@@ -1,45 +1,26 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- *               2012 secunet Security Networks AG
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
+#include <option.h>
 #include <pc80/mc146818rtc.h>
 #include <pc80/isa-dma.h>
 #include <pc80/i8259.h>
 #include <arch/io.h>
 #include <device/pci_ops.h>
 #include <arch/ioapic.h>
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <cpu/x86/smm.h>
-#include <arch/acpigen.h>
-#include <cbmem.h>
-#include <string.h>
+#include <acpi/acpigen.h>
+#include "chip.h"
 #include "i82801ix.h"
-#include "nvs.h"
 #include <southbridge/intel/common/pciehp.h>
-#include <drivers/intel/gma/i915.h>
+#include <southbridge/intel/common/pmutil.h>
 #include <southbridge/intel/common/acpi_pirq_gen.h>
 
 #define NMI_OFF	0
-
-#define ENABLE_ACPI_MODE_IN_COREBOOT	0
-#define TEST_SMM_FLASH_LOCKDOWN		0
 
 typedef struct southbridge_intel_i82801ix_config config_t;
 
@@ -112,7 +93,7 @@ static void i82801ix_pirq_init(struct device *dev)
 	 */
 
 	for (irq_dev = all_devices; irq_dev; irq_dev = irq_dev->next) {
-		u8 int_pin=0, int_line=0;
+		u8 int_pin = 0, int_line = 0;
 
 		if (!irq_dev->enabled || irq_dev->path.type != DEVICE_PATH_PCI)
 			continue;
@@ -171,12 +152,8 @@ static void i82801ix_power_options(struct device *dev)
 	/* Get the chip configuration */
 	config_t *config = dev->chip_info;
 
-	int pwr_on = CONFIG_MAINBOARD_POWER_FAILURE_STATE;
-	int nmi_option;
-
 	/* BIOS must program... */
-	reg32 = pci_read_config32(dev, 0xac);
-	pci_write_config32(dev, 0xac, reg32 | (1 << 30) | (3 << 8));
+	pci_or_config32(dev, 0xac, (1 << 30) | (3 << 8));
 
 	/* Which state do we want to goto after g3 (power restored)?
 	 * 0 == S0 Full On
@@ -184,8 +161,7 @@ static void i82801ix_power_options(struct device *dev)
 	 *
 	 * If the option is not existent (Laptops), use MAINBOARD_POWER_ON.
 	 */
-	pwr_on = MAINBOARD_POWER_ON;
-	get_option(&pwr_on, "power_on_after_fail");
+	const int pwr_on = get_int_option("power_on_after_fail", MAINBOARD_POWER_ON);
 
 	reg8 = pci_read_config8(dev, D31F0_GEN_PMCON_3);
 	reg8 &= 0xfe;
@@ -207,7 +183,7 @@ static void i82801ix_power_options(struct device *dev)
 	}
 
 	reg8 |= (3 << 4);	/* avoid #S4 assertions */
-	reg8 &= ~(1 << 3);	/* minimum asssertion is 1 to 2 RTCCLK */
+	reg8 &= ~(1 << 3);	/* minimum assertion is 1 to 2 RTCCLK */
 
 	pci_write_config8(dev, D31F0_GEN_PMCON_3, reg8);
 	printk(BIOS_INFO, "Set power %s after power failure.\n", state);
@@ -221,8 +197,7 @@ static void i82801ix_power_options(struct device *dev)
 	outb(reg8, 0x61);
 
 	reg8 = inb(0x74); /* Read from 0x74 as 0x70 is write only. */
-	nmi_option = NMI_OFF;
-	get_option(&nmi_option, "nmi");
+	const int nmi_option = get_int_option("nmi", NMI_OFF);
 	if (nmi_option) {
 		printk(BIOS_INFO, "NMI sources enabled.\n");
 		reg8 &= ~(1 << 7);	/* Set NMI. */
@@ -245,12 +220,8 @@ static void i82801ix_power_options(struct device *dev)
 	// another laptop wants this?
 	// reg16 &= ~(1 << 10);	// BIOS_PCI_EXP_EN - Desktop/Mobile only
 	reg16 |= (1 << 10);	// BIOS_PCI_EXP_EN - Desktop/Mobile only
-#if DEBUG_PERIODIC_SMIS
-	/* Set DEBUG_PERIODIC_SMIS in i82801ix.h to debug using
-	 * periodic SMIs.
-	 */
-	reg16 |= (3 << 0); // Periodic SMI every 8s
-#endif
+	if (CONFIG(DEBUG_PERIODIC_SMI))
+		reg16 |= (3 << 0); // Periodic SMI every 8s
 	if (config->c5_enable)
 		reg16 |= (1 << 11); /* Enable C5, C6 and PMSYNC# */
 	pci_write_config16(dev, D31F0_GEN_PMCON_1, reg16);
@@ -293,18 +264,13 @@ static void i82801ix_power_options(struct device *dev)
 
 static void i82801ix_configure_cstates(struct device *dev)
 {
-	u8 reg8;
-
-	reg8 = pci_read_config8(dev, D31F0_CxSTATE_CNF);
-	reg8 |= (1 << 4) | (1 << 3) | (1 << 2);	// Enable Popup & Popdown
-	pci_write_config8(dev, D31F0_CxSTATE_CNF, reg8);
+	// Enable Popup & Popdown
+	pci_or_config8(dev, D31F0_CxSTATE_CNF, (1 << 4) | (1 << 3) | (1 << 2));
 
 	// Set Deeper Sleep configuration to recommended values
-	reg8 = pci_read_config8(dev, D31F0_C4TIMING_CNT);
-	reg8 &= 0xf0;
-	reg8 |= (2 << 2);	// Deeper Sleep to Stop CPU: 34-40us
-	reg8 |= (2 << 0);	// Deeper Sleep to Sleep: 15us
-	pci_write_config8(dev, D31F0_C4TIMING_CNT, reg8);
+	// Deeper Sleep to Stop CPU: 34-40us
+	// Deeper Sleep to Sleep: 15us
+	pci_update_config8(dev, D31F0_C4TIMING_CNT, ~0x0f, (2 << 2) | (2 << 0));
 
 	/* We could enable slow-C4 exit here, if someone needs it? */
 }
@@ -367,68 +333,18 @@ static void enable_clock_gating(void)
 	RCBA32(0x38c0) |= 7;
 }
 
-#if CONFIG(HAVE_SMI_HANDLER)
-static void i82801ix_lock_smm(struct device *dev)
+static void i82801ix_set_acpi_mode(struct device *dev)
 {
-#if TEST_SMM_FLASH_LOCKDOWN
-	u8 reg8;
-#endif
-
 	if (!acpi_is_wakeup_s3()) {
-#if ENABLE_ACPI_MODE_IN_COREBOOT
-		printk(BIOS_DEBUG, "Enabling ACPI via APMC:\n");
-		outb(APM_CNT_ACPI_ENABLE, APM_CNT); // Enable ACPI mode
-		printk(BIOS_DEBUG, "done.\n");
-#else
-		printk(BIOS_DEBUG, "Disabling ACPI via APMC:\n");
-		outb(APM_CNT_ACPI_DISABLE, APM_CNT); // Disable ACPI mode
-		printk(BIOS_DEBUG, "done.\n");
-#endif
+		apm_control(APM_CNT_ACPI_DISABLE);
 	} else {
-		printk(BIOS_DEBUG, "S3 wakeup, enabling ACPI via APMC\n");
-		outb(APM_CNT_ACPI_ENABLE, APM_CNT);
+		apm_control(APM_CNT_ACPI_ENABLE);
 	}
-	/* Don't allow evil boot loaders, kernels, or
-	 * userspace applications to deceive us:
-	 */
-	if (!CONFIG(PARALLEL_MP))
-		smm_lock();
-
-#if TEST_SMM_FLASH_LOCKDOWN
-	/* Now try this: */
-	printk(BIOS_DEBUG, "Locking BIOS to RO... ");
-	reg8 = pci_read_config8(dev, 0xdc);	/* BIOS_CNTL */
-	printk(BIOS_DEBUG, " BLE: %s; BWE: %s\n", (reg8&2)?"on":"off",
-			(reg8&1)?"rw":"ro");
-	reg8 &= ~(1 << 0);			/* clear BIOSWE */
-	pci_write_config8(dev, 0xdc, reg8);
-	reg8 |= (1 << 1);			/* set BLE */
-	pci_write_config8(dev, 0xdc, reg8);
-	printk(BIOS_DEBUG, "ok.\n");
-	reg8 = pci_read_config8(dev, 0xdc);	/* BIOS_CNTL */
-	printk(BIOS_DEBUG, " BLE: %s; BWE: %s\n", (reg8&2)?"on":"off",
-			(reg8&1)?"rw":"ro");
-
-	printk(BIOS_DEBUG, "Writing:\n");
-	*(volatile u8 *)0xfff00000 = 0x00;
-	printk(BIOS_DEBUG, "Testing:\n");
-	reg8 |= (1 << 0);			/* set BIOSWE */
-	pci_write_config8(dev, 0xdc, reg8);
-
-	reg8 = pci_read_config8(dev, 0xdc);	/* BIOS_CNTL */
-	printk(BIOS_DEBUG, " BLE: %s; BWE: %s\n", (reg8&2)?"on":"off",
-			(reg8&1)?"rw":"ro");
-	printk(BIOS_DEBUG, "Done.\n");
-#endif
 }
-#endif
 
 static void lpc_init(struct device *dev)
 {
-	printk(BIOS_DEBUG, "i82801ix: lpc_init\n");
-
-	/* Set the value for PCI command register. */
-	pci_write_config16(dev, PCI_COMMAND, 0x000f);
+	printk(BIOS_DEBUG, "i82801ix: %s\n", __func__);
 
 	/* IO APIC initialization. */
 	i82801ix_enable_apic(dev);
@@ -463,9 +379,13 @@ static void lpc_init(struct device *dev)
 	/* Interrupt 9 should be level triggered (SCI) */
 	i8259_configure_irq_trigger(9, 1);
 
-#if CONFIG(HAVE_SMI_HANDLER)
-	i82801ix_lock_smm(dev);
-#endif
+	i82801ix_set_acpi_mode(dev);
+
+	/* Don't allow evil boot loaders, kernels, or
+	 * userspace applications to deceive us:
+	 */
+	if (CONFIG(HAVE_SMI_HANDLER) && !CONFIG(PARALLEL_MP))
+		aseg_smm_lock();
 }
 
 static void i82801ix_lpc_read_resources(struct device *dev)
@@ -491,7 +411,7 @@ static void i82801ix_lpc_read_resources(struct device *dev)
 	 * 0x00c0 ~ 0x00de....ISA DMA
 	 * 0x00c1 ~ 0x00df....ISA DMA aliases
 	 * 0x00f0.............Coprocessor Error
-	 * (0x0400-0x041f)....SMBus (SMBUS_IO_BASE, during raminit)
+	 * (0x0400-0x041f)....SMBus (CONFIG_FIXED_SMBUS_IO_BASE, during raminit)
 	 * 0x04d0 - 0x04d1....PIC
 	 * 0x0500 - 0x057f....PM (DEFAULT_PMBASE)
 	 * 0x0580 - 0x05bf....SB GPIO (DEFAULT_GPIOBASE)
@@ -524,37 +444,12 @@ static void i82801ix_lpc_read_resources(struct device *dev)
 	res->flags = IORESOURCE_MEM | IORESOURCE_ASSIGNED | IORESOURCE_FIXED;
 }
 
-static void southbridge_inject_dsdt(struct device *dev)
-{
-	global_nvs_t *gnvs = cbmem_add (CBMEM_ID_ACPI_GNVS, sizeof(*gnvs));
-
-	if (gnvs) {
-		const struct i915_gpu_controller_info *gfx = intel_gma_get_controller_info();
-		memset(gnvs, 0, sizeof(*gnvs));
-		acpi_create_gnvs(gnvs);
-
-		if (gfx) {
-			gnvs->ndid = gfx->ndid;
-			memcpy(gnvs->did, gfx->did, sizeof(gnvs->did));
-		}
-
-		/* And tell SMI about it */
-		smm_setup_structures(gnvs, NULL, NULL);
-
-		/* Add it to SSDT.  */
-		acpigen_write_scope("\\");
-		acpigen_write_name_dword("NVSA", (uintptr_t)gnvs);
-		acpigen_pop_len();
-	}
-}
-
-
 static const char *lpc_acpi_name(const struct device *dev)
 {
 	return "LPCB";
 }
 
-static void southbridge_fill_ssdt(struct device *device)
+static void southbridge_fill_ssdt(const struct device *device)
 {
 	struct device *dev = pcidev_on_root(0x1f, 0);
 	config_t *chip = dev->chip_info;
@@ -563,30 +458,25 @@ static void southbridge_fill_ssdt(struct device *device)
 	intel_acpi_gen_def_acpi_pirq(device);
 }
 
-static struct pci_operations pci_ops = {
-	.set_subsystem = pci_dev_set_subsystem,
-};
-
 static struct device_operations device_ops = {
 	.read_resources		= i82801ix_lpc_read_resources,
 	.set_resources		= pci_dev_set_resources,
 	.enable_resources	= pci_dev_enable_resources,
-	.acpi_inject_dsdt_generator = southbridge_inject_dsdt,
 	.write_acpi_tables      = acpi_write_hpet,
-	.acpi_fill_ssdt_generator = southbridge_fill_ssdt,
+	.acpi_fill_ssdt		= southbridge_fill_ssdt,
 	.acpi_name		= lpc_acpi_name,
 	.init			= lpc_init,
-	.scan_bus		= scan_lpc_bus,
-	.ops_pci		= &pci_ops,
+	.scan_bus		= scan_static_bus,
+	.ops_pci		= &pci_dev_ops_pci,
 };
 
 static const unsigned short pci_device_ids[] = {
-	0x2912, /* ICH9DH  */
-	0x2914, /* ICH9DO  */
-	0x2916, /* ICH9R   */
-	0x2918, /* ICH9    */
-	0x2917, /* ICH9M-E */
-	0x2919, /* ICH9M   */
+	PCI_DEVICE_ID_INTEL_82801IH_LPC,   /* ICH9DH  */
+	PCI_DEVICE_ID_INTEL_82801IO_LPC,   /* ICH9DO  */
+	PCI_DEVICE_ID_INTEL_82801IR_LPC,   /* ICH9R   */
+	PCI_DEVICE_ID_INTEL_82801IEM_LPC,  /* ICH9M-E */
+	PCI_DEVICE_ID_INTEL_82801IB_LPC,   /* ICH9    */
+	PCI_DEVICE_ID_INTEL_82801IBM_LPC,  /* ICH9M   */
 	0
 };
 

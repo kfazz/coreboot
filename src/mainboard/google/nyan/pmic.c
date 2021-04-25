@@ -1,25 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Google Inc.
- * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <boardid.h>
 #include <console/console.h>
 #include <delay.h>
 #include <device/i2c_simple.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <reset.h>
 
 #include "pmic.h"
@@ -55,7 +40,7 @@ static struct as3722_init_reg init_list[] = {
 	{AS3722_LDO11, 0x00, 1},
 };
 
-static void pmic_write_reg(unsigned bus, uint8_t reg, uint8_t val, int do_delay)
+static void pmic_write_reg(unsigned int bus, uint8_t reg, uint8_t val, int do_delay)
 {
 		if (i2c_writeb(bus, AS3722_I2C_ADDR, reg, val)) {
 		printk(BIOS_ERR, "%s: reg = 0x%02X, value = 0x%02X failed!\n",
@@ -68,7 +53,7 @@ static void pmic_write_reg(unsigned bus, uint8_t reg, uint8_t val, int do_delay)
 	}
 }
 
-static void pmic_slam_defaults(unsigned bus)
+static void pmic_slam_defaults(unsigned int bus)
 {
 	int i;
 	for (i = 0; i < ARRAY_SIZE(init_list); i++) {
@@ -77,7 +62,7 @@ static void pmic_slam_defaults(unsigned bus)
 	}
 }
 
-void pmic_init(unsigned bus)
+void pmic_init(unsigned int bus)
 {
 	/*
 	 * Don't need to set up VDD_CORE - already done - by OTP

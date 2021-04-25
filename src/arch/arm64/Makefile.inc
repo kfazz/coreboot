@@ -1,23 +1,4 @@
-################################################################################
-##
-## This file is part of the coreboot project.
-##
-## Copyright (C) 2014 Google Inc.
-## Copyright (C) 2012-2013 The ChromiumOS Authors
-## Copyright (C) 2012 Alexandru Gagniuc <mr.nuke.me@gmail.com>
-## Copyright (C) 2009-2010 coresystems GmbH
-## Copyright (C) 2009 Ronald G. Minnich
-##
-## This program is free software; you can redistribute it and/or modify
-## it under the terms of the GNU General Public License as published by
-## the Free Software Foundation; version 2 of the License.
-##
-## This program is distributed in the hope that it will be useful,
-## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-## GNU General Public License for more details.
-##
-################################################################################
+## SPDX-License-Identifier: GPL-2.0-only
 
 ################################################################################
 # Take care of subdirectories
@@ -45,11 +26,8 @@ decompressor-y += div0.c
 bootblock-y += div0.c
 decompressor-y += eabi_compat.c
 bootblock-y += eabi_compat.c
-decompressor-y += id.S
-bootblock-y += id.S
-$(call src-to-obj,decompressor,$(dir)/id.S): $(obj)/build.h
-$(call src-to-obj,bootblock,$(dir)/id.S): $(obj)/build.h
 
+decompressor-$(CONFIG_ARM64_USE_ARCH_TIMER) += arch_timer.c
 bootblock-$(CONFIG_ARM64_USE_ARCH_TIMER) += arch_timer.c
 bootblock-y += transition.c transition_asm.S
 
@@ -64,11 +42,11 @@ bootblock-y += memmove.S
 
 $(objcbfs)/bootblock.debug: $$(bootblock-objs) $(obj)/config.h
 	@printf "    LINK       $(subst $(obj)/,,$(@))\n"
-	$(LD_bootblock) $(LDFLAGS_bootblock) -o $@ -L$(obj) --whole-archive --start-group $(filter-out %.ld,$(bootblock-objs)) --end-group -T $(call src-to-obj,bootblock,src/mainboard/$(MAINBOARDDIR)/memlayout.ld)
+	$(LD_bootblock) $(LDFLAGS_bootblock) -o $@ -L$(obj) --whole-archive --start-group $(filter-out %.ld,$(bootblock-objs)) --end-group -T $(call src-to-obj,bootblock,$(CONFIG_MEMLAYOUT_LD_FILE))
 
 $(objcbfs)/decompressor.debug: $$(decompressor-objs) $(obj)/config.h
 	@printf "    LINK       $(subst $(obj)/,,$(@))\n"
-	$(LD_bootblock) $(LDFLAGS_bootblock) -o $@ -L$(obj) --whole-archive --start-group $(filter-out %.ld,$(decompressor-objs)) --end-group -T $(call src-to-obj,decompressor,src/mainboard/$(MAINBOARDDIR)/memlayout.ld)
+	$(LD_bootblock) $(LDFLAGS_bootblock) -o $@ -L$(obj) --whole-archive --start-group $(filter-out %.ld,$(decompressor-objs)) --end-group -T $(call src-to-obj,decompressor,$(CONFIG_MEMLAYOUT_LD_FILE))
 
 endif # CONFIG_ARCH_BOOTBLOCK_ARM64
 
@@ -80,7 +58,7 @@ ifeq ($(CONFIG_ARCH_VERSTAGE_ARM64),y)
 
 $(objcbfs)/verstage.debug: $$(verstage-objs)
 	@printf "    LINK       $(subst $(obj)/,,$(@))\n"
-	$(LD_verstage) $(LDFLAGS_verstage) -o $@ -L$(obj) --whole-archive --start-group $(filter-out %.ld,$(verstage-objs)) --end-group -T $(call src-to-obj,verstage,src/mainboard/$(MAINBOARDDIR)/memlayout.ld)
+	$(LD_verstage) $(LDFLAGS_verstage) -o $@ -L$(obj) --whole-archive --start-group $(filter-out %.ld,$(verstage-objs)) --end-group -T $(call src-to-obj,verstage,$(CONFIG_MEMLAYOUT_LD_FILE))
 
 verstage-y += boot.c
 verstage-y += div0.c
@@ -107,6 +85,7 @@ romstage-$(CONFIG_ARM64_USE_ARCH_TIMER) += arch_timer.c
 romstage-y += memset.S
 romstage-y += memcpy.S
 romstage-y += memmove.S
+romstage-y += ramdetect.c
 romstage-y += romstage.c
 romstage-y += transition.c transition_asm.S
 
@@ -117,7 +96,7 @@ rmodules_arm64-y += eabi_compat.c
 
 $(objcbfs)/romstage.debug: $$(romstage-objs)
 	@printf "    LINK       $(subst $(obj)/,,$(@))\n"
-	$(LD_romstage) $(LDFLAGS_romstage) -o $@ -L$(obj) --whole-archive --start-group $(filter-out %.ld,$(romstage-objs)) --end-group -T $(call src-to-obj,romstage,src/mainboard/$(MAINBOARDDIR)/memlayout.ld)
+	$(LD_romstage) $(LDFLAGS_romstage) -o $@ -L$(obj) --whole-archive --start-group $(filter-out %.ld,$(romstage-objs)) --end-group -T $(call src-to-obj,romstage,$(CONFIG_MEMLAYOUT_LD_FILE))
 
 endif # CONFIG_ARCH_ROMSTAGE_ARM64
 
@@ -131,11 +110,12 @@ ramstage-y += div0.c
 ramstage-y += eabi_compat.c
 ramstage-y += boot.c
 ramstage-y += tables.c
+ramstage-y += ramdetect.c
 ramstage-$(CONFIG_ARM64_USE_ARCH_TIMER) += arch_timer.c
 ramstage-y += memset.S
 ramstage-y += memcpy.S
 ramstage-y += memmove.S
-ramstage-$(CONFIG_ARM64_USE_ARM_TRUSTED_FIRMWARE) += arm_tf.c
+ramstage-$(CONFIG_ARM64_USE_ARM_TRUSTED_FIRMWARE) += bl31.c
 ramstage-y += transition.c transition_asm.S
 ramstage-$(CONFIG_PAYLOAD_FIT_SUPPORT) += fit_payload.c
 
@@ -151,7 +131,7 @@ ramstage-srcs += $(wildcard src/mainboard/$(MAINBOARDDIR)/mainboard.c)
 
 $(objcbfs)/ramstage.debug: $$(ramstage-objs)
 	@printf "    CC         $(subst $(obj)/,,$(@))\n"
-	$(LD_ramstage) $(LDFLAGS_ramstage) -o $@ -L$(obj) --whole-archive --start-group $(filter-out %.ld,$(ramstage-objs)) --end-group -T $(call src-to-obj,ramstage,src/mainboard/$(MAINBOARDDIR)/memlayout.ld)
+	$(LD_ramstage) $(LDFLAGS_ramstage) -o $@ -L$(obj) --whole-archive --start-group $(filter-out %.ld,$(ramstage-objs)) --end-group -T $(call src-to-obj,ramstage,$(CONFIG_MEMLAYOUT_LD_FILE))
 
 # Build ARM Trusted Firmware (BL31)
 
@@ -188,10 +168,7 @@ BL31_MAKEARGS += BUILD_PLAT="$(BL31_BUILD)"
 BL31_MAKEARGS += IS_ANYTHING_TO_BUILD=1
 
 # Set a consistent build timestamp: the same coreboot has
-# The \# \" complications exist to satisfy both gnu make's parser and editors
-# with non-semantic quote-handling (that would assume that this line starts a
-# multi line string.
-BL31_MAKEARGS += BUILD_MESSAGE_TIMESTAMP='"$(shell grep "\#define COREBOOT_BUILD\>" $(obj)/build.h |cut -d\" -f2 \# \")"'
+BL31_MAKEARGS += BUILD_MESSAGE_TIMESTAMP='"$(shell sed -n 's/^.define COREBOOT_BUILD\>.*"\(.*\)".*/\1/p' $(obj)/build.h)"'
 
 BL31_CFLAGS := -fno-pic -fno-stack-protector -Wno-deprecated-declarations -Wno-unused-function
 BL31_LDFLAGS := --emit-relocs

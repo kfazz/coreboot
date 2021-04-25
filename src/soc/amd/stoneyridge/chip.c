@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <bootstate.h>
 #include <console/console.h>
@@ -19,7 +6,6 @@
 #include <device/device.h>
 #include <device/pci.h>
 #include <drivers/i2c/designware/dw_i2c.h>
-#include <romstage_handoff.h>
 #include <soc/acpi.h>
 #include <soc/cpu.h>
 #include <soc/northbridge.h>
@@ -28,19 +14,18 @@
 #include <amdblocks/psp.h>
 #include <amdblocks/agesawrapper.h>
 #include <amdblocks/agesawrapper_call.h>
+#include <amdblocks/i2c.h>
 
 #include "chip.h"
 
 /* Supplied by i2c.c */
-extern struct device_operations stoneyridge_i2c_mmio_ops;
-extern const char *i2c_acpi_name(const struct device *dev);
+extern struct device_operations soc_amd_i2c_mmio_ops;
 
 struct device_operations cpu_bus_ops = {
-	.read_resources	  = DEVICE_NOOP,
-	.set_resources	  = DEVICE_NOOP,
-	.enable_resources = DEVICE_NOOP,
-	.init		  = stoney_init_cpus,
-	.acpi_fill_ssdt_generator = generate_cpu_entries,
+	.read_resources	  = noop_read_resources,
+	.set_resources	  = noop_set_resources,
+	.init		  = mp_cpu_bus_init,
+	.acpi_fill_ssdt   = generate_cpu_entries,
 };
 
 const char *soc_acpi_name(const struct device *dev)
@@ -94,18 +79,10 @@ const char *soc_acpi_name(const struct device *dev)
 		return "PBR7";
 	case PCIE4_DEVFN:
 		return "PBR8";
-	case HDA1_DEVFN:
-		return "AZHD";
 	case EHCI1_DEVFN:
 		return "EHC0";
-	case LPC_DEVFN:
-		return "LPCB";
-	case SATA_DEVFN:
-		return "STCR";
 	case SD_DEVFN:
 		return "SDCN";
-	case SMBUS_DEVFN:
-		return "SBUS";
 	case XHCI_DEVFN:
 		return "XHC0";
 	default:
@@ -113,37 +90,53 @@ const char *soc_acpi_name(const struct device *dev)
 	}
 };
 
-struct device_operations pci_domain_ops = {
-	.read_resources	  = pci_domain_read_resources,
-	.set_resources	  = domain_set_resources,
+static struct device_operations pci_domain_ops = {
+	.read_resources	  = domain_read_resources,
+	.set_resources	  = pci_domain_set_resources,
 	.enable_resources = domain_enable_resources,
 	.scan_bus	  = pci_domain_scan_bus,
 	.acpi_name	  = soc_acpi_name,
 };
 
+static void set_mmio_dev_ops(struct device *dev)
+{
+	switch (dev->path.mmio.addr) {
+	case I2CA_BASE_ADDRESS:
+	case I2CB_BASE_ADDRESS:
+	case I2CC_BASE_ADDRESS:
+	case I2CD_BASE_ADDRESS:
+		dev->ops = &soc_amd_i2c_mmio_ops;
+		break;
+	}
+}
+
 static void enable_dev(struct device *dev)
 {
 	/* Set the operations if it is a special bus type */
-	if (dev->path.type == DEVICE_PATH_DOMAIN)
+	switch (dev->path.type) {
+	case DEVICE_PATH_DOMAIN:
 		dev->ops = &pci_domain_ops;
-	else if (dev->path.type == DEVICE_PATH_CPU_CLUSTER)
+		break;
+	case DEVICE_PATH_CPU_CLUSTER:
 		dev->ops = &cpu_bus_ops;
-	else if (dev->path.type == DEVICE_PATH_PCI)
-		sb_enable(dev);
-	else if (dev->path.type == DEVICE_PATH_MMIO)
-		if (i2c_acpi_name(dev) != NULL)
-			dev->ops = &stoneyridge_i2c_mmio_ops;
+		break;
+	case DEVICE_PATH_MMIO:
+		set_mmio_dev_ops(dev);
+		break;
+	default:
+		break;
+	}
 }
 
 static void soc_init(void *chip_info)
 {
-	southbridge_init(chip_info);
+	fch_init(chip_info);
 	setup_bsp_ramtop();
 }
 
 static void soc_final(void *chip_info)
 {
-	southbridge_final(chip_info);
+	fch_final(chip_info);
 	fam15_finalize(chip_info);
 }
 
@@ -156,12 +149,10 @@ struct chip_operations soc_amd_stoneyridge_ops = {
 
 static void earliest_ramstage(void *unused)
 {
-	int s3_resume = acpi_s3_resume_allowed() &&
-			romstage_handoff_is_resume();
-	if (!s3_resume) {
+	if (!acpi_is_wakeup_s3()) {
 		post_code(0x46);
 		if (CONFIG(SOC_AMD_PSP_SELECTABLE_SMU_FW))
-			psp_load_named_blob(MBOX_BIOS_CMD_SMU_FW2, "smu_fw2");
+			psp_load_named_blob(BLOB_SMU_FW2, "smu_fw2");
 
 		post_code(0x47);
 		do_agesawrapper(AMD_INIT_ENV, "amdinitenv");

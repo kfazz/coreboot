@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Angel Pons <th3fanbus@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <southbridge/intel/common/gpio.h>
 
@@ -105,7 +92,7 @@ static const struct pch_gpio_set2 pch_gpio_set2_mode = {
 	.gpio43 = GPIO_MODE_NATIVE,
 	.gpio44 = GPIO_MODE_NATIVE,
 	.gpio45 = GPIO_MODE_NATIVE,
-	.gpio46 = GPIO_MODE_GPIO,
+	.gpio46 = GPIO_MODE_GPIO,   /* wired to GPU Boost switch */
 	.gpio47 = GPIO_MODE_NATIVE,
 	.gpio48 = GPIO_MODE_NATIVE,
 	.gpio49 = GPIO_MODE_GPIO,

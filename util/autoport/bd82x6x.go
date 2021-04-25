@@ -28,7 +28,7 @@ func (b bd82x6x) writeGPIOSet(ctx Context, sb *os.File,
 	}
 
 	for i := uint(0); i < max; i++ {
-		if ((constraint>>i)&1 == 1) {
+		if (constraint>>i)&1 == 1 {
 			fmt.Fprintf(sb, "	.gpio%d = %s,\n",
 				(set-1)*32+i,
 				bits[partno][(val>>i)&1])
@@ -41,6 +41,7 @@ func (b bd82x6x) GPIO(ctx Context, inteltool InteltoolData) {
 	gpio := Create(ctx, "gpio.c")
 	defer gpio.Close()
 
+	AddBootBlockFile("gpio.c", "")
 	AddROMStageFile("gpio.c", "")
 
 	Add_gpl(gpio)
@@ -191,10 +192,6 @@ func (b bd82x6x) Scan(ctx Context, addr PCIDevData) {
 		DSDTDefine{
 			Key:   "BRIGHTNESS_DOWN",
 			Value: "\\_SB.PCI0.GFX0.DECB",
-		},
-		DSDTDefine{
-			Key:   "ACPI_VIDEO_DEVICE",
-			Value: "\\_SB.PCI0.GFX0",
 		})
 
 	/* SPI init */
@@ -233,11 +230,10 @@ func (b bd82x6x) Scan(ctx Context, addr PCIDevData) {
 
 			"sata_port_map": fmt.Sprintf("0x%x", PCIMap[PCIAddr{Bus: 0, Dev: 0x1f, Func: 2}].ConfigDump[0x92]&0x3f),
 
-			"p_cnt_throttling_supported": (FormatBool(FADT[104] == 1 && FADT[105] == 3)),
 			"c2_latency":                 FormatHexLE16(FADT[96:98]),
 			"docking_supported":          (FormatBool((FADT[113] & (1 << 1)) != 0)),
-			"spi_uvscc": fmt.Sprintf("0x%x", inteltool.RCBA[0x38c8]),
-			"spi_lvscc": fmt.Sprintf("0x%x", inteltool.RCBA[0x38c4] &^ (1 << 23)),
+			"spi_uvscc":                  fmt.Sprintf("0x%x", inteltool.RCBA[0x38c8]),
+			"spi_lvscc":                  fmt.Sprintf("0x%x", inteltool.RCBA[0x38c4]&^(1<<23)),
 		},
 		PCISlots: []PCISlot{
 			PCISlot{PCIAddr: PCIAddr{Dev: 0x14, Func: 0}, writeEmpty: false, additionalComment: "USB 3.0 Controller"},
@@ -277,59 +273,34 @@ func (b bd82x6x) Scan(ctx Context, addr PCIDevData) {
 	}
 
 	PutPCIChip(addr, cur)
-	PutPCIDevParent(addr, "PCI-LPC bridge", "lpc")
+	PutPCIDevParent(addr, "", "lpc")
 
 	DSDTIncludes = append(DSDTIncludes, DSDTInclude{
-		File: "southbridge/intel/bd82x6x/acpi/platform.asl",
+		File: "southbridge/intel/common/acpi/platform.asl",
 	})
 	DSDTIncludes = append(DSDTIncludes, DSDTInclude{
-		File:    "southbridge/intel/bd82x6x/acpi/globalnvs.asl",
-		Comment: "global NVS and variables",
+		File:  "southbridge/intel/bd82x6x/acpi/globalnvs.asl",
 	})
 	DSDTIncludes = append(DSDTIncludes, DSDTInclude{
-		File: "southbridge/intel/bd82x6x/acpi/sleepstates.asl",
+		File: "southbridge/intel/common/acpi/sleepstates.asl",
 	})
 	DSDTPCI0Includes = append(DSDTPCI0Includes, DSDTInclude{
 		File: "southbridge/intel/bd82x6x/acpi/pch.asl",
 	})
 
-	sb := Create(ctx, "romstage.c")
+	AddBootBlockFile("early_init.c", "")
+	AddROMStageFile("early_init.c", "")
+
+	sb := Create(ctx, "early_init.c")
 	defer sb.Close()
 	Add_gpl(sb)
-	sb.WriteString(`/* FIXME: Check if all includes are needed. */
 
-#include <stdint.h>
-#include <string.h>
-#include <timestamp.h>
-#include <arch/byteorder.h>
-#include <arch/io.h>
-#include <device/mmio.h>
-#include <device/pci_ops.h>
-#include <device/pnp_ops.h>
-#include <console/console.h>
-#include <northbridge/intel/sandybridge/sandybridge.h>
+	sb.WriteString(`
+#include <bootblock_common.h>
 #include <northbridge/intel/sandybridge/raminit_native.h>
 #include <southbridge/intel/bd82x6x/pch.h>
-#include <southbridge/intel/common/gpio.h>
 
-void pch_enable_lpc(void)
-{
 `)
-	RestorePCI16Simple(sb, addr, 0x82)
-	RestorePCI32Simple(sb, addr, 0x84)
-	RestorePCI32Simple(sb, addr, 0x88)
-	RestorePCI32Simple(sb, addr, 0x8c)
-	RestorePCI32Simple(sb, addr, 0x90)
-
-	RestorePCI16Simple(sb, addr, 0x80)
-
-	sb.WriteString(`}
-
-void mainboard_rcba_config(void)
-{
-`)
-	sb.WriteString("}\n\n")
-
 	sb.WriteString("const struct southbridge_usb_port mainboard_usb_ports[] = {\n")
 
 	currentMap := map[uint32]int{
@@ -366,13 +337,14 @@ void mainboard_rcba_config(void)
 	guessedMap := GuessSPDMap(ctx)
 
 	sb.WriteString(`
-void mainboard_early_init(int s3resume)
+void bootblock_mainboard_early_init(void)
 {
-}
+`)
+	RestorePCI16Simple(sb, addr, 0x82)
 
-void mainboard_config_superio(void)
-{
-}
+	RestorePCI16Simple(sb, addr, 0x80)
+
+	sb.WriteString(`}
 
 /* FIXME: Put proper SPD map here. */
 void mainboard_get_spd(spd_raw_data *spd, bool id_only)
@@ -387,23 +359,18 @@ void mainboard_get_spd(spd_raw_data *spd, bool id_only)
 	defer gnvs.Close()
 
 	Add_gpl(gnvs)
-	gnvs.WriteString(`#include <southbridge/intel/bd82x6x/nvs.h>
+	gnvs.WriteString(`#include <acpi/acpi_gnvs.h>
+#include <southbridge/intel/bd82x6x/nvs.h>
 
 /* FIXME: check this function.  */
-void acpi_create_gnvs(global_nvs_t *gnvs)
+void mainboard_fill_gnvs(struct global_nvs *gnvs)
 {
-	/* Disable USB ports in S3 by default */
-	gnvs->s3u0 = 0;
-	gnvs->s3u1 = 0;
-
-	/* Disable USB ports in S5 by default */
-	gnvs->s5u0 = 0;
-	gnvs->s5u1 = 0;
-
-	// the lid is open by default.
+	/* The lid is open by default. */
 	gnvs->lids = 1;
 
+	/* Temperature at which OS will shutdown */
 	gnvs->tcrt = 100;
+	/* Temperature at which OS will throttle CPU */
 	gnvs->tpsv = 90;
 }
 `)

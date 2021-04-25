@@ -1,19 +1,4 @@
-/*
- * This file is part of the superiotool project.
- *
- * Copyright (C) 2007 Uwe Hermann <uwe@hermann-uwe.de>
- * Copyright (C) 2008 coresystems GmbH <info@coresystems.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "superiotool.h"
 
@@ -860,9 +845,6 @@ static const struct superio_registers reg_table[] = {
 		{EOT}}},
 	{0x83, "SCH5514D", {	/* From sensors-detect */
 		{EOT}}},
-	{0x85, "SCH5317", {	/* From sensors-detect */
-		/* The SCH5317 can have either 0x85 or 0x8c as device ID. */
-		{EOT}}},
 	{0x86, "SCH5127", {	/* From sensors-detect, dump from datasheet */
 		{NOLDN, NULL,
 			{0x02,0x03,0x21,0x22,0x23,0x24,0x26,0x27,
@@ -975,28 +957,7 @@ static const struct superio_registers reg_table[] = {
 	{0xc4, "SCH5545", {
 		/* based on SCH5627 datasheet */
 		/* Init: 0x55. Exit: 0xaa. */
-		{0x0, "Mailbox",
-			{EOT},
-			{EOT}},
-		{0x1, "KBC",
-			{0x30, 0xf0, 0xf1, EOT},
-			{0x00, 0x00, 0x00, EOT}},
 		{0x7, "COM1",
-			{0x30, 0xf0, EOT},
-			{0x00, 0x00, EOT}},
-		{0x8, "COM2",
-			{0x30, 0xf0, EOT},
-			{0x00, 0x00, EOT}},
-		{0xa, "RT",
-			{0xf0, EOT},
-			{0x00, EOT}},
-		{0xb, "FDC",
-			{0x30, 0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, EOT},
-			{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, EOT}},
-		{0x11, "PARALLEL PORT",
-			{0x30, 0xf0, EOT},
-			{0x00, 0x00, EOT}},
-		{0x3F, "CONFIG PORT",
 			{0x30, 0xf0, EOT},
 			{0x00, 0x00, EOT}},
 		{0x0c, "LPC Interface",
@@ -1023,7 +984,7 @@ static const struct superio_registers reg_table[] = {
 			 0x7c, 0x7d, 0x7e, 0x7f,
 			/* BAR Parallel Port */
 			 0x80, 0x81, 0x82, 0x83,
-				EOT},
+			EOT},
 			{EOT}},
 		{EOT}}},
 	{EOT}
@@ -1102,7 +1063,7 @@ static void probe_idregs_smsc_helper(uint16_t port, uint8_t idreg,
 			regwrite(port, LDN_SEL, 0x0c);
 			runtime_base = regval(port, 0x73) << 8;
 			runtime_base |= regval(port, 0x72);
-			dump_io(runtime_base, 0x7F);
+			dump_io(runtime_base, 0x34);
 			break;
 		default:
 			printf("No extra registers known for this chip.\n");

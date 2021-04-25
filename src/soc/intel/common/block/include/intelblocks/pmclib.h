@@ -1,22 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef SOC_INTEL_COMMON_BLOCK_PMCLIB_H
 #define SOC_INTEL_COMMON_BLOCK_PMCLIB_H
 
-#include <stdint.h>
+#include <device/pci_type.h>
+#include <types.h>
 
 /* Forward declare the power state struct here */
 struct chipset_power_state;
@@ -126,22 +114,21 @@ void pmc_clear_all_gpe_status(void);
 void pmc_clear_prsts(void);
 
 /*
- * Set PMC register to know which state system should be after
- * power reapplied
- */
-void pmc_soc_restore_power_failure(void);
-
-/*
  * Enable or disable global reset. If global reset is enabled, hard reset and
  * soft reset will trigger global reset, where both host and TXE are reset.
  * This is cleared on cold boot, hard reset, soft reset and Sx.
  */
 void pmc_global_reset_enable(bool enable);
 /*
- * If possible, lock 0xcf9. Once the register is locked, it can't be changed.
- * This lock is reset on cold boot, hard reset, soft reset and Sx.
+ * Disable global reset and lock the CF9 global reset register in accordance to PCH ME BWG
+ * sections 4.4.1, 4.5.1 and 18.4 and the PCH datasheet(s) (Intel doc e.g. 332691-002EN,
+ * 332996-002EN). Deviate from the BGW we don't depend on the Intel ME state because Intel
+ * FPT (Flash Programming Tool) normally is not used with coreboot.
+ *
+ * Once the register is locked, it can't be changed. This lock is reset on cold boot, hard
+ * reset, soft reset and Sx.
  */
-void pmc_global_reset_lock(void);
+void pmc_global_reset_disable_and_lock(void);
 
 /* Returns the power state structure */
 struct chipset_power_state *pmc_get_power_state(void);
@@ -173,6 +160,9 @@ void pmc_gpe_init(void);
 
 /* Returns PMC base address */
 uintptr_t soc_read_pmc_base(void);
+
+/* Returns pointer to the ETR register */
+uint32_t *soc_pmc_etr_addr(void);
 
 /*
  * This function returns array of string which represents
@@ -213,5 +203,36 @@ enum {
 	MAINBOARD_POWER_STATE_ON,
 	MAINBOARD_POWER_STATE_PREVIOUS,
 };
+
+/*
+ * Implemented by SoC code to set PMC register to know which state
+ * system should go into after power is reapplied.
+ */
+void pmc_soc_set_afterg3_en(bool on);
+/*
+ * Configure power state to go into when power is reapplied.
+ *
+ * To be called by SoC code once during boot and will be called by
+ * the "sleep" SMI handler when going into S5.
+ *
+ * `target_on` signifies that we are currently powering on, so that
+ * MAINBOARD_POWER_STATE_PREVIOUS can be handled accordingly.
+ */
+void pmc_set_power_failure_state(bool target_on);
+
+/*
+ * This function ensures that the duration programmed in the PchPmPwrCycDur will never be
+ * smaller than the SLP_Sx assertion widths.
+ * If the pm_pwr_cyc_dur is less than any of the SLP_Sx assertion widths then it returns the
+ * default value PCH_PM_PWR_CYC_DUR.
+ */
+uint8_t get_pm_pwr_cyc_dur(uint8_t slp_s4_min_assert, uint8_t slp_s3_min_assert,
+					uint8_t slp_a_min_assert, uint8_t pm_pwr_cyc_dur);
+
+/* Disabling ACPI PM timer to ensure switches off TCO and necessary of XTAL OSC shutdown */
+void pmc_disable_acpi_timer(void);
+
+/* API to set ACPI mode */
+void pmc_set_acpi_mode(void);
 
 #endif /* SOC_INTEL_COMMON_BLOCK_PMCLIB_H */

@@ -1,36 +1,14 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2008-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <console/console.h>
 #include <device/device.h>
 #include <arch/io.h>
 #include <delay.h>
+#include <stdint.h>
 #include "ec.h"
 
-#ifdef __PRE_RAM__
-
-static const int ec_cmd_reg = EC_SC;
-static const int ec_data_reg = EC_DATA;
-
-#else
-
-static int ec_cmd_reg = EC_SC;
-static int ec_data_reg = EC_DATA;
-
-#endif
+static u16 ec_cmd_reg = EC_SC;
+static u16 ec_data_reg = EC_DATA;
 
 int send_ec_command(u8 command)
 {
@@ -106,7 +84,7 @@ u8 recv_ec_data(void)
 	udelay(10);
 
 	data = inb(ec_data_reg);
-	printk(BIOS_SPEW, "recv_ec_data: 0x%02x\n", data);
+	printk(BIOS_SPEW, "%s: 0x%02x\n", __func__, data);
 
 	return data;
 }
@@ -162,18 +140,15 @@ void ec_clr_bit(u8 addr, u8 bit)
 	ec_write(addr, ec_read(addr) &  ~(1 << bit));
 }
 
-#ifndef __PRE_RAM__
-
 void ec_set_ports(u16 cmd_reg, u16 data_reg)
 {
+	if (!ENV_STAGE_HAS_DATA_SECTION)
+		return;
+
 	ec_cmd_reg = cmd_reg;
 	ec_data_reg = data_reg;
 }
 
-#endif
-
-#if !defined(__SMM__) && !defined(__PRE_RAM__)
 struct chip_operations ec_acpi_ops = {
 	CHIP_NAME("ACPI Embedded Controller")
 };
-#endif

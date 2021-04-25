@@ -1,23 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Sage Electronic Engineering, LLC.
- * Copyright (C) 2017 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#ifndef __AMD_PCI_UTIL_H__
-#define __AMD_PCI_UTIL_H__
+#ifndef AMD_BLOCK_PCI_UTIL_H
+#define AMD_BLOCK_PCI_UTIL_H
 
-#include <stdint.h>
+#include <types.h>
 #include <soc/amd_pci_int_defs.h>
 
 /* FCH index/data registers */
@@ -45,4 +31,4 @@ void write_pci_cfg_irqs(void);
 void write_pci_int_table(void);
 const struct irq_idx_name *sb_get_apic_reg_association(size_t *size);
 
-#endif /* __AMD_PCI_UTIL_H__ */
+#endif /* AMD_BLOCK_PCI_UTIL_H */

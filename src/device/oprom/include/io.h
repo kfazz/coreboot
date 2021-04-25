@@ -1,20 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __OPROM_IO_H__
 #define __OPROM_IO_H__
 
-#if CONFIG(ARCH_X86)
+#if ENV_X86
 #include <arch/io.h>
 #else
 void outb(u8 val, u16 port);

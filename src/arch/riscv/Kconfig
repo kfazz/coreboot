@@ -1,6 +1,15 @@
+config ARCH_RISCV_RV64
+	bool
+	select ARCH_RISCV
+
+config ARCH_RISCV_RV32
+	bool
+	select ARCH_RISCV
+
 config ARCH_RISCV
 	bool
-	default n
+
+if ARCH_RISCV
 
 config RISCV_ARCH
 	string
@@ -24,28 +33,42 @@ config ARCH_RISCV_M
 	# one implementation that will not have it due
 	# to security concerns.
 	bool
-	default n if ARCH_RISCV_M_DISABLED
-	default y
+	default y if ARCH_RISCV && !ARCH_RISCV_M_DISABLED
+	default n
 
 config ARCH_RISCV_S
 	# S (supervisor) mode is for kernels. It is optional.
 	bool
 	default n
 
+config RISCV_HAS_OPENSBI
+	def_bool n
+
+config RISCV_OPENSBI
+	bool "Use OpenSBI to hand over control to payload"
+	depends on ARCH_RISCV_M && ARCH_RISCV_S
+	depends on RISCV_HAS_OPENSBI
+	default n
+	help
+	  Load OpenSBI after payload has been loaded and use it to
+	  provide the SBI and to handover control to payload.
+
+config OPENSBI_PLATFORM
+	string
+	depends on RISCV_HAS_OPENSBI
+	help
+	  The OpenSBI platform to build for.
+
+config OPENSBI_TEXT_START
+	hex
+	depends on RISCV_HAS_OPENSBI
+	help
+	  The linking address used to build opensbi.
+
 config ARCH_RISCV_U
 	# U (user) mode is for programs.
 	bool
 	default n
-
-config ARCH_RISCV_RV64
-	bool
-	default n
-	select ARCH_RISCV
-
-config ARCH_RISCV_RV32
-	bool
-	default n
-	select ARCH_RISCV
 
 config ARCH_RISCV_PMP
 	bool
@@ -54,7 +77,6 @@ config ARCH_RISCV_PMP
 config ARCH_BOOTBLOCK_RISCV
 	bool
 	default n
-	select C_ENVIRONMENT_BOOTBLOCK
 
 config ARCH_VERSTAGE_RISCV
 	bool
@@ -74,3 +96,5 @@ config RISCV_USE_ARCH_TIMER
 
 config RISCV_WORKING_HARTID
 	int
+
+endif # if ARCH_RISCV

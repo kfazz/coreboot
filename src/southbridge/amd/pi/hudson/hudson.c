@@ -1,29 +1,17 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2010 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <amdblocks/acpimmio.h>
 #include <console/console.h>
-
 #include <arch/io.h>
 #include <device/mmio.h>
-#include <arch/acpi.h>
-
+#include <acpi/acpi.h>
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_def.h>
 #include <device/pci_ids.h>
 #include <device/pci_ops.h>
+#include <types.h>
+
 #include "hudson.h"
 #include "smbus.h"
 #include "smi.h"
@@ -36,29 +24,9 @@ int acpi_get_sleep_type(void)
 	return (int)tmp;
 }
 
-void pm_write8(u8 reg, u8 value)
-{
-	write8((void *)(PM_MMIO_BASE + reg), value);
-}
-
-u8 pm_read8(u8 reg)
-{
-	return read8((void *)(PM_MMIO_BASE + reg));
-}
-
-void pm_write16(u8 reg, u16 value)
-{
-	write16((void *)(PM_MMIO_BASE + reg), value);
-}
-
-u16 pm_read16(u16 reg)
-{
-	return read16((void *)(PM_MMIO_BASE + reg));
-}
-
 void hudson_enable(struct device *dev)
 {
-	printk(BIOS_DEBUG, "hudson_enable()\n");
+	printk(BIOS_DEBUG, "%s()\n", __func__);
 	switch (dev->path.pci.devfn) {
 	case PCI_DEVFN(0x14, 7): /* SD */
 		if (dev->enabled == 0) {

@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2018 Jonathan Neuschäfer
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <boot/coreboot_tables.h>
@@ -58,7 +45,7 @@ static void sifive_uart_init(struct sifive_uart_registers *regs, int div)
 	write32(&regs->rxctrl, RXCTRL_RXEN|RXCTRL_RXCNT(0));
 }
 
-void uart_init(int idx)
+void uart_init(unsigned int idx)
 {
 	unsigned int div;
 	div = uart_baudrate_divisor(get_uart_baudrate(),
@@ -71,7 +58,7 @@ static bool uart_can_tx(struct sifive_uart_registers *regs)
 	return !(read32(&regs->txdata) & TXDATA_FULL);
 }
 
-void uart_tx_byte(int idx, unsigned char data)
+void uart_tx_byte(unsigned int idx, unsigned char data)
 {
 	struct sifive_uart_registers *regs = uart_platform_baseptr(idx);
 
@@ -81,7 +68,7 @@ void uart_tx_byte(int idx, unsigned char data)
 	write32(&regs->txdata, data);
 }
 
-void uart_tx_flush(int idx)
+void uart_tx_flush(unsigned int idx)
 {
 	struct sifive_uart_registers *regs = uart_platform_baseptr(idx);
 	uint32_t ip;
@@ -92,7 +79,7 @@ void uart_tx_flush(int idx)
 	} while (!(ip & IP_TXWM));
 }
 
-unsigned char uart_rx_byte(int idx)
+unsigned char uart_rx_byte(unsigned int idx)
 {
 	struct sifive_uart_registers *regs = uart_platform_baseptr(idx);
 	uint32_t rxdata;
@@ -113,9 +100,7 @@ unsigned int uart_input_clock_divider(void)
 	return 1;
 }
 
-#ifndef __PRE_RAM__
 void uart_fill_lb(void *data)
 {
 	/* TODO */
 }
-#endif

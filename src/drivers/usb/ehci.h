@@ -1,20 +1,6 @@
-/*
- * This file is part of the coreboot project.
- *
- * It was taken from the Linux kernel (include/linux/usb/ehci_def.h).
- *
- * Copyright (C) 2001-2002 David Brownell
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
+ /* This came from the Linux kernel (include/linux/usb/ehci_def.h). */
 
 #ifndef EHCI_H
 #define EHCI_H
@@ -53,7 +39,6 @@ struct ehci_caps {
 #define HCC_64BIT_ADDR(p)       ((p)&(1))       /* true: can use 64-bit addr */
 	u8		portroute[8];	 /* nibbles for routing - offset 0xC */
 } __packed;
-
 
 /* Section 2.3 Host Controller Operational Registers */
 struct ehci_regs {

@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/io.h>
 #include <assert.h>
@@ -20,7 +7,6 @@
 #include <device/pnp.h>
 #include <ec/google/common/mec.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 #include "chip.h"
 #include "ec.h"
@@ -188,11 +174,9 @@ static int google_chromeec_command_version(void)
 		return EC_HOST_CMD_FLAG_VERSION_3;
 	} else if (flags & EC_HOST_CMD_FLAG_LPC_ARGS_SUPPORTED) {
 		return EC_HOST_CMD_FLAG_LPC_ARGS_SUPPORTED;
-	} else {
-		printk(BIOS_ERR,
-		       "Chromium EC command version unsupported\n");
-		return -1;
 	}
+	printk(BIOS_ERR, "Chromium EC command version unsupported\n");
+	return -1;
 }
 
 static int google_chromeec_command_v3(struct chromeec_command *cec_command)
@@ -323,7 +307,6 @@ static int google_chromeec_command_v1(struct chromeec_command *cec_command)
 	args.checksum = csum;
 	write_bytes(EC_LPC_ADDR_HOST_ARGS, sizeof(args), (u8*)&args, NULL);
 
-
 	/* Issue the command */
 	write_byte(cmd_code, EC_LPC_ADDR_HOST_CMD);
 
@@ -401,24 +384,9 @@ void google_chromeec_ioport_range(uint16_t *out_base, size_t *out_size)
 	*out_size = size;
 }
 
-#ifdef __PRE_RAM__
-
 int google_chromeec_command(struct chromeec_command *cec_command)
 {
-	switch (google_chromeec_command_version()) {
-	case EC_HOST_CMD_FLAG_VERSION_3:
-		return google_chromeec_command_v3(cec_command);
-	case EC_HOST_CMD_FLAG_LPC_ARGS_SUPPORTED:
-		return google_chromeec_command_v1(cec_command);
-	}
-	return -1;
-}
-
-#else /* !__PRE_RAM__ */
-
-int google_chromeec_command(struct chromeec_command *cec_command)
-{
-	static int command_version = 0;
+	static int command_version;
 
 	if (command_version <= 0)
 		command_version = google_chromeec_command_version();
@@ -432,7 +400,6 @@ int google_chromeec_command(struct chromeec_command *cec_command)
 	return -1;
 }
 
-#ifndef __SMM__
 static void lpc_ec_init(struct device *dev)
 {
 	if (!dev->enabled)
@@ -469,8 +436,12 @@ static void lpc_ec_read_resources(struct device *dev)
 static struct device_operations ops = {
 	.init             = lpc_ec_init,
 	.read_resources   = lpc_ec_read_resources,
-	.enable_resources = DEVICE_NOOP,
-	.set_resources    = DEVICE_NOOP
+	.set_resources    = noop_set_resources,
+	.scan_bus         = scan_static_bus,
+#if CONFIG(HAVE_ACPI_TABLES)
+	.acpi_name        = google_chromeec_acpi_name,
+	.acpi_fill_ssdt   = google_chromeec_fill_ssdt_generator,
+#endif
 };
 
 static struct pnp_info pnp_dev_info[] = {
@@ -486,8 +457,6 @@ struct chip_operations ec_google_chromeec_ops = {
 	CHIP_NAME("Google Chrome EC")
 	.enable_dev = enable_dev,
 };
-
-#endif /* __SMM__ */
 
 static int google_chromeec_data_ready(u16 port)
 {
@@ -518,4 +487,3 @@ u8 google_chromeec_get_event(void)
 	/* Event (or 0 if none) is returned directly in the data byte */
 	return read_byte(EC_LPC_ADDR_ACPI_DATA);
 }
-#endif

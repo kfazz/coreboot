@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright 2014 Rockchip Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
 #include <delay.h>
@@ -19,7 +6,6 @@
 #include <soc/grf.h>
 #include <soc/tsadc.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 struct rk3399_tsadc_regs {
 	u32	user_con;
@@ -100,7 +86,7 @@ void tsadc_init(uint32_t polarity)
 	rkclk_configure_tsadc(TSADC_CLOCK_HZ);
 
 	/* tsadc power sequence */
-	clrbits_le32(&rk3399_tsadc->user_con, ADC_POWER_CTRL);
+	clrbits32(&rk3399_tsadc->user_con, ADC_POWER_CTRL);
 	write32(&rk3399_grf->tsadc_testbit_l, GRF_TSADC_TSEN_PD0_ON);
 	udelay(50);
 	write32(&rk3399_grf->tsadc_testbit_l, GRF_TSADC_TSEN_PD0_OFF);
@@ -113,7 +99,7 @@ void tsadc_init(uint32_t polarity)
 
 	/* setup the automatic mode:
 	 * AUTO_PERIOD: interleave between every two accessing of TSADC
-	 * AUTO_DEBOUNCE: only generate interrupt or TSHUT when temprature
+	 * AUTO_DEBOUNCE: only generate interrupt or TSHUT when temperature
 	 *                is higher than COMP_INT for "debounce" times
 	 * AUTO_PERIOD_HT: the interleave between every two accessing after the
 	 *                 temperature is higher than COMP_SHUT or COMP_INT
@@ -124,10 +110,10 @@ void tsadc_init(uint32_t polarity)
 	write32(&rk3399_tsadc->hight_int_debounce, AUTO_DEBOUNCE);
 	write32(&rk3399_tsadc->auto_period_ht, AUTO_PERIOD_HT);
 	write32(&rk3399_tsadc->hight_tshut_debounce, AUTO_DEBOUNCE_HT);
-	/* Enable the src0, negative temprature coefficient */
-	setbits_le32(&rk3399_tsadc->auto_con, Q_SEL | SRC0_EN);
+	/* Enable the src0, negative temperature coefficient */
+	setbits32(&rk3399_tsadc->auto_con, Q_SEL | SRC0_EN);
 	udelay(100);
-	setbits_le32(&rk3399_tsadc->auto_con, AUTO_EN);
+	setbits32(&rk3399_tsadc->auto_con, AUTO_EN);
 
 	write32(&rk3399_tsadc->comp0_shut, TSADC_SHUT_VALUE);
 	write32(&rk3399_tsadc->int_en, TSHUT_CRU_EN_SRC0 | TSHUT_GPIO_EN_SRC0);

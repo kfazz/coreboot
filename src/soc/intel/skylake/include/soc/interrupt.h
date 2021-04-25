@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _INTERRUPT_H_
 #define _INTERRUPT_H_
@@ -31,11 +17,11 @@
 #define PCH_PHRC 7
 #define PCH_MAX_IRQ_CONFIG 8
 
-#define DEVICE_INT_CONFIG(dev, func, line, irqno) {\
-	.Device = dev, \
-	.Function = func, \
-	.IntX = line, \
-	.Irq = irqno }
+#define DEVICE_INT_CONFIG(devfn, line, irqno) {\
+	.Device = PCI_SLOT(devfn), \
+	.Function = PCI_FUNC(devfn), \
+	.IntX = (line), \
+	.Irq = (irqno) }
 
 #define no_int 0
 #define int_A 1

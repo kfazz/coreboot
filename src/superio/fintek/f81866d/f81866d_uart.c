@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2015 BAP - Bruhnspace Advanced Projects
- * (Written by Fabian Kunkel <fabi@adv.bruhnspace.com> for BAP)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <console/console.h>
 #include <device/device.h>
@@ -50,13 +35,13 @@ void f81866d_uart_init(struct device *dev)
 	pnp_write_config(dev, PORT_SELECT_REGISTER, tmp & 0xFE);
 
 	// Set UART 3 function (Bit 4/5), otherwise pin 36-43 are GPIO
-	if (dev->path.pnp.device ==  F81866D_SP3) {
+	if (dev->path.pnp.device == F81866D_SP3) {
 		tmp = pnp_read_config(dev, MULTI_FUNC_SEL3_REG);
 		pnp_write_config(dev, MULTI_FUNC_SEL3_REG, tmp | 0x30);
 	}
 
 	// Set UART 4 function (Bit 6/7), otherwise pin 44-51 are GPIO
-	if (dev->path.pnp.device ==  F81866D_SP4) {
+	if (dev->path.pnp.device == F81866D_SP4) {
 		tmp = pnp_read_config(dev, MULTI_FUNC_SEL3_REG);
 		pnp_write_config(dev, MULTI_FUNC_SEL3_REG, tmp | 0xC0);
 	}

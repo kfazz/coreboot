@@ -1,27 +1,11 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2005 Digital Design Corporation
- * Copyright (C) 2008-2009 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* RAM-based driver for SMSC LPC47N227 Super I/O chip. */
 
 #include <device/device.h>
 #include <device/pnp.h>
 #include <console/console.h>
-#include <device/smbus.h>
 #include <assert.h>
-#include <stdlib.h>
 #include <pc80/keyboard.h>
 #include <superio/conf_mode.h>
 
@@ -50,6 +34,7 @@ static struct device_operations ops = {
 	.enable_resources = lpc47n227_pnp_enable_resources,
 	.enable           = lpc47n227_pnp_enable,
 	.init             = lpc47n227_init,
+	.ops_pnp_mode     = &pnp_conf_mode_55_aa,
 };
 
 static struct pnp_info pnp_dev_info[] = {
@@ -83,10 +68,10 @@ void lpc47n227_pnp_set_resources(struct device *dev)
 {
 	struct resource *res;
 
-	pnp_enter_conf_mode_55(dev);
+	pnp_enter_conf_mode(dev);
 	for (res = dev->resource_list; res; res = res->next)
 		lpc47n227_pnp_set_resource(dev, res);
-	pnp_exit_conf_mode_aa(dev);
+	pnp_exit_conf_mode(dev);
 }
 
 /*
@@ -95,9 +80,9 @@ void lpc47n227_pnp_set_resources(struct device *dev)
  */
 void lpc47n227_pnp_enable_resources(struct device *dev)
 {
-	pnp_enter_conf_mode_55(dev);
+	pnp_enter_conf_mode(dev);
 	lpc47n227_pnp_set_enable(dev, 1);
-	pnp_exit_conf_mode_aa(dev);
+	pnp_exit_conf_mode(dev);
 }
 
 /*
@@ -106,9 +91,9 @@ void lpc47n227_pnp_enable_resources(struct device *dev)
  */
 void lpc47n227_pnp_enable(struct device *dev)
 {
-	pnp_enter_conf_mode_55(dev);
+	pnp_enter_conf_mode(dev);
 	lpc47n227_pnp_set_enable(dev, !!dev->enabled);
-	pnp_exit_conf_mode_aa(dev);
+	pnp_exit_conf_mode(dev);
 }
 
 /**

@@ -1,17 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 The ChromiumOS Authors.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __CHROMEOS_H__
 #define __CHROMEOS_H__
@@ -23,6 +10,7 @@
 #include <rules.h>
 #include <security/vboot/misc.h>
 #include <security/vboot/vboot_common.h>
+#include <types.h>
 
 #if CONFIG(CHROMEOS)
 /* functions implemented in watchdog.c */
@@ -39,24 +27,18 @@ static inline void reboot_from_watchdog(void) { return; }
  */
 void mainboard_prepare_cr50_reset(void);
 
-struct romstage_handoff;
-
-#include "gnvs.h"
-struct device;
-
-#if CONFIG(CHROMEOS_RAMOOPS)
-void chromeos_ram_oops_init(chromeos_acpi_t *chromeos);
-#if CONFIG(CHROMEOS_RAMOOPS_DYNAMIC)
-static inline void chromeos_reserve_ram_oops(struct device *dev, int idx) {}
-#else /* CONFIG_CHROMEOS_RAMOOPS_DYNAMIC */
-void chromeos_reserve_ram_oops(struct device *dev, int idx);
-#endif /* CONFIG_CHROMEOS_RAMOOPS_DYNAMIC */
-#else  /* !CONFIG_CHROMEOS_RAMOOPS */
-static inline void chromeos_ram_oops_init(chromeos_acpi_t *chromeos) {}
-static inline void chromeos_reserve_ram_oops(struct device *dev, int idx) {}
-#endif /* CONFIG_CHROMEOS_RAMOOPS */
-
 void cbmem_add_vpd_calibration_data(void);
+void chromeos_set_me_hash(u32*, int);
+
+/**
+ * get_dsm_calibration_from_key - Gets value related to DSM calibration from VPD
+ * @key: The key in RO_VPD. The valid prefix is "dsm_calib_". The valid keys are
+ *   documented in https://chromeos.google.com/partner/dlm/docs/factory/vpd.html.
+ * @value: Output value. The value read from VPD parsed into uint64_t integer.
+ *
+ * Returns CB_SUCCESS on success or CB_ERR on failure.
+ */
+enum cb_err get_dsm_calibration_from_key(const char *key, uint64_t *value);
 
 /*
  * Create the OIPG package containing the Chrome OS gpios described by
@@ -71,9 +53,10 @@ void chromeos_acpi_gpio_generate(const struct cros_gpio *gpios, size_t num);
  */
 void mainboard_chromeos_acpi_generate(void);
 #if CONFIG(CHROMEOS)
-void chromeos_dsdt_generator(struct device *dev);
+struct device;
+void chromeos_dsdt_generator(const struct device *dev);
 #else
-#define chromeos_dsdt_generator DEVICE_NOOP
+#define chromeos_dsdt_generator NULL
 #endif
 
 enum {

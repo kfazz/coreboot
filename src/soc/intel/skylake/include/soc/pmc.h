@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef _SOC_PMC_H_
 #define _SOC_PMC_H_
@@ -91,11 +77,14 @@
 #define  DSX_EN_LAN_WAKE_PIN	(1 << 0)
 #define PMSYNC_TPR_CFG		0xc4
 #define  PMSYNC_LOCK		(1 << 31)
+#define PCH_PWRM_ACPI_TMR_CTL	0xfc
+#define  ACPI_TIM_DIS		(1 << 1)
 #define GPIO_GPE_CFG		0x120
 #define  GPE0_DWX_MASK		0xf
 #define GPE0_DW_SHIFT(x)	(4*(x))
 #define GBLRST_CAUSE0		0x124
 #define GBLRST_CAUSE1		0x128
-#define CIR31C			0x31c
+#define SLP_S0_RES		0x13c
+#define CPPMVRIC		0x31c
 #define  XTALSDQDIS		(1 << 22)
 #endif

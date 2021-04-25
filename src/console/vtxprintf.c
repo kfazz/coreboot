@@ -1,42 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
 /*
- * This file is part of the coreboot project.
- *
- *  Copyright (C) 1991, 1992  Linus Torvalds
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  * vtxprintf.c, originally from linux/lib/vsprintf.c
  */
 
 #include <console/vtxprintf.h>
+#include <ctype.h>
 #include <string.h>
+#include <types.h>
 
 #define call_tx(x) tx_byte(x, data)
-
-#if !CONFIG(ARCH_MIPS)
-#define SUPPORT_64BIT_INTS
-#endif
-
-/* haha, don't need ctype.c */
-#define isdigit(c)	((c) >= '0' && (c) <= '9')
-#define is_digit isdigit
-#define isxdigit(c)	(((c) >= '0' && (c) <= '9') || ((c) >= 'a' && (c) <= 'f') || ((c) >= 'A' && (c) <= 'F'))
-
-static int skip_atoi(const char **s)
-{
-	int i = 0;
-
-	while (is_digit(**s))
-		i = i*10 + *((*s)++) - '0';
-	return i;
-}
 
 #define ZEROPAD	1		/* pad with zero */
 #define SIGN	2		/* unsigned/signed long */
@@ -51,34 +24,22 @@ static int number(void (*tx_byte)(unsigned char byte, void *data),
 	void *data)
 {
 	char c, sign, tmp[66];
-	const char *digits = "0123456789abcdefghijklmnopqrstuvwxyz";
+	const char *digits = "0123456789abcdef";
 	int i;
 	int count = 0;
-#ifdef SUPPORT_64BIT_INTS
 	unsigned long long num = inum;
-#else
-	unsigned long num = (long)inum;
-
-	if (num != inum) {
-		/* Alert user to an incorrect result by printing #^!. */
-		call_tx('#');
-		call_tx('^');
-		call_tx('!');
-	}
-#endif
+	long long snum = num;
 
 	if (type & LARGE)
-		digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+		digits = "0123456789ABCDEF";
 	if (type & LEFT)
 		type &= ~ZEROPAD;
-	if (base < 2 || base > 36)
-		return 0;
 	c = (type & ZEROPAD) ? '0' : ' ';
 	sign = 0;
 	if (type & SIGN) {
-		if ((signed long long)num < 0) {
+		if (snum < 0) {
 			sign = '-';
-			num = -num;
+			num = -snum;
 			size--;
 		} else if (type & PLUS) {
 			sign = '+';
@@ -119,7 +80,10 @@ static int number(void (*tx_byte)(unsigned char byte, void *data),
 			call_tx('0'), count++;
 		else if (base == 16) {
 			call_tx('0'), count++;
-			call_tx(digits[33]), count++;
+			if (type & LARGE)
+				call_tx('X'), count++;
+			else
+				call_tx('x'), count++;
 		}
 	}
 	if (!(type & LEFT)) {
@@ -135,7 +99,6 @@ static int number(void (*tx_byte)(unsigned char byte, void *data),
 	return count;
 }
 
-
 int vtxprintf(void (*tx_byte)(unsigned char byte, void *data),
 	       const char *fmt, va_list args, void *data)
 {
@@ -149,7 +112,7 @@ int vtxprintf(void (*tx_byte)(unsigned char byte, void *data),
 	int field_width;	/* width of output field */
 	int precision;		/* min. # of digits for integers; max
 				   number of chars for from string */
-	int qualifier;		/* 'h', 'H', 'l', or 'L' for integer fields */
+	int qualifier;		/* 'h', 'H', 'l', 'L', 'z', or 'j' for integer fields */
 
 	int count;
 
@@ -173,8 +136,8 @@ repeat:
 
 		/* get field width */
 		field_width = -1;
-		if (is_digit(*fmt)) {
-			field_width = skip_atoi(&fmt);
+		if (isdigit(*fmt)) {
+			field_width = skip_atoi((char **)&fmt);
 		} else if (*fmt == '*') {
 			++fmt;
 			/* it's the next argument */
@@ -189,8 +152,8 @@ repeat:
 		precision = -1;
 		if (*fmt == '.') {
 			++fmt;
-			if (is_digit(*fmt)) {
-				precision = skip_atoi(&fmt);
+			if (isdigit(*fmt)) {
+				precision = skip_atoi((char **)&fmt);
 			} else if (*fmt == '*') {
 				++fmt;
 				/* it's the next argument */
@@ -203,7 +166,7 @@ repeat:
 
 		/* get the conversion qualifier */
 		qualifier = -1;
-		if (*fmt == 'h' || *fmt == 'l' || *fmt == 'L' || *fmt == 'z') {
+		if (*fmt == 'h' || *fmt == 'l' || *fmt == 'L' || *fmt == 'z' || *fmt == 'j') {
 			qualifier = *fmt;
 			++fmt;
 			if (*fmt == 'l') {
@@ -247,10 +210,11 @@ repeat:
 			continue;
 
 		case 'p':
-			if (field_width == -1) {
-				field_width = 2*sizeof(void *);
-				flags |= ZEROPAD;
-			}
+			/* even on 64-bit systems, coreboot only resides in the
+			   low 4GB so pad pointers to 32-bit for readability. */
+			if (field_width == -1 && precision == -1)
+				precision = 2*sizeof(uint32_t);
+			flags |= SPECIAL;
 			count += number(tx_byte,
 				(unsigned long) va_arg(args, void *), 16,
 				field_width, precision, flags, data);
@@ -280,6 +244,7 @@ repeat:
 
 		case 'X':
 			flags |= LARGE;
+			/* fall through */
 		case 'x':
 			base = 16;
 			break;
@@ -304,6 +269,8 @@ repeat:
 			num = va_arg(args, unsigned long);
 		} else if (qualifier == 'z') {
 			num = va_arg(args, size_t);
+		} else if (qualifier == 'j') {
+			num = va_arg(args, uintmax_t);
 		} else if (qualifier == 'h') {
 			num = (unsigned short) va_arg(args, int);
 			if (flags & SIGN)

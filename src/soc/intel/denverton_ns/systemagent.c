@@ -1,20 +1,6 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- * Copyright (C) 2014 Google Inc.
- * Copyright (C) 2015 - 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <cbmem.h>
 #include <console/console.h>
 #include <device/mmio.h>
 #include <device/pci_ops.h>
@@ -23,13 +9,13 @@
 #include <device/device.h>
 #include <device/pci.h>
 #include <device/pci_ids.h>
-#include <stdlib.h>
 #include <timer.h>
 
 #include <soc/iomap.h>
 #include <soc/pci_devs.h>
 #include <soc/ramstage.h>
 #include <soc/systemagent.h>
+#include <soc/acpi.h>
 
 #define _1ms 1
 #define WAITING_STEP 100
@@ -209,6 +195,7 @@ static void mc_add_dram_resources(struct device *dev)
 	unsigned long index;
 	struct resource *resource;
 	uint64_t mc_values[NUM_MAP_ENTRIES];
+	uintptr_t top_of_ram;
 
 	/* Read in the MAP registers and report their values. */
 	mc_read_map_entries(dev, &mc_values[0]);
@@ -246,6 +233,7 @@ static void mc_add_dram_resources(struct device *dev)
 	 * PCI_BASE_ADDRESS_0.
 	 */
 	index = 0;
+	top_of_ram = (uintptr_t)cbmem_top();
 
 	/* 0 - > 0xa0000 */
 	base_k = 0;
@@ -254,12 +242,12 @@ static void mc_add_dram_resources(struct device *dev)
 
 	/* 0x100000 -> top_of_ram */
 	base_k = 0x100000 >> 10;
-	size_k = (top_of_32bit_ram() >> 10) - base_k;
+	size_k = (top_of_ram >> 10) - base_k;
 	ram_resource(dev, index++, base_k, size_k);
 
 	/* top_of_ram -> TSEG */
 	resource = new_resource(dev, index++);
-	resource->base = top_of_32bit_ram();
+	resource->base = top_of_ram;
 	resource->size = mc_values[TSEG_REG] - resource->base;
 	resource->flags = IORESOURCE_MEM | IORESOURCE_FIXED |
 			  IORESOURCE_STORED | IORESOURCE_RESERVE |
@@ -338,12 +326,15 @@ static struct device_operations systemagent_ops = {
 	.enable_resources = pci_dev_enable_resources,
 	.init = systemagent_init,
 	.ops_pci = &soc_pci_ops,
+#if CONFIG(HAVE_ACPI_TABLES)
+	.write_acpi_tables = systemagent_write_acpi_tables,
+#endif
 };
 
 /* IDs for System Agent device of Intel Denverton SoC */
 static const unsigned short systemagent_ids[] = {
-	SA_DEVID, /* DVN System Agent */
-	SA_DEVID_DNVAD, /* DVN-AD System Agent */
+	PCI_DEVICE_ID_INTEL_DENVERTON_SA,
+	PCI_DEVICE_ID_INTEL_DENVERTONAD_SA,
 	0
 };
 

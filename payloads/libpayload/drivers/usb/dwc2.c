@@ -1,5 +1,4 @@
 /*
- * This file is part of the coreboot project.
  *
  * Copyright (C) 2014 Rockchip Electronics
  *
@@ -146,6 +145,8 @@ static int dwc2_disconnected(hci_t *controller)
 	return !(hprt.prtena && hprt.prtconnsts);
 }
 
+#define DWC2_SLEEP_TIME_US	5
+
 /*
  * This function returns the actual transfer length when the transfer succeeded
  * or an error code if the transfer failed
@@ -157,14 +158,14 @@ wait_for_complete(endpoint_t *ep, uint32_t ch_num)
 	hcchar_t hcchar;
 	hctsiz_t hctsiz;
 	dwc2_reg_t *reg = DWC2_REG(ep->dev->controller);
-	int timeout = 600000; /* time out after 600000 * 5us == 3s */
+	int timeout = USB_MAX_PROCESSING_TIME_US / DWC2_SLEEP_TIME_US;
 
 	/*
 	 * TODO: We should take care of up to three times of transfer error
 	 * retry here, according to the USB 2.0 spec 4.5.2
 	 */
 	do {
-		udelay(5);
+		udelay(DWC2_SLEEP_TIME_US);
 		hcint.d32 = readl(&reg->host.hchn[ch_num].hcintn);
 		hctsiz.d32 = readl(&reg->host.hchn[ch_num].hctsizn);
 
@@ -231,7 +232,7 @@ dwc2_do_xfer(endpoint_t *ep, int size, int pid, ep_dir_t dir,
 	packet_size = ep->maxpacketsize;
 	packet_cnt = ALIGN_UP(size, packet_size) / packet_size;
 	inpkt_length = packet_cnt * packet_size;
-	/* At least 1 packet should be programed */
+	/* At least 1 packet should be programmed */
 	packet_cnt = (packet_cnt == 0) ? 1 : packet_cnt;
 
 	/*
@@ -374,12 +375,15 @@ static int dwc2_need_split(usbdev_t *dev, split_info_t *split)
 	return 1;
 }
 
+#define USB_FULL_LOW_SPEED_FRAME_US		1000
+
 static int
 dwc2_transfer(endpoint_t *ep, int size, int pid, ep_dir_t dir, uint32_t ch_num,
 	      u8 *src, uint8_t skip_nak)
 {
 	split_info_t split;
-	int ret, short_pkt, transferred = 0, timeout = 3000;
+	int ret, short_pkt, transferred = 0;
+	int timeout = USB_MAX_PROCESSING_TIME_US / USB_FULL_LOW_SPEED_FRAME_US;
 
 	ep->toggle = pid;
 
@@ -393,11 +397,11 @@ nak_retry:
 
 			/*
 			 * dwc2_split_transfer() waits for the next FullSpeed
-			 * frame boundary, so we have one try per millisecond.
-			 * It's 3s timeout for each split transfer.
+			 * frame boundary, so we only need to delay 500 us
+			 * here to have one try per millisecond.
 			 */
 			if (ret == -HCSTAT_NAK && !skip_nak && --timeout) {
-				udelay(500);
+				udelay(USB_FULL_LOW_SPEED_FRAME_US / 2);
 				goto nak_retry;
 			}
 		} else {

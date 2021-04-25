@@ -1,22 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright 2008, Freescale Semiconductor, Inc
- * Andy Fleming
- *
- * Copyright 2013 Google Inc.  All rights reserved.
- * Copyright 2017 Intel Corporation
- *
  * MultiMediaCard (MMC) and eMMC specific support code
  * This code is controller independent
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <commonlib/storage.h>
@@ -190,6 +175,7 @@ static int mmc_select_hs(struct storage_media *media)
 
 	/* Increase the controller clock speed */
 	SET_TIMING(media->ctrlr, BUS_TIMING_MMC_HS);
+	media->caps &= ~(DRVR_CAP_HS200 | DRVR_CAP_HS400);
 	media->caps |= DRVR_CAP_HS52 | DRVR_CAP_HS;
 	mmc_recalculate_clock(media);
 	ret = sd_mmc_send_status(media, SD_MMC_IO_RETRIES);
@@ -439,7 +425,7 @@ int mmc_update_capacity(struct storage_media *media)
 	if ((capacity >> 20) > 2 * 1024)
 		media->capacity[MMC_PARTITION_USER] = capacity;
 
-	/* Determine the boot parition sizes */
+	/* Determine the boot partition sizes */
 	hc_erase_size = ext_csd[224] * 512 * KiB;
 	capacity = ext_csd[EXT_CSD_BOOT_SIZE_MULT] * 128 * KiB;
 	media->capacity[MMC_PARTITION_BOOT_1] = capacity;

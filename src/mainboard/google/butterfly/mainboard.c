@@ -1,36 +1,18 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2007-2009 coresystems GmbH
- * Copyright (C) 2011-2012 Google Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <types.h>
 #include <cbfs.h>
 #include <device/device.h>
-#include <device/pci_def.h>
 #include <device/pci_ops.h>
 #include <console/console.h>
 #include <drivers/intel/gma/int15.h>
 #include <fmap.h>
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <arch/io.h>
-#include <arch/interrupt.h>
-#include <boot/coreboot_tables.h>
 #include "onboard.h"
 #include "ec.h"
 #include <southbridge/intel/bd82x6x/pch.h>
 #include <smbios.h>
-#include <device/pci.h>
 #include <ec/quanta/ene_kb3940q/ec.h>
 #include <vendorcode/google/chromeos/chromeos.h>
 
@@ -171,7 +153,6 @@ static void program_keyboard_type(u32 search_address, u32 search_length)
 	} else
 		printk(BIOS_DEBUG, "Error: Could not locate VPD area\n");
 
-
 	printk(BIOS_DEBUG, "Setting Keyboard type in EC to ");
 	printk(BIOS_DEBUG, (kbd_type == EC_KBD_JP) ? "Japanese" : "English");
 	printk(BIOS_DEBUG, ".\n");
@@ -187,7 +168,7 @@ static void mainboard_init(struct device *dev)
 	struct device *ethernet_dev = NULL;
 	void *vpd_file;
 
-	if (CONFIG(CHROMEOS)) {
+	if (CONFIG(VPD)) {
 		struct region_device rdev;
 
 		if (fmap_locate_area_as_rdev("RO_VPD", &rdev) == 0) {
@@ -199,8 +180,7 @@ static void mainboard_init(struct device *dev)
 			}
 		}
 	} else {
-		vpd_file = cbfs_boot_map_with_leak("vpd.bin", CBFS_TYPE_RAW,
-							&search_length);
+		vpd_file = cbfs_map("vpd.bin", &search_length);
 		if (vpd_file) {
 			search_address = (unsigned long)vpd_file;
 		} else {
@@ -264,7 +244,8 @@ static int butterfly_onboard_smbios_data(struct device *dev, int *handle,
 		0,				/* segment */
 		BOARD_TRACKPAD_I2C_ADDR,	/* bus */
 		0,				/* device */
-		0);				/* function */
+		0,				/* function */
+		SMBIOS_DEVICE_TYPE_OTHER);	/* device type */
 
 	return len;
 }
@@ -276,7 +257,7 @@ static void mainboard_enable(struct device *dev)
 {
 	dev->ops->init = mainboard_init;
 	dev->ops->get_smbios_data = butterfly_onboard_smbios_data;
-	dev->ops->acpi_inject_dsdt_generator = chromeos_dsdt_generator;
+	dev->ops->acpi_inject_dsdt = chromeos_dsdt_generator;
 	install_intel_vga_int15_handler(GMA_INT15_ACTIVE_LFP_INT_LVDS, GMA_INT15_PANEL_FIT_DEFAULT, GMA_INT15_BOOT_DISPLAY_DEFAULT, 0);
 }
 

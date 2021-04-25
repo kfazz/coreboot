@@ -1,18 +1,6 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2010 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
+#include <amdblocks/acpimmio.h>
 #include <console/console.h>
 #include <device/mmio.h>
 #include <device/device.h>
@@ -24,32 +12,6 @@
 #include "imc.h"
 #include "smbus.h"
 #include "smi.h"
-
-/* Offsets from ACPI_MMIO_BASE
- * This is defined by AGESA, but we don't include AGESA headers to avoid
- * polluting the namespace.
- */
-#define PM_MMIO_BASE 0xfed80300
-
-void pm_write8(u8 reg, u8 value)
-{
-	write8((void *)((uintptr_t)PM_MMIO_BASE + reg), value);
-}
-
-u8 pm_read8(u8 reg)
-{
-	return read8((void *)((uintptr_t)PM_MMIO_BASE + reg));
-}
-
-void pm_write16(u8 reg, u16 value)
-{
-	write16((void *)((uintptr_t)PM_MMIO_BASE + reg), value);
-}
-
-u16 pm_read16(u16 reg)
-{
-	return read16((void *)((uintptr_t)PM_MMIO_BASE + reg));
-}
 
 #define PM_REG_USB_ENABLE	0xef
 
@@ -76,7 +38,7 @@ static void hudson_disable_usb(u8 disable)
 
 void hudson_enable(struct device *dev)
 {
-	printk(BIOS_DEBUG, "hudson_enable()\n");
+	printk(BIOS_DEBUG, "%s()\n", __func__);
 	switch (dev->path.pci.devfn) {
 	case PCI_DEVFN(0x14, 5):
 		if (dev->enabled == 0) {
@@ -117,21 +79,24 @@ void hudson_enable(struct device *dev)
 	case PCI_DEVFN(0x12, 0):
 		if (dev->enabled == 0)
 			hudson_disable_usb(USB_EN_DEVFN_12_0);
-	case PCI_DEVFN(0x12, 2):	/* Fall through */
+		/* fall through */
+	case PCI_DEVFN(0x12, 2):
 		if (dev->enabled == 0)
 			hudson_disable_usb(USB_EN_DEVFN_12_2);
 		break;
 	case PCI_DEVFN(0x13, 0):
 		if (dev->enabled == 0)
 			hudson_disable_usb(USB_EN_DEVFN_13_0);
-	case PCI_DEVFN(0x13, 2):	/* Fall through */
+		/* fall through */
+	case PCI_DEVFN(0x13, 2):
 		if (dev->enabled == 0)
 			hudson_disable_usb(USB_EN_DEVFN_13_2);
 		break;
 	case PCI_DEVFN(0x16, 0):
 		if (dev->enabled == 0)
 			hudson_disable_usb(USB_EN_DEVFN_16_0);
-	case PCI_DEVFN(0x16, 2):	/* Fall through */
+		/* fall through */
+	case PCI_DEVFN(0x16, 2):
 		if (dev->enabled == 0)
 			hudson_disable_usb(USB_EN_DEVFN_16_2);
 		break;
@@ -139,7 +104,6 @@ void hudson_enable(struct device *dev)
 		break;
 	}
 }
-
 
 static void hudson_init_acpi_ports(void)
 {

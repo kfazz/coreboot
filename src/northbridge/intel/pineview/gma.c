@@ -1,19 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 Chromium OS Authors
- * Copyright (C) 2013 Vladimir Serbinenko
- * Copyright (C) 2015 Damien Zammit <damien@zamaudio.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <arch/io.h>
 #include <device/mmio.h>
@@ -21,21 +6,21 @@
 #include <delay.h>
 #include <device/device.h>
 #include <device/pci.h>
+#include <device/pci_def.h>
 #include <device/pci_ids.h>
 #include <device/pci_ops.h>
-
 #include <drivers/intel/gma/i915_reg.h>
-#include "chip.h"
-#include "pineview.h"
 #include <drivers/intel/gma/intel_bios.h>
 #include <drivers/intel/gma/i915.h>
 #include <drivers/intel/gma/opregion.h>
-#include <southbridge/intel/i82801gx/nvs.h>
-#include <cbmem.h>
 #include <pc80/vga.h>
 #include <pc80/vga_io.h>
+#include <types.h>
 
-#define GTTSIZE		(512*1024)
+#include "chip.h"
+#include "pineview.h"
+
+#define GTTSIZE		(512 * 1024)
 
 #define PGETBL2_CTL	0x20c4
 #define PGETBL2_1MB	(1 << 8)
@@ -53,21 +38,8 @@
 			   ADPA_CRT_HOTPLUG_VOLREF_325MV | \
 			   ADPA_CRT_HOTPLUG_ENABLE)
 
-static struct resource *gtt_res = NULL;
+static struct resource *gtt_res  = NULL;
 static struct resource *mmio_res = NULL;
-
-uintptr_t gma_get_gnvs_aslb(const void *gnvs)
-{
-	const global_nvs_t *gnvs_ptr = gnvs;
-	return (uintptr_t)(gnvs_ptr ? gnvs_ptr->aslb : 0);
-}
-
-void gma_set_gnvs_aslb(void *gnvs, uintptr_t aslb)
-{
-	global_nvs_t *gnvs_ptr = gnvs;
-	if (gnvs_ptr)
-		gnvs_ptr->aslb = aslb;
-}
 
 static int gtt_setup(u8 *mmiobase)
 {
@@ -125,8 +97,7 @@ static void intel_gma_init(const struct northbridge_intel_pineview_config *info,
 			| ADPA_USE_VGA_HVPOLARITY
 			| ADPA_VSYNC_CNTL_ENABLE
 			| ADPA_HSYNC_CNTL_ENABLE
-			| ADPA_DPMS_ON
-			);
+			| ADPA_DPMS_ON);
 
 	write32(mmio + 0x7041c, 0x0);
 
@@ -136,14 +107,16 @@ static void intel_gma_init(const struct northbridge_intel_pineview_config *info,
 	write32(mmio + PIPESRC(1), 0x027f01df);
 
 	vga_misc_write(0x67);
-	const u8 cr[] = { 0x5f, 0x4f, 0x50, 0x82, 0x55, 0x81, 0xbf, 0x1f,
-		    0x00, 0x4f, 0x0d, 0x0e, 0x00, 0x00, 0x00, 0x00,
-		    0x9c, 0x8e, 0x8f, 0x28, 0x1f, 0x96, 0xb9, 0xa3,
-		    0xff
+	const u8 cr[25] = {
+		0x5f, 0x4f, 0x50, 0x82, 0x55,
+		0x81, 0xbf, 0x1f, 0x00, 0x4f,
+		0x0d, 0x0e, 0x00, 0x00, 0x00,
+		0x00, 0x9c, 0x8e, 0x8f, 0x28,
+		0x1f, 0x96, 0xb9, 0xa3, 0xff,
 	};
 	vga_cr_write(0x11, 0);
 
-	for (i = 0; i <= 0x18; i++)
+	for (i = 0; i < ARRAY_SIZE(cr); i++)
 		vga_cr_write(i, cr[i]);
 
 	// Disable screen memory to prevent garbage from appearing.
@@ -156,15 +129,14 @@ static void intel_gma_init(const struct northbridge_intel_pineview_config *info,
 		DPLL_VCO_ENABLE | DPLLB_MODE_DAC_SERIAL
 		| DPLL_VGA_MODE_DIS
 		| DPLL_DAC_SERIAL_P2_CLOCK_DIV_10
-		| 0x400601
-		);
+		| 0x400601);
+
 	mdelay(1);
 	write32(mmio + DPLL(0),
 		DPLL_VCO_ENABLE | DPLLB_MODE_DAC_SERIAL
 		| DPLL_VGA_MODE_DIS
 		| DPLL_DAC_SERIAL_P2_CLOCK_DIV_10
-		| 0x400601
-		);
+		| 0x400601);
 
 	write32(mmio + ADPA, ADPA_DAC_ENABLE
 			| ADPA_PIPE_A_SELECT
@@ -172,8 +144,7 @@ static void intel_gma_init(const struct northbridge_intel_pineview_config *info,
 			| ADPA_USE_VGA_HVPOLARITY
 			| ADPA_VSYNC_CNTL_ENABLE
 			| ADPA_HSYNC_CNTL_ENABLE
-			| ADPA_DPMS_ON
-			);
+			| ADPA_DPMS_ON);
 
 	write32(mmio + HTOTAL(1), 0x031f027f);
 	write32(mmio + HBLANK(1), 0x03170287);
@@ -182,23 +153,12 @@ static void intel_gma_init(const struct northbridge_intel_pineview_config *info,
 	write32(mmio + VBLANK(1), 0x020401e7);
 	write32(mmio + VSYNC(1), 0x01eb01e9);
 
-	write32(mmio + HTOTAL(0),
-		((hactive - 1) << 16)
-		| (hactive - 1));
-	write32(mmio + HBLANK(0),
-		((hactive - 1) << 16)
-		| (hactive - 1));
-	write32(mmio + HSYNC(0),
-		((hactive - 1) << 16)
-		| (hactive - 1));
-
-	write32(mmio + VTOTAL(0), ((vactive - 1) << 16)
-		| (vactive - 1));
-	write32(mmio + VBLANK(0), ((vactive - 1) << 16)
-		| (vactive - 1));
-	write32(mmio + VSYNC(0),
-		((vactive - 1) << 16)
-		| (vactive - 1));
+	write32(mmio + HTOTAL(0), ((hactive - 1) << 16) | (hactive - 1));
+	write32(mmio + HBLANK(0), ((hactive - 1) << 16) | (hactive - 1));
+	write32(mmio + HSYNC(0),  ((hactive - 1) << 16) | (hactive - 1));
+	write32(mmio + VTOTAL(0), ((vactive - 1) << 16) | (vactive - 1));
+	write32(mmio + VBLANK(0), ((vactive - 1) << 16) | (vactive - 1));
+	write32(mmio + VSYNC(0),  ((vactive - 1) << 16) | (vactive - 1));
 
 	write32(mmio + PF_WIN_POS(0), 0);
 
@@ -227,8 +187,7 @@ static void intel_gma_init(const struct northbridge_intel_pineview_config *info,
 			| ADPA_USE_VGA_HVPOLARITY
 			| ADPA_VSYNC_CNTL_ENABLE
 			| ADPA_HSYNC_CNTL_ENABLE
-			| ADPA_DPMS_ON
-			);
+			| ADPA_DPMS_ON);
 
 	write32(mmio + DSPFW3, 0x7f3f00c1);
 	write32(mmio + MI_MODE, 0x200 | VS_TIMER_DISPATCH);
@@ -245,30 +204,28 @@ static void intel_gma_init(const struct northbridge_intel_pineview_config *info,
 	temp = read32(mmio + PGETBL2_CTL);
 	printk(BIOS_INFO, "GTT PGETBL2_CTL register: 0x%08x\n", temp);
 
-	/* Clear interrupts. */
-	write32(mmio + DEIIR, 0xffffffff);
+	/* Clear interrupts */
+	write32(mmio + DEIIR,  0xffffffff);
 	write32(mmio + SDEIIR, 0xffffffff);
-	write32(mmio + IIR, 0xffffffff);
-	write32(mmio + IMR, 0xffffffff);
-	write32(mmio + EIR, 0xffffffff);
+	write32(mmio + IIR,    0xffffffff);
+	write32(mmio + IMR,    0xffffffff);
+	write32(mmio + EIR,    0xffffffff);
 
 	vga_textmode_init();
 
-	/* Enable screen memory.  */
+	/* Enable screen memory */
 	vga_sr_write(1, vga_sr_read(1) & ~0x20);
 }
 
 static void gma_func0_init(struct device *dev)
 {
-	u32 reg32;
+	intel_gma_init_igd_opregion();
 
-	/* IGD needs to be Bus Master */
-	reg32 = pci_read_config32(dev, PCI_COMMAND);
-	reg32 |= PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY | PCI_COMMAND_IO;
-	pci_write_config32(dev, PCI_COMMAND, reg32);
+	if (!CONFIG(NO_GFX_INIT))
+		pci_or_config16(dev, PCI_COMMAND, PCI_COMMAND_MASTER);
 
 	if (!CONFIG(MAINBOARD_DO_NATIVE_VGA_INIT)) {
-		/* PCI Init, will run VBIOS */
+		/* PCI init, will run VBIOS */
 		pci_dev_init(dev);
 	} else {
 		u32 physbase;
@@ -278,15 +235,15 @@ static void gma_func0_init(struct device *dev)
 		int vga_disable = (pci_read_config16(dev, GGC) & 2) >> 1;
 
 		/* Find base addresses */
-		mmio_res = find_resource(dev, 0x10);
-		gtt_res = find_resource(dev, 0x1c);
-		pio_res = find_resource(dev, 0x14);
+		mmio_res = find_resource(dev, PCI_BASE_ADDRESS_0);
+		gtt_res  = find_resource(dev, PCI_BASE_ADDRESS_3);
+		pio_res  = find_resource(dev, PCI_BASE_ADDRESS_1);
 		physbase = pci_read_config32(dev, 0x5c) & ~0xf;
 
 		if (gtt_res && gtt_res->base && physbase && pio_res && pio_res->base) {
 			if (vga_disable) {
-				printk(BIOS_INFO,
-				       "IGD is not decoding legacy VGA MEM and IO: skipping NATIVE graphic init\n");
+				printk(BIOS_INFO, "IGD is not decoding legacy VGA MEM and IO: "
+						  "skipping NATIVE graphic init\n");
 			} else {
 				printk(BIOS_SPEW, "Initializing VGA. MMIO 0x%llx\n",
 				       mmio_res->base);
@@ -300,45 +257,6 @@ static void gma_func0_init(struct device *dev)
 		/* Linux relies on VBT for panel info.  */
 		generate_fake_intel_oprom(&conf->gfx, dev, "$VBT PINEVIEW");
 	}
-
-	intel_gma_restore_opregion();
-}
-
-const struct i915_gpu_controller_info *intel_gma_get_controller_info(void)
-{
-	struct device *dev = pcidev_on_root(0x2, 0);
-	if (!dev) {
-		printk(BIOS_WARNING, "WARNING: Can't find IGD (0,2,0)\n");
-		return NULL;
-	}
-	struct northbridge_intel_pineview_config *chip = dev->chip_info;
-	return &chip->gfx;
-}
-
-static unsigned long
-gma_write_acpi_tables(struct device *const dev,
-		      unsigned long current,
-		      struct acpi_rsdp *const rsdp)
-{
-	igd_opregion_t *opregion = (igd_opregion_t *)current;
-	global_nvs_t *gnvs;
-
-	if (intel_gma_init_igd_opregion(opregion) != CB_SUCCESS)
-		return current;
-
-	current += sizeof(igd_opregion_t);
-
-	/* GNVS has been already set up */
-	gnvs = cbmem_find(CBMEM_ID_ACPI_GNVS);
-	if (gnvs) {
-		/* IGD OpRegion Base Address */
-		gma_set_gnvs_aslb(gnvs, (uintptr_t)opregion);
-	} else {
-		printk(BIOS_ERR, "Error: GNVS table not found.\n");
-	}
-
-	current = acpi_align_current(current);
-	return current;
 }
 
 static const char *gma_acpi_name(const struct device *dev)
@@ -346,30 +264,22 @@ static const char *gma_acpi_name(const struct device *dev)
 	return "GFX0";
 }
 
-static struct pci_operations gma_pci_ops = {
-	.set_subsystem = pci_dev_set_subsystem,
-};
-
 static struct device_operations gma_func0_ops = {
-	.read_resources = pci_dev_read_resources,
-	.set_resources = pci_dev_set_resources,
-	.enable_resources = pci_dev_enable_resources,
-	.acpi_fill_ssdt_generator = 0,
-	.init = gma_func0_init,
-	.scan_bus = 0,
-	.enable = 0,
-	.ops_pci = &gma_pci_ops,
-	.acpi_name = gma_acpi_name,
-	.write_acpi_tables = gma_write_acpi_tables,
+	.read_resources         = pci_dev_read_resources,
+	.set_resources          = pci_dev_set_resources,
+	.enable_resources       = pci_dev_enable_resources,
+	.init                   = gma_func0_init,
+	.ops_pci                = &pci_dev_ops_pci,
+	.acpi_name              = gma_acpi_name,
 };
 
 static const unsigned short pci_device_ids[] =
 {
-	0xa001, 0
+	0xa001, 0,
 };
 
 static const struct pci_driver gma __pci_driver = {
-	.ops = &gma_func0_ops,
-	.vendor = PCI_VENDOR_ID_INTEL,
+	.ops     = &gma_func0_ops,
+	.vendor  = PCI_VENDOR_ID_INTEL,
 	.devices = pci_device_ids,
 };

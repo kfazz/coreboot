@@ -1,20 +1,9 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2009-2010 coresystems GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #define REALMODE_BASE		0x600
 #define RELOCATED(x)	(x - __realmode_code + REALMODE_BASE)
+
+#include <arch/ram_segs.h>
 
 /* CR0 bits */
 #define PE		(1 << 0)
@@ -42,6 +31,10 @@ __idt_handler_size:
  */
 	.globl __realmode_code
 __realmode_code:
+
+/* Realmode function return. */
+__realmode_ret = RELOCATED(.)
+	.long 0
 
 /* Realmode IDT pointer structure. */
 __realmode_idt = RELOCATED(.)
@@ -104,7 +97,7 @@ __realmode_call:
 	movl	%eax, __registers + 20 /* edi */
 
 	/* Activate the right segment descriptor real mode. */
-	ljmp	$0x28, $RELOCATED(1f)
+	ljmp	$RAM_CODE16_SEG, $RELOCATED(1f)
 1:
 .code16
 	/* 16 bit code from here on... */
@@ -114,7 +107,7 @@ __realmode_call:
 	 * configurations (limits, writability, etc.) once
 	 * protected mode is turned off.
 	 */
-	mov	$0x30, %ax
+	mov	$RAM_DATA16_SEG, %ax
 	mov	%ax, %ds
 	mov	%ax, %es
 	mov	%ax, %fs
@@ -167,6 +160,13 @@ __lcall_instr = RELOCATED(.)
 	.word 0x0000, 0x0000
 	/* ************************************ */
 
+	/*
+	 * Here is end of real mode call and time to go back to protected mode.
+	 * Before that its better to store current eax into some memory address
+	 * so that context persist in protected mode too.
+	*/
+	mov	%eax, __realmode_ret
+
 	/* If we got here, we are just about done.
 	 * Need to get back to protected mode.
 	 */
@@ -177,10 +177,10 @@ __lcall_instr = RELOCATED(.)
 	/* Now that we are in protected mode
 	 * jump to a 32 bit code segment.
 	 */
-	ljmpl	$0x10, $RELOCATED(1f)
+	ljmpl	$RAM_CODE_SEG, $RELOCATED(1f)
 1:
 	.code32
-	mov	$0x18, %ax
+	mov	$RAM_DATA_SEG, %ax
 	mov	%ax, %ds
 	mov	%ax, %es
 	mov	%ax, %fs
@@ -196,7 +196,8 @@ __lcall_instr = RELOCATED(.)
 	popa
 
 	/* and exit */
-	// TODO return AX from OPROM call
+	/* return AX from OPROM call */
+	mov	__realmode_ret, %eax
 	ret
 
 	.globl __realmode_interrupt
@@ -232,7 +233,7 @@ __realmode_interrupt:
 	movl	%eax, __registers + 20 /* edi */
 
 	/*  This configures CS properly for real mode. */
-	ljmp 	$0x28, $RELOCATED(1f)
+	ljmp 	$RAM_CODE16_SEG, $RELOCATED(1f)
 1:
 	.code16 /* 16 bit code from here on... */
 
@@ -240,7 +241,7 @@ __realmode_interrupt:
 	 * descriptors.  They will retain these configurations (limits,
 	 * writability, etc.) once protected mode is turned off.
 	 */
-	mov	$0x30, %ax
+	mov	$RAM_DATA16_SEG, %ax
 	mov	%ax, %ds
 	mov	%ax, %es
 	mov	%ax, %fs
@@ -291,16 +292,23 @@ __realmode_interrupt:
 __intXX_instr = RELOCATED(.)
 	.byte 0xcd, 0x00 /* This becomes intXX */
 
+	/*
+	 * Here is end of real mode call and time to go back to protected mode.
+	 * Before that its better to store current eax into some memory address
+	 * so that context persist in protected mode too.
+	*/
+	mov	%eax, __realmode_ret
+
 	/* Ok, the job is done, now go back to protected mode coreboot */
 	movl	%cr0, %eax
 	orl	$PE, %eax
 	movl	%eax, %cr0
 
 	/* Now that we are in protected mode jump to a 32-bit code segment. */
-	ljmpl	$0x10, $RELOCATED(1f)
+	ljmpl	$RAM_CODE_SEG, $RELOCATED(1f)
 1:
 	.code32
-	mov	$0x18, %ax
+	mov	$RAM_DATA_SEG, %ax
 	mov	%ax, %ds
 	mov	%ax, %es
 	mov	%ax, %fs
@@ -314,6 +322,8 @@ __intXX_instr = RELOCATED(.)
 	movl	__stack, %esp
 	popf
 	popa
+	/* return AX from OPROM call */
+	mov	__realmode_ret, %eax
 	ret
 
 /* This is the 16-bit interrupt entry point called by the IDT stub code.
@@ -344,10 +354,10 @@ __interrupt_handler_16bit = RELOCATED(.)
 	movl	%eax, %cr0
 
 	/* ... and jump to a 32 bit code segment. */
-	ljmpl	$0x10, $RELOCATED(1f)
+	ljmpl	$RAM_CODE_SEG, $RELOCATED(1f)
 1:
 	.code32
-	mov	$0x18, %ax
+	mov	$RAM_DATA_SEG, %ax
 	mov	%ax, %ds
 	mov	%ax, %es
 	mov	%ax, %fs
@@ -361,14 +371,14 @@ __interrupt_handler_16bit = RELOCATED(.)
 	call	*%eax
 
 	/* Now return to real mode ... */
-	ljmp	$0x28, $RELOCATED(1f)
+	ljmp	$RAM_CODE16_SEG, $RELOCATED(1f)
 1:
 	.code16
 	/* Load the segment registers with properly configured segment
 	 * descriptors.  They will retain these configurations (limits,
 	 * writability, etc.) once protected mode is turned off.
 	 */
-	mov	$0x30, %ax
+	mov	$RAM_DATA16_SEG, %ax
 	mov	%ax, %ds
 	mov	%ax, %es
 	mov	%ax, %fs

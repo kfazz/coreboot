@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2013 Google Inc.
- * Copyright (C) 2015 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef ONBOARD_H
 #define ONBOARD_H
@@ -39,7 +25,6 @@
 
 #define BOARD_TOUCH_IRQ			184
 
-
 /* Audio: Gpio index in SW bank */
 #define JACK_DETECT_GPIO_INDEX		95
 /* SCI: Gpio index in N bank */
@@ -56,8 +41,6 @@
 #define BOARD_TOUCHSCREEN_WAKE_GPIO     ACPI_ENABLE_WAKE_SUS_GPIO(2)
 #define BOARD_TOUCHSCREEN_I2C_BUS       0
 #define BOARD_TOUCHSCREEN_I2C_ADDR      0x4a    /* TODO(shawnn): Check this */
-
-
 
 /* SD CARD gpio */
 #define SDCARD_CD			81

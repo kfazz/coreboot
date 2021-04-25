@@ -1,25 +1,11 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (c) 2018 Qualcomm Technologies
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <device/mmio.h>
-#include <lib.h>
-#include <stdlib.h>
 #include <console/console.h>
 #include <delay.h>
 #include <soc/usb.h>
 #include <soc/clock.h>
+#include <types.h>
 
 /* USB BASE ADDRESS */
 #define USB_HOST0_DWC3_BASE		0x758C100
@@ -184,16 +170,16 @@ static void hs_usb_phy_init(struct usb_dwc3_cfg *dwc3)
 static void setup_dwc3(struct usb_dwc3 *dwc3)
 {
 	/* core exits U1/U2/U3 only in PHY power state P1/P2/P3 respectively */
-	clrsetbits_le32(&dwc3->usb3pipectl,
+	clrsetbits32(&dwc3->usb3pipectl,
 		DWC3_GUSB3PIPECTL_DELAYP1TRANS,
 		DWC3_GUSB3PIPECTL_UX_EXIT_IN_PX);
 
-	clrsetbits_le32(&dwc3->ctl, (DWC3_GCTL_SCALEDOWN_MASK |
+	clrsetbits32(&dwc3->ctl, (DWC3_GCTL_SCALEDOWN_MASK |
 			DWC3_GCTL_DISSCRAMBLE),
 			DWC3_GCTL_U2EXIT_LFPS | DWC3_GCTL_DSBLCLKGTNG);
 
 	/* configure controller in Host mode */
-	clrsetbits_le32(&dwc3->ctl, (DWC3_GCTL_PRTCAPDIR(DWC3_GCTL_PRTCAP_OTG)),
+	clrsetbits32(&dwc3->ctl, (DWC3_GCTL_PRTCAPDIR(DWC3_GCTL_PRTCAP_OTG)),
 			DWC3_GCTL_PRTCAPDIR(DWC3_GCTL_PRTCAP_HOST));
 	printk(BIOS_INFO, "Configure USB in Host mode\n");
 }
@@ -211,13 +197,12 @@ void setup_usb_host(enum usb_port port, struct usb_board_data *board_data)
 	 /* Clear core reset. */
 	clock_reset_bcr(dwc3->usb3_bcr, 0);
 
-
 	if (port == HSUSB_SS_PORT_0) {
 		/* Set PHY reset. */
-		setbits_le32(&dwc3->usb2_phy_bcr, BIT(1));
+		setbits32(&dwc3->usb2_phy_bcr, BIT(1));
 		udelay(15);
 		/* Clear PHY reset. */
-		clrbits_le32(&dwc3->usb2_phy_bcr, BIT(1));
+		clrbits32(&dwc3->usb2_phy_bcr, BIT(1));
 	} else {
 		clock_reset_bcr(dwc3->usb2_phy_bcr, 1);
 		udelay(15);
@@ -230,13 +215,13 @@ void setup_usb_host(enum usb_port port, struct usb_board_data *board_data)
 
 	if (port == HSUSB_SS_PORT_0) {
 		/* Set PHY POR reset. */
-		setbits_le32(&dwc3->usb2_phy_por_bcr, BIT(0));
+		setbits32(&dwc3->usb2_phy_por_bcr, BIT(0));
 		val = read8(&dwc3->usb2_phy_dig->ctrl_common0);
 		val &= ~(0x4);
 		write8(&dwc3->usb2_phy_dig->ctrl_common0, val);
 		udelay(20);
 		/* Clear PHY POR reset. */
-		clrbits_le32(&dwc3->usb2_phy_por_bcr, BIT(0));
+		clrbits32(&dwc3->usb2_phy_por_bcr, BIT(0));
 	} else {
 		clock_reset_bcr(dwc3->usb2_phy_por_bcr, 1);
 		val = read8(&dwc3->usb2_phy_dig->ctrl_common0);
@@ -255,13 +240,13 @@ void setup_usb_host(enum usb_port port, struct usb_board_data *board_data)
 	 */
 
 	 /* Configure dwc3 to use UTMI clock as PIPE clock not present */
-	setbits_le32(&dwc3->usb_qscratch_reg->qscratch_cfg_reg,
+	setbits32(&dwc3->usb_qscratch_reg->qscratch_cfg_reg,
 			PIPE_UTMI_CLK_DIS);
 	udelay(2);
-	setbits_le32(&dwc3->usb_qscratch_reg->qscratch_cfg_reg,
+	setbits32(&dwc3->usb_qscratch_reg->qscratch_cfg_reg,
 			PIPE_UTMI_CLK_SEL | PIPE3_PHYSTATUS_SW);
 	udelay(3);
-	clrbits_le32(&dwc3->usb_qscratch_reg->qscratch_cfg_reg,
+	clrbits32(&dwc3->usb_qscratch_reg->qscratch_cfg_reg,
 			PIPE_UTMI_CLK_DIS);
 
 	printk(BIOS_INFO, "DWC3 and PHY setup finished\n");

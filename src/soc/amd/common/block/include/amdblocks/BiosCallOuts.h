@@ -1,23 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011,2012 Advanced Micro Devices, Inc.
- * Copyright (C) 2013 Sage Electronic Engineering, LLC
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
-#ifndef __CALLOUTS_AMD_AGESA_H__
-#define __CALLOUTS_AMD_AGESA_H__
+#ifndef AMD_BLOCK_CALLOUTS_AGESA_H
+#define AMD_BLOCK_CALLOUTS_AGESA_H
 
 #include <amdblocks/agesawrapper.h>
+#include <stdint.h>
 
 #define BIOS_HEAP_SIZE			0x30000
 #define BSP_STACK_BASE_ADDR		0x30000
@@ -82,4 +69,4 @@ typedef struct {
 extern const BIOS_CALLOUT_STRUCT BiosCallouts[];
 extern const int BiosCalloutsLen;
 
-#endif /* __CALLOUTS_AMD_AGESA_H__ */
+#endif /* AMD_BLOCK_CALLOUTS_AGESA_H */

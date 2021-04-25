@@ -1,79 +1,25 @@
 ifeq ($(CONFIG_SOC_INTEL_BROADWELL),y)
 
-subdirs-y += romstage
-subdirs-y += ../../../cpu/x86/lapic
-subdirs-y += ../../../cpu/x86/mtrr
-subdirs-y += ../../../cpu/x86/smm
-subdirs-y += ../../../cpu/x86/tsc
-subdirs-y += ../../../cpu/intel/microcode
-subdirs-y += ../../../cpu/intel/turbo
-subdirs-y += ../../../cpu/intel/common
+subdirs-y += pch
+
+bootblock-y += bootblock.c
+
+romstage-y += early_init.c
+romstage-y += raminit.c
+romstage-y += report_platform.c
+romstage-y += romstage.c
 
 ramstage-y += acpi.c
-ramstage-y += adsp.c
-ramstage-y += chip.c
-ramstage-y += cpu.c
-ramstage-y += cpu_info.c
-smm-y += cpu_info.c
-ramstage-$(CONFIG_ELOG) += elog.c
 ramstage-y += finalize.c
-ramstage-y += gpio.c
-romstage-y += gpio.c
-smm-y      += gpio.c
-ramstage-y += hda.c
-ramstage-y += igd.c
-ramstage-y += iobp.c
-romstage-y += iobp.c
-ramstage-y += lpc.c
-ramstage-y += me.c
-ramstage-y += me_status.c
-romstage-y += me_status.c
+ramstage-y += gma.c
 ramstage-y += memmap.c
 romstage-y += memmap.c
 postcar-y += memmap.c
 ramstage-y += minihd.c
-ramstage-y += monotonic_timer.c
-smm-y      += monotonic_timer.c
-ramstage-y += pch.c
-romstage-y += pch.c
-ramstage-y += pcie.c
+ramstage-y += northbridge.c
 ramstage-y += pei_data.c
 romstage-y += pei_data.c
-ramstage-y += pmutil.c
-romstage-y += pmutil.c
-smm-y      += pmutil.c
-ramstage-y += ramstage.c
 ramstage-$(CONFIG_HAVE_REFCODE_BLOB) += refcode.c
-ramstage-y += sata.c
-ramstage-y += serialio.c
-ramstage-y += smbus.c
-ramstage-y += smbus_common.c
-romstage-y += smbus_common.c
-ramstage-y += smi.c
-smm-y      += smihandler.c
-ramstage-y += smmrelocate.c
-ramstage-y += spi.c
-smm-$(CONFIG_SPI_FLASH_SMM) += spi.c
-ramstage-y += stage_cache.c
-romstage-y += stage_cache.c
-postcar-y += stage_cache.c
-ramstage-y += systemagent.c
-ramstage-y += tsc_freq.c
-romstage-y += tsc_freq.c
-smm-y      += tsc_freq.c
-postcar-y  += tsc_freq.c
-bootblock-$(CONFIG_USBDEBUG) += usb_debug.c
-romstage-$(CONFIG_USBDEBUG) += usb_debug.c
-ramstage-$(CONFIG_USBDEBUG) += usb_debug.c
-ramstage-y += ehci.c
-ramstage-y += xhci.c
-smm-y      += xhci.c
-
-postcar-y += ../../../cpu/intel/car/non-evict/exit_car.S
-
-ramstage-srcs += src/mainboard/$(MAINBOARDDIR)/hda_verb.c
-
-cpu_microcode_bins += 3rdparty/blobs/soc/intel/broadwell/microcode.bin
 
 CPPFLAGS_common += -Isrc/soc/intel/broadwell/include
 

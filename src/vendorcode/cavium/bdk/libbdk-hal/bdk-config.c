@@ -1,6 +1,4 @@
 /*
- * This file is part of the coreboot project.
- *
  * Copyright (c) 2003-2017  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  * Copyright 2018-present Facebook, Inc.
@@ -12,13 +10,13 @@
 
 #include <bdk.h>
 #include <libbdk-hal/bdk-config.h>
+#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <lame_string.h>
 
 static struct bdk_devicetree_key_value *config_fdt;
 
-#if !defined(__PRE_RAM__)
 static struct bdk_devicetree_key_value *bdk_config_duplicate(
         const struct bdk_devicetree_key_value *old,
         size_t free_space)
@@ -38,7 +36,7 @@ static struct bdk_devicetree_key_value *bdk_config_duplicate(
 
     return new;
 }
-#endif
+
 /**
  * Set the device tree used for configuration
  *
@@ -49,11 +47,11 @@ static struct bdk_devicetree_key_value *bdk_config_duplicate(
  */
 int bdk_config_set_fdt(const struct bdk_devicetree_key_value *fdt)
 {
-#if !defined(__PRE_RAM__)
-    config_fdt = bdk_config_duplicate(fdt, 0);
-#else
-    config_fdt = (void *)fdt;
-#endif
+    if (ENV_STAGE_HAS_HEAP_SECTION)
+        config_fdt = bdk_config_duplicate(fdt, 0);
+    else
+        config_fdt = (void *)fdt;
+
     return 0;
 }
 
@@ -66,7 +64,6 @@ int bdk_config_set_fdt(const struct bdk_devicetree_key_value *fdt)
  */
 static void set_value(const char *name, const char *val)
 {
-#if !defined(__PRE_RAM__)
     struct bdk_devicetree_key_value *iter;
     char n[64];
 
@@ -98,7 +95,6 @@ static void set_value(const char *name, const char *val)
     iter++;
     iter->key = 0;
     iter->value = 0;
-#endif
 }
 
 /**
@@ -206,6 +202,9 @@ void bdk_config_set_int(int64_t value, bdk_config_t cfg_item, ...)
 
     /* Make sure the correct access function was called */
     assert(config_info[cfg_item].ctype == BDK_CONFIG_TYPE_INT);
+
+    if (!ENV_STAGE_HAS_HEAP_SECTION)
+        return;
 
     if (!config_fdt)
         return;

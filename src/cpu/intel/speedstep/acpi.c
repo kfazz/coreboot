@@ -1,26 +1,10 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2009 coresystems GmbH
- *               2012 secunet Security Networks AG
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of
- * the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <types.h>
 #include <console/console.h>
-#include <arch/acpi.h>
-#include <arch/acpigen.h>
+#include <acpi/acpi.h>
+#include <acpi/acpigen.h>
 #include <arch/cpu.h>
-#include <cpu/x86/msr.h>
 #include <cpu/intel/fsb.h>
 #include <cpu/intel/speedstep.h>
 #include <device/device.h>
@@ -95,7 +79,7 @@ static void gen_pstate_entries(const sst_table_t *const pstates,
 /**
  * @brief Generate ACPI entries for Speedstep for each cpu
  */
-void generate_cpu_entries(struct device *device)
+void generate_cpu_entries(const struct device *device)
 {
 	int coreID, cpuID, pcontrol_blk = PMB0_BASE, plen = 6;
 	int totalcores = determine_total_number_of_cores();
@@ -127,7 +111,7 @@ void generate_cpu_entries(struct device *device)
 				plen = 0;
 			}
 
-			/* Generate processor \_PR.CPUx. */
+			/* Generate processor \_SB.CPUx. */
 			acpigen_write_processor(
 					cpuID * cores_per_package + coreID - 1,
 					pcontrol_blk, plen);
@@ -149,4 +133,8 @@ void generate_cpu_entries(struct device *device)
 	acpigen_write_processor_package("PPKG", 0, cores_per_package);
 
 	acpigen_write_processor_cnot(cores_per_package);
+
+	acpigen_write_scope("\\");
+	acpigen_write_name_integer("MPEN", numcpus > 1);
+	acpigen_pop_len();
 }

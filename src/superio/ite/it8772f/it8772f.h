@@ -1,18 +1,4 @@
-/*
- * This file is part of the coreboot project.
- *
- * Copyright (C) 2011 The ChromiumOS Authors.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef SUPERIO_ITE_IT8772F_H
 #define SUPERIO_ITE_IT8772F_H
@@ -129,8 +115,6 @@ enum thermal_mode {
 #include <device/pnp_type.h>
 #include <stdint.h>
 
-u8 it8772f_sio_read(pnp_devfn_t dev, u8 reg);
-void it8772f_sio_write(pnp_devfn_t dev, u8 reg, u8 value);
 void it8772f_ac_resume_southbridge(pnp_devfn_t dev);
 void it8772f_gpio_setup(pnp_devfn_t dev, int set, u8 select, u8 polarity,
 			u8 pullup, u8 output, u8 enable);
@@ -144,6 +128,5 @@ void it8772f_enter_conf(pnp_devfn_t dev);
 void it8772f_exit_conf(pnp_devfn_t dev);
 void it8772f_gpio_led(pnp_devfn_t dev, int set, u8 select, u8 polarity, u8 pullup,
 			u8 output, u8 enable, u8 led_pin_map, u8 led_freq);
-
 
 #endif /* SUPERIO_ITE_IT8772F_H */
