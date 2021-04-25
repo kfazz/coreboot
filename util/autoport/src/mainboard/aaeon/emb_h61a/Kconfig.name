@@ -1,0 +1,2 @@
+config BOARD_AAEON_EMB_H61A
+	bool "EMB-H61A"

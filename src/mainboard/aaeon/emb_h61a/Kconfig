@@ -1,4 +1,4 @@
-if BOARD_TO_BE_FILLED_BY_O.E.M_TO_BE_FILLED_BY_O.E.M
+if BOARD_AAEON_EMB_H61A
 
 config BOARD_SPECIFIC_OPTIONS
 	def_bool y
@@ -14,11 +14,11 @@ config BOARD_SPECIFIC_OPTIONS
 
 config MAINBOARD_DIR
 	string
-	default to_be_filled_by_o.e.m/to_be_filled_by_o.e.m
+	default aaeon/emb_h61a
 
 config MAINBOARD_PART_NUMBER
 	string
-	default "To be filled by O.E.M."
+	default "EMB-H61A"
 
 config VGA_BIOS_FILE
 	string

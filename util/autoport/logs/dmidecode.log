@@ -36,8 +36,8 @@ BIOS Information
 
 Handle 0x0001, DMI type 1, 27 bytes
 System Information
-	Manufacturer: To be filled by O.E.M.
-	Product Name: To be filled by O.E.M.
+	Manufacturer: AAEON
+	Product Name: EMB-H61A
 	Version: To be filled by O.E.M.
 	Serial Number: System
 	UUID: 2ff92520-d7da-11dd-b2de-08606ef83b17
@@ -47,7 +47,7 @@ System Information
 
 Handle 0x0002, DMI type 2, 15 bytes
 Base Board Information
-	Manufacturer: To be filled by O.E.M.
+	Manufacturer: AAEON
 	Product Name: EMB-H61A
 	Version: To be filled by O.E.M.
 	Serial Number: 150851388500008
