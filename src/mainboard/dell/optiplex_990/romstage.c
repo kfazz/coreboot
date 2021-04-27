@@ -41,12 +41,13 @@
 /*
 void pch_enable_lpc(void)
 {
+	//decode CNF2,CNF1,MC,KBC,FDD,LPT,COM,COMA
 	pci_write_config16(PCI_DEV(0, 0x1f, 0), LPC_EN, 0x3c0f);
-	pci_write_config32(PCI_DEV(0, 0x1f, 0), LPC_GEN1_DEC, 0x007c0681);
-	pci_write_config32(PCI_DEV(0, 0x1f, 0), LPC_GEN2_DEC, 0x000c1641);
-	pci_write_config32(PCI_DEV(0, 0x1f, 0), LPC_GEN3_DEC, 0x000400e1);
-	pci_write_config32(PCI_DEV(0, 0x1f, 0), LPC_GEN4_DEC, 0x001c02d1);
-	pci_write_config16(PCI_DEV(0, 0x1f, 0), LPC_IO_DEC, 0x0000);
+	pci_write_config32(PCI_DEV(0, 0x1f, 0), LPC_GEN1_DEC, 0x007c0681); //0x680-0x6FF
+	pci_write_config32(PCI_DEV(0, 0x1f, 0), LPC_GEN2_DEC, 0x000c1641); //0x640-0x64F
+	pci_write_config32(PCI_DEV(0, 0x1f, 0), LPC_GEN3_DEC, 0x000400e1); // 0xE0-0xE7
+	pci_write_config32(PCI_DEV(0, 0x1f, 0), LPC_GEN4_DEC, 0x001c02d1); //0x2D0-0x2DF
+	pci_write_config16(PCI_DEV(0, 0x1f, 0), LPC_IO_DEC, 0x0010);
 }
 
 void mainboard_rcba_config(void)

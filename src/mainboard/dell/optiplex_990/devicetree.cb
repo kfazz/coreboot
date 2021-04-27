@@ -27,7 +27,7 @@ chip northbridge/intel/sandybridge # FIXME: check gfx.ndid and gfx.did
 			register "sata_port_map" = "0x1"
 			register "spi_lvscc" = "0x2005"
 			register "spi_uvscc" = "0x2005"
-			device pci 16.0 on # Management Engine Interface 1
+			device pci 16.0 off # Management Engine Interface 1
 				subsystemid 0x1028 0x047e
 			end
 			device pci 16.1 off # Management Engine Interface 2
@@ -59,12 +59,6 @@ chip northbridge/intel/sandybridge # FIXME: check gfx.ndid and gfx.did
 			device pci 1c.4 on # PCIe Port #5
 				subsystemid 0x1028 0x047e
 			end
-			device pci 1c.5 off # PCIe Port #6
-			end
-			device pci 1c.6 off # PCIe Port #7
-			end
-			device pci 1c.7 off # PCIe Port #8
-			end
 			device pci 1d.0 on # USB2 EHCI #1
 				subsystemid 0x1028 0x047e
 			end
@@ -74,26 +68,30 @@ chip northbridge/intel/sandybridge # FIXME: check gfx.ndid and gfx.did
 			device pci 1f.0 on # LPC bridge PCI-LPC bridge
 				subsystemid 0x1028 0x047e
                                 chip superio/smsc/sch5545
-                                        device pnp 2e.b off end         # Floppy
-                                        device pnp 2e.11 on              # Parallel Port
-                                                io 0x60 = 0x378
-                                                irq 0x70 = 7
-                                                drq 0x74 = 3
+                                        device pnp 2e.0 on              # EM
+						io 0x60 = 0x2d0
+						irq 0x72 = 2
+					end
+                                        device pnp 2e.1 on              # Keyboard
+                                                io 0x60 = 0x60
+                                                io 0x62 = 0x64
+                                                irq 0x70 = 1
+                                                irq 0x72 = 12
                                         end
                                         device pnp 2e.7 on              # COM1
                                                 io 0x60 = 0x3f8
                                                 irq 0x70 = 4
                                         end
                                         device pnp 2e.8 off end         # COM2
-                                        device pnp 2e.1 on              # Keyboard
-                                                io 0x60 = 0x60 # Can't read this back
-                                                io 0x62 = 0x64 # Can't read this back
-                                                irq 0x70 = 1
-                                                irq 0x72 = 12
-                                        end
-                                        device pnp 2e.a on              # Runtime Regs
+                                        device pnp 2e.a on              # Runtime Registers
                                                 io 0x60 = 0x680 
                                         end
+                                        device pnp 2e.b off end         # Floppy
+                                        device pnp 2e.11 on         # Parport
+                                                io 0x60 = 0x378
+                                                irq 0x70 = 7
+                                                drq 0x74 = 3
+					end
                                 end # smscsuperio
 			end
 			device pci 1f.2 on # SATA Controller 1 Unsupported PCI device 8086:2822
