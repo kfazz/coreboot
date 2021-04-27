@@ -52,4 +52,19 @@ config MAX_CPUS
 config USBDEBUG_HCD_INDEX
 	int
 	default 2
+
+config INCLUDE_SMSC_SCH5545_EC_FW
+        bool "Include SMSC SCH5545 EC firmware binary"
+        default n
+        help
+          This option allows to add the SMSC SCH5545 Environmental Controller
+          firmware binary. The firmware must be loaded after each power failure
+          in order to properly initialize the fan control, because EC loses its
+          configuration when power is cut off. Otherwise the fans will keep
+          running at full speed after power failure.
+
+config SMSC_SCH5545_EC_FW_FILE
+        string "File path to the SMSC SCH5545 EC firmware binary"
+        depends on INCLUDE_SMSC_SCH5545_EC_FW
+
 endif
