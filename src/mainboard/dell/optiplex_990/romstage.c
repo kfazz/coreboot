@@ -25,7 +25,7 @@
 #include <device/pci_ops.h>
 #include <device/pnp_def.h>
 #include <cpu/x86/lapic.h>
-#include <arch/acpi.h>
+#include <acpi/acpi.h>
 #include <console/console.h>
 #include <northbridge/intel/sandybridge/sandybridge.h>
 #include <northbridge/intel/sandybridge/raminit_native.h>
@@ -38,6 +38,7 @@
 
 #define SERIAL_DEV PNP_DEV(0x2e, 7)
 
+/*
 void pch_enable_lpc(void)
 {
 	//decode CNF2,CNF1,MC,KBC,FDD,LPT,COM,COMA
@@ -52,6 +53,7 @@ void pch_enable_lpc(void)
 void mainboard_rcba_config(void)
 {
 }
+*/
 
 const struct southbridge_usb_port mainboard_usb_ports[] = {
 	{ 1, 0, 0 },
@@ -73,13 +75,15 @@ const struct southbridge_usb_port mainboard_usb_ports[] = {
 void mainboard_early_init(int s3resume)
 {
 	//set BAR addresses of periphs
-	sch5545_early_init(0x2e);
+	//sch5545_early_init(0x2e);
 	//smscsuperio_enable_serial(SERIAL_DEV, CONFIG_TTYS0_BASE);
 }
 
+/*
 void mainboard_config_superio(void)
 {
 }
+*/
 
 void mainboard_get_spd(spd_raw_data *spd, bool id_only)
 {
